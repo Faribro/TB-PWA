@@ -1,10 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { motion } from 'framer-motion';
 import { Button } from './ui/button';
-import { RefreshCw, Search, AlertCircle } from 'lucide-react';
+import { RefreshCw, Search, AlertCircle, Filter, X } from 'lucide-react';
+import { PhaseCell } from './PhaseCell';
+import { FilterBar, type FilterState } from './FilterBar';
+import { calculatePatientPhase } from '@/lib/phase-engine';
+import { PatientDetailDrawer } from './PatientDetailDrawer';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,6 +25,19 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [filters, setFilters] = useState<FilterState>({
+    facilityType: '',
+    state: '',
+    district: '',
+    phase: '',
+    overdueOnly: false,
+    tbDiagnosed: '',
+    hivStatus: '',
+    dateFrom: '',
+    dateTo: ''
+  });
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const pageSize = 100;
 
   const loadData = async () => {
@@ -61,11 +78,62 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
     loadData();
   }, [page, showDuplicates]);
 
-  const filtered = patients.filter(p => 
-    p.inmate_name?.toLowerCase().includes(search.toLowerCase()) ||
-    p.unique_id?.toLowerCase().includes(search.toLowerCase()) ||
-    p.facility_name?.toLowerCase().includes(search.toLowerCase())
-  );
+  // Extract unique values for filters
+  const filterOptions = useMemo(() => {
+    const states = [...new Set(patients.map(p => p.screening_state).filter(Boolean))];
+    const districts = [...new Set(patients.map(p => p.screening_district).filter(Boolean))];
+    const facilityTypes = ['Prison', 'Other Closed Setting', 'JH-CCI', 'DDRC']; // Standardized types
+    return { states, districts, facilityTypes };
+  }, [patients]);
+
+  const filtered = patients.filter(p => {
+    // Search filter
+    const matchesSearch = p.inmate_name?.toLowerCase().includes(search.toLowerCase()) ||
+      p.unique_id?.toLowerCase().includes(search.toLowerCase()) ||
+      p.facility_name?.toLowerCase().includes(search.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    // Facility type filter
+    if (filters.facilityType && !p.facility_type?.includes(filters.facilityType)) return false;
+
+    // State filter
+    if (filters.state && p.screening_state !== filters.state) return false;
+
+    // District filter
+    if (filters.district && p.screening_district !== filters.district) return false;
+
+    // Phase filter
+    if (filters.phase) {
+      const { phase } = calculatePatientPhase(p);
+      if (phase !== filters.phase) return false;
+    }
+
+    // TB Diagnosed filter
+    if (filters.tbDiagnosed && p.tb_diagnosed !== filters.tbDiagnosed) return false;
+
+    // HIV Status filter
+    if (filters.hivStatus && p.hiv_status !== filters.hivStatus) return false;
+
+    // Date range filter
+    if (filters.dateFrom || filters.dateTo) {
+      const screeningDate = p.screening_date ? new Date(p.screening_date) : null;
+      if (screeningDate) {
+        if (filters.dateFrom && screeningDate < new Date(filters.dateFrom)) return false;
+        if (filters.dateTo && screeningDate > new Date(filters.dateTo)) return false;
+      }
+    }
+
+    // Overdue filter
+    if (filters.overdueOnly) {
+      const screeningDate = p.screening_date ? new Date(p.screening_date) : null;
+      const daysSinceScreening = screeningDate ? 
+        Math.floor((Date.now() - screeningDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+      if (!p.referral_date && daysSinceScreening < 30) return false;
+    }
+
+    return true;
+  });
 
   if (loading) {
     return (
@@ -85,8 +153,9 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col h-full bg-white/70 backdrop-blur-lg border border-gray-200/50 rounded-3xl overflow-hidden shadow-lg"
     >
-      <div className="flex items-center justify-between p-4 border-b border-gray-200/50">
-        <div className="flex items-center gap-3 flex-1">
+      <div className="p-6 border-b border-gray-200/50 space-y-4">
+        {/* Search Bar */}
+        <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
             <input
@@ -94,20 +163,193 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
               placeholder={showDuplicates ? "Search duplicates..." : "Search patients..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-50/50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent shadow-sm"
             />
           </div>
+          
+          {/* Filter Toggle Button */}
+          <Button
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            variant="outline"
+            size="sm"
+            className={`px-4 py-2.5 rounded-xl border-2 transition-all duration-200 ${
+              showAdvancedFilters 
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' 
+                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Filters
+            {Object.values(filters).some(v => v && v !== false) && (
+              <span className="ml-2 px-1.5 py-0.5 bg-emerald-500 text-white text-xs rounded-full">
+                {Object.values(filters).filter(v => v && v !== false).length}
+              </span>
+            )}
+          </Button>
+          
+          <Button onClick={loadData} size="sm" className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          
           {showDuplicates && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
               <AlertCircle className="w-4 h-4 text-amber-600" />
               <span className="text-sm font-medium text-amber-800">Duplicate Records</span>
             </div>
           )}
         </div>
-        <Button onClick={loadData} size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
+
+        {/* Advanced Filters Panel */}
+        {showAdvancedFilters && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-gray-50/50 rounded-2xl p-6 border border-gray-200/50"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-900">Advanced Filters</h3>
+              <button
+                onClick={() => {
+                  const clearedFilters = {
+                    facilityType: '',
+                    state: '',
+                    district: '',
+                    phase: '',
+                    overdueOnly: false,
+                    tbDiagnosed: '',
+                    hivStatus: '',
+                    dateFrom: '',
+                    dateTo: ''
+                  };
+                  setFilters(clearedFilters);
+                }}
+                className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+              >
+                <X className="h-3 w-3" />
+                Clear All
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Location Filters */}
+              <div className="space-y-3">
+                <label className="text-xs font-medium text-gray-700 uppercase tracking-wide">Location</label>
+                <select
+                  value={filters.state}
+                  onChange={(e) => setFilters(prev => ({ ...prev, state: e.target.value, district: '' }))}
+                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                >
+                  <option value="">All States</option>
+                  {filterOptions.states.map(state => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
+                <select
+                  value={filters.district}
+                  onChange={(e) => setFilters(prev => ({ ...prev, district: e.target.value }))}
+                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                >
+                  <option value="">All Districts</option>
+                  {filterOptions.districts.map(district => (
+                    <option key={district} value={district}>{district}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Facility & Phase */}
+              <div className="space-y-3">
+                <label className="text-xs font-medium text-gray-700 uppercase tracking-wide">Facility & Phase</label>
+                <select
+                  value={filters.facilityType}
+                  onChange={(e) => setFilters(prev => ({ ...prev, facilityType: e.target.value }))}
+                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                >
+                  <option value="">All Facility Types</option>
+                  {filterOptions.facilityTypes.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+                <select
+                  value={filters.phase}
+                  onChange={(e) => setFilters(prev => ({ ...prev, phase: e.target.value }))}
+                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                >
+                  <option value="">All Phases</option>
+                  <option value="Screening">Screening</option>
+                  <option value="Sputum Test">Sputum Test</option>
+                  <option value="Diagnosis">Diagnosis</option>
+                  <option value="ATT Initiation">ATT Initiation</option>
+                  <option value="Closed">Closed</option>
+                </select>
+              </div>
+
+              {/* Medical Status */}
+              <div className="space-y-3">
+                <label className="text-xs font-medium text-gray-700 uppercase tracking-wide">Medical Status</label>
+                <select
+                  value={filters.tbDiagnosed}
+                  onChange={(e) => setFilters(prev => ({ ...prev, tbDiagnosed: e.target.value }))}
+                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                >
+                  <option value="">TB Status - All</option>
+                  <option value="Y">TB Positive</option>
+                  <option value="N">TB Negative</option>
+                </select>
+                <select
+                  value={filters.hivStatus}
+                  onChange={(e) => setFilters(prev => ({ ...prev, hivStatus: e.target.value }))}
+                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                >
+                  <option value="">HIV Status - All</option>
+                  <option value="Positive">HIV Positive</option>
+                  <option value="Negative">HIV Negative</option>
+                  <option value="Unknown">HIV Unknown</option>
+                </select>
+              </div>
+
+              {/* Date Range */}
+              <div className="space-y-3">
+                <label className="text-xs font-medium text-gray-700 uppercase tracking-wide">Screening Date Range</label>
+                <div className="space-y-2">
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={filters.dateFrom}
+                      onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    />
+                    <label className="absolute -top-2 left-2 px-1 bg-white text-xs text-gray-500">From Date</label>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={filters.dateTo}
+                      onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      min={filters.dateFrom || undefined}
+                    />
+                    <label className="absolute -top-2 left-2 px-1 bg-white text-xs text-gray-500">To Date</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Special Filters */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.overdueOnly}
+                  onChange={(e) => setFilters(prev => ({ ...prev, overdueOnly: e.target.checked }))}
+                  className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                />
+                <span className="text-sm text-gray-700">Show overdue cases only (30+ days without referral)</span>
+              </label>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       <div className="flex-1 overflow-auto">
@@ -118,8 +360,8 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">State</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Facility</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Phase</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Screening</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200/50">
@@ -129,22 +371,19 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.02 }}
-                className="hover:bg-gray-50/50 transition-colors"
+                className="hover:bg-gray-50/50 transition-colors cursor-pointer"
+                onClick={() => setSelectedPatient(patient)}
               >
                 <td className="px-4 py-3 text-gray-700 font-mono text-xs">{patient.unique_id}</td>
                 <td className="px-4 py-3 text-gray-900 font-medium">{patient.inmate_name}</td>
                 <td className="px-4 py-3 text-gray-600">{patient.screening_state}</td>
                 <td className="px-4 py-3 text-gray-600">{patient.facility_name}</td>
-                <td className="px-4 py-3 text-gray-600">{patient.screening_date}</td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    patient.tb_diagnosed === 'Yes' ? 'bg-red-100 text-red-700' :
-                    patient.referral_date ? 'bg-amber-100 text-amber-700' :
-                    'bg-emerald-100 text-emerald-700'
-                  }`}>
-                    {patient.tb_diagnosed === 'Yes' ? 'Diagnosed' : patient.referral_date ? 'Referred' : 'Screened'}
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {calculatePatientPhase(patient).phase}
                   </span>
                 </td>
+                <td className="px-4 py-3 text-gray-600">{patient.screening_date}</td>
               </motion.tr>
             ))}
           </tbody>
@@ -168,6 +407,15 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
             </Button>
           </div>
         </div>
+      )}
+      
+      {/* Patient Detail Drawer */}
+      {selectedPatient && (
+        <PatientDetailDrawer
+          patient={selectedPatient}
+          onClose={() => setSelectedPatient(null)}
+          onUpdate={loadData}
+        />
       )}
     </motion.div>
   );

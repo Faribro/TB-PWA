@@ -1,0 +1,437 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, User, FileText, Activity, Pill, Shield, ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Calendar, Sparkles } from 'lucide-react';
+import { patientFormSchema, type PatientFormData } from '@/lib/schemas';
+import { updatePatientAction } from '@/lib/patient-actions';
+import { calculatePatientPhase, calculateProgressPercentage } from '@/lib/phase-engine';
+import { Progress } from './ui/progress';
+import { PatientTimeline } from './PatientTimeline';
+
+interface PatientDetailDrawerProps {
+  patient: any;
+  onClose: () => void;
+  onUpdate: () => void;
+}
+
+export function PatientDetailDrawer({ patient, onClose, onUpdate }: PatientDetailDrawerProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCloseLoop, setShowCloseLoop] = useState(false);
+  const [expandedSection, setExpandedSection] = useState<string>('');
+
+  const { phase, nextRequiredField } = calculatePatientPhase(patient);
+  const progressPercentage = calculateProgressPercentage(patient);
+  const isClosed = phase === 'Closed';
+  
+  // Auto-expand current phase section
+  useEffect(() => {
+    const phaseToSection: Record<string, string> = {
+      'Sputum Test': 'referral',
+      'Diagnosis': 'diagnosis',
+      'ATT Initiation': 'treatment'
+    };
+    setExpandedSection(phaseToSection[phase] || 'demographics');
+  }, [phase]);
+  
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<PatientFormData>({
+    resolver: zodResolver(patientFormSchema),
+    defaultValues: {
+      'Date of referral for TB Examination (sputum) (dd/mm/yy)': patient.referral_date || '',
+      'Name of facility where referred to (Give code/name of all facilities)': patient.referral_facility || '',
+      'TB diagnosed (Y/N)': patient.tb_diagnosed || '',
+      'Date of TB Diagnosed (dd/mm/yy)': patient.diagnosis_date || '',
+      'Type of TB Diagnosed (P/EP)': patient.tb_type || '',
+      'Date of starting ATT (dd/mm/yyyy)': patient.att_start_date || '',
+      'Date of Treatment Completion (dd/mm/yyyy)': patient.att_completion_date || '',
+      'HIV Status (Positive/Negative/Unknown)': patient.hiv_status || '',
+      'Status at the time of referral (Pre ART/On ART)': patient.art_status || '',
+      'ART Number': patient.art_number || '',
+      'NIKSHAY/ABHA ID': patient.nikshay_id || '',
+      'Date of registration (dd/mm/yyyy)': patient.registration_date || '',
+      'Remarks': patient.remarks || ''
+    }
+  });
+
+  const hivStatus = watch('HIV Status (Positive/Negative/Unknown)');
+  const artStatus = watch('Status at the time of referral (Pre ART/On ART)');
+
+  const onSubmit = async (data: PatientFormData) => {
+    setIsSubmitting(true);
+    try {
+      await updatePatientAction(patient.unique_id, data);
+      onUpdate();
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCloseLoop = async (reason: string) => {
+    setIsSubmitting(true);
+    try {
+      await updatePatientAction(patient.unique_id, {
+        'TB diagnosed (Y/N)': 'N',
+        'closure_reason': reason,
+        'Remarks': `Loop closed: ${reason}`
+      });
+      onUpdate();
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const Section = ({ id, title, icon: Icon, children, isCurrent = false }: any) => {
+    const isExpanded = expandedSection === id;
+    return (
+      <div className={`border rounded-lg overflow-hidden ${
+        isCurrent ? 'border-blue-500 shadow-md' : 'border-slate-200'
+      }`}>
+        <button
+          type="button"
+          onClick={() => setExpandedSection(isExpanded ? '' : id)}
+          className={`w-full px-4 py-3 flex items-center justify-between transition-colors ${
+            isCurrent ? 'bg-blue-50 hover:bg-blue-100' : 'bg-slate-50 hover:bg-slate-100'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Icon className={`w-4 h-4 ${isCurrent ? 'text-blue-600' : 'text-slate-600'}`} />
+            <span className={`font-semibold text-sm ${isCurrent ? 'text-blue-900' : 'text-slate-700'}`}>
+              {title}
+            </span>
+            {isCurrent && (
+              <span className="ml-2 px-2 py-0.5 bg-blue-600 text-white text-xs rounded-full flex items-center gap-1">
+                <Sparkles className="w-3 h-3" />
+                Current Phase
+              </span>
+            )}
+          </div>
+          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="p-4 space-y-3">{children}</div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
+  const ReadOnlyField = ({ label, value }: { label: string; value: any }) => (
+    <div>
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="font-medium text-slate-900">{value || 'N/A'}</p>
+    </div>
+  );
+
+  return (
+    <motion.div
+      initial={{ x: 400, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: 400, opacity: 0 }}
+      className="fixed right-0 top-0 h-screen w-[600px] bg-white border-l border-slate-200 shadow-2xl overflow-auto z-50"
+    >
+      <div className="p-6 space-y-4">
+        {/* Header */}
+        <div className="flex items-start justify-between sticky top-0 bg-white pb-4 border-b z-10">
+          <div className="flex-1">
+            <h2 className="text-xl font-bold text-slate-900">{patient.inmate_name}</h2>
+            <p className="text-sm text-slate-500 font-mono">{patient.unique_id}</p>
+            
+            {/* Progress Bar */}
+            <div className="mt-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-700">{phase} • {progressPercentage}% Complete</span>
+                <span className="text-xs text-slate-500">{isClosed ? 'Journey Complete' : 'In Progress'}</span>
+              </div>
+              <Progress value={progressPercentage} className="h-2" />
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg ml-4">
+            <X className="w-5 h-5 text-slate-400" />
+          </button>
+        </div>
+
+        {/* Read-Only: KoboCollect Data */}
+        <Section id="demographics" title="Demographics (Read-Only)" icon={User}>
+          <div className="grid grid-cols-2 gap-3">
+            <ReadOnlyField label="Staff Name" value={patient.staff_name} />
+            <ReadOnlyField label="Submitted On" value={patient.submitted_on} />
+            <ReadOnlyField label="State" value={patient.screening_state} />
+            <ReadOnlyField label="District" value={patient.screening_district} />
+            <div className="col-span-2">
+              <ReadOnlyField label="Facility Name" value={patient.facility_name} />
+            </div>
+            <ReadOnlyField label="Facility Type" value={patient.facility_type} />
+            <ReadOnlyField label="Screening Date" value={patient.screening_date} />
+            <ReadOnlyField label="Inmate Type" value={patient.inmate_type} />
+            <ReadOnlyField label="Father/Husband Name" value={patient.father_name} />
+            <ReadOnlyField label="Date of Birth" value={patient.dob} />
+            <ReadOnlyField label="Age" value={patient.age} />
+            <ReadOnlyField label="Sex" value={patient.sex} />
+            <div className="col-span-2">
+              <ReadOnlyField label="Contact Number" value={patient.contact_number} />
+            </div>
+            <div className="col-span-2">
+              <ReadOnlyField label="Address" value={patient.address} />
+            </div>
+            <div className="col-span-2">
+              <ReadOnlyField label="Chest X-ray Result" value={patient.xray_result} />
+            </div>
+            <div className="col-span-2">
+              <ReadOnlyField label="10s Symptoms Present" value={patient.symptoms_10s} />
+            </div>
+            <ReadOnlyField label="Past TB History" value={patient.tb_past_history} />
+          </div>
+        </Section>
+
+        {/* Journey Overview Tab - Separate Section */}
+        {!isClosed && (
+          <Section id="journey" title="Journey Overview" icon={Calendar}>
+            <PatientTimeline patient={patient} />
+          </Section>
+        )}
+
+        {/* Phase-Aware Quick Actions - All Sections Visible */}
+        {!isClosed ? (
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/* Group A: Sputum & Referral - Always visible */}
+            <Section id="referral" title="Sputum & Referral" icon={FileText} isCurrent={phase === 'Sputum Test'}>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Date of referral for TB Examination
+                </label>
+                <input
+                  type="date"
+                  {...register('Date of referral for TB Examination (sputum) (dd/mm/yy)')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Facility where referred to
+                </label>
+                <select
+                  {...register('Name of facility where referred to (Give code/name of all facilities)')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select facility</option>
+                  <option value="DMC-Designated microscopy Centre">DMC-Designated microscopy Centre</option>
+                  <option value="TDC-TB Diagnostic Centre">TDC-TB Diagnostic Centre</option>
+                  <option value="CBNAAT">CBNAAT</option>
+                  <option value="DST-Drug susceptibility testing">DST-Drug susceptibility testing</option>
+                  <option value="Radiology">Radiology</option>
+                  <option value="Histopathology">Histopathology</option>
+                  <option value="ART Centre">ART Centre</option>
+                  <option value="Pvt. & Others">Pvt. & Others</option>
+                </select>
+              </div>
+            </Section>
+
+            {/* Group B: Diagnosis - Always visible */}
+            <Section id="diagnosis" title="Diagnosis" icon={Activity} isCurrent={phase === 'Diagnosis'}>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  TB diagnosed (Y/N)
+                </label>
+                <select
+                  {...register('TB diagnosed (Y/N)')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select</option>
+                  <option value="Y">Yes</option>
+                  <option value="N">No</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Date of TB Diagnosed
+                </label>
+                <input
+                  type="date"
+                  {...register('Date of TB Diagnosed (dd/mm/yy)')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Type of TB Diagnosed
+                </label>
+                <select
+                  {...register('Type of TB Diagnosed (P/EP)')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select</option>
+                  <option value="P">Pulmonary (P)</option>
+                  <option value="EP">Extra-Pulmonary (EP)</option>
+                </select>
+              </div>
+            </Section>
+
+            {/* Group C: Treatment & Comorbidities - Always visible */}
+            <Section id="treatment" title="Treatment & Comorbidities" icon={Pill} isCurrent={phase === 'ATT Initiation'}>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Date of starting ATT
+                </label>
+                <input
+                  type="date"
+                  {...register('Date of starting ATT (dd/mm/yyyy)')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Date of Treatment Completion
+                </label>
+                <input
+                  type="date"
+                  {...register('Date of Treatment Completion (dd/mm/yyyy)')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  HIV Status
+                </label>
+                <select
+                  {...register('HIV Status (Positive/Negative/Unknown)')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select</option>
+                  <option value="Positive">Positive</option>
+                  <option value="Negative">Negative</option>
+                  <option value="Unknown">Unknown</option>
+                </select>
+              </div>
+              
+              {hivStatus === 'Positive' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Status at the time of referral
+                    </label>
+                    <select
+                      {...register('Status at the time of referral (Pre ART/On ART)')}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select</option>
+                      <option value="Pre ART">Pre ART</option>
+                      <option value="On ART">On ART</option>
+                    </select>
+                  </div>
+                  
+                  {artStatus === 'On ART' && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        ART Number
+                      </label>
+                      <input
+                        type="text"
+                        {...register('ART Number')}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </Section>
+
+            {/* Group D: Administration - Always visible */}
+            <Section id="admin" title="Administration" icon={Shield}>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  NIKSHAY/ABHA ID
+                </label>
+                <input
+                  type="text"
+                  {...register('NIKSHAY/ABHA ID')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Date of registration
+                </label>
+                <input
+                  type="date"
+                  {...register('Date of registration (dd/mm/yyyy)')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Remarks
+                </label>
+                <textarea
+                  {...register('Remarks')}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </Section>
+
+            {/* Action Buttons */}
+            <div className="space-y-2 sticky bottom-0 bg-white pt-4 border-t">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium disabled:opacity-50"
+              >
+                {isSubmitting ? 'Saving...' : 'Save Updates'}
+              </button>
+
+              {!showCloseLoop ? (
+                <button
+                  type="button"
+                  onClick={() => setShowCloseLoop(true)}
+                  className="w-full px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium flex items-center justify-center gap-2"
+                >
+                  <AlertCircle className="w-4 h-4" />
+                  Close Loop (Not TB)
+                </button>
+              ) : (
+                <div className="space-y-2 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm font-medium text-red-900">Confirm Loop Closure</p>
+                  <select
+                    onChange={(e) => e.target.value && handleCloseLoop(e.target.value)}
+                    className="w-full px-3 py-2 border border-red-300 rounded-lg"
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Select reason...</option>
+                    <option value="Negative sputum result">Negative sputum result</option>
+                    <option value="CXR Normal">CXR Normal</option>
+                    <option value="Patient refused treatment">Patient refused treatment</option>
+                    <option value="Transferred to another facility">Transferred</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowCloseLoop(false)}
+                    className="text-sm text-red-600 hover:underline"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          </form>
+        ) : (
+          /* Patient Journey Timeline for Closed Cases */
+          <div className="space-y-6">
+            <PatientTimeline patient={patient} />
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
