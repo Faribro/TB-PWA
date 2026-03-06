@@ -9,7 +9,7 @@ import { Suspense, useEffect, useRef } from "react"
 
 const WebGLBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const animationRef = useRef<number | undefined>()
+  const animationRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -190,18 +190,26 @@ function LoginContent() {
       
       {/* Floating particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(30)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-white/30 rounded-full animate-pulse"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
-              animationDuration: `${2 + Math.random() * 3}s`
-            }}
-          />
-        ))}
+        {[...Array(30)].map((_, i) => {
+          // Use deterministic values based on index to avoid hydration mismatch
+          const left = ((i * 37) % 100)
+          const top = ((i * 73) % 100)
+          const delay = (i * 0.3) % 3
+          const duration = 2 + (i % 3)
+          
+          return (
+            <div
+              key={i}
+              className="absolute w-1 h-1 bg-white/30 rounded-full animate-pulse"
+              style={{
+                left: `${left}%`,
+                top: `${top}%`,
+                animationDelay: `${delay}s`,
+                animationDuration: `${duration}s`
+              }}
+            />
+          )
+        })}
       </div>
 
       {/* Main login card */}
