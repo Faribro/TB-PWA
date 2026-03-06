@@ -67,9 +67,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     async session({ session, token }) {
       if (token) {
-        session.user.role = token.role
-        session.user.state = token.state
-        session.user.district = token.district
+        session.user.role = token.role as string
+        session.user.state = token.state as string
+        session.user.district = token.district as string
       }
       return session
     },
