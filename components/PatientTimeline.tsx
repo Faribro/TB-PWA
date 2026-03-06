@@ -190,7 +190,7 @@ export function PatientTimeline({ patient }: PatientTimelineProps) {
                 </div>
 
                 {/* Event Details */}
-                {event.details.length > 0 && (
+                {event.details && event.details.length > 0 && (
                   <div className="mt-3 space-y-1">
                     {event.details.map((detail, idx) => (
                       <div key={idx} className="flex items-center gap-2 text-xs text-slate-700">
