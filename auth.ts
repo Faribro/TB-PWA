@@ -33,6 +33,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return false
       }
     },
+    async redirect({ url, baseUrl }) {
+      // Always redirect to dashboard after successful sign-in
+      if (url === baseUrl) return `${baseUrl}/dashboard`
+      // Allow callback URLs on same origin
+      if (url.startsWith(baseUrl)) return url
+      return `${baseUrl}/dashboard`
+    },
     async jwt({ token, trigger }) {
       if (trigger === "signIn" && token.email) {
         try {
