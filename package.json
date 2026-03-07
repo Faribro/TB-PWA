@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "deploy": "vercel --prod"
+    "deploy": "vercel --prod",
+    "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
     "@auth/supabase-adapter": "^1.11.1",
@@ -48,6 +49,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.1.6",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/node": "^20.19.35",
     "@types/react": "^19.2.14",
