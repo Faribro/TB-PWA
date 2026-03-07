@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { motion } from 'framer-motion';
 import { Button } from './ui/button';
-import { RefreshCw, Search, AlertCircle, Filter, X } from 'lucide-react';
+import { RefreshCw, Search, AlertCircle, Filter, X, LayoutGrid, List, Zap, Edit3, Save, Download } from 'lucide-react';
 import { PhaseCell } from './PhaseCell';
 import { FilterBar, type FilterState } from './FilterBar';
 import { calculatePatientPhase } from '@/lib/phase-engine';
@@ -26,6 +26,9 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'compact'>('compact');
+  const [quickEditMode, setQuickEditMode] = useState(false);
+  const [editingCell, setEditingCell] = useState<{id: number, field: string} | null>(null);
   const [filters, setFilters] = useState<FilterState>({
     facilityType: '',
     state: '',
@@ -38,7 +41,22 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
     dateTo: ''
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const pageSize = 100;
+  const pageSize = 500; // Increased for better performance with filters
+
+  // Quick update handler
+  const handleQuickUpdate = async (patientId: number, field: string, value: any) => {
+    const { error } = await supabase
+      .from('patients')
+      .update({ [field]: value })
+      .eq('id', patientId);
+    
+    if (!error) {
+      setPatients(prev => prev.map(p => 
+        p.id === patientId ? { ...p, [field]: value } : p
+      ));
+      setEditingCell(null);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -160,12 +178,59 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
             <input
               type="text"
-              placeholder={showDuplicates ? "Search duplicates..." : "Search patients..."}
+              placeholder={showDuplicates ? "Search duplicates..." : "🔍 Instant search: name, ID, facility, district..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent shadow-sm"
             />
+            {search && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                <span className="text-xs text-gray-500">{filtered.length} results</span>
+                <button onClick={() => setSearch('')} className="text-gray-400 hover:text-gray-600">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
           </div>
+          
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg">
+            <button
+              onClick={() => setViewMode('compact')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                viewMode === 'compact' 
+                  ? 'bg-white text-gray-900 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                viewMode === 'table' 
+                  ? 'bg-white text-gray-900 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Quick Edit Toggle */}
+          <Button
+            onClick={() => setQuickEditMode(!quickEditMode)}
+            variant="outline"
+            size="sm"
+            className={`px-4 py-2.5 rounded-xl border-2 transition-all duration-200 ${
+              quickEditMode 
+                ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm' 
+                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Zap className="h-4 w-4 mr-2" />
+            Quick Edit
+          </Button>
           
           {/* Filter Toggle Button */}
           <Button
@@ -190,6 +255,27 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
           <Button onClick={loadData} size="sm" className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
+          </Button>
+          
+          <Button
+            onClick={() => {
+              const csv = [['ID', 'Name', 'State', 'District', 'Facility', 'Phase', 'Screening Date'].join(',')];
+              filtered.forEach(p => {
+                csv.push([p.unique_id, p.inmate_name, p.screening_state, p.screening_district, p.facility_name, calculatePatientPhase(p).phase, p.screening_date].join(','));
+              });
+              const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `patients-${new Date().toISOString().split('T')[0]}.csv`;
+              a.click();
+            }}
+            size="sm"
+            variant="outline"
+            className="px-4 py-2.5 rounded-xl"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export ({filtered.length})
           </Button>
           
           {showDuplicates && (
@@ -353,6 +439,92 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
       </div>
 
       <div className="flex-1 overflow-auto">
+        {viewMode === 'compact' ? (
+          /* Compact Card View - Optimized for 30k rows */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
+            {filtered.map((patient, index) => {
+              const phase = calculatePatientPhase(patient);
+              return (
+                <motion.div
+                  key={patient.id}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: Math.min(index * 0.01, 0.3) }}
+                  className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-all cursor-pointer group"
+                  onClick={() => !quickEditMode && setSelectedPatient(patient)}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 truncate text-sm">{patient.inmate_name}</h3>
+                      <p className="text-xs text-gray-500 font-mono mt-0.5">{patient.unique_id}</p>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      phase.phase === 'Screening' ? 'bg-amber-100 text-amber-700' :
+                      phase.phase === 'Diagnosis' ? 'bg-blue-100 text-blue-700' :
+                      phase.phase === 'ATT Initiation' ? 'bg-emerald-100 text-emerald-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {phase.phase}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2 text-xs text-gray-600">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">District:</span>
+                      <span className="font-medium text-gray-900">{patient.screening_district}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Facility:</span>
+                      <span className="font-medium text-gray-900 truncate ml-2">{patient.facility_name}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Screened:</span>
+                      <span className="font-medium text-gray-900">{new Date(patient.screening_date).toLocaleDateString()}</span>
+                    </div>
+                    
+                    {quickEditMode && (
+                      <div className="pt-2 mt-2 border-t border-gray-100">
+                        <div className="flex items-center gap-2">
+                          {editingCell?.id === patient.id && editingCell?.field === 'referral_date' ? (
+                            <>
+                              <input
+                                type="date"
+                                defaultValue={patient.referral_date || ''}
+                                onBlur={(e) => handleQuickUpdate(patient.id, 'referral_date', e.target.value)}
+                                className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
+                                autoFocus
+                              />
+                              <button onClick={() => setEditingCell(null)} className="text-gray-400 hover:text-gray-600">
+                                <X className="h-3 w-3" />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingCell({ id: patient.id, field: 'referral_date' });
+                              }}
+                              className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs font-medium"
+                            >
+                              <Edit3 className="h-3 w-3" />
+                              {patient.referral_date ? 'Update Referral' : 'Add Referral'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {!quickEditMode && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-xs text-blue-600 font-medium">Click to view details →</span>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+        ) : (
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-gray-50/80 backdrop-blur-sm border-b border-gray-200">
             <tr>
@@ -388,6 +560,7 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
             ))}
           </tbody>
         </table>
+        )}
       </div>
 
       {!showDuplicates && (
