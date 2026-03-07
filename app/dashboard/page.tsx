@@ -1,19 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense, lazy } from 'react';
 import { motion } from 'framer-motion';
 import { useSession, signOut } from 'next-auth/react';
-import CommandCenter from '@/components/CommandCenter';
-import KanbanDashboard from '@/components/KanbanDashboard';
-import { DataTable } from '@/components/DataTable';
-import RealTimeStats from '@/components/ScreenedMetric';
 import { LayoutDashboard, Users, Map, Settings, Menu, GitBranch, Copy, LogOut } from 'lucide-react';
+
+// Dynamic imports for heavy components
+const CommandCenter = lazy(() => import('@/components/CommandCenter'));
+const KanbanDashboard = lazy(() => import('@/components/KanbanDashboard'));
+const DataTable = lazy(() => import('@/components/DataTable').then(module => ({ default: module.DataTable })));
+const RealTimeStats = lazy(() => import('@/components/ScreenedMetric'));
+
+const LoadingSpinner = () => (
+  <div className="h-full flex items-center justify-center">
+    <div className="w-8 h-8 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin" />
+  </div>
+);
 
 const OverviewTab = () => (
   <div className="h-full overflow-auto bg-slate-50">
     <div className="p-6 space-y-6">
-      <RealTimeStats />
-      <DataTable />
+      <Suspense fallback={<LoadingSpinner />}>
+        <RealTimeStats />
+        <DataTable />
+      </Suspense>
     </div>
   </div>
 );
@@ -21,7 +31,9 @@ const OverviewTab = () => (
 const DuplicatesTab = () => (
   <div className="h-full overflow-auto bg-slate-50">
     <div className="p-6">
-      <DataTable showDuplicates={true} />
+      <Suspense fallback={<LoadingSpinner />}>
+        <DataTable showDuplicates={true} />
+      </Suspense>
     </div>
   </div>
 );
@@ -39,7 +51,7 @@ const PlaceholderTab = ({ title }: { title: string }) => (
 );
 
 const tabs = [
-  { id: 'command', icon: GitBranch, label: 'Follow-up Pipeline', component: CommandCenter },
+  { id: 'command', icon: GitBranch, label: 'Follow-up Pipeline', component: () => <Suspense fallback={<LoadingSpinner />}><CommandCenter /></Suspense> },
   { id: 'overview', icon: LayoutDashboard, label: 'Overview', component: OverviewTab },
   { id: 'duplicates', icon: Copy, label: 'Duplicates', component: DuplicatesTab },
   { id: 'network', icon: GitBranch, label: 'Network Map', component: () => <PlaceholderTab title="Network Map" /> },
@@ -51,7 +63,7 @@ export default function Dashboard() {
   const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState('command');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || CommandCenter;
+  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || (() => <Suspense fallback={<LoadingSpinner />}><CommandCenter /></Suspense>);
 
   return (
     <div className="flex h-screen w-full bg-slate-50 text-slate-900 overflow-hidden">
@@ -70,6 +82,7 @@ export default function Dashboard() {
               src="/Images/Logo/AllianceIndia-Logo.png"
               alt="AllianceIndia Logo" 
               className="h-24 w-auto max-w-full"
+              loading="lazy"
             />
           </motion.div>
           <button 

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, Activity, Calendar, CheckCircle, MapPin, Search, Check, X, ChevronRight, Clock, Filter, CheckSquare, Square } from 'lucide-react';
+import { AlertTriangle, Activity, Calendar, CheckCircle, MapPin, Search, Check, X, ChevronRight, Clock, Filter, CheckSquare, Square, Grid3X3, List, Edit3, Download } from 'lucide-react';
 import { PatientDetailDrawer } from './PatientDetailDrawer';
 import { PhaseCell } from './PhaseCell';
 import { AdvancedFilterBar, type FilterState } from './AdvancedFilterBar';
@@ -49,6 +49,7 @@ export default function CommandCenter() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [filters, setFilters] = useState<FilterState>({
     facilityType: '',
     state: '',
@@ -119,6 +120,60 @@ export default function CommandCenter() {
     setSelectedIds(new Set());
   };
 
+  const filteredPatients = useMemo(() => {
+    return patients.filter(p => {
+      const matchesSearch = (p.inmate_name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           (p.unique_id || '').toLowerCase().includes(searchTerm.toLowerCase());
+      if (!matchesSearch) return false;
+
+      if (filters.facilityType && !p.facility_type?.includes(filters.facilityType)) return false;
+      if (filters.state && p.screening_state !== filters.state) return false;
+      if (filters.district && p.screening_district !== filters.district) return false;
+      if (filters.phase) {
+        const { phase } = calculatePatientPhase(p);
+        if (phase !== filters.phase) return false;
+      }
+      if (filters.tbDiagnosed && p.tb_diagnosed !== filters.tbDiagnosed) return false;
+      if (filters.hivStatus && p.hiv_status !== filters.hivStatus) return false;
+      if (filters.dateFrom || filters.dateTo) {
+        const screeningDate = p.screening_date ? new Date(p.screening_date) : null;
+        if (screeningDate) {
+          if (filters.dateFrom && screeningDate < new Date(filters.dateFrom)) return false;
+          if (filters.dateTo && screeningDate > new Date(filters.dateTo)) return false;
+        }
+      }
+      if (filters.overdueOnly && !isOverdue(p)) return false;
+
+      return true;
+    });
+  }, [patients, searchTerm, filters]);
+
+  const exportToCSV = useCallback(() => {
+    const headers = ['Name', 'ID', 'State', 'District', 'Facility', 'Date', 'Phase', 'Status'];
+    const csvData = filteredPatients.map(p => {
+      const { phase } = calculatePatientPhase(p);
+      return [
+        p.inmate_name,
+        p.unique_id,
+        p.screening_state,
+        p.screening_district,
+        p.facility_name,
+        p.screening_date?.split('T')[0] || '',
+        phase,
+        p.tb_diagnosed === 'Y' ? 'TB Confirmed' : p.tb_diagnosed === 'No' ? 'Not TB' : 'Pending'
+      ];
+    });
+    
+    const csv = [headers, ...csvData].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `patients-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [filteredPatients]);
+
   const closeLoop = async (id: number, reason: string) => {
     await updatePatient(id, { tb_diagnosed: 'No', referral_date: new Date().toISOString(), att_start_date: null });
   };
@@ -146,32 +201,6 @@ export default function CommandCenter() {
     districts: [...new Set(patients.map(p => p.screening_district).filter(Boolean))],
     facilityTypes: ['Prison', 'Other Closed Setting', 'JH-CCI', 'DDRC'] // Standardized types
   };
-
-  const filteredPatients = patients.filter(p => {
-    const matchesSearch = (p.inmate_name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         (p.unique_id || '').toLowerCase().includes(searchTerm.toLowerCase());
-    if (!matchesSearch) return false;
-
-    if (filters.facilityType && !p.facility_type?.includes(filters.facilityType)) return false;
-    if (filters.state && p.screening_state !== filters.state) return false;
-    if (filters.district && p.screening_district !== filters.district) return false;
-    if (filters.phase) {
-      const { phase } = calculatePatientPhase(p);
-      if (phase !== filters.phase) return false;
-    }
-    if (filters.tbDiagnosed && p.tb_diagnosed !== filters.tbDiagnosed) return false;
-    if (filters.hivStatus && p.hiv_status !== filters.hivStatus) return false;
-    if (filters.dateFrom || filters.dateTo) {
-      const screeningDate = p.screening_date ? new Date(p.screening_date) : null;
-      if (screeningDate) {
-        if (filters.dateFrom && screeningDate < new Date(filters.dateFrom)) return false;
-        if (filters.dateTo && screeningDate > new Date(filters.dateTo)) return false;
-      }
-    }
-    if (filters.overdueOnly && !isOverdue(p)) return false;
-
-    return true;
-  });
 
   const toggleSelect = (id: number) => {
     const newSet = new Set(selectedIds);
@@ -214,6 +243,29 @@ export default function CommandCenter() {
             <input type="text" placeholder="Search by name or ID..." value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm" />
+            {searchTerm && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">
+                {filteredPatients.length} results
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewMode(viewMode === 'table' ? 'grid' : 'table')}
+              className={`p-2.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-50'}`}
+              title="Toggle view mode"
+            >
+              {viewMode === 'table' ? <Grid3X3 className="w-4 h-4" /> : <List className="w-4 h-4" />}
+            </button>
+            
+            <button
+              onClick={exportToCSV}
+              className="p-2.5 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-lg transition-all"
+              title="Export to CSV"
+            >
+              <Download className="w-4 h-4" />
+            </button>
           </div>
         </div>
         
@@ -260,7 +312,96 @@ export default function CommandCenter() {
       <div className="flex-1 flex overflow-hidden">
         {/* Patient List */}
         <div className="flex-1 overflow-auto p-6">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          {viewMode === 'grid' ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredPatients.map((patient, idx) => {
+                const phase = getPhase(patient);
+                const days = getDaysInPhase(patient);
+                const overdue = isOverdue(patient);
+                const { phase: phaseName } = calculatePatientPhase(patient);
+                
+                return (
+                  <motion.div key={patient.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.02 }}
+                    onClick={() => setSelectedPatient(patient)}
+                    className={`bg-white rounded-xl border border-slate-200 p-4 cursor-pointer transition-all hover:shadow-md ${selectedPatient?.id === patient.id ? 'ring-2 ring-blue-500' : ''} ${overdue ? 'border-red-200 bg-red-50' : ''}`}>
+                    
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <button onClick={(e) => { e.stopPropagation(); toggleSelect(patient.id); }}>
+                          {selectedIds.has(patient.id) ? <CheckSquare className="w-4 h-4 text-blue-500" /> : <Square className="w-4 h-4 text-slate-400" />}
+                        </button>
+                        {overdue && <Clock className="w-4 h-4 text-red-500" />}
+                      </div>
+                      <PhaseCell patient={patient} />
+                    </div>
+                    
+                    <div className="mb-3">
+                      <h3 className="font-semibold text-slate-900 mb-1">{patient.inmate_name}</h3>
+                      <p className="text-xs text-slate-500 font-mono">{patient.unique_id}</p>
+                    </div>
+                    
+                    <div className="space-y-2 text-sm text-slate-600">
+                      <div className="flex justify-between">
+                        <span>State:</span>
+                        <span className="font-medium">{patient.screening_state}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>District:</span>
+                        <span className="font-medium">{patient.screening_district}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Days:</span>
+                        <span className={`font-medium ${overdue ? 'text-red-600' : 'text-slate-600'}`}>{days}d</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+            <div className="mt-6 border-t border-slate-200 pt-4 flex items-center justify-between bg-white rounded-xl px-6 py-4 shadow-sm">
+              <div className="text-sm text-slate-600">
+                Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount.toLocaleString()} patients
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setPage(1)} disabled={page === 1}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-white border border-slate-200 hover:bg-slate-50">
+                  First
+                </button>
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-white border border-slate-200 hover:bg-slate-50">
+                  Previous
+                </button>
+                <div className="flex items-center gap-1">
+                  {[...Array(Math.min(5, Math.ceil(totalCount / pageSize)))].map((_, i) => {
+                    const pageNum = Math.max(1, page - 2) + i;
+                    if (pageNum > Math.ceil(totalCount / pageSize)) return null;
+                    return (
+                      <button key={pageNum} onClick={() => setPage(pageNum)}
+                        className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${
+                          page === pageNum 
+                            ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' 
+                            : 'bg-white border border-slate-200 hover:bg-slate-50 text-slate-600'
+                        }`}>
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button onClick={() => setPage(p => Math.min(Math.ceil(totalCount / pageSize), p + 1))} disabled={page >= Math.ceil(totalCount / pageSize)}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-white border border-slate-200 hover:bg-slate-50">
+                  Next
+                </button>
+                <button onClick={() => setPage(Math.ceil(totalCount / pageSize))} disabled={page >= Math.ceil(totalCount / pageSize)}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-white border border-slate-200 hover:bg-slate-50">
+                  Last
+                </button>
+              </div>
+            </div>
+            </>
+          ) : (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
@@ -348,7 +489,6 @@ export default function CommandCenter() {
               </table>
             </div>
             
-            {/* Pagination */}
             <div className="border-t border-slate-200 px-6 py-4 flex items-center justify-between bg-slate-50">
               <div className="text-sm text-slate-600">
                 Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount.toLocaleString()} patients
@@ -389,6 +529,7 @@ export default function CommandCenter() {
               </div>
             </div>
           </div>
+          )}
         </div>
 
         {/* Patient Detail Drawer */}

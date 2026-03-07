@@ -11,6 +11,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.NEXTAUTH_SECRET,
   debug: true,
   trustHost: true,
+  basePath: "/api/auth",
   callbacks: {
     async signIn({ user }) {
       console.log('SignIn callback:', { email: user.email })
