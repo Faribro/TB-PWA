@@ -4,11 +4,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { motion } from 'framer-motion';
 import { Button } from './ui/button';
-import { RefreshCw, Search, AlertCircle, Filter, X, LayoutGrid, List, Zap, Edit3, Save, Download } from 'lucide-react';
+import { RefreshCw, Search, AlertCircle, Filter, X, LayoutGrid, List, Zap, Edit3, Save, Download, FileSpreadsheet } from 'lucide-react';
 import { PhaseCell } from './PhaseCell';
 import { FilterBar, type FilterState } from './FilterBar';
 import { calculatePatientPhase } from '@/lib/phase-engine';
 import { PatientDetailDrawer } from './PatientDetailDrawer';
+import * as XLSX from 'xlsx';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -58,11 +59,54 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
     }
   };
 
+  // XLSX Export Handler
+  const handleExportXLSX = async () => {
+    // Fetch ALL filtered data without pagination
+    let query = supabase.from('patients').select('*');
+    
+    if (search) {
+      query = query.or(`inmate_name.ilike.%${search}%,unique_id.ilike.%${search}%,facility_name.ilike.%${search}%`);
+    }
+    if (filters.state) query = query.eq('screening_state', filters.state);
+    if (filters.district) query = query.eq('screening_district', filters.district);
+    if (filters.tbDiagnosed) query = query.eq('tb_diagnosed', filters.tbDiagnosed);
+    if (filters.hivStatus) query = query.eq('hiv_status', filters.hivStatus);
+    if (filters.dateFrom) query = query.gte('screening_date', filters.dateFrom);
+    if (filters.dateTo) query = query.lte('screening_date', filters.dateTo);
+    
+    const { data } = await query.order('created_at', { ascending: false });
+    
+    if (data) {
+      // Transform data for Excel
+      const excelData = data.map(p => ({
+        'Patient ID': p.unique_id,
+        'Name': p.inmate_name,
+        'Age': p.age,
+        'Sex': p.sex,
+        'State': p.screening_state,
+        'District': p.screening_district,
+        'Facility': p.facility_name,
+        'Screening Date': p.screening_date,
+        'X-Ray Result': p.xray_result,
+        'Referral Date': p.referral_date || '',
+        'TB Diagnosed': p.tb_diagnosed || '',
+        'ATT Start Date': p.att_start_date || '',
+        'Phase': calculatePatientPhase(p).phase
+      }));
+      
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Patients');
+      
+      const today = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `TB_Patient_Export_${today}.xlsx`);
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
     
     if (showDuplicates) {
-      // Find duplicates by unique_id or kobo_uuid
       const { data } = await supabase
         .from('patients')
         .select('*')
@@ -79,9 +123,43 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
         setTotalCount(duplicates.length);
       }
     } else {
-      const { data, count } = await supabase
-        .from('patients')
-        .select('*', { count: 'exact' })
+      // SERVER-SIDE FILTERING - Build query with filters
+      let query = supabase.from('patients').select('*', { count: 'exact' });
+      
+      // Apply search filter
+      if (search) {
+        query = query.or(`inmate_name.ilike.%${search}%,unique_id.ilike.%${search}%,facility_name.ilike.%${search}%`);
+      }
+      
+      // Apply state filter
+      if (filters.state) {
+        query = query.eq('screening_state', filters.state);
+      }
+      
+      // Apply district filter
+      if (filters.district) {
+        query = query.eq('screening_district', filters.district);
+      }
+      
+      // Apply TB diagnosed filter
+      if (filters.tbDiagnosed) {
+        query = query.eq('tb_diagnosed', filters.tbDiagnosed);
+      }
+      
+      // Apply HIV status filter
+      if (filters.hivStatus) {
+        query = query.eq('hiv_status', filters.hivStatus);
+      }
+      
+      // Apply date range filters
+      if (filters.dateFrom) {
+        query = query.gte('screening_date', filters.dateFrom);
+      }
+      if (filters.dateTo) {
+        query = query.lte('screening_date', filters.dateTo);
+      }
+      
+      const { data, count } = await query
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
       
@@ -94,7 +172,7 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
 
   useEffect(() => {
     loadData();
-  }, [page, showDuplicates]);
+  }, [page, showDuplicates, search, filters]);
 
   // Extract unique values for filters
   const filterOptions = useMemo(() => {
@@ -104,54 +182,8 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
     return { states, districts, facilityTypes };
   }, [patients]);
 
-  const filtered = patients.filter(p => {
-    // Search filter
-    const matchesSearch = p.inmate_name?.toLowerCase().includes(search.toLowerCase()) ||
-      p.unique_id?.toLowerCase().includes(search.toLowerCase()) ||
-      p.facility_name?.toLowerCase().includes(search.toLowerCase());
-    
-    if (!matchesSearch) return false;
-
-    // Facility type filter
-    if (filters.facilityType && !p.facility_type?.includes(filters.facilityType)) return false;
-
-    // State filter
-    if (filters.state && p.screening_state !== filters.state) return false;
-
-    // District filter
-    if (filters.district && p.screening_district !== filters.district) return false;
-
-    // Phase filter
-    if (filters.phase) {
-      const { phase } = calculatePatientPhase(p);
-      if (phase !== filters.phase) return false;
-    }
-
-    // TB Diagnosed filter
-    if (filters.tbDiagnosed && p.tb_diagnosed !== filters.tbDiagnosed) return false;
-
-    // HIV Status filter
-    if (filters.hivStatus && p.hiv_status !== filters.hivStatus) return false;
-
-    // Date range filter
-    if (filters.dateFrom || filters.dateTo) {
-      const screeningDate = p.screening_date ? new Date(p.screening_date) : null;
-      if (screeningDate) {
-        if (filters.dateFrom && screeningDate < new Date(filters.dateFrom)) return false;
-        if (filters.dateTo && screeningDate > new Date(filters.dateTo)) return false;
-      }
-    }
-
-    // Overdue filter
-    if (filters.overdueOnly) {
-      const screeningDate = p.screening_date ? new Date(p.screening_date) : null;
-      const daysSinceScreening = screeningDate ? 
-        Math.floor((Date.now() - screeningDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
-      if (!p.referral_date && daysSinceScreening < 30) return false;
-    }
-
-    return true;
-  });
+  // Remove client-side filtering since we're doing server-side
+  const filtered = patients;
 
   if (loading) {
     return (
@@ -169,9 +201,9 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col h-full bg-white/70 backdrop-blur-lg border border-gray-200/50 rounded-3xl overflow-hidden shadow-lg"
+      className="flex flex-col h-full bg-white/70 backdrop-blur-lg border border-gray-200/50 rounded-2xl overflow-hidden shadow-lg text-sm"
     >
-      <div className="p-6 border-b border-gray-200/50 space-y-4">
+      <div className="p-3 border-b border-gray-200/50 space-y-3">
         {/* Search Bar */}
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-md">
@@ -181,7 +213,7 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
               placeholder={showDuplicates ? "Search duplicates..." : "🔍 Instant search: name, ID, facility, district..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent shadow-sm"
+              className="w-full pl-9 pr-4 py-1.5 bg-white border border-gray-300 rounded-lg text-xs text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent shadow-sm h-8"
             />
             {search && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
@@ -197,38 +229,37 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
           <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg">
             <button
               onClick={() => setViewMode('compact')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all h-8 ${
                 viewMode === 'compact' 
                   ? 'bg-white text-gray-900 shadow-sm' 
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              <LayoutGrid className="h-4 w-4" />
+              <LayoutGrid className="h-3.5 w-3.5" />
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all h-8 ${
                 viewMode === 'table' 
                   ? 'bg-white text-gray-900 shadow-sm' 
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              <List className="h-4 w-4" />
+              <List className="h-3.5 w-3.5" />
             </button>
           </div>
 
-          {/* Quick Edit Toggle */}
           <Button
             onClick={() => setQuickEditMode(!quickEditMode)}
             variant="outline"
             size="sm"
-            className={`px-4 py-2.5 rounded-xl border-2 transition-all duration-200 ${
+            className={`px-3 py-1.5 rounded-lg border-2 transition-all duration-200 h-8 text-xs ${
               quickEditMode 
                 ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm' 
                 : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
-            <Zap className="h-4 w-4 mr-2" />
+            <Zap className="h-3.5 w-3.5 mr-1.5" />
             Quick Edit
           </Button>
           
@@ -237,45 +268,34 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
             variant="outline"
             size="sm"
-            className={`px-4 py-2.5 rounded-xl border-2 transition-all duration-200 ${
+            className={`px-3 py-1.5 rounded-lg border-2 transition-all duration-200 h-8 text-xs ${
               showAdvancedFilters 
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' 
                 : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
-            <Filter className="h-4 w-4 mr-2" />
+            <Filter className="h-3.5 w-3.5 mr-1.5" />
             Filters
             {Object.values(filters).some(v => v && v !== false) && (
-              <span className="ml-2 px-1.5 py-0.5 bg-emerald-500 text-white text-xs rounded-full">
+              <span className="ml-1.5 px-1.5 py-0.5 bg-emerald-500 text-white text-xs rounded-full">
                 {Object.values(filters).filter(v => v && v !== false).length}
               </span>
             )}
           </Button>
           
-          <Button onClick={loadData} size="sm" className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm">
-            <RefreshCw className="h-4 w-4 mr-2" />
+          <Button onClick={loadData} size="sm" className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm h-8 text-xs">
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
             Refresh
           </Button>
           
           <Button
-            onClick={() => {
-              const csv = [['ID', 'Name', 'State', 'District', 'Facility', 'Phase', 'Screening Date'].join(',')];
-              filtered.forEach(p => {
-                csv.push([p.unique_id, p.inmate_name, p.screening_state, p.screening_district, p.facility_name, calculatePatientPhase(p).phase, p.screening_date].join(','));
-              });
-              const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `patients-${new Date().toISOString().split('T')[0]}.csv`;
-              a.click();
-            }}
+            onClick={handleExportXLSX}
             size="sm"
             variant="outline"
-            className="px-4 py-2.5 rounded-xl"
+            className="px-3 py-1.5 rounded-lg h-8 text-xs"
           >
-            <Download className="h-4 w-4 mr-2" />
-            Export ({filtered.length})
+            <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
+            Export Excel
           </Button>
           
           {showDuplicates && (
@@ -525,15 +545,15 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
             })}
           </div>
         ) : (
-        <table className="w-full text-sm">
+        <table className="w-full text-xs">
           <thead className="sticky top-0 bg-gray-50/80 backdrop-blur-sm border-b border-gray-200">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">ID</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">State</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Facility</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Phase</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Screening</th>
+              <th className="px-3 py-1.5 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-wider">ID</th>
+              <th className="px-3 py-1.5 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-wider">Name</th>
+              <th className="px-3 py-1.5 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-wider">State</th>
+              <th className="px-3 py-1.5 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-wider">Facility</th>
+              <th className="px-3 py-1.5 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-wider">Phase</th>
+              <th className="px-3 py-1.5 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-wider">Screening</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200/50">
@@ -546,16 +566,16 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
                 className="hover:bg-gray-50/50 transition-colors cursor-pointer"
                 onClick={() => setSelectedPatient(patient)}
               >
-                <td className="px-4 py-3 text-gray-700 font-mono text-xs">{patient.unique_id}</td>
-                <td className="px-4 py-3 text-gray-900 font-medium">{patient.inmate_name}</td>
-                <td className="px-4 py-3 text-gray-600">{patient.screening_state}</td>
-                <td className="px-4 py-3 text-gray-600">{patient.facility_name}</td>
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                <td className="px-3 py-1.5 text-gray-700 font-mono text-[11px]">{patient.unique_id}</td>
+                <td className="px-3 py-1.5 text-gray-900 font-medium">{patient.inmate_name}</td>
+                <td className="px-3 py-1.5 text-gray-600">{patient.screening_state}</td>
+                <td className="px-3 py-1.5 text-gray-600">{patient.facility_name}</td>
+                <td className="px-3 py-1.5">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-800">
                     {calculatePatientPhase(patient).phase}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-gray-600">{patient.screening_date}</td>
+                <td className="px-3 py-1.5 text-gray-600">{patient.screening_date}</td>
               </motion.tr>
             ))}
           </tbody>
@@ -564,18 +584,18 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
       </div>
 
       {!showDuplicates && (
-        <div className="px-4 py-3 border-t border-gray-200/50 flex items-center justify-between bg-gray-50/30">
-          <div className="text-xs text-gray-600">
+        <div className="px-3 py-2 border-t border-gray-200/50 flex items-center justify-between bg-gray-50/30">
+          <div className="text-[11px] text-gray-600">
             Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, totalCount)} of {totalCount.toLocaleString()} patients
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} size="sm" variant="outline">
+            <Button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} size="sm" variant="outline" className="h-7 px-2.5 text-xs">
               Previous
             </Button>
-            <div className="flex items-center gap-2 px-3 text-xs text-gray-500">
+            <div className="flex items-center gap-2 px-2.5 text-[11px] text-gray-500">
               Page {page} of {Math.ceil(totalCount / pageSize)}
             </div>
-            <Button onClick={() => setPage(p => Math.min(Math.ceil(totalCount / pageSize), p + 1))} disabled={page >= Math.ceil(totalCount / pageSize)} size="sm" variant="outline">
+            <Button onClick={() => setPage(p => Math.min(Math.ceil(totalCount / pageSize), p + 1))} disabled={page >= Math.ceil(totalCount / pageSize)} size="sm" variant="outline" className="h-7 px-2.5 text-xs">
               Next
             </Button>
           </div>
