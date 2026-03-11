@@ -48,7 +48,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Step B: Forward to Google Apps Script (with timeout handling)
-    let googleSheetsResult = { success: false, message: 'Webhook not configured' };
+    let googleSheetsResult: { success: boolean; message: string; data?: any } = { 
+      success: false, 
+      message: 'Webhook not configured' 
+    };
     
     if (GOOGLE_SCRIPT_URL && koboUuid) {
       try {
