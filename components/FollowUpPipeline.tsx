@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Filter, X } from 'lucide-react';
 import { useTreeFilter } from '@/contexts/TreeFilterContext';
 import { SpatialBreadcrumb } from './SpatialBreadcrumb';
 import { calculatePatientPhase } from '@/lib/phase-engine';
@@ -232,27 +233,36 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-4 p-6 bg-gradient-to-r from-green-500 to-emerald-500 border-4 border-green-600 rounded-2xl shadow-2xl"
+            className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl mb-4"
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-black text-white mb-2 flex items-center gap-2">
-                  <span className="text-4xl">🎯</span>
-                  SPARK FILTER ACTIVE!
-                </div>
-                <div className="text-lg text-white font-bold">
-                  Action: <span className="bg-white text-green-700 px-3 py-1 rounded-lg">{filter.actionType.toUpperCase()}</span>
-                  {filter.date && <> • Date: <span className="bg-white text-green-700 px-3 py-1 rounded-lg ml-2">{new Date(filter.date).toLocaleDateString()}</span></>}
-                  {filter.district && <> • District: <span className="bg-white text-green-700 px-3 py-1 rounded-lg ml-2">{filter.district}</span></>}
-                </div>
+            <Filter className="w-4 h-4 text-slate-500" />
+            <span className="text-sm font-medium text-slate-700">Active Filters:</span>
+            
+            {filter.actionType && (
+              <div className="bg-white border border-slate-200 text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-md shadow-sm">
+                {filter.actionType.charAt(0).toUpperCase() + filter.actionType.slice(1)}
               </div>
-              <button
-                onClick={clearFilter}
-                className="px-6 py-3 bg-white hover:bg-red-500 text-green-700 hover:text-white text-lg font-black rounded-xl transition-all shadow-lg hover:scale-110"
-              >
-                ✕ CLEAR FILTER
-              </button>
-            </div>
+            )}
+            
+            {filter.date && (
+              <div className="bg-white border border-slate-200 text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-md shadow-sm">
+                {new Date(filter.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
+            )}
+            
+            {filter.district && (
+              <div className="bg-white border border-slate-200 text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-md shadow-sm">
+                {filter.district}
+              </div>
+            )}
+            
+            <button
+              onClick={clearFilter}
+              className="text-xs font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors ml-auto flex items-center gap-1"
+            >
+              <X className="w-3 h-3" />
+              Clear
+            </button>
           </motion.div>
         )}
         <div className="flex items-center justify-between mb-4">
