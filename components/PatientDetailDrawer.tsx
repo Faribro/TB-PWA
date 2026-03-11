@@ -4,23 +4,41 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, FileText, Activity, Pill, Shield, ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Calendar, Sparkles } from 'lucide-react';
+import { X, User, FileText, Activity, Pill, Shield, ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Calendar, Sparkles, Lock, Unlock, Save } from 'lucide-react';
 import { patientFormSchema, type PatientFormData } from '@/lib/schemas';
 import { updatePatientAction } from '@/lib/patient-actions';
 import { calculatePatientPhase, calculateProgressPercentage } from '@/lib/phase-engine';
 import { Progress } from './ui/progress';
 import { PatientTimeline } from './PatientTimeline';
+import { Input } from './ui/input';
+import { useSWRConfig } from 'swr';
 
 interface PatientDetailDrawerProps {
   patient: any;
+  isOpen: boolean;
   onClose: () => void;
   onUpdate: () => void;
 }
 
-export function PatientDetailDrawer({ patient, onClose, onUpdate }: PatientDetailDrawerProps) {
+export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: PatientDetailDrawerProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCloseLoop, setShowCloseLoop] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string>('');
+  const [isEditingDemographics, setIsEditingDemographics] = useState(false);
+  const [isSavingDemographics, setIsSavingDemographics] = useState(false);
+  const { mutate } = useSWRConfig();
+  
+  // Demographic edit state
+  const [editedDemographics, setEditedDemographics] = useState({
+    inmate_name: patient.inmate_name || '',
+    age: patient.age || '',
+    sex: patient.sex || '',
+    contact_number: patient.contact_number || '',
+    address: patient.address || '',
+    facility_name: patient.facility_name || '',
+    dob: patient.dob || '',
+    screening_date: patient.screening_date || ''
+  });
 
   const { phase, nextRequiredField } = calculatePatientPhase(patient);
   const progressPercentage = calculateProgressPercentage(patient);
@@ -35,6 +53,21 @@ export function PatientDetailDrawer({ patient, onClose, onUpdate }: PatientDetai
     };
     setExpandedSection(phaseToSection[phase] || 'demographics');
   }, [phase]);
+  
+  // Reset demographic edits when patient changes
+  useEffect(() => {
+    setEditedDemographics({
+      inmate_name: patient.inmate_name || '',
+      age: patient.age || '',
+      sex: patient.sex || '',
+      contact_number: patient.contact_number || '',
+      address: patient.address || '',
+      facility_name: patient.facility_name || '',
+      dob: patient.dob || '',
+      screening_date: patient.screening_date || ''
+    });
+    setIsEditingDemographics(false);
+  }, [patient.id]);
   
   const { register, handleSubmit, watch, formState: { errors } } = useForm<PatientFormData>({
     resolver: zodResolver(patientFormSchema),
@@ -81,6 +114,72 @@ export function PatientDetailDrawer({ patient, onClose, onUpdate }: PatientDetai
       onClose();
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSaveDemographics = async () => {
+    setIsSavingDemographics(true);
+    try {
+      // Optimistic update - update all SWR caches immediately
+      mutate(
+        (key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'),
+        async (currentData: any) => {
+          if (!currentData) return currentData;
+          
+          // Handle paginated data structure
+          if (currentData.data && Array.isArray(currentData.data)) {
+            return {
+              ...currentData,
+              data: currentData.data.map((p: any) => 
+                p.id === patient.id ? { ...p, ...editedDemographics } : p
+              )
+            };
+          }
+          
+          // Handle array data structure (allPatients)
+          if (Array.isArray(currentData)) {
+            return currentData.map((p: any) => 
+              p.id === patient.id ? { ...p, ...editedDemographics } : p
+            );
+          }
+          
+          return currentData;
+        },
+        { revalidate: false } // Don't revalidate immediately, we'll do it after API call
+      );
+
+      // Call the triple-sync API
+      const response = await fetch('/api/patient-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientId: patient.id,
+          koboUuid: patient.kobo_uuid,
+          updates: editedDemographics
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to sync demographics');
+      }
+
+      const result = await response.json();
+      
+      // Revalidate all patient caches after successful sync
+      mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+      
+      setIsEditingDemographics(false);
+      onUpdate();
+      
+      // Show success feedback
+      console.log('Demographics synced:', result);
+    } catch (error) {
+      console.error('Failed to save demographics:', error);
+      // Revert optimistic update on error
+      mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+      alert('Failed to save demographics. Please try again.');
+    } finally {
+      setIsSavingDemographics(false);
     }
   };
 
@@ -134,14 +233,43 @@ export function PatientDetailDrawer({ patient, onClose, onUpdate }: PatientDetai
     </div>
   );
 
+  const EditableField = ({ label, value, onChange, type = 'text' }: { label: string; value: any; onChange: (val: string) => void; type?: string }) => (
+    <div>
+      <label className="block text-xs text-slate-500 mb-1">{label}</label>
+      <Input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-9 text-sm"
+      />
+    </div>
+  );
+
+  const EditableSelect = ({ label, value, onChange, options }: { label: string; value: any; onChange: (val: string) => void; options: { value: string; label: string }[] }) => (
+    <div>
+      <label className="block text-xs text-slate-500 mb-1">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+      >
+        {options.map(opt => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+
   return (
-    <motion.div
-      initial={{ x: 400, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 400, opacity: 0 }}
-      className="fixed right-0 top-0 h-screen w-[600px] bg-white border-l border-slate-200 shadow-2xl overflow-auto z-50"
-    >
-      <div className="p-6 space-y-4">
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ x: 400, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: 400, opacity: 0 }}
+          className="fixed right-0 top-0 h-screen w-[600px] bg-white border-l border-slate-200 shadow-2xl overflow-auto z-50"
+        >
+          <div className="p-6 space-y-4">
         {/* Header */}
         <div className="flex items-start justify-between sticky top-0 bg-white pb-4 border-b z-10">
           <div className="flex-1">
@@ -163,28 +291,132 @@ export function PatientDetailDrawer({ patient, onClose, onUpdate }: PatientDetai
         </div>
 
         {/* Read-Only: KoboCollect Data */}
-        <Section id="demographics" title="Demographics (Read-Only)" icon={User}>
+        <Section id="demographics" title="Demographics" icon={User}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              {isEditingDemographics ? (
+                <Unlock className="w-4 h-4 text-emerald-600" />
+              ) : (
+                <Lock className="w-4 h-4 text-slate-400" />
+              )}
+              <span className="text-xs font-semibold text-slate-600">
+                {isEditingDemographics ? 'Editing Mode' : 'Read-Only Mode'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsEditingDemographics(!isEditingDemographics)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${
+                isEditingDemographics
+                  ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+              }`}
+            >
+              {isEditingDemographics ? (
+                <>
+                  <Lock className="w-3 h-3" />
+                  Lock
+                </>
+              ) : (
+                <>
+                  <Unlock className="w-3 h-3" />
+                  Unlock to Edit
+                </>
+              )}
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
+            {/* Editable Fields */}
+            {isEditingDemographics ? (
+              <>
+                <div className="col-span-2">
+                  <EditableField
+                    label="Inmate Name"
+                    value={editedDemographics.inmate_name}
+                    onChange={(val) => setEditedDemographics({ ...editedDemographics, inmate_name: val })}
+                  />
+                </div>
+                <EditableField
+                  label="Age"
+                  value={editedDemographics.age}
+                  onChange={(val) => setEditedDemographics({ ...editedDemographics, age: val })}
+                  type="number"
+                />
+                <EditableSelect
+                  label="Sex"
+                  value={editedDemographics.sex}
+                  onChange={(val) => setEditedDemographics({ ...editedDemographics, sex: val })}
+                  options={[
+                    { value: 'Male', label: 'Male' },
+                    { value: 'Female', label: 'Female' },
+                    { value: 'Other', label: 'Other' }
+                  ]}
+                />
+                <EditableField
+                  label="Date of Birth"
+                  value={editedDemographics.dob}
+                  onChange={(val) => setEditedDemographics({ ...editedDemographics, dob: val })}
+                  type="date"
+                />
+                <EditableField
+                  label="Screening Date"
+                  value={editedDemographics.screening_date}
+                  onChange={(val) => setEditedDemographics({ ...editedDemographics, screening_date: val })}
+                  type="date"
+                />
+                <div className="col-span-2">
+                  <EditableField
+                    label="Contact Number"
+                    value={editedDemographics.contact_number}
+                    onChange={(val) => setEditedDemographics({ ...editedDemographics, contact_number: val })}
+                    type="tel"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <EditableField
+                    label="Address"
+                    value={editedDemographics.address}
+                    onChange={(val) => setEditedDemographics({ ...editedDemographics, address: val })}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <EditableField
+                    label="Facility Name"
+                    value={editedDemographics.facility_name}
+                    onChange={(val) => setEditedDemographics({ ...editedDemographics, facility_name: val })}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="col-span-2">
+                  <ReadOnlyField label="Inmate Name" value={patient.inmate_name} />
+                </div>
+                <ReadOnlyField label="Age" value={patient.age} />
+                <ReadOnlyField label="Sex" value={patient.sex} />
+                <ReadOnlyField label="Date of Birth" value={patient.dob} />
+                <ReadOnlyField label="Screening Date" value={patient.screening_date} />
+                <div className="col-span-2">
+                  <ReadOnlyField label="Contact Number" value={patient.contact_number} />
+                </div>
+                <div className="col-span-2">
+                  <ReadOnlyField label="Address" value={patient.address} />
+                </div>
+                <div className="col-span-2">
+                  <ReadOnlyField label="Facility Name" value={patient.facility_name} />
+                </div>
+              </>
+            )}
+
+            {/* Non-editable fields */}
             <ReadOnlyField label="Staff Name" value={patient.staff_name} />
             <ReadOnlyField label="Submitted On" value={patient.submitted_on} />
             <ReadOnlyField label="State" value={patient.screening_state} />
             <ReadOnlyField label="District" value={patient.screening_district} />
-            <div className="col-span-2">
-              <ReadOnlyField label="Facility Name" value={patient.facility_name} />
-            </div>
             <ReadOnlyField label="Facility Type" value={patient.facility_type} />
-            <ReadOnlyField label="Screening Date" value={patient.screening_date} />
             <ReadOnlyField label="Inmate Type" value={patient.inmate_type} />
             <ReadOnlyField label="Father/Husband Name" value={patient.father_name} />
-            <ReadOnlyField label="Date of Birth" value={patient.dob} />
-            <ReadOnlyField label="Age" value={patient.age} />
-            <ReadOnlyField label="Sex" value={patient.sex} />
-            <div className="col-span-2">
-              <ReadOnlyField label="Contact Number" value={patient.contact_number} />
-            </div>
-            <div className="col-span-2">
-              <ReadOnlyField label="Address" value={patient.address} />
-            </div>
             <div className="col-span-2">
               <ReadOnlyField label="Chest X-ray Result" value={patient.xray_result} />
             </div>
@@ -193,6 +425,42 @@ export function PatientDetailDrawer({ patient, onClose, onUpdate }: PatientDetai
             </div>
             <ReadOnlyField label="Past TB History" value={patient.tb_past_history} />
           </div>
+
+          {/* Save Demographics Button */}
+          {isEditingDemographics && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 pt-4 border-t border-slate-200"
+            >
+              <button
+                type="button"
+                onClick={handleSaveDemographics}
+                disabled={isSavingDemographics}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-medium disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 transition-all"
+              >
+                {isSavingDemographics ? (
+                  <>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                    >
+                      <Save className="w-4 h-4" />
+                    </motion.div>
+                    Syncing to Database & Sheets...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Demographics (Triple Sync)
+                  </>
+                )}
+              </button>
+              <p className="text-xs text-center text-slate-500 mt-2">
+                Updates Supabase + Patient Linelist + Master Database
+              </p>
+            </motion.div>
+          )}
         </Section>
 
         {/* Journey Overview Tab - Separate Section */}
@@ -431,7 +699,9 @@ export function PatientDetailDrawer({ patient, onClose, onUpdate }: PatientDetai
             <PatientTimeline patient={patient} />
           </div>
         )}
-      </div>
-    </motion.div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

@@ -1,44 +1,42 @@
 'use client';
 
-import { useState, Suspense, lazy } from 'react';
+import { useState, Suspense, lazy, useMemo, useCallback, memo } from 'react';
 import { motion } from 'framer-motion';
 import { useSession, signOut } from 'next-auth/react';
-import { LayoutDashboard, Users, Map, Settings, Menu, GitBranch, Copy, LogOut } from 'lucide-react';
+import { Map, Settings, Menu, GitBranch, Copy, LogOut, Network } from 'lucide-react';
+import { LinesAndDotsLoader } from '@/components/LinesAndDotsLoader';
+import { DashboardErrorBoundary } from '@/components/DashboardErrorBoundary';
+import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 
-// Dynamic imports for heavy components
-const CommandCenter = lazy(() => import('@/components/CommandCenter'));
-const KanbanDashboard = lazy(() => import('@/components/KanbanDashboard'));
-const DataTable = lazy(() => import('@/components/DataTable').then(module => ({ default: module.DataTable })));
-const RealTimeStats = lazy(() => import('@/components/ScreenedMetric'));
+// Aggressive dynamic imports with optimized loading
+const CommandCenter = lazy(() => 
+  import('@/components/CommandCenter').then(module => ({ 
+    default: memo(module.default) 
+  }))
+);
+const NeuralDashboard = lazy(() => 
+  import('./neural-dashboard-view').then(module => ({ 
+    default: memo(module.default) 
+  }))
+);
+const SpatialIntelligenceMap = lazy(() => 
+  import('@/components/SpatialIntelligenceMap').then(module => ({ 
+    default: memo(module.default) 
+  }))
+);
+const MandEHub = lazy(() => 
+  import('@/components/MandEHub').then(module => ({ 
+    default: memo(module.default) 
+  }))
+);
 
-const LoadingSpinner = () => (
+const LoadingSpinner = memo(() => (
   <div className="h-full flex items-center justify-center">
-    <div className="w-8 h-8 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin" />
+    <LinesAndDotsLoader progress={75} />
   </div>
-);
+));
 
-const OverviewTab = () => (
-  <div className="h-full overflow-auto bg-slate-50">
-    <div className="p-6 space-y-6">
-      <Suspense fallback={<LoadingSpinner />}>
-        <RealTimeStats />
-        <DataTable />
-      </Suspense>
-    </div>
-  </div>
-);
-
-const DuplicatesTab = () => (
-  <div className="h-full overflow-auto bg-slate-50">
-    <div className="p-6">
-      <Suspense fallback={<LoadingSpinner />}>
-        <DataTable showDuplicates={true} />
-      </Suspense>
-    </div>
-  </div>
-);
-
-const PlaceholderTab = ({ title }: { title: string }) => (
+const PlaceholderTab = memo(({ title }: { title: string }) => (
   <div className="h-full flex items-center justify-center bg-slate-50">
     <div className="text-center">
       <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -48,22 +46,96 @@ const PlaceholderTab = ({ title }: { title: string }) => (
       <p className="text-slate-500">This feature is coming soon</p>
     </div>
   </div>
-);
+));
 
-const tabs = [
-  { id: 'command', icon: GitBranch, label: 'Follow-up Pipeline', component: () => <Suspense fallback={<LoadingSpinner />}><CommandCenter /></Suspense> },
-  { id: 'overview', icon: LayoutDashboard, label: 'Overview', component: OverviewTab },
-  { id: 'duplicates', icon: Copy, label: 'Duplicates', component: DuplicatesTab },
-  { id: 'network', icon: GitBranch, label: 'Network Map', component: () => <PlaceholderTab title="Network Map" /> },
-  { id: 'gis', icon: Map, label: 'GIS Map', component: () => <PlaceholderTab title="GIS Mapping" /> },
-  { id: 'settings', icon: Settings, label: 'Settings', component: () => <PlaceholderTab title="Settings" /> }
-];
+// Memoized tab components with data passing
+const MemoizedNeuralTab = memo(({ globalPatients, isLoading }: { globalPatients: any[], isLoading: boolean }) => (
+  <DashboardErrorBoundary componentName="Vertex (Neural Dashboard)">
+    <Suspense fallback={<LoadingSpinner />}>
+      <NeuralDashboard globalPatients={globalPatients ?? []} isLoading={isLoading} />
+    </Suspense>
+  </DashboardErrorBoundary>
+));
+
+const MemoizedCommandTab = memo(({ globalPatients, isLoading }: { globalPatients: any[], isLoading: boolean }) => (
+  <DashboardErrorBoundary componentName="Follow-up Pipeline">
+    <Suspense fallback={<LoadingSpinner />}>
+      <CommandCenter globalPatients={globalPatients ?? []} isLoading={isLoading} />
+    </Suspense>
+  </DashboardErrorBoundary>
+));
+
+const MemoizedDuplicatesTab = memo(({ globalPatients, isLoading }: { globalPatients: any[], isLoading: boolean }) => (
+  <DashboardErrorBoundary componentName="M&E Tools">
+    <div className="h-full overflow-auto">
+      <Suspense fallback={<LoadingSpinner />}>
+        <MandEHub globalPatients={globalPatients ?? []} isLoading={isLoading} />
+      </Suspense>
+    </div>
+  </DashboardErrorBoundary>
+));
+
+const MemoizedGISTab = memo(({ globalPatients, isLoading }: { globalPatients: any[], isLoading: boolean }) => (
+  <DashboardErrorBoundary componentName="GIS Map">
+    <Suspense fallback={<LoadingSpinner />}>
+      <SpatialIntelligenceMap globalPatients={globalPatients ?? []} isLoading={isLoading} />
+    </Suspense>
+  </DashboardErrorBoundary>
+));
 
 export default function Dashboard() {
   const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState('command');
+  const [activeTab, setActiveTab] = useState('neural');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || (() => <Suspense fallback={<LoadingSpinner />}><CommandCenter /></Suspense>);
+  
+  // Lift globalPatients to top level and memoize
+  const { data: globalPatients = [], isLoading, error } = useSWRAllPatients();
+  const memoizedPatients = useMemo(() => globalPatients ?? [], [globalPatients]);
+  
+  // DEBUG: Console logging for SWR state
+  console.log('Dashboard SWR State:', { length: globalPatients?.length, isLoading, error });
+  
+  // Memoized handlers
+  const handleTabChange = useCallback((tabId: string) => {
+    setActiveTab(tabId);
+  }, []);
+  
+  const handleSidebarToggle = useCallback(() => {
+    setSidebarOpen(prev => !prev);
+  }, []);
+  
+  const handleSignOut = useCallback(() => {
+    signOut({ callbackUrl: '/login' });
+  }, []);
+  
+  // Show loading only on initial load
+  if (isLoading && (!globalPatients || globalPatients.length === 0)) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+        <LinesAndDotsLoader progress={75} />
+      </div>
+    );
+  }
+
+  // Show error state if fetch failed
+  if (error && (!globalPatients || globalPatients.length === 0)) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="text-center">
+          <div className="text-red-600 text-lg font-bold mb-2">Failed to load patients</div>
+          <div className="text-slate-600 text-sm">{error?.message || 'Unknown error'}</div>
+        </div>
+      </div>
+    );
+  }
+
+  const tabConfig = [
+    { id: 'neural', icon: Network, label: 'Vertex' },
+    { id: 'command', icon: GitBranch, label: 'Follow-up Pipeline' },
+    { id: 'duplicates', icon: Copy, label: 'M&E Tools' },
+    { id: 'gis', icon: Map, label: 'GIS Map' },
+    { id: 'settings', icon: Settings, label: 'Settings' }
+  ];
 
   return (
     <div className="flex h-screen w-full bg-slate-50 text-slate-900 overflow-hidden">
@@ -86,7 +158,7 @@ export default function Dashboard() {
             />
           </motion.div>
           <button 
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={handleSidebarToggle}
             className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
           >
             <Menu className="h-5 w-5 text-slate-400" />
@@ -94,23 +166,26 @@ export default function Dashboard() {
         </div>
         
         <nav className="flex-1 p-4 space-y-2">
-          {tabs.map((item, idx) => (
-            <motion.button 
-              key={item.id}
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: idx * 0.05 }}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all ${
-                activeTab === item.id 
-                  ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-sm' 
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-blue-600'
-              }`}
-            >
-              <item.icon size={20} />
-              <span className="font-medium text-sm">{item.label}</span>
-            </motion.button>
-          ))}
+          {tabConfig.map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <motion.button 
+                key={item.id}
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: idx * 0.05 }}
+                onClick={() => handleTabChange(item.id)}
+                className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all ${
+                  activeTab === item.id 
+                    ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-sm' 
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-blue-600'
+                }`}
+              >
+                <Icon size={20} />
+                <span className="font-medium text-sm">{item.label}</span>
+              </motion.button>
+            );
+          })}
         </nav>
 
         {session && (
@@ -131,7 +206,7 @@ export default function Dashboard() {
               </div>
             </div>
             <button
-              onClick={() => signOut({ callbackUrl: '/login' })}
+              onClick={handleSignOut}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
             >
               <LogOut className="w-4 h-4" />
@@ -144,21 +219,19 @@ export default function Dashboard() {
       <main className={`flex-1 overflow-hidden transition-all duration-300 ${!sidebarOpen ? 'ml-0' : ''}`}>
         {!sidebarOpen && (
           <button 
-            onClick={() => setSidebarOpen(true)}
+            onClick={handleSidebarToggle}
             className="absolute top-8 left-4 z-10 p-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition-colors"
           >
             <Menu className="h-5 w-5 text-slate-600" />
           </button>
         )}
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="h-full"
-        >
-          <ActiveComponent />
-        </motion.div>
+        <div className="h-full" style={{ willChange: 'auto' }}>
+          {activeTab === 'neural' && <MemoizedNeuralTab globalPatients={memoizedPatients} isLoading={isLoading} />}
+          {activeTab === 'command' && <MemoizedCommandTab globalPatients={memoizedPatients} isLoading={isLoading} />}
+          {activeTab === 'duplicates' && <MemoizedDuplicatesTab globalPatients={memoizedPatients} isLoading={isLoading} />}
+          {activeTab === 'gis' && <MemoizedGISTab globalPatients={memoizedPatients} isLoading={isLoading} />}
+          {activeTab === 'settings' && <PlaceholderTab title="Settings" />}
+        </div>
       </main>
     </div>
   );

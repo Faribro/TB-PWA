@@ -9,6 +9,7 @@ import { PhaseCell } from './PhaseCell';
 import { FilterBar, type FilterState } from './FilterBar';
 import { calculatePatientPhase } from '@/lib/phase-engine';
 import { PatientDetailDrawer } from './PatientDetailDrawer';
+import { LinesAndDotsLoader } from './LinesAndDotsLoader';
 import * as XLSX from 'xlsx';
 
 const supabase = createClient(
@@ -24,6 +25,7 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
   const [patients, setPatients] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
@@ -105,6 +107,10 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
 
   const loadData = async () => {
     setLoading(true);
+    setProgress(0);
+    const progressInterval = setInterval(() => {
+      setProgress(p => Math.min(p + 10, 90));
+    }, 100);
     
     if (showDuplicates) {
       const { data } = await supabase
@@ -167,7 +173,9 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
       setTotalCount(count || 0);
     }
     
-    setLoading(false);
+    clearInterval(progressInterval);
+    setProgress(100);
+    setTimeout(() => setLoading(false), 200);
   };
 
   useEffect(() => {
@@ -188,11 +196,7 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 1 }}
-          className="w-8 h-8 border-2 border-emerald-200 border-t-emerald-500 rounded-full"
-        />
+        <LinesAndDotsLoader progress={progress} />
       </div>
     );
   }

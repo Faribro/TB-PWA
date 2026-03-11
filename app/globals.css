@@ -1,1 +1,290 @@
 @import "tailwindcss";
+
+/* Ultra-Premium Animated Scrollbar with Glow Effects */
+@keyframes scrollbar-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.4), 0 0 16px rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.6), 0 0 24px rgba(59, 130, 246, 0.3);
+  }
+}
+
+@keyframes scrollbar-shimmer {
+  0% {
+    background-position: -100% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.3) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: linear-gradient(to right, 
+    rgba(241, 245, 249, 0.3) 0%, 
+    rgba(226, 232, 240, 0.4) 50%, 
+    rgba(241, 245, 249, 0.3) 100%);
+  border-radius: 100px;
+  margin: 4px 0;
+  border: 1px solid rgba(226, 232, 240, 0.3);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.7) 0%,
+    rgba(147, 51, 234, 0.6) 50%,
+    rgba(236, 72, 153, 0.7) 100%);
+  background-size: 200% 200%;
+  border-radius: 100px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 
+    0 0 10px rgba(59, 130, 246, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 2px rgba(255, 255, 255, 0.5);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.9) 0%,
+    rgba(147, 51, 234, 0.8) 50%,
+    rgba(236, 72, 153, 0.9) 100%);
+  background-size: 200% 200%;
+  animation: scrollbar-shimmer 2s linear infinite;
+  border: 2px solid rgba(255, 255, 255, 1);
+  box-shadow: 
+    0 0 16px rgba(59, 130, 246, 0.6),
+    0 0 32px rgba(147, 51, 234, 0.4),
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    inset 0 1px 3px rgba(255, 255, 255, 0.7);
+  transform: scaleX(1.1);
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(135deg, 
+    rgba(37, 99, 235, 1) 0%,
+    rgba(126, 34, 206, 0.9) 50%,
+    rgba(219, 39, 119, 1) 100%);
+  animation: scrollbar-glow 1s ease-in-out infinite;
+  transform: scaleX(1.15);
+  box-shadow: 
+    0 0 20px rgba(59, 130, 246, 0.8),
+    0 0 40px rgba(147, 51, 234, 0.6),
+    0 6px 16px rgba(0, 0, 0, 0.2),
+    inset 0 2px 4px rgba(255, 255, 255, 0.8);
+}
+
+/* Corner styling for when both scrollbars are present */
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Premium scrollbar for light sections */
+.light-scrollbar::-webkit-scrollbar-track {
+  background: linear-gradient(to right, 
+    rgba(255, 255, 255, 0.5) 0%, 
+    rgba(248, 250, 252, 0.6) 50%, 
+    rgba(255, 255, 255, 0.5) 100%);
+  border: 1px solid rgba(203, 213, 225, 0.4);
+}
+
+/* Cyan accent scrollbar variant */
+.cyan-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, 
+    rgba(6, 182, 212, 0.8) 0%,
+    rgba(14, 165, 233, 0.7) 50%,
+    rgba(59, 130, 246, 0.8) 100%);
+}
+
+.cyan-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, 
+    rgba(6, 182, 212, 1) 0%,
+    rgba(14, 165, 233, 0.9) 50%,
+    rgba(59, 130, 246, 1) 100%);
+  box-shadow: 
+    0 0 16px rgba(6, 182, 212, 0.6),
+    0 0 32px rgba(14, 165, 233, 0.4),
+    0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Emerald accent scrollbar variant */
+.emerald-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, 
+    rgba(16, 185, 129, 0.8) 0%,
+    rgba(5, 150, 105, 0.7) 50%,
+    rgba(4, 120, 87, 0.8) 100%);
+}
+
+.emerald-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, 
+    rgba(16, 185, 129, 1) 0%,
+    rgba(5, 150, 105, 0.9) 50%,
+    rgba(4, 120, 87, 1) 100%);
+  box-shadow: 
+    0 0 16px rgba(16, 185, 129, 0.6),
+    0 0 32px rgba(5, 150, 105, 0.4),
+    0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Smooth scrolling behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Hide scrollbar for specific elements while maintaining functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Lines and Dots Loader */
+.lines-and-dots {
+  --anim-dur: 2s;
+  --dot-size: 0.4em;
+  --line-length: 3em;
+  --line-width: 0.1em;
+  position: relative;
+  width: 12em;
+  height: 12em;
+}
+
+.lines-and-dots__sector {
+  top: 50%;
+  left: 50%;
+  position: absolute;
+}
+
+.lines-and-dots__dot,
+.lines-and-dots__dot:before,
+.lines-and-dots__line {
+  position: absolute;
+  animation-duration: var(--anim-dur);
+  animation-delay: inherit;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.lines-and-dots__dot:before,
+.lines-and-dots__line {
+  background-color: currentColor;
+}
+
+.lines-and-dots__dot {
+  animation-name: dot-move-in-out;
+  top: calc(var(--line-length) / -2 + var(--dot-size) / -2);
+  left: calc(var(--dot-size) / -2);
+  width: var(--dot-size);
+  height: var(--dot-size);
+  z-index: 1;
+}
+
+.lines-and-dots__dot:before {
+  animation-name: dot-scale-in-out;
+  animation-timing-function: linear;
+  border-radius: 50%;
+  content: "";
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.lines-and-dots__dot + .lines-and-dots__dot {
+  animation-name: dot-move-out-in;
+  top: calc(var(--line-length) / 2 + var(--dot-size) / -2);
+}
+
+.lines-and-dots__dot + .lines-and-dots__dot:before {
+  animation-name: dot-scale-out-in;
+}
+
+.lines-and-dots__line {
+  animation-name: line-shade, line-spin;
+  opacity: 0.5;
+  top: calc(var(--line-length) / -2);
+  left: calc(var(--line-width) / -2);
+  width: var(--line-width);
+  height: var(--line-length);
+}
+
+@keyframes dot-move-in-out {
+  from {
+    animation-timing-function: ease-in;
+    transform: translateY(0);
+  }
+  50% {
+    animation-timing-function: ease-out;
+    transform: translateY(1.5em);
+  }
+  to {
+    transform: translateY(3em);
+  }
+}
+
+@keyframes dot-move-out-in {
+  from {
+    animation-timing-function: ease-in;
+    transform: translateY(0);
+  }
+  50% {
+    animation-timing-function: ease-out;
+    transform: translateY(-1.5em);
+  }
+  to {
+    transform: translateY(-3em);
+  }
+}
+
+@keyframes dot-scale-in-out {
+  from, to {
+    transform: scale(0.67);
+  }
+  50% {
+    transform: scale(1);
+  }
+}
+
+@keyframes dot-scale-out-in {
+  from, to {
+    transform: scale(0.67);
+  }
+  50% {
+    transform: scale(0.33);
+  }
+}
+
+@keyframes line-shade {
+  from, to {
+    animation-timing-function: ease-in;
+    transform: scaleY(1);
+  }
+  50% {
+    animation-timing-function: ease-out;
+    transform: scaleY(0);
+  }
+}
+
+@keyframes line-spin {
+  from, to {
+    animation-timing-function: ease-in;
+    opacity: 0.5;
+  }
+  50% {
+    animation-timing-function: step-start;
+    opacity: 0;
+  }
+}
