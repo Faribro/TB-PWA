@@ -15,6 +15,8 @@ interface Patient {
   tb_diagnosed?: string | null;
   current_phase?: string;
   coordinator_name?: string;
+  assigned_to?: string;
+  staff_name?: string;
 }
 
 interface PatientTileProps {

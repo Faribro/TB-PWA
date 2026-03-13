@@ -11,6 +11,8 @@ import { calculatePatientPhase, calculateProgressPercentage } from '@/lib/phase-
 import { Progress } from './ui/progress';
 import { PatientTimeline } from './PatientTimeline';
 import { Input } from './ui/input';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetOverlay } from '@/components/ui/sheet';
+import { ScrollArea } from './ui/scroll-area';
 import { useSWRConfig } from 'swr';
 
 interface PatientDetailDrawerProps {
@@ -261,34 +263,104 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   );
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ x: 400, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: 400, opacity: 0 }}
-          className="fixed right-0 top-0 h-screen w-[600px] bg-white border-l border-slate-200 shadow-2xl overflow-auto z-50"
-        >
-          <div className="p-6 space-y-4">
-        {/* Header */}
-        <div className="flex items-start justify-between sticky top-0 bg-white pb-4 border-b z-10">
-          <div className="flex-1">
-            <h2 className="text-xl font-bold text-slate-900">{patient.inmate_name}</h2>
-            <p className="text-sm text-slate-500 font-mono">{patient.unique_id}</p>
-            
-            {/* Progress Bar */}
-            <div className="mt-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-700">{phase} • {progressPercentage}% Complete</span>
-                <span className="text-xs text-slate-500">{isClosed ? 'Journey Complete' : 'In Progress'}</span>
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      {/* CRITICAL - OVERLAY: Z-Index 100000 */}
+      <SheetOverlay 
+        className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm" 
+        style={{ zIndex: 100000 }} 
+      />
+      
+      {/* CRITICAL - CONTENT: Z-Index 100001 + Optimized Width */}
+      <SheetContent 
+        className="!w-[95vw] sm:!max-w-[500px] bg-white border-l border-slate-200 shadow-2xl p-0 flex flex-col h-full" 
+        style={{ zIndex: 100001 }}
+      >
+        {/* Header with Patient Info */}
+        <SheetHeader className="px-6 py-4 border-b border-slate-200 bg-white">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <SheetTitle className="text-xl font-bold text-slate-900">{patient.inmate_name}</SheetTitle>
+              <p className="text-sm text-slate-500 font-mono mt-1">{patient.unique_id}</p>
+              
+              {/* Task 4: Patient Vitals - Contextual Metadata */}
+              <div className="mt-2 flex items-center gap-2 text-xs text-slate-500 font-medium">
+                <span>{patient.facility_name || 'Unknown Facility'}</span>
+                <span>•</span>
+                <span>{patient.sex || 'N/A'}/{patient.age || 'N/A'}</span>
+                <span>•</span>
+                <span>{patient.screening_date ? new Date(patient.screening_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}</span>
               </div>
-              <Progress value={progressPercentage} className="h-2" />
+              
+              {/* Task 3: Clinical Stepper - Stepped Progress Indicator */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-slate-700">{phase}</span>
+                  <span className="text-xs text-slate-500">{isClosed ? 'Journey Complete' : 'In Progress'}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {/* Step 1: Screened */}
+                  <div className="flex flex-col items-center flex-1">
+                    <div className={`w-3 h-3 rounded-full ${
+                      phase === 'Screening' || phase === 'Sputum Test' || phase === 'Diagnosis' || phase === 'ATT Initiation' || phase === 'Closed'
+                        ? 'bg-emerald-500' 
+                        : 'bg-slate-200'
+                    }`} />
+                    <span className="text-[10px] text-slate-500 mt-1">Screened</span>
+                  </div>
+                  <div className={`flex-1 h-[2px] -mt-4 ${
+                    phase === 'Sputum Test' || phase === 'Diagnosis' || phase === 'ATT Initiation' || phase === 'Closed'
+                      ? 'bg-emerald-500' 
+                      : 'bg-slate-200'
+                  }`} />
+                  
+                  {/* Step 2: Sputum */}
+                  <div className="flex flex-col items-center flex-1">
+                    <div className={`w-3 h-3 rounded-full ${
+                      phase === 'Sputum Test' ? 'bg-blue-600' :
+                      phase === 'Diagnosis' || phase === 'ATT Initiation' || phase === 'Closed' ? 'bg-emerald-500' :
+                      'bg-slate-200'
+                    }`} />
+                    <span className="text-[10px] text-slate-500 mt-1">Sputum</span>
+                  </div>
+                  <div className={`flex-1 h-[2px] -mt-4 ${
+                    phase === 'Diagnosis' || phase === 'ATT Initiation' || phase === 'Closed'
+                      ? 'bg-emerald-500' 
+                      : 'bg-slate-200'
+                  }`} />
+                  
+                  {/* Step 3: Diagnosis */}
+                  <div className="flex flex-col items-center flex-1">
+                    <div className={`w-3 h-3 rounded-full ${
+                      phase === 'Diagnosis' ? 'bg-blue-600' :
+                      phase === 'ATT Initiation' || phase === 'Closed' ? 'bg-emerald-500' :
+                      'bg-slate-200'
+                    }`} />
+                    <span className="text-[10px] text-slate-500 mt-1">Diagnosis</span>
+                  </div>
+                  <div className={`flex-1 h-[2px] -mt-4 ${
+                    phase === 'ATT Initiation' || phase === 'Closed'
+                      ? 'bg-emerald-500' 
+                      : 'bg-slate-200'
+                  }`} />
+                  
+                  {/* Step 4: Treatment */}
+                  <div className="flex flex-col items-center flex-1">
+                    <div className={`w-3 h-3 rounded-full ${
+                      phase === 'ATT Initiation' ? 'bg-blue-600' :
+                      phase === 'Closed' ? 'bg-emerald-500' :
+                      'bg-slate-200'
+                    }`} />
+                    <span className="text-[10px] text-slate-500 mt-1">Treatment</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg ml-4">
-            <X className="w-5 h-5 text-slate-400" />
-          </button>
-        </div>
+        </SheetHeader>
+
+        {/* Task 1: Scrollable Content Area */}
+        <ScrollArea className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="space-y-4">
 
         {/* Read-Only: KoboCollect Data */}
         <Section id="demographics" title="Demographics" icon={User}>
@@ -472,7 +544,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
         {/* Phase-Aware Quick Actions - All Sections Visible */}
         {!isClosed ? (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form id="patient-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {/* Group A: Sputum & Referral - Always visible */}
             <Section id="referral" title="Sputum & Referral" icon={FileText} isCurrent={phase === 'Sputum Test'}>
               <div>
@@ -648,60 +720,62 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 />
               </div>
             </Section>
-
-            {/* Action Buttons */}
-            <div className="space-y-2 sticky bottom-0 bg-white pt-4 border-t">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium disabled:opacity-50"
-              >
-                {isSubmitting ? 'Saving...' : 'Save Updates'}
-              </button>
-
-              {!showCloseLoop ? (
-                <button
-                  type="button"
-                  onClick={() => setShowCloseLoop(true)}
-                  className="w-full px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium flex items-center justify-center gap-2"
-                >
-                  <AlertCircle className="w-4 h-4" />
-                  Close Loop (Not TB)
-                </button>
-              ) : (
-                <div className="space-y-2 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm font-medium text-red-900">Confirm Loop Closure</p>
-                  <select
-                    onChange={(e) => e.target.value && handleCloseLoop(e.target.value)}
-                    className="w-full px-3 py-2 border border-red-300 rounded-lg"
-                    disabled={isSubmitting}
-                  >
-                    <option value="">Select reason...</option>
-                    <option value="Negative sputum result">Negative sputum result</option>
-                    <option value="CXR Normal">CXR Normal</option>
-                    <option value="Patient refused treatment">Patient refused treatment</option>
-                    <option value="Transferred to another facility">Transferred</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setShowCloseLoop(false)}
-                    className="text-sm text-red-600 hover:underline"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
-            </div>
           </form>
         ) : (
-          /* Patient Journey Timeline for Closed Cases */
           <div className="space-y-6">
             <PatientTimeline patient={patient} />
           </div>
         )}
           </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        </ScrollArea>
+
+        {/* Task 1: Sticky Action Footer */}
+        {!isClosed && (
+          <div className="sticky bottom-0 w-full p-4 border-t border-slate-200 bg-white/80 backdrop-blur-md flex flex-col gap-3 mt-auto">
+            <button
+              type="submit"
+              form="patient-form"
+              disabled={isSubmitting}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all py-3 rounded-lg disabled:opacity-50"
+            >
+              {isSubmitting ? 'Saving...' : 'Save Updates'}
+            </button>
+
+            {!showCloseLoop ? (
+              <button
+                type="button"
+                onClick={() => setShowCloseLoop(true)}
+                className="w-full bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-medium transition-all py-3 rounded-lg flex items-center justify-center gap-2"
+              >
+                <AlertCircle className="w-4 h-4" />
+                Close Loop (Not TB)
+              </button>
+            ) : (
+              <div className="space-y-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm font-medium text-red-900">Confirm Loop Closure</p>
+                <select
+                  onChange={(e) => e.target.value && handleCloseLoop(e.target.value)}
+                  className="w-full px-3 py-2 border border-red-300 rounded-lg text-sm"
+                  disabled={isSubmitting}
+                >
+                  <option value="">Select reason...</option>
+                  <option value="Negative sputum result">Negative sputum result</option>
+                  <option value="CXR Normal">CXR Normal</option>
+                  <option value="Patient refused treatment">Patient refused treatment</option>
+                  <option value="Transferred to another facility">Transferred</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setShowCloseLoop(false)}
+                  className="text-sm text-red-600 hover:underline"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
   );
 }

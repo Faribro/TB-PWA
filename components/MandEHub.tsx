@@ -37,6 +37,9 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { PatientDetailDrawer } from './PatientDetailDrawer';
+import { useTruthEngine } from '@/hooks/useTruthEngine';
+import { ViolationCard } from './ViolationCard';
+import { DataHealthGauge } from './DataHealthGauge';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -44,8 +47,8 @@ import { PatientDetailDrawer } from './PatientDetailDrawer';
 
 interface Patient {
   id: number;
-  inmate_name: string;
-  unique_id: string;
+  inmate_name?: string;
+  unique_id?: string;
   kobo_uuid?: string;
   facility_name?: string;
   age?: number;
@@ -70,8 +73,9 @@ interface IntegrityViolation {
   id: string;
   patient: Patient;
   violation: string;
-  severity: 'high' | 'medium' | 'low';
+  severity: 'high' | 'medium';
   impactScore: number;
+  suggestion: string;
 }
 
 interface CascadeStep {
@@ -355,6 +359,7 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [dismissedPairs, setDismissedPairs] = useState<Set<string>>(new Set());
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [integrityFilter, setIntegrityFilter] = useState<'all' | 'high' | 'medium'>('all');
 
   // ── Keyboard shortcut ──────────────────────────────────────────────────
 
@@ -387,7 +392,17 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
         uuidMap.set(p.kobo_uuid, arr);
       }
       if (p.inmate_name && p.facility_name) {
-        const key = `${p.inmate_name.toLowerCase().trim()}-${p.facility_name}`;
+        // Safely extract YYYY-MM
+        let monthKey = 'unknown_date';
+        if (p.screening_date) {
+          const d = new Date(p.screening_date);
+          if (!isNaN(d.getTime())) {
+            monthKey = `${d.getFullYear()}-${d.getMonth()}`;
+          }
+        }
+        
+        // Strict Bucket Key: Name + Facility + Month
+        const key = `${(p.inmate_name || 'unknown').toLowerCase().trim()}-${p.facility_name}-${monthKey}`;
         const arr = nameFacilityMap.get(key) || [];
         arr.push(p);
         nameFacilityMap.set(key, arr);
@@ -397,10 +412,12 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
     // O(1) Bucket Processing Helper: Only compares patients that share the same bucket
     const processGroup = (group: Patient[], reason: string) => {
       if (group.length > 1) {
-        for (let i = 0; i < group.length; i++) {
-          for (let j = i + 1; j < group.length; j++) {
-            const a = group[i];
-            const b = group[j];
+        // Hard cap to prevent N^2 explosion on bad data
+        const safeGroup = group.slice(0, 10);
+        for (let i = 0; i < safeGroup.length; i++) {
+          for (let j = i + 1; j < safeGroup.length; j++) {
+            const a = safeGroup[i];
+            const b = safeGroup[j];
             const key = pairKey(a, b);
             
             if (!processed.has(key) && !dismissedPairs.has(key)) {
@@ -422,69 +439,14 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
 
     // Process the matched buckets
     uuidMap.forEach(group => processGroup(group, 'Matching Kobo UUID'));
-    nameFacilityMap.forEach(group => processGroup(group, 'Same name + facility'));
+    nameFacilityMap.forEach(group => processGroup(group, 'Same name + facility + month'));
 
     return pairs.sort((a, b) => b.confidence - a.confidence);
   }, [globalPatients, dismissedPairs]);
 
-  // ── Integrity violations ───────────────────────────────────────────────
-
-  const integrityViolations = useMemo<IntegrityViolation[]>(() => {
-    const violations: IntegrityViolation[] = [];
-    const now = Date.now();
-
-    globalPatients.forEach((patient) => {
-      const screenDate = patient.screening_date ? new Date(patient.screening_date) : null;
-      const attDate = patient.att_start_date ? new Date(patient.att_start_date) : null;
-      const refDate = patient.referral_date ? new Date(patient.referral_date) : null;
-      const isTB = patient.tb_diagnosed === 'Y' || patient.tb_diagnosed === 'Yes';
-
-      if (patient.age !== undefined && (patient.age > 100 || patient.age < 5)) {
-        violations.push({
-          id: `${patient.id}-age`,
-          patient,
-          violation: `Unusual age: ${patient.age} years`,
-          severity: 'medium',
-          impactScore: 30,
-        });
-      }
-
-      if (isTB && !attDate && screenDate) {
-        const days = Math.floor((now - screenDate.getTime()) / MS_PER_DAY);
-        if (days > 14) {
-          violations.push({
-            id: `${patient.id}-att-missing`,
-            patient,
-            violation: `TB diagnosed, no ATT after ${days} days`,
-            severity: 'high',
-            impactScore: 100 + days, // urgency increases with time
-          });
-        }
-      }
-
-      if (attDate && screenDate && attDate < screenDate) {
-        violations.push({
-          id: `${patient.id}-att-before-screen`,
-          patient,
-          violation: 'ATT started before screening date',
-          severity: 'high',
-          impactScore: 90,
-        });
-      }
-
-      if (refDate && screenDate && refDate < screenDate) {
-        violations.push({
-          id: `${patient.id}-ref-before-screen`,
-          patient,
-          violation: 'Referral date before screening date',
-          severity: 'medium',
-          impactScore: 50,
-        });
-      }
-    });
-
-    return violations.sort((a, b) => b.impactScore - a.impactScore);
-  }, [globalPatients]);
+  // ── Integrity violations (delegated to useTruthEngine hook) ───────────
+  const truthEngineResult = useTruthEngine(globalPatients);
+  const { violations: integrityViolations, healthScore, highCount, mediumCount } = truthEngineResult;
 
   // ── Cascade data ───────────────────────────────────────────────────────
 
@@ -523,21 +485,23 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
     return { steps, conversions, criticalLeak, total, totalInitiated: initiated.length };
   }, [globalPatients]);
 
-  // ── Derived counts for intelligence bar ───────────────────────────────
-
-  const highCount = useMemo(
-    () => integrityViolations.filter((v) => v.severity === 'high').length,
-    [integrityViolations]
-  );
-  const mediumCount = useMemo(
-    () => integrityViolations.filter((v) => v.severity === 'medium').length,
-    [integrityViolations]
-  );
+  // ── Derived counts for intelligence bar (using useTruthEngine) ────────
 
   // ── Handlers ──────────────────────────────────────────────────────────
 
   const handleDismiss = useCallback((pair: DuplicatePair) => {
     setDismissedPairs((prev) => new Set(prev).add(pair.key));
+  }, []);
+
+  const handleGaugeClick = useCallback((severity: 'high' | 'medium') => {
+    setActiveTab('integrity');
+    setIntegrityFilter(severity);
+    setTimeout(() => {
+      const integritySection = document.getElementById('integrity-scanner');
+      if (integritySection) {
+        integritySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
   }, []);
 
   const ctxValue = useMemo<HubContextValue>(
@@ -580,6 +544,14 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
             medium={mediumCount}
             attLeak={cascadeData.criticalLeak}
             onChipClick={setActiveTab}
+          />
+
+          {/* ── Data Health Gauge ────────────────────────────────────────── */}
+          <DataHealthGauge
+            healthScore={healthScore}
+            highCount={highCount}
+            mediumCount={mediumCount}
+            onSectionClick={handleGaugeClick}
           />
 
           {/* ── Navigation ──────────────────────────────────────────────── */}
@@ -627,7 +599,13 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
                 <DuplicateAssassin pairs={duplicatePairs} onDismiss={handleDismiss} />
               )}
               {activeTab === 'integrity' && (
-                <IntegrityScanner violations={integrityViolations} />
+                <div id="integrity-scanner">
+                  <IntegrityScannerUpgraded 
+                    violations={integrityViolations}
+                    initialFilter={integrityFilter}
+                    onFilterChange={setIntegrityFilter}
+                  />
+                </div>
               )}
               {activeTab === 'cascade' && (
                 <CareCascadeFlow data={cascadeData} />
@@ -877,7 +855,82 @@ const RecordCard = memo(function RecordCard({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Integrity Scanner
+// Integrity Scanner (Upgraded with Truth Engine)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function IntegrityScannerUpgraded({ 
+  violations,
+  initialFilter = 'all',
+  onFilterChange
+}: { 
+  violations: any[];
+  initialFilter?: 'all' | 'high' | 'medium';
+  onFilterChange?: (filter: 'all' | 'high' | 'medium') => void;
+}) {
+  const { openPatient } = useHub();
+  const [filter, setFilter] = useState<'all' | 'high' | 'medium'>(initialFilter);
+
+  useEffect(() => {
+    setFilter(initialFilter);
+  }, [initialFilter]);
+
+  const handleFilterChange = (newFilter: 'all' | 'high' | 'medium') => {
+    setFilter(newFilter);
+    onFilterChange?.(newFilter);
+  };
+
+  const filtered = useMemo(
+    () => (filter === 'all' ? violations : violations.filter((v) => v.severity === filter)),
+    [violations, filter]
+  );
+
+  const highCount = violations.filter((v) => v.severity === 'high').length;
+  const medCount = violations.filter((v) => v.severity === 'medium').length;
+
+  const handleResolve = (v: any) => openPatient(v.patient);
+
+  return (
+    <div className="space-y-5">
+      {/* Stat cards */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Total', value: violations.length, color: 'text-slate-900', active: filter === 'all', onClick: () => handleFilterChange('all') },
+          { label: 'High', value: highCount, color: 'text-red-600', active: filter === 'high', onClick: () => handleFilterChange('high') },
+          { label: 'Medium', value: medCount, color: 'text-amber-600', active: filter === 'medium', onClick: () => handleFilterChange('medium') },
+        ].map((s) => (
+          <button
+            key={s.label}
+            type="button"
+            onClick={s.onClick}
+            className={`bg-white rounded-2xl border p-5 text-left transition-all ${
+              s.active ? 'border-slate-900 shadow-[0_0_0_1px_#0f172a]' : 'border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.04)] hover:border-slate-300'
+            }`}
+          >
+            <p className="text-xs text-slate-500 mb-1">{s.label} Violations</p>
+            <AnimatedNumber value={s.value} className={`text-3xl font-bold ${s.color}`} />
+          </button>
+        ))}
+      </div>
+
+      {/* Violation cards */}
+      <div className="space-y-2.5">
+        <AnimatePresence initial={false}>
+          {filtered.map((v, i) => (
+            <ViolationCard
+              key={v.id}
+              violation={v}
+              onResolve={handleResolve}
+              index={i}
+            />
+          ))}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Integrity Scanner (Legacy - kept for reference)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function IntegrityScanner({ violations }: { violations: IntegrityViolation[] }) {
