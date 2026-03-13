@@ -167,6 +167,7 @@ export default function ActionsHub() {
       {selectedPatient && (
         <PatientDetailDrawer
           patient={selectedPatient}
+          isOpen={true}
           onClose={() => setSelectedPatient(null)}
           onUpdate={() => {}}
         />

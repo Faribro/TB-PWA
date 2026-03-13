@@ -1,11 +1,10 @@
 'use client';
 
-import { useMemo, useState, useEffect, startTransition } from 'react';
+import { useMemo, useState, useEffect, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as d3 from 'd3';
 import { Activity, Stethoscope, Pill, Shield, X } from 'lucide-react';
 import { useTreeFilter } from '@/contexts/TreeFilterContext';
-import { calculatePatientPhase } from '@/lib/phase-engine';
 
 interface Patient {
   screening_date: string;
@@ -18,6 +17,8 @@ interface Patient {
 
 interface MindMapProps {
   patients: Patient[];
+  onNavigateToPipeline?: () => void;
+  onSetFilter?: (f: any) => void;
 }
 
 interface TreeNode {
@@ -30,7 +31,6 @@ interface TreeNode {
   year?: number;
   month?: number;
   district?: string;
-  date?: string;
 }
 
 const ACTION_TYPES = [
@@ -40,17 +40,17 @@ const ACTION_TYPES = [
   { id: 'admin', label: 'Administration', icon: Shield, color: 'slate' }
 ] as const;
 
-export default function MindMapDashboard({ patients }: MindMapProps) {
+export default memo(function MindMapDashboard({ patients, onNavigateToPipeline, onSetFilter }: MindMapProps) {
   const { filter, setFilter, clearFilter } = useTreeFilter();
   const [expandedYear, setExpandedYear] = useState<number | null>(null);
   const [expandedMonth, setExpandedMonth] = useState<number | null>(null);
   const [expandedDistrict, setExpandedDistrict] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const d3InitializedRef = useRef(false);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && selectedDate) {
-        console.log('ESC key pressed - closing modal');
         setSelectedDate(null);
       }
     };
@@ -143,7 +143,12 @@ export default function MindMapDashboard({ patients }: MindMapProps) {
     return root;
   }, [patients]);
 
-  const hierarchy = useMemo(() => d3.hierarchy(treeData), [treeData]);
+  const hierarchy = useMemo(() => {
+    if (!d3InitializedRef.current) {
+      d3InitializedRef.current = true;
+    }
+    return d3.hierarchy(treeData);
+  }, [treeData]);
 
   const handleYearClick = (year: number) => {
     setExpandedYear(expandedYear === year ? null : year);
@@ -167,15 +172,17 @@ export default function MindMapDashboard({ patients }: MindMapProps) {
     setSelectedDate(selectedDate === date ? null : date);
   };
 
-  const handleActionClick = (actionType: 'sputum' | 'diagnosis' | 'treatment' | 'admin') => {
-    console.log('🎯 Action clicked:', actionType);
+  const handleActionClick = (e: React.MouseEvent, actionType: 'sputum' | 'diagnosis' | 'treatment' | 'admin') => {
+    e.preventDefault();
+    e.stopPropagation();
     
     if (!expandedYear || expandedMonth === null || !expandedDistrict || !selectedDate) {
-      console.error('❌ Missing context data');
       return;
     }
     
-    // 1. Lock in the exact primitive values so they survive the modal unmounting
+    // Close modal immediately to prevent lagged visual state
+    setSelectedDate(null);
+    
     const exactFilterPayload = { 
       year: expandedYear, 
       month: expandedMonth, 
@@ -184,15 +191,9 @@ export default function MindMapDashboard({ patients }: MindMapProps) {
       actionType 
     };
     
-    // 2. High Priority UI Update: Close the modal instantly
-    console.log('🚪 Closing modal instantly via high-priority update');
-    setSelectedDate(null); 
-    
-    // 3. Low Priority Background Task: Run the heavy 14k record filter safely
-    startTransition(() => {
-      console.log('✅ Setting context filter in background transition:', exactFilterPayload);
-      setFilter(exactFilterPayload);
-    });
+    if (onSetFilter) {
+      onSetFilter(exactFilterPayload);
+    }
   };
 
   const datePatientMap = useMemo(() => {
@@ -242,6 +243,37 @@ export default function MindMapDashboard({ patients }: MindMapProps) {
       return dates;
     };
   }, [datePatientMap]);
+
+  // ── CRITICAL: Scoped patients for Spark Modal (filtered by selected date + district) ──
+  const scopedModalPatients = useMemo(() => {
+    if (!selectedDate || !expandedDistrict) return [];
+    
+    return patients.filter(p => {
+      const dateValue = p.screening_date || p.submitted_on;
+      if (!dateValue) return false;
+      
+      const pDate = new Date(dateValue);
+      if (isNaN(pDate.getTime())) return false;
+      
+      const dateStr = pDate.toISOString().split('T')[0];
+      return dateStr === selectedDate && p.screening_district === expandedDistrict;
+    });
+  }, [patients, selectedDate, expandedDistrict]);
+
+  const getModalActionCount = (actionType: string): number => {
+    switch (actionType) {
+      case 'sputum': 
+        return scopedModalPatients.filter(p => !p.referral_date).length;
+      case 'diagnosis': 
+        return scopedModalPatients.filter(p => p.referral_date && !p.tb_diagnosed).length;
+      case 'treatment': 
+        return scopedModalPatients.filter(p => p.tb_diagnosed === 'Y' && !p.att_start_date).length;
+      case 'admin':
+        return scopedModalPatients.length;
+      default: 
+        return 0;
+    }
+  };
 
   const getPendingCount = useMemo(() => {
     const countCache = new Map<string, number>();
@@ -520,10 +552,7 @@ export default function MindMapDashboard({ patients }: MindMapProps) {
       {selectedDate && (
         <div 
           className="fixed inset-0 z-[9999] flex items-center justify-center p-8 bg-black/40 backdrop-blur-xl"
-          onClick={() => {
-            console.log('🚪 Backdrop clicked - closing');
-            setSelectedDate(null);
-          }}
+          onClick={() => setSelectedDate(null)}
         >
           <div
             className="relative w-full max-w-6xl bg-white/95 border border-slate-200/60 rounded-[2rem] p-10 shadow-2xl"
@@ -535,12 +564,7 @@ export default function MindMapDashboard({ patients }: MindMapProps) {
                 <p className="text-slate-600 mt-2 text-lg font-medium">{new Date(selectedDate).toLocaleDateString('en-US', { dateStyle: 'full' })}</p>
               </div>
               <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log('❌ Close button explicitly clicked');
-                  setSelectedDate(null);
-                }}
+                onClick={() => setSelectedDate(null)}
                 className="w-12 h-12 rounded-2xl bg-red-500 hover:bg-red-600 flex items-center justify-center cursor-pointer transition-all"
               >
                 <X className="w-6 h-6 text-white" />
@@ -550,7 +574,7 @@ export default function MindMapDashboard({ patients }: MindMapProps) {
             <div className="grid grid-cols-2 gap-6">
               {ACTION_TYPES.map((action, idx) => {
                 const Icon = action.icon;
-                const count = getPendingCount(selectedDate, action.id);
+                const count = getModalActionCount(action.id);
                 
                 const colorClasses = {
                   cyan: {
@@ -596,11 +620,7 @@ export default function MindMapDashboard({ patients }: MindMapProps) {
                 return (
                   <button
                     key={action.id}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleActionClick(action.id as any);
-                    }}
+                    onClick={(e) => handleActionClick(e, action.id as any)}
                     className="group relative w-full"
                     disabled={count === 0}
                   >
@@ -625,4 +645,4 @@ export default function MindMapDashboard({ patients }: MindMapProps) {
       )}
     </div>
   );
-}
+});

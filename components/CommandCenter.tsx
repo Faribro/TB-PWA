@@ -64,9 +64,10 @@ interface FilterMetadata {
 interface CommandCenterProps {
   globalPatients?: any[];
   isLoading?: boolean;
+  initialFilter?: any;
 }
 
-export default memo(function CommandCenter({ globalPatients = [], isLoading = false }: CommandCenterProps) {
+export default memo(function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }: CommandCenterProps) {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [triageIds, setTriageIds] = useState<number[]>([]);
@@ -95,21 +96,13 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
   const userRole = 'State M&E';
   const userState = undefined; // Set to 'Maharashtra' to test state filtering
 
-  // SWR hooks with state-based security
-  const { data: patientsData, isLoading: patientsLoading, mutate } = useSWRPatients({
-    page,
-    pageSize,
-    filters,
-    searchTerm: debouncedSearch,
-    sortBy,
-    userState
-  });
-  // Use globalPatients directly for analytics (full dataset)
-  const allPatients = globalPatients;
+  // SWR hooks with state-based security - REMOVED: useSWRPatients call
+  // Now using globalPatients prop directly from parent
   const { data: filterMetadata } = useSWRFilterMetadata(userState);
 
-  const rawPatients = globalPatients.length > 0 ? globalPatients : (patientsData?.data || []);
-  const totalCount = globalPatients.length > 0 ? globalPatients.length : (patientsData?.count || 0);
+  // Dummy mutate function for compatibility
+  const mutate = async () => {};
+  const totalCount = globalPatients.length;
 
   // Define isSLABreach before using it
   const isSLABreach = useCallback((patient: Patient): boolean => {
@@ -120,9 +113,27 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
     return daysSince > 7 && !phase.includes('treatment') && !phase.includes('closed');
   }, []);
 
-  // Client-side filters
+  // Client-side filters with Spark filter logic
   const patients = useMemo(() => {
-    let filtered = rawPatients;
+    let filtered = globalPatients;
+    
+    // Apply Spark filter (actionType)
+    if (initialFilter?.actionType) {
+      filtered = filtered.filter(p => {
+        switch (initialFilter.actionType) {
+          case 'sputum':
+            return !p.referral_date;
+          case 'diagnosis':
+            return p.referral_date && !p.tb_diagnosed;
+          case 'treatment':
+            return p.tb_diagnosed === 'Y' && !p.att_start_date;
+          case 'admin':
+            return true;
+          default:
+            return true;
+        }
+      });
+    }
     
     // Apply search filter
     if (debouncedSearch) {
@@ -146,7 +157,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
     });
     
     return filtered;
-  }, [rawPatients, debouncedSearch, filters, isSLABreach]);
+  }, [globalPatients, debouncedSearch, filters, isSLABreach, initialFilter]);
 
   const updatePatient = async (id: number, updates: Partial<Patient>) => {
     const patient = patients.find(p => p.id === id);
@@ -184,7 +195,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
   const filteredPatients = paginatedPatients;
   const displayTotalCount = patients.length;
 
-  const canSelectForTriage = (patient: Patient): boolean => {
+  const canSelectForTriage = useCallback((patient: Patient): boolean => {
     const xrayResult = (patient.chest_x_ray_result || patient.xray_result || '').toLowerCase();
     const symptomsText = (patient.symptoms_present || '').toLowerCase();
     
@@ -209,7 +220,11 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
     });
     
     return canSelect;
-  };
+  }, []);
+
+  const eligibleCount = useMemo(() => {
+    return filteredPatients.filter(p => canSelectForTriage(p)).length;
+  }, [filteredPatients, canSelectForTriage]);
 
   const toggleTriageSelect = (id: number) => {
     setTriageIds(prev => 
@@ -222,7 +237,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
       .filter(p => canSelectForTriage(p))
       .map(p => p.id);
     
-    if (triageIds.length === eligibleIds.length) {
+    if (triageIds.length === eligibleIds.length && eligibleIds.length > 0) {
       setTriageIds([]);
     } else {
       setTriageIds(eligibleIds);
@@ -296,7 +311,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
     setSelectedIds(newSet);
   };
 
-  if (isLoading && !patientsData && globalPatients.length === 0) {
+  if (isLoading && globalPatients.length === 0) {
     return (
       <div className="h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
         <LinesAndDotsLoader progress={75} />
@@ -316,7 +331,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
             <h1 className="text-2xl font-bold text-white">
               Inmate Track and Chase
             </h1>
-            <p className="text-slate-300 text-sm">Monitoring {totalCount.toLocaleString()} patients • Showing {displayTotalCount.toLocaleString()} • Page {page} of {Math.ceil(displayTotalCount / pageSize)}</p>
+            <p className="text-slate-300 text-sm">Monitoring {totalCount.toLocaleString()} patients • Showing {displayTotalCount.toLocaleString()} • Page {page} of {Math.ceil(displayTotalCount / pageSize)}{initialFilter?.actionType && ` • Filter: ${initialFilter.actionType}`}</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-1 border border-slate-600">
@@ -504,9 +519,11 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
                     <th className="px-4 py-3 text-left w-12">
                       <input
                         type="checkbox"
-                        checked={triageIds.length > 0 && triageIds.length === filteredPatients.filter(p => canSelectForTriage(p)).length}
+                        checked={triageIds.length > 0 && triageIds.length === eligibleCount && eligibleCount > 0}
                         onChange={toggleSelectAllEligible}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                        disabled={eligibleCount === 0}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title={eligibleCount === 0 ? 'No eligible patients for bulk triage' : `Select all ${eligibleCount} eligible patients`}
                       />
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Patient</th>

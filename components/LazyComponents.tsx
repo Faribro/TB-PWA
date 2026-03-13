@@ -2,12 +2,12 @@ import dynamic from 'next/dynamic';
 import type { ComponentProps } from 'react';
 
 // Import types
-type AdvancedFilterBarProps = ComponentProps<typeof import('./AdvancedFilterBar').default>;
+type AdvancedFilterBarProps = ComponentProps<typeof import('./AdvancedFilterBar').AdvancedFilterBar>;
 type PhaseCellProps = ComponentProps<typeof import('./PhaseCell').PhaseCell>;
 
 // Lazy load heavy components with proper typing
 export const AdvancedFilterBar = dynamic(
-  () => import('./AdvancedFilterBar'),
+  () => import('./AdvancedFilterBar').then(mod => ({ default: mod.AdvancedFilterBar })),
   {
     loading: () => <div className="h-12 bg-slate-100 animate-pulse rounded-lg" />
   }

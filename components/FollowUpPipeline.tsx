@@ -43,67 +43,46 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
   const [triageIds, setTriageIds] = useState<number[]>([]);
   const [isTriaging, setIsTriaging] = useState(false);
   
-  // Support both props for backward compatibility
   const patientData = globalPatients ?? patients ?? [];
 
   const filteredPatients = useMemo(() => {
-    console.log('FollowUpPipeline - Current filter:', filter);
-    console.log('FollowUpPipeline - Total patients:', patientData.length);
-    
     let filtered = patientData;
 
     if (filter.date) {
-      console.log('Filtering by date:', filter.date);
       filtered = filtered.filter(p => {
         const dateValue = p.screening_date || p.submitted_on;
         if (!dateValue) return false;
-        
         const pDate = new Date(dateValue);
         if (isNaN(pDate.getTime())) return false;
-        
         return pDate.toISOString().split('T')[0] === filter.date;
       });
-      console.log('After date filter:', filtered.length);
     } else if (filter.district && filter.month !== undefined && filter.year) {
-      console.log('Filtering by district/month/year:', filter.district, filter.month, filter.year);
       filtered = filtered.filter(p => {
         const dateValue = p.screening_date || p.submitted_on;
         if (!dateValue || p.screening_district !== filter.district) return false;
-        
         const pDate = new Date(dateValue);
         if (isNaN(pDate.getTime())) return false;
-        
         return pDate.getFullYear() === filter.year && pDate.getMonth() === filter.month;
       });
-      console.log('After district/month/year filter:', filtered.length);
     } else if (filter.month !== undefined && filter.year) {
-      console.log('Filtering by month/year:', filter.month, filter.year);
       filtered = filtered.filter(p => {
         const dateValue = p.screening_date || p.submitted_on;
         if (!dateValue) return false;
-        
         const pDate = new Date(dateValue);
         if (isNaN(pDate.getTime())) return false;
-        
         return pDate.getFullYear() === filter.year && pDate.getMonth() === filter.month;
       });
-      console.log('After month/year filter:', filtered.length);
     } else if (filter.year) {
-      console.log('Filtering by year:', filter.year);
       filtered = filtered.filter(p => {
         const dateValue = p.screening_date || p.submitted_on;
         if (!dateValue) return false;
-        
         const pDate = new Date(dateValue);
         if (isNaN(pDate.getTime())) return false;
-        
         return pDate.getFullYear() === filter.year;
       });
-      console.log('After year filter:', filtered.length);
     }
 
     if (filter.actionType) {
-      console.log('Filtering by actionType:', filter.actionType);
       filtered = filtered.filter(p => {
         switch (filter.actionType) {
           case 'sputum':
@@ -118,12 +97,12 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
             return true;
         }
       });
-      console.log('After actionType filter:', filtered.length);
     }
 
-    console.log('Final filtered patients:', filtered.length);
     return filtered;
   }, [patientData, filter]);
+
+  const displayPatients = useMemo(() => filteredPatients.slice(0, 500), [filteredPatients]);
 
   const hasActiveFilter = filter.year || filter.month !== undefined || filter.district || filter.date || filter.actionType;
 
@@ -131,7 +110,6 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
     const xrayResult = (patient.chest_x_ray_result || patient.xray_result || '').toLowerCase();
     const symptomsText = (patient.symptoms_present || '').toLowerCase();
     
-    // Check for abnormal/suspected indicators in X-ray
     const hasAbnormalXray = xrayResult.includes('abnormal') ||
                            xrayResult.includes('suspected') ||
                            xrayResult.includes('tb') ||
@@ -140,7 +118,6 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
                            xrayResult === 'a' ||
                            xrayResult === 's';
     
-    // Check for symptoms present
     const hasSymptoms = symptomsText && 
                        symptomsText !== '' && 
                        symptomsText !== 'none' &&
@@ -150,7 +127,6 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
                        symptomsText !== 'na' &&
                        symptomsText !== 'n/a';
     
-    // Patient is NOT eligible if they have abnormal X-ray OR symptoms
     return !hasAbnormalXray && !hasSymptoms;
   };
 
@@ -208,7 +184,6 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
     }
   };
 
-  // Show loading spinner if data is still loading
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-blue-50">
@@ -295,78 +270,75 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-2 cyan-scrollbar">
-        <AnimatePresence mode="popLayout">
-          {filteredPatients && filteredPatients.length > 0 ? filteredPatients.map((patient, idx) => {
-            const phase = calculatePatientPhase(patient);
-            const canSelect = canSelectForTriage(patient);
-            
-            return (
-              <motion.div
-                key={patient.id}
-                layoutId={`patient-${patient.id}`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ delay: idx * 0.02 }}
-                className="w-full group"
-              >
-                <div className="backdrop-blur-xl bg-white/90 hover:bg-white border-2 border-slate-200/60 hover:border-blue-300 rounded-2xl p-5 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/10 group-hover:scale-[1.01]">
-                  <div className="flex items-start gap-4">
-                    <div className="pt-1" title={!canSelect ? 'Requires manual follow-up: Abnormal X-Ray or Symptoms Present' : ''}>
-                      <input
-                        type="checkbox"
-                        checked={triageIds.includes(patient.id)}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          toggleTriageSelect(patient.id);
-                        }}
-                        disabled={!canSelect}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-30 disabled:cursor-not-allowed"
-                      />
-                    </div>
-                    <div className="flex-1 cursor-pointer" onClick={() => onPatientClick?.(patient)}>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="text-sm font-mono font-bold text-cyan-700 bg-cyan-50 px-2.5 py-1 rounded-lg">{patient.unique_id}</div>
-                            <div className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                              phase.phase === 'Sputum Test' ? 'bg-amber-100 text-amber-700' :
-                              phase.phase === 'Diagnosis' ? 'bg-purple-100 text-purple-700' :
-                              phase.phase === 'ATT Initiation' ? 'bg-emerald-100 text-emerald-700' :
-                              'bg-slate-100 text-slate-700'
-                            }`}>
-                              {phase.phase}
-                            </div>
-                          </div>
-                          
-                          <div className="text-slate-900 font-bold text-lg mb-2">{patient.inmate_name}</div>
-                          
-                          <div className="flex items-center gap-4 text-xs font-medium text-slate-600">
-                            <span>{patient.facility_name}</span>
-                            <span className="text-slate-400">•</span>
-                            <span>{patient.screening_district}</span>
+        {displayPatients && displayPatients.length > 0 ? displayPatients.map((patient) => {
+          const phase = calculatePatientPhase(patient);
+          const canSelect = canSelectForTriage(patient);
+          
+          return (
+            <div key={patient.id} className="w-full group">
+              <div className="backdrop-blur-xl bg-white/90 hover:bg-white border-2 border-slate-200/60 hover:border-blue-300 rounded-2xl p-5 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/10 group-hover:scale-[1.01]">
+                <div className="flex items-start gap-4">
+                  <div className="pt-1" title={!canSelect ? 'Requires manual follow-up: Abnormal X-Ray or Symptoms Present' : ''}>
+                    <input
+                      type="checkbox"
+                      checked={triageIds.includes(patient.id)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        toggleTriageSelect(patient.id);
+                      }}
+                      disabled={!canSelect}
+                      className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                  <div className="flex-1 cursor-pointer" onClick={() => onPatientClick?.(patient)}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="text-sm font-mono font-bold text-cyan-700 bg-cyan-50 px-2.5 py-1 rounded-lg">{patient.unique_id}</div>
+                          <div className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                            phase.phase === 'Sputum Test' ? 'bg-amber-100 text-amber-700' :
+                            phase.phase === 'Diagnosis' ? 'bg-purple-100 text-purple-700' :
+                            phase.phase === 'ATT Initiation' ? 'bg-emerald-100 text-emerald-700' :
+                            'bg-slate-100 text-slate-700'
+                          }`}>
+                            {phase.phase}
                           </div>
                         </div>
+                        
+                        <div className="text-slate-900 font-bold text-lg mb-2">{patient.inmate_name}</div>
+                        
+                        <div className="flex items-center gap-4 text-xs font-medium text-slate-600">
+                          <span>{patient.facility_name}</span>
+                          <span className="text-slate-400">•</span>
+                          <span>{patient.screening_district}</span>
+                        </div>
+                      </div>
 
-                        <div className="text-right">
-                          <div className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
-                            {(() => {
-                              const dateValue = patient.screening_date || patient.submitted_on;
-                              if (!dateValue) return 'N/A';
-                              const date = new Date(dateValue);
-                              if (isNaN(date.getTime())) return 'Invalid Date';
-                              return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                            })()}
-                          </div>
+                      <div className="text-right">
+                        <div className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                          {(() => {
+                            const dateValue = patient.screening_date || patient.submitted_on;
+                            if (!dateValue) return 'N/A';
+                            const date = new Date(dateValue);
+                            if (isNaN(date.getTime())) return 'Invalid Date';
+                            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                          })()}
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </motion.div>
-            );
-          }) : null}
-        </AnimatePresence>
+              </div>
+            </div>
+          );
+        }) : null}
+
+        {!isLoading && filteredPatients.length > 0 && (
+          <div className="text-center py-4 text-xs text-slate-500 font-medium border-t border-slate-200 mt-4">
+            Showing {displayPatients.length} of {filteredPatients.length.toLocaleString()} filtered records
+            {filteredPatients.length > 500 && ' • Use filters to narrow results'}
+          </div>
+        )}
 
         {!isLoading && (!patientData || patientData.length === 0) && (
           <motion.div
@@ -384,7 +356,6 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
         )}
       </div>
 
-      {/* Floating Triage Action Bar */}
       <AnimatePresence>
         {triageIds.length > 0 && (
           <motion.div

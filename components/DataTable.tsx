@@ -610,6 +610,7 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
       {selectedPatient && (
         <PatientDetailDrawer
           patient={selectedPatient}
+          isOpen={true}
           onClose={() => setSelectedPatient(null)}
           onUpdate={loadData}
         />

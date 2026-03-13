@@ -6,6 +6,7 @@ import AuthProvider from "@/components/AuthProvider";
 import { QueryProvider } from "@/components/QueryProvider";
 import { SWRProvider } from "@/components/SWRProvider";
 import { TreeFilterProvider } from "@/contexts/TreeFilterContext";
+import { FilterProvider } from "@/contexts/FilterContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -25,10 +26,12 @@ export default function RootLayout({
         <SWRProvider>
           <QueryProvider>
             <AuthProvider>
-              <TreeFilterProvider>
-                {children}
-                <Toaster theme="light" position="bottom-right" />
-              </TreeFilterProvider>
+              <FilterProvider>
+                <TreeFilterProvider>
+                  {children}
+                  <Toaster theme="light" position="bottom-right" />
+                </TreeFilterProvider>
+              </FilterProvider>
             </AuthProvider>
           </QueryProvider>
         </SWRProvider>

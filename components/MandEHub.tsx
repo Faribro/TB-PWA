@@ -36,7 +36,6 @@ import {
   BarChart3,
   Sparkles,
 } from 'lucide-react';
-import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { PatientDetailDrawer } from './PatientDetailDrawer';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -347,9 +346,12 @@ function IntelligenceBar({
 // Root Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function MandEHub() {
+interface MandEHubProps {
+  globalPatients?: Patient[];
+}
+
+export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
   const [activeTab, setActiveTab] = useState<TabId>('duplicates');
-  const { data: globalPatients = [] } = useSWRAllPatients();
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [dismissedPairs, setDismissedPairs] = useState<Set<string>>(new Set());
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -371,40 +373,57 @@ export default function MandEHub() {
 
   const duplicatePairs = useMemo<DuplicatePair[]>(() => {
     const pairs: DuplicatePair[] = [];
+    if (!globalPatients || globalPatients.length === 0) return pairs;
+
+    const nameFacilityMap = new Map<string, Patient[]>();
+    const uuidMap = new Map<string, Patient[]>();
     const processed = new Set<string>();
 
-    for (let i = 0; i < globalPatients.length; i++) {
-      for (let j = i + 1; j < globalPatients.length; j++) {
-        const a = globalPatients[i];
-        const b = globalPatients[j];
-        const key = pairKey(a, b);
-
-        if (processed.has(key) || dismissedPairs.has(key)) continue;
-
-        const nameMatch =
-          !!a.inmate_name &&
-          !!b.inmate_name &&
-          a.inmate_name.toLowerCase().trim() === b.inmate_name.toLowerCase().trim() &&
-          a.facility_name === b.facility_name;
-
-        const uuidMatch = !!a.kobo_uuid && a.kobo_uuid === b.kobo_uuid;
-
-        if (nameMatch || uuidMatch) {
-          const conflicts = getConflicts(a, b);
-          pairs.push({
-            key,
-            recordA: a,
-            recordB: b,
-            matchReason: nameMatch ? 'Same name + facility' : 'Matching Kobo UUID',
-            // Fewer conflicting fields = higher confidence they're truly the same
-            confidence: Math.round(100 - conflicts.size * 18),
-          });
-          processed.add(key);
-        }
+    // O(N) Single Pass: Group into buckets (takes ~1 millisecond)
+    for (const p of globalPatients) {
+      if (p.kobo_uuid) {
+        const arr = uuidMap.get(p.kobo_uuid) || [];
+        arr.push(p);
+        uuidMap.set(p.kobo_uuid, arr);
+      }
+      if (p.inmate_name && p.facility_name) {
+        const key = `${p.inmate_name.toLowerCase().trim()}-${p.facility_name}`;
+        const arr = nameFacilityMap.get(key) || [];
+        arr.push(p);
+        nameFacilityMap.set(key, arr);
       }
     }
 
-    // Sort by highest confidence first (most likely true duplicates)
+    // O(1) Bucket Processing Helper: Only compares patients that share the same bucket
+    const processGroup = (group: Patient[], reason: string) => {
+      if (group.length > 1) {
+        for (let i = 0; i < group.length; i++) {
+          for (let j = i + 1; j < group.length; j++) {
+            const a = group[i];
+            const b = group[j];
+            const key = pairKey(a, b);
+            
+            if (!processed.has(key) && !dismissedPairs.has(key)) {
+              const conflicts = getConflicts(a, b);
+              pairs.push({
+                key,
+                recordA: a,
+                recordB: b,
+                matchReason: reason,
+                // Fewer conflicting fields = higher confidence
+                confidence: Math.max(0, 100 - conflicts.size * 18)
+              });
+              processed.add(key);
+            }
+          }
+        }
+      }
+    };
+
+    // Process the matched buckets
+    uuidMap.forEach(group => processGroup(group, 'Matching Kobo UUID'));
+    nameFacilityMap.forEach(group => processGroup(group, 'Same name + facility'));
+
     return pairs.sort((a, b) => b.confidence - a.confidence);
   }, [globalPatients, dismissedPairs]);
 
@@ -528,7 +547,7 @@ export default function MandEHub() {
 
   return (
     <HubContext.Provider value={ctxValue}>
-      <div className="min-h-screen bg-[#F7F8FA] p-6 lg:p-8">
+      <div className="h-full overflow-y-auto bg-[#F7F8FA] p-6 lg:p-8">
         <div className="max-w-7xl mx-auto space-y-5">
 
           {/* ── Header ──────────────────────────────────────────────────── */}
@@ -614,7 +633,7 @@ export default function MandEHub() {
                 <CareCascadeFlow data={cascadeData} />
               )}
               {activeTab === 'kanban' && (
-                <ComingSoon title="Aging SLA Kanban" icon={Kanban} description="Tracks every patient by days-in-stage against SLA thresholds. Lanes auto-escalate as deadlines approach." />
+                <AgingSLAKanban patients={globalPatients} />
               )}
             </motion.div>
           </AnimatePresence>
@@ -622,14 +641,12 @@ export default function MandEHub() {
         </div>
       </div>
 
-      {/* ── Command Palette ──────────────────────────────────────────────── */}
       <CommandPalette
         open={cmdOpen}
         onClose={() => setCmdOpen(false)}
         onNavigate={setActiveTab}
       />
 
-      {/* ── Patient Detail Drawer ────────────────────────────────────────── */}
       {selectedPatient && (
         <PatientDetailDrawer
           patient={selectedPatient}
@@ -664,9 +681,10 @@ function DuplicateAssassin({
   // Keyboard controls
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (pairs.length === 0) return; // Don't listen if no pairs
       if (e.key === 'ArrowRight') advance();
       if (e.key === 'ArrowLeft') advance();
-      if (e.key === 'd') { handleDismiss(); }
+      if (e.key === 'd' || e.key === 'D') { handleDismiss(); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -1070,6 +1088,236 @@ function CareCascadeFlow({
             <p className="text-xs text-slate-400 mt-1">{s.sub}</p>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Aging SLA Kanban
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface SLAPatient {
+  patient: Patient;
+  daysWaiting: number;
+  severity: 'critical' | 'warning' | 'safe';
+}
+
+function AgingSLAKanban({ patients }: { patients: Patient[] }) {
+  const { openPatient } = useHub();
+
+  const { pendingReferral, pendingDiagnosis, pendingTreatment } = useMemo(() => {
+    const referral: SLAPatient[] = [];
+    const diagnosis: SLAPatient[] = [];
+    const treatment: SLAPatient[] = [];
+    const now = Date.now();
+
+    for (const p of patients) {
+      // Skip completed patients
+      if (p.att_start_date) continue;
+
+      let baseDate: string | null = null;
+      let bucket: SLAPatient[] | null = null;
+
+      const isTB = p.tb_diagnosed === 'Y' || p.tb_diagnosed === 'Yes';
+
+      if (isTB) {
+        // Pending Treatment
+        baseDate = p.screening_date || p.referral_date;
+        bucket = treatment;
+      } else if (p.referral_date) {
+        // Pending Diagnosis
+        baseDate = p.referral_date;
+        bucket = diagnosis;
+      } else if (p.screening_date) {
+        // Pending Referral
+        baseDate = p.screening_date;
+        bucket = referral;
+      }
+
+      if (baseDate && bucket) {
+        const date = new Date(baseDate);
+        if (!isNaN(date.getTime())) {
+          const daysWaiting = Math.floor((now - date.getTime()) / 86400000);
+          const severity: 'critical' | 'warning' | 'safe' =
+            daysWaiting > 7 ? 'critical' : daysWaiting >= 4 ? 'warning' : 'safe';
+
+          bucket.push({ patient: p, daysWaiting, severity });
+        }
+      }
+    }
+
+    // Sort descending by daysWaiting (most critical first)
+    const sortDesc = (a: SLAPatient, b: SLAPatient) => b.daysWaiting - a.daysWaiting;
+    referral.sort(sortDesc);
+    diagnosis.sort(sortDesc);
+    treatment.sort(sortDesc);
+
+    return {
+      pendingReferral: referral,
+      pendingDiagnosis: diagnosis,
+      pendingTreatment: treatment,
+    };
+  }, [patients]);
+
+  const lanes = [
+    {
+      id: 'referral',
+      title: 'Pending Referral',
+      icon: FileSearch,
+      color: 'blue',
+      data: pendingReferral,
+      total: pendingReferral.length,
+    },
+    {
+      id: 'diagnosis',
+      title: 'Pending Diagnosis',
+      icon: Microscope,
+      color: 'purple',
+      data: pendingDiagnosis,
+      total: pendingDiagnosis.length,
+    },
+    {
+      id: 'treatment',
+      title: 'Pending Treatment',
+      icon: Pill,
+      color: 'amber',
+      data: pendingTreatment,
+      total: pendingTreatment.length,
+    },
+  ];
+
+  return (
+    <div className="space-y-5">
+      {/* Header Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        {lanes.map((lane) => {
+          const Icon = lane.icon;
+          const criticalCount = lane.data.filter((s) => s.severity === 'critical').length;
+          return (
+            <div
+              key={lane.id}
+              className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.04)] p-5"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center bg-${lane.color}-50`}
+                >
+                  <Icon className={`w-5 h-5 text-${lane.color}-600`} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-slate-500">{lane.title}</p>
+                  <AnimatedNumber value={lane.total} className="text-2xl font-bold text-slate-900" />
+                </div>
+              </div>
+              {criticalCount > 0 && (
+                <div className="flex items-center gap-1.5 text-xs text-red-600 bg-red-50 px-2 py-1 rounded-lg">
+                  <AlertTriangle className="w-3 h-3" />
+                  <span className="font-semibold">{criticalCount} critical</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Kanban Lanes */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full items-start">
+        {lanes.map((lane) => {
+          const Icon = lane.icon;
+          const slicedData = lane.data.slice(0, 50);
+
+          return (
+            <div key={lane.id} className="space-y-3">
+              {/* Lane Header */}
+              <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.04)] p-4">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center bg-${lane.color}-50`}
+                  >
+                    <Icon className={`w-4 h-4 text-${lane.color}-600`} />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-slate-900 text-sm">{lane.title}</h3>
+                    <p className="text-xs text-slate-500">
+                      {lane.total} patient{lane.total !== 1 ? 's' : ''}
+                      {lane.total > 50 && ` (showing first 50)`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cards */}
+              <div className="space-y-2 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
+                <AnimatePresence initial={false}>
+                  {slicedData.map((item, idx) => {
+                    const { patient, daysWaiting, severity } = item;
+                    const severityConfig = {
+                      critical: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' },
+                      warning: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
+                      safe: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200' },
+                    };
+                    const config = severityConfig[severity];
+
+                    return (
+                      <motion.button
+                        key={patient.id}
+                        type="button"
+                        layout
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ delay: Math.min(idx * 0.02, 0.3), duration: 0.2 }}
+                        onClick={() => openPatient(patient)}
+                        className="w-full bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200/60 shadow-[0_2px_12px_rgb(0,0,0,0.04)] p-4 text-left hover:-translate-y-0.5 hover:shadow-md transition-all"
+                      >
+                        {/* SLA Badge */}
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-slate-900 text-sm truncate">
+                              {patient.inmate_name}
+                            </h4>
+                          </div>
+                          <span
+                            className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded-full border ${config.bg} ${config.text} ${config.border}`}
+                          >
+                            {daysWaiting}d
+                          </span>
+                        </div>
+
+                        {/* Details */}
+                        <div className="space-y-1">
+                          <p className="text-xs text-slate-600 truncate">
+                            {patient.facility_name || 'Unknown Facility'}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-mono truncate">
+                            {patient.unique_id}
+                          </p>
+                        </div>
+
+                        {/* Severity Indicator */}
+                        {severity === 'critical' && (
+                          <div className="flex items-center gap-1 mt-2 text-[10px] text-red-600">
+                            <AlertTriangle className="w-3 h-3" />
+                            <span className="font-semibold">SLA Breach</span>
+                          </div>
+                        )}
+                      </motion.button>
+                    );
+                  })}
+                </AnimatePresence>
+
+                {slicedData.length === 0 && (
+                  <div className="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                    <p className="text-sm text-slate-600 font-medium">All clear</p>
+                    <p className="text-xs text-slate-400 mt-1">No patients in this stage</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
