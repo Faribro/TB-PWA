@@ -8,6 +8,9 @@ const supabase = createClient(
 
 const WEBHOOK_SECRET = 'alliance_kobo_secure_2026';
 
+// Explicit blacklist of columns that should NEVER be sent to Supabase
+const BLACKLISTED_COLUMNS = new Set(['alcohol', 'smoking']);
+
 // Cache for valid column names (refreshed per request)
 let validColumnsCache: Set<string> | null = null;
 
@@ -37,7 +40,7 @@ async function getValidColumns(): Promise<Set<string>> {
         'symptoms_present', 'sputum_test_result', 'hiv_status', 'contact_number',
         'address', 'current_phase', 'is_active', 'remarks', 'follow_up_notes',
         'gps_latitude', 'gps_longitude', 'referred_to', 'referral_status',
-        'treatment_regimen', 'treatment_outcome', 'diabetes', 'smoking',
+        'treatment_regimen', 'treatment_outcome', 'diabetes', 'date_of_birth',
         'data_source', 'last_updated', 'created_at', 'updated_at'
       ]);
     }
@@ -59,6 +62,7 @@ async function getValidColumns(): Promise<Set<string>> {
 
 /**
  * Filter object to only include keys that exist in Supabase schema
+ * Also removes blacklisted columns
  */
 function filterToValidColumns(
   obj: Record<string, any>,
@@ -68,6 +72,12 @@ function filterToValidColumns(
   const strippedColumns: string[] = [];
 
   for (const [key, value] of Object.entries(obj)) {
+    // Explicit blacklist check
+    if (BLACKLISTED_COLUMNS.has(key)) {
+      strippedColumns.push(`${key} (blacklisted)`);
+      continue;
+    }
+
     if (validColumns.has(key)) {
       filtered[key] = value;
     } else {
@@ -76,7 +86,7 @@ function filterToValidColumns(
   }
 
   if (strippedColumns.length > 0) {
-    console.warn(`[Schema Filter] Stripping unknown columns: ${strippedColumns.join(', ')}`);
+    console.warn(`[Schema Filter] Stripping columns: ${strippedColumns.join(', ')}`);
   }
 
   return filtered;
@@ -84,7 +94,7 @@ function filterToValidColumns(
 
 // Robust field mapping: Google Sheets verbose keys → Supabase snake_case
 function mapSheetRowToSupabase(row: Record<string, any>): Record<string, any> {
-  return {
+  const mapped: Record<string, any> = {
     // Core identifiers
     kobo_uuid: row['KoboUUID(hidden)'] || row['kobo_uuid'] || row['_uuid'] || null,
     unique_id: row['Unique ID'] || row['unique_id'] || null,
@@ -93,6 +103,7 @@ function mapSheetRowToSupabase(row: Record<string, any>): Record<string, any> {
     inmate_name: row['Inmate Name'] || row['inmate_name'] || null,
     age: row['Age'] || row['age'] || null,
     gender: row['Gender'] || row['gender'] || null,
+    date_of_birth: row['Date of Birth'] || row['date_of_birth'] || row['data_of_birth'] || null, // Fixed typo: data_of_birth
     
     // Facility information
     facility_name: row['Facility Name'] || row['facility_name'] || null,
@@ -139,15 +150,19 @@ function mapSheetRowToSupabase(row: Record<string, any>): Record<string, any> {
     treatment_regimen: row['Treatment Regimen'] || row['treatment_regimen'] || null,
     treatment_outcome: row['Treatment Outcome'] || row['treatment_outcome'] || null,
     
-    // Risk factors (these might not exist in schema - will be filtered out)
+    // Risk factors (only diabetes is in schema)
     diabetes: row['Diabetes'] || row['diabetes'] || null,
-    smoking: row['Smoking'] || row['smoking'] || null,
-    alcohol: row['Alcohol'] || row['alcohol'] || null,
     
     // Metadata
     data_source: row['Data Source'] || row['data_source'] || 'google_sheets',
     last_updated: new Date().toISOString(),
   };
+
+  // EXPLICIT BLACKLIST: Remove alcohol and smoking if they somehow got added
+  delete mapped.alcohol;
+  delete mapped.smoking;
+
+  return mapped;
 }
 
 export async function POST(req: NextRequest) {
@@ -192,7 +207,15 @@ export async function POST(req: NextRequest) {
     const mappedData = body.map(mapSheetRowToSupabase);
 
     // STEP 3: Filter each mapped row to only include valid columns
-    const cleanedData = mappedData.map(row => filterToValidColumns(row, validColumns));
+    const cleanedData = mappedData.map(row => {
+      const filtered = filterToValidColumns(row, validColumns);
+      
+      // DOUBLE CHECK: Explicitly delete blacklisted columns again
+      delete filtered.alcohol;
+      delete filtered.smoking;
+      
+      return filtered;
+    });
 
     // Filter out rows without kobo_uuid (required for upsert)
     const validData = cleanedData.filter(row => row.kobo_uuid);
@@ -212,6 +235,22 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Sheets Sync] Proceeding with clean push of ${validData.length} records`);
 
+    // AUDIT LOG: Show exactly what keys are being sent to Supabase
+    if (validData.length > 0) {
+      const sampleKeys = Object.keys(validData[0]).sort();
+      console.log(`[Upsert Audit] Upserting payload keys (${sampleKeys.length}):`, sampleKeys.join(', '));
+      
+      // Check for blacklisted columns in final payload
+      const hasBlacklisted = sampleKeys.some(key => BLACKLISTED_COLUMNS.has(key));
+      if (hasBlacklisted) {
+        console.error('[Upsert Audit] ⚠️ BLACKLISTED COLUMNS DETECTED IN FINAL PAYLOAD!');
+        const blacklisted = sampleKeys.filter(key => BLACKLISTED_COLUMNS.has(key));
+        console.error('[Upsert Audit] Blacklisted columns found:', blacklisted.join(', '));
+      } else {
+        console.log('[Upsert Audit] ✅ No blacklisted columns in final payload');
+      }
+    }
+
     // STEP 4: Industrial upsert with cleaned data
     const { data, error, count } = await supabase
       .from('patients')
@@ -223,12 +262,25 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error('[Sheets Sync] Supabase upsert failed:', error);
+      console.error('[Sheets Sync] Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      });
+      
+      // Log first record for debugging
+      if (validData.length > 0) {
+        console.error('[Sheets Sync] First record keys:', Object.keys(validData[0]).join(', '));
+      }
+      
       return NextResponse.json(
         { 
           error: 'Database Error', 
           message: error.message,
           details: error.details,
           hint: error.hint,
+          code: error.code,
         },
         { status: 500 }
       );
@@ -258,6 +310,7 @@ export async function POST(req: NextRequest) {
       { 
         error: 'Internal Server Error', 
         message: error.message || 'An unexpected error occurred',
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
     );
@@ -281,9 +334,12 @@ export async function GET(req: NextRequest) {
         features: [
           'Dynamic schema detection',
           'Automatic column filtering',
+          'Explicit blacklist for alcohol/smoking',
           'Unknown column stripping',
           'Industrial upsert with kobo_uuid',
+          'Detailed audit logging',
         ],
+        blacklist: Array.from(BLACKLISTED_COLUMNS),
         schema: {
           total_columns: validColumns.size,
           columns: Array.from(validColumns).sort(),
