@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useMemo, useCallback } from 'react';
 
 export interface TreeFilter {
   year?: number;
@@ -21,10 +21,16 @@ const TreeFilterContext = createContext<TreeFilterContextType | undefined>(undef
 export function TreeFilterProvider({ children }: { children: ReactNode }) {
   const [filter, setFilter] = useState<TreeFilter>({});
 
-  const clearFilter = () => setFilter({});
+  const clearFilter = useCallback(() => setFilter({}), []);
+
+  const value = useMemo(() => ({
+    filter,
+    setFilter,
+    clearFilter
+  }), [filter, clearFilter]);
 
   return (
-    <TreeFilterContext.Provider value={{ filter, setFilter, clearFilter }}>
+    <TreeFilterContext.Provider value={value}>
       {children}
     </TreeFilterContext.Provider>
   );

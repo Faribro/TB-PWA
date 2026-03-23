@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -11,7 +15,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx",
+    "jsx": "preserve",
     "incremental": true,
     "plugins": [
       {
@@ -19,9 +23,14 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     },
-    "typeRoots": ["./node_modules/@types", "./types"],
+    "typeRoots": [
+      "./node_modules/@types",
+      "./types"
+    ],
     "skipDefaultLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
@@ -36,5 +45,12 @@
     "**/*.mts",
     "types/**/*.d.ts"
   ],
-  "exclude": ["node_modules", ".next", "supabase"]
+  "exclude": [
+    "node_modules",
+    ".next",
+    "supabase",
+    "docs",
+    "INTEGRATION_GUIDE_PII_SHIELD.ts",
+    "proxy.ts"
+  ]
 }

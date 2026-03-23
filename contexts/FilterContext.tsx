@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, ReactNode, useEffect, useMemo } from 'react';
+import { useEntityStore } from '@/stores/useEntityStore';
 
 /**
  * HHXR Engine - Universal Filter Context
@@ -18,6 +19,7 @@ export interface FilterState {
   coordinator: string | null;
   status: FilterStatus;
   district: string | null;
+  state: string | null;
 }
 
 interface FilterContextValue {
@@ -25,6 +27,7 @@ interface FilterContextValue {
   setCoordinator: (coordinator: string | null) => void;
   setStatus: (status: FilterStatus) => void;
   setDistrict: (district: string | null) => void;
+  setState: (state: string | null) => void;
   resetFilters: () => void;
   hasActiveFilters: boolean;
 }
@@ -35,10 +38,26 @@ const INITIAL_FILTER_STATE: FilterState = {
   coordinator: null,
   status: 'All',
   district: null,
+  state: null,
 };
 
 export function FilterProvider({ children }: { children: ReactNode }) {
   const [filter, setFilter] = useState<FilterState>(INITIAL_FILTER_STATE);
+  const activeFilters = useEntityStore(s => s.activeFilters);
+
+  // Sync with global store (for Sonic triggers)
+  useEffect(() => {
+    if (activeFilters) {
+      setFilter(prev => ({
+        ...prev,
+        state: activeFilters.state,
+        district: activeFilters.district,
+        coordinator: activeFilters.coordinator,
+        status: activeFilters.status || 'All'
+      }));
+    }
+  }, [activeFilters]);
+
 
   // Coordinator filter
   const setCoordinator = useCallback((coordinator: string | null) => {
@@ -55,6 +74,11 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     setFilter(prev => ({ ...prev, district }));
   }, []);
 
+  // State filter
+  const setState = useCallback((state: string | null) => {
+    setFilter(prev => ({ ...prev, state }));
+  }, []);
+
   // Reset all filters
   const resetFilters = useCallback(() => {
     setFilter(INITIAL_FILTER_STATE);
@@ -63,24 +87,29 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   // Check if any filters are active
   const hasActiveFilters = filter.coordinator !== null || 
                            filter.status !== 'All' || 
-                           filter.district !== null;
+                           filter.district !== null ||
+                           filter.state !== null;
 
-  // Debug logging
-  useEffect(() => {
-    console.log('🎯 Filter State Updated:', filter);
-  }, [filter]);
+  const contextValue = useMemo(() => ({
+    filter,
+    setCoordinator,
+    setStatus,
+    setDistrict,
+    setState,
+    resetFilters,
+    hasActiveFilters,
+  }), [
+    filter,
+    setCoordinator,
+    setStatus,
+    setDistrict,
+    setState,
+    resetFilters,
+    hasActiveFilters
+  ]);
 
   return (
-    <FilterContext.Provider
-      value={{
-        filter,
-        setCoordinator,
-        setStatus,
-        setDistrict,
-        resetFilters,
-        hasActiveFilters,
-      }}
-    >
+    <FilterContext.Provider value={contextValue}>
       {children}
     </FilterContext.Provider>
   );

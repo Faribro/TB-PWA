@@ -1,7 +1,6 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { DESIGN_TOKENS } from '@/lib/designTokens';
 
 interface ColorLegendProps {
   className?: string;
@@ -47,14 +46,14 @@ export function ColorLegend({ className = '' }: ColorLegendProps) {
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.4, delay: 0.2 }}
       className={`
-        ${DESIGN_TOKENS.borderRadius.panel}
-        ${DESIGN_TOKENS.border.inactive}
-        ${DESIGN_TOKENS.background.panelLight}
+        rounded-xl
+        border border-slate-700/50
+        bg-slate-900/50 backdrop-blur-sm
         p-4
         ${className}
       `}
     >
-      <div className={`${DESIGN_TOKENS.text.label} mb-4`}>
+      <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
         Yield Performance Scale
       </div>
 
@@ -98,7 +97,7 @@ export function ColorLegend({ className = '' }: ColorLegendProps) {
 
       {/* Task 4: Choropleth Gradient Bar */}
       <div className="mt-6 pt-6 border-t border-slate-700/50">
-        <div className={`${DESIGN_TOKENS.text.label} mb-3`}>
+        <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
           District SLA Breach Rate
         </div>
         

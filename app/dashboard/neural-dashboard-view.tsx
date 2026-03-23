@@ -25,13 +25,14 @@ const NeuralDashboardView = memo(function NeuralDashboardView({
   globalPatients = [],
   isLoading = false,
 }: NeuralDashboardViewProps) {
-  if (!globalPatients.length && !isLoading) {
+  // Don't show empty state while data is still loading
+  if (!isLoading && !globalPatients.length) {
     return <EmptyState />;
   }
 
   return (
     <div className="w-full h-full">
-      <Vertex />
+      <Vertex externalPatients={globalPatients} externalLoading={isLoading} />
     </div>
   );
 });

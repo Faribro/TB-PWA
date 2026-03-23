@@ -1,195 +1,143 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { MapPin, CheckCircle, Clock, AlertCircle, TrendingUp } from 'lucide-react';
-
-interface Patient {
-  id: number;
-  unique_id: string;
-  inmate_name: string;
-  facility_name?: string;
-  screening_district?: string;
-  screening_date?: string;
-  submitted_on?: string;
-  referral_date?: string | null;
-  tb_diagnosed?: string | null;
-  current_phase?: string;
-  coordinator_name?: string;
-  assigned_to?: string;
-  staff_name?: string;
-}
+import { Activity, Beaker, CheckCircle2, ChevronRight, Heart, Clock, AlertTriangle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useState, memo } from 'react';
+import { calculatePatientPhase } from '@/lib/phase-engine';
 
 interface PatientTileProps {
-  patient: Patient;
+  patient: any;
   onClick: () => void;
-  index: number;
+  index?: number;
 }
 
-export function PatientTile({ patient, onClick, index }: PatientTileProps) {
-  const submittedDate = patient.submitted_on || patient.screening_date;
-  const daysSince = submittedDate 
-    ? Math.floor((Date.now() - new Date(submittedDate).getTime()) / (1000 * 60 * 60 * 24))
+const PHASE_BADGE: Record<string, { bg: string; text: string; border: string }> = {
+  'Screening':      { bg: 'bg-amber-500/10',   text: 'text-amber-600',   border: 'border-amber-500/20' },
+  'Sputum Test':    { bg: 'bg-blue-500/10',     text: 'text-blue-600',    border: 'border-blue-500/20' },
+  'Diagnosis':      { bg: 'bg-purple-500/10',   text: 'text-purple-600',  border: 'border-purple-500/20' },
+  'ATT Initiation': { bg: 'bg-emerald-500/10',  text: 'text-emerald-600', border: 'border-emerald-500/20' },
+  'Closed':         { bg: 'bg-slate-500/10',    text: 'text-slate-500',   border: 'border-slate-500/20' },
+};
+
+export const PatientTile = memo(function PatientTile({ patient, onClick }: PatientTileProps) {
+  const isHighRisk = patient.genki_score > 0.8;
+  const isLinked = patient.link_status === 'LINKED';
+  const [isDragOver, setIsDragOver] = useState(false);
+  const { phase } = calculatePatientPhase(patient);
+  const phaseStyle = PHASE_BADGE[phase] || PHASE_BADGE['Screening'];
+
+  // Days since screening
+  const daysSince = patient.screening_date
+    ? Math.floor((Date.now() - new Date(patient.screening_date).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
-  
-  const daysRemaining = 7 - daysSince;
-  const isBreached = daysSince > 7;
-  const phase = (patient.current_phase || '').toLowerCase();
-  const isActive = !phase.includes('treatment') && !phase.includes('closed');
+  const isOverdue = daysSince > 30 && !phase.includes('Closed');
 
-  const steps = [
-    { label: 'Screened', completed: !!patient.screening_date },
-    { label: 'Sputum', completed: !!patient.referral_date },
-    { label: 'Diagnosed', completed: patient.tb_diagnosed === 'Y' || patient.tb_diagnosed === 'Yes' }
-  ];
-
-  const currentStepIndex = steps.findIndex(s => !s.completed);
-  const progress = (steps.filter(s => s.completed).length / steps.length) * 100;
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    e.dataTransfer.setData('patientId', patient.id ?? patient.unique_id ?? '');
+    e.dataTransfer.effectAllowed = 'link';
+  };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.02, type: 'spring', stiffness: 300, damping: 30 }}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      onClick={onClick}
-      className={`group relative bg-white rounded-2xl border p-5 cursor-pointer transition-all duration-300 overflow-hidden ${
-        isBreached && isActive 
-          ? 'border-red-200 shadow-lg shadow-red-100/50 hover:shadow-xl hover:shadow-red-200/50' 
-          : 'border-slate-200/60 shadow-sm hover:shadow-xl hover:shadow-slate-200/50'
-      }`}
+    <div
+      draggable
+      onDragStart={handleDragStart}
+      onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={(e) => { e.preventDefault(); setIsDragOver(false); }}
     >
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-slate-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-      
-      {/* Progress Bar Background */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-slate-100">
-        <motion.div 
-          initial={{ width: 0 }}
-          animate={{ width: `${progress}%` }}
-          transition={{ duration: 0.8, delay: index * 0.02 + 0.2 }}
-          className={`h-full ${
-            progress === 100 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' :
-            progress >= 66 ? 'bg-gradient-to-r from-blue-400 to-blue-500' :
-            'bg-gradient-to-r from-amber-400 to-amber-500'
-          }`}
-        />
-      </div>
-
-      {/* Header */}
-      <div className="relative mb-4">
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex-1">
-            <h3 className="font-bold text-slate-900 text-lg mb-0.5 group-hover:text-blue-600 transition-colors">
-              {patient.inmate_name}
-            </h3>
-            <p className="text-xs text-slate-400 font-mono tracking-wide">{patient.unique_id}</p>
-          </div>
-          {isActive && (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: index * 0.02 + 0.3, type: 'spring' }}
-            >
-              <TrendingUp className="w-4 h-4 text-blue-500" />
-            </motion.div>
-          )}
-        </div>
-      </div>
-
-      {/* Mini-Cascade Timeline */}
-      <div className="relative mb-4">
-        <div className="flex items-center gap-1.5">
-          {steps.map((step, idx) => (
-            <div key={idx} className="flex items-center flex-1">
-              <div className="flex flex-col items-center flex-1 gap-1.5">
-                <motion.div 
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{ duration: 0.4, delay: index * 0.02 + idx * 0.1 }}
-                  className={`w-full h-2 rounded-full transition-all duration-300 ${
-                    step.completed 
-                      ? 'bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-sm shadow-emerald-200' 
-                      : currentStepIndex === idx 
-                      ? 'bg-gradient-to-r from-blue-400 to-blue-500 shadow-sm shadow-blue-200 animate-pulse' 
-                      : 'bg-slate-100'
-                  }`}
-                />
-                <span className={`text-[9px] font-semibold uppercase tracking-wider transition-colors ${
-                  step.completed 
-                    ? 'text-emerald-600' 
-                    : currentStepIndex === idx 
-                    ? 'text-blue-600' 
-                    : 'text-slate-300'
-                }`}>
-                  {step.label}
-                </span>
-              </div>
-              {idx < steps.length - 1 && (
-                <div className="w-1 h-0.5 bg-slate-100 mx-0.5" />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Location */}
-      <div className="flex items-center gap-2 text-sm text-slate-600 mb-4 group-hover:text-slate-700 transition-colors">
-        <MapPin className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 transition-colors" />
-        <span className="font-medium truncate text-xs">{patient.facility_name || patient.screening_district}</span>
-      </div>
-
-      {/* SLA Countdown Badge */}
-      {isActive && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.02 + 0.4 }}
-          className="mb-4"
-        >
-          {isBreached ? (
-            <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl">
-              <AlertCircle className="w-4 h-4 text-red-600 animate-pulse" />
-              <div className="flex-1">
-                <p className="text-[10px] font-semibold text-red-500 uppercase tracking-wide">Overdue</p>
-                <p className="text-sm font-bold text-red-700">{daysSince - 7} Day{daysSince - 7 > 1 ? 's' : ''}</p>
-              </div>
-            </div>
-          ) : daysRemaining <= 2 ? (
-            <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200 rounded-xl">
-              <Clock className="w-4 h-4 text-amber-600" />
-              <div className="flex-1">
-                <p className="text-[10px] font-semibold text-amber-500 uppercase tracking-wide">Urgent</p>
-                <p className="text-sm font-bold text-amber-700">{daysRemaining} Day{daysRemaining !== 1 ? 's' : ''} Left</p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-emerald-50 to-emerald-100 border border-emerald-200 rounded-xl">
-              <CheckCircle className="w-4 h-4 text-emerald-600" />
-              <div className="flex-1">
-                <p className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wide">On Track</p>
-                <p className="text-sm font-bold text-emerald-700">{daysRemaining} Days</p>
-              </div>
-            </div>
-          )}
-        </motion.div>
+    <motion.button
+      whileHover={{ y: -4 }}
+      onClick={onClick}
+      className={cn(
+        "group relative flex flex-col p-6 bg-white/80 backdrop-blur-xl border-2 rounded-3xl text-left transition-all duration-300",
+        "shadow-[0_2px_20px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_40px_rgba(59,130,246,0.08)]",
+        isDragOver ? "scale-105 border-dashed border-cyan-400 shadow-[0_0_40px_rgba(6,182,212,0.3)]" : "border-white/60 hover:border-blue-200/60",
+        isHighRisk && "ring-2 ring-red-500/15",
+        isOverdue && "ring-1 ring-amber-400/30"
       )}
+    >
+      {/* Top Row: Phase Badge + Status Indicators */}
+      <div className="flex items-center justify-between mb-4">
+        <div className={cn(
+          "px-3 py-1.5 rounded-xl flex items-center gap-2 border",
+          phaseStyle.bg, phaseStyle.text, phaseStyle.border
+        )}>
+          {isOverdue ? (
+            <AlertTriangle className="w-3 h-3" />
+          ) : (
+            <span className={cn("w-1.5 h-1.5 rounded-full", isHighRisk ? "bg-red-500 animate-pulse" : "bg-current opacity-60")} />
+          )}
+          <span className="text-[10px] font-black uppercase tracking-widest">{phase}</span>
+        </div>
 
-      {/* Staff Attribution */}
-      <div className="relative pt-3 border-t border-slate-100">
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
-            Coordinator
-          </p>
-          <p className="text-xs text-slate-600 font-medium">
-            {patient.coordinator_name || patient.assigned_to || patient.staff_name || 'Unassigned'}
-          </p>
+        <div className="flex items-center gap-2">
+          {isLinked && (
+            <div className="p-1.5 bg-emerald-500 rounded-xl shadow-lg shadow-emerald-500/20">
+              <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+            </div>
+          )}
+          {isHighRisk && (
+            <div className="relative w-4 h-4">
+              <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-50" />
+              <span className="absolute inset-0 rounded-full bg-red-600" />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Hover Effect Indicator */}
-      <motion.div 
-        className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-      />
-    </motion.div>
+      {/* Name + ID */}
+      <div className="mb-5">
+        <h3 className="text-xl font-black text-slate-900 tracking-tight mb-0.5 truncate" style={{ fontFamily: 'var(--font-outfit)' }}>
+          {patient.inmate_name}
+        </h3>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+          ID: {patient.unique_id}
+        </p>
+      </div>
+
+      {/* Metrics Row */}
+      <div className="space-y-3 flex-1">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
+            <Activity className="w-4 h-4 text-blue-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Genki Score</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-black text-slate-800">{patient.genki_score?.toFixed(2) || '0.00'}</p>
+              <Heart className="w-3 h-3 text-red-400 fill-red-400 animate-pulse" />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-purple-500/10 flex items-center justify-center shrink-0">
+            <Beaker className="w-4 h-4 text-purple-500" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Primary Scan</p>
+            <p className="text-xs font-bold text-slate-700 truncate">{patient.primary_scan || 'Chest X-Ray Digital'}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="mt-5 pt-4 border-t border-slate-100/80 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Clock className="w-3 h-3 text-slate-300" />
+          <span className={cn(
+            "text-[9px] font-bold uppercase tracking-wider",
+            isOverdue ? "text-amber-500" : "text-slate-400"
+          )}>
+            {daysSince}d since screening
+          </span>
+        </div>
+        <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center transition-all group-hover:bg-blue-600 group-hover:shadow-lg group-hover:shadow-blue-500/20">
+          <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+        </div>
+      </div>
+    </motion.button>
+    </div>
   );
-}
+});

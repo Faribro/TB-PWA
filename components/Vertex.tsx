@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 import { FollowUpPipeline } from '@/components/FollowUpPipeline';
 import { PatientDetailDrawer } from '@/components/PatientDetailDrawer';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
+import ThreeBackground from './ThreeBackground';
 
 // TypeScript Interfaces
 interface MonthlyHeatmapData {
@@ -113,58 +114,73 @@ const CalendarHeader = ({
   availableStates: string[];
   availableDistricts: string[];
 }) => (
-  <div className="space-y-4 mb-6 px-1">
+  <div className="space-y-6 mb-8 px-2">
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <CalendarIcon className="w-5 h-5 text-cyan-600" />
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-          {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-        </h2>
+      <div className="flex items-center gap-4">
+        <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center shadow-inner">
+          <CalendarIcon className="w-6 h-6 text-blue-600" />
+        </div>
+        <div>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tighter">
+            {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </h2>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Neural Timeline Overview</p>
+        </div>
       </div>
       <div className="flex gap-2">
         <Button
           onClick={onPrevMonth}
           variant="ghost"
           size="sm"
-          className="h-9 w-9 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all p-0"
+          className="h-10 w-10 bg-white hover:bg-slate-50 border border-slate-200 shadow-sm transition-all p-0 rounded-xl"
         >
-          <ChevronLeft className="w-4 h-4 text-slate-600" />
+          <ChevronLeft className="w-5 h-5 text-slate-600" />
         </Button>
         <Button
           onClick={onNextMonth}
           variant="ghost"
           size="sm"
-          className="h-9 w-9 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all p-0"
+          className="h-10 w-10 bg-white hover:bg-slate-50 border border-slate-200 shadow-sm transition-all p-0 rounded-xl"
         >
-          <ChevronRight className="w-4 h-4 text-slate-600" />
+          <ChevronRight className="w-5 h-5 text-slate-600" />
         </Button>
       </div>
     </div>
     
-    <div className="flex items-center gap-2">
-      <Select value={filterState} onValueChange={onFilterStateChange}>
-        <SelectTrigger className="h-8 text-xs font-medium border-slate-200 bg-white hover:bg-slate-50 w-[140px]">
-          <SelectValue placeholder="State" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="All">All States</SelectItem>
-          {availableStates.map(state => (
-            <SelectItem key={state} value={state}>{state}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div className="flex items-center gap-3">
+      <div className="relative flex-1">
+        <Select value={filterState} onValueChange={onFilterStateChange}>
+          <SelectTrigger className="h-10 text-xs font-bold border-slate-200 bg-white/50 hover:bg-white hover:border-blue-400 transition-all rounded-xl focus:ring-4 focus:ring-blue-500/10">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-3.5 h-3.5 text-slate-400" />
+              <SelectValue placeholder="State" />
+            </div>
+          </SelectTrigger>
+          <SelectContent className="rounded-2xl border-slate-200 shadow-2xl">
+            <SelectItem value="All" className="font-bold">All States</SelectItem>
+            {availableStates.map(state => (
+              <SelectItem key={state} value={state} className="font-medium">{state}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       
-      <Select value={filterDistrict} onValueChange={onFilterDistrictChange}>
-        <SelectTrigger className="h-8 text-xs font-medium border-slate-200 bg-white hover:bg-slate-50 w-[140px]">
-          <SelectValue placeholder="District" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="All">All Districts</SelectItem>
-          {availableDistricts.map(district => (
-            <SelectItem key={district} value={district}>{district}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="relative flex-1">
+        <Select value={filterDistrict} onValueChange={onFilterDistrictChange}>
+          <SelectTrigger className="h-10 text-xs font-bold border-slate-200 bg-white/50 hover:bg-white hover:border-blue-400 transition-all rounded-xl focus:ring-4 focus:ring-blue-500/10">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-3.5 h-3.5 text-slate-400" />
+              <SelectValue placeholder="District" />
+            </div>
+          </SelectTrigger>
+          <SelectContent className="rounded-2xl border-slate-200 shadow-2xl">
+            <SelectItem value="All" className="font-bold">All Districts</SelectItem>
+            {availableDistricts.map(district => (
+              <SelectItem key={district} value={district} className="font-medium">{district}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   </div>
 );
@@ -200,15 +216,15 @@ const CalendarGrid = ({
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-7 gap-2 mb-2">
+    <div className="space-y-4">
+      <div className="grid grid-cols-7 gap-3 mb-2">
         {weekDays.map(day => (
-          <div key={day} className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          <div key={day} className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
             {day}
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-2">
+      <div className="grid grid-cols-7 gap-3">
         {days.map((day, idx) => {
           if (!day) return <div key={idx} className="aspect-square" />;
           
@@ -217,7 +233,6 @@ const CalendarGrid = ({
           const hasBreaches = day.data && day.data.breachCount > 0;
           const isHighVolume = day.data && day.data.screenedCount > 10;
           
-          // Breaches Mode: Dim days without breaches, highlight days with breaches
           const isBreachMode = viewMode === 'breaches';
           const shouldDim = isBreachMode && !hasBreaches;
           const shouldHighlight = isBreachMode && hasBreaches;
@@ -226,47 +241,43 @@ const CalendarGrid = ({
             <motion.button
               key={day.dateStr}
               onClick={() => onDateSelect(day.dateStr)}
-              whileHover={{ scale: shouldDim ? 1 : 1.02 }}
+              whileHover={{ scale: shouldDim ? 1 : 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
               className={cn(
-                "aspect-square rounded-lg border-2 transition-all duration-200 relative overflow-hidden",
-                "hover:bg-slate-50 active:scale-95",
-                // Selected state (overrides everything)
-                isSelected && "bg-cyan-500/10 border-cyan-500 shadow-lg shadow-cyan-500/20",
-                // Breaches Mode
-                shouldDim && "opacity-30 grayscale",
-                shouldHighlight && !isSelected && "bg-red-50 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]",
-                // Volume Mode (default)
-                !isBreachMode && !isSelected && "bg-white border-slate-200",
-                !isBreachMode && isHighVolume && !isSelected && "bg-cyan-50 border-cyan-300",
-                !isBreachMode && hasBreaches && "border-red-400 animate-pulse"
+                "aspect-square rounded-2xl border-2 transition-all duration-300 relative overflow-hidden group/day",
+                "active:scale-95 shadow-sm",
+                isSelected 
+                  ? "bg-slate-900 border-slate-900 shadow-2xl shadow-blue-500/20 ring-4 ring-blue-500/10" 
+                  : "bg-white border-slate-100 hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/5",
+                shouldDim && "opacity-20 grayscale",
+                shouldHighlight && !isSelected && "bg-rose-50 border-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.1)]",
+                !isBreachMode && isHighVolume && !isSelected && "bg-blue-50 border-blue-200"
               )}
-              style={!isBreachMode && isHighVolume && !isSelected ? {
-                boxShadow: 'inset 0 0 10px rgba(6,182,212,0.1)'
-              } : undefined}
             >
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className={cn(
-                  "text-sm font-semibold",
-                  isSelected ? "text-cyan-700" : 
-                  shouldHighlight ? "text-red-700" :
-                  hasActivity ? "text-slate-700" : "text-slate-400"
+                  "text-base font-black transition-colors duration-300",
+                  isSelected ? "text-white" : 
+                  shouldHighlight ? "text-rose-600" :
+                  hasActivity ? "text-slate-900" : "text-slate-300 group-hover/day:text-slate-600"
                 )}>
                   {day.dayNum}
                 </span>
+                
                 {hasActivity && !isBreachMode && (
-                  <div className="flex gap-0.5 mt-1">
+                  <div className="flex gap-1 mt-1.5 opacity-80">
                     <div className={cn(
-                      "w-1.5 h-1.5 rounded-full",
-                      hasBreaches ? "bg-red-500" : "bg-emerald-500"
+                      "w-1.5 h-1.5 rounded-full shadow-sm",
+                      isSelected ? "bg-white" : hasBreaches ? "bg-rose-500" : "bg-emerald-500"
                     )} />
                   </div>
                 )}
               </div>
+              
               {hasActivity && (
                 <div className={cn(
-                  "absolute bottom-1 right-1 text-[9px] font-bold",
-                  shouldHighlight ? "text-red-700" : "text-slate-500"
+                  "absolute bottom-1.5 right-2 text-[10px] font-black tabular-nums opacity-60",
+                  isSelected ? "text-white/80" : shouldHighlight ? "text-rose-700" : "text-slate-500"
                 )}>
                   {isBreachMode && hasBreaches ? day.data.breachCount : day.data.screenedCount}
                 </div>
@@ -294,24 +305,31 @@ const SparkCard = ({
   trend?: string;
 }) => {
   const colorClasses = {
-    cyan: 'bg-cyan-50 text-cyan-600 border-cyan-200',
-    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-200',
-    amber: 'bg-amber-50 text-amber-600 border-amber-200',
-    red: 'bg-red-50 text-red-600 border-red-200'
+    cyan: 'bg-blue-50 text-blue-600 border-blue-200 shadow-blue-500/5',
+    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-200 shadow-emerald-500/5',
+    amber: 'bg-amber-50 text-amber-600 border-amber-200 shadow-amber-500/5',
+    red: 'bg-rose-50 text-rose-600 border-rose-200 shadow-rose-500/5'
   };
 
   return (
-    <Card className="bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow p-4">
+    <Card className="glass-card-light p-5 rounded-[24px] group border-transparent">
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{label}</p>
-          <p className="text-3xl font-black text-slate-900">{value.toLocaleString()}</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 opacity-80">
+            {label}
+          </p>
+          <p className="text-4xl font-black text-slate-900 tracking-tighter group-hover:scale-105 transition-transform duration-500">
+            {value.toLocaleString()}
+          </p>
           {trend && (
-            <p className="text-xs text-slate-500 mt-1">{trend}</p>
+            <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-wide">{trend}</p>
           )}
         </div>
-        <div className={cn("p-2.5 rounded-xl border-2", colorClasses[color])}>
-          <Icon className="w-5 h-5" />
+        <div className={cn(
+          "w-12 h-12 rounded-2xl border-2 flex items-center justify-center shadow-lg transition-transform duration-500 group-hover:rotate-12", 
+          colorClasses[color]
+        )}>
+          <Icon className="w-6 h-6" />
         </div>
       </div>
     </Card>
@@ -354,39 +372,46 @@ const GeographicHierarchy = ({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {groupedGeography.map((state) => {
         const isStateExpanded = expandedStates.has(state.stateName);
         
         return (
-          <div key={state.stateName} className="space-y-2">
-            <button
+          <div key={state.stateName} className="space-y-3">
+            <motion.button
               onClick={() => toggleState(state.stateName)}
-              className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors"
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              className="w-full flex items-center justify-between p-5 glass-card-light rounded-[24px] border-transparent"
             >
-              <div className="flex items-center gap-3">
-                <MapPin className="w-4 h-4 text-slate-600" />
-                <span className="font-bold text-slate-900">{state.stateName}</span>
-                <Badge variant="default" className="bg-slate-200 text-slate-700 text-xs">
-                  {state.totalPatients} patients
-                </Badge>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <MapPin className="w-5 h-5 text-blue-600" />
+                </div>
+                <div className="text-left">
+                  <span className="text-sm font-black text-slate-950 uppercase tracking-wider">{state.stateName}</span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{state.totalPatients} Patients Active</span>
+                  </div>
+                </div>
               </div>
               <motion.div
                 animate={{ rotate: isStateExpanded ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400"
               >
-                <ChevronDown className="w-4 h-4 text-slate-500" />
+                <ChevronDown className="w-4 h-4" />
               </motion.div>
-            </button>
+            </motion.button>
 
             <AnimatePresence>
               {isStateExpanded && (
                 <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="ml-6 space-y-2"
+                  initial={{ opacity: 0, height: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                  exit={{ opacity: 0, height: 0, scale: 0.98 }}
+                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                  className="ml-6 space-y-3 pl-4 border-l-2 border-slate-100"
                 >
                   {state.districts.map((district) => {
                     const districtKey = `${state.stateName}-${district.districtName}`;
@@ -394,57 +419,58 @@ const GeographicHierarchy = ({
                     
                     return (
                       <div key={districtKey} className="space-y-2">
-                        <button
+                        <motion.button
                           onClick={() => toggleDistrict(districtKey)}
-                          className="w-full flex items-center justify-between p-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors"
+                          className="w-full flex items-center justify-between p-4 bg-white/60 border border-slate-200 rounded-2xl shadow-sm hover:bg-white transition-all group/dist"
                         >
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-slate-800 text-sm">{district.districtName}</span>
-                            <Badge variant="default" className="bg-cyan-100 text-cyan-700 text-xs">
+                          <div className="flex items-center gap-3">
+                            <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{district.districtName}</span>
+                            <Badge variant="default" className="bg-blue-100/50 text-blue-700 text-[10px] font-black border-transparent">
                               {district.totalPatients}
                             </Badge>
                           </div>
                           <motion.div
                             animate={{ rotate: isDistrictExpanded ? 180 : 0 }}
-                            transition={{ duration: 0.2 }}
+                            className="text-slate-300 group-hover/dist:text-slate-600"
                           >
-                            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                            <ChevronDown className="w-3.5 h-3.5" />
                           </motion.div>
-                        </button>
+                        </motion.button>
 
                         <AnimatePresence>
                           {isDistrictExpanded && (
                             <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              exit={{ opacity: 0, height: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="ml-4 space-y-1.5"
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: -10 }}
+                              className="ml-4 space-y-2"
                             >
                               {district.facilities.map((facility) => (
                                 <motion.button
                                   key={facility.facilityName}
                                   onClick={() => onFacilityClick(facility.facilityName)}
-                                  whileHover={{ scale: 1.01, x: 4 }}
+                                  whileHover={{ scale: 1.01, x: 8 }}
                                   whileTap={{ scale: 0.98 }}
-                                  className="w-full flex items-center justify-between p-3 bg-white hover:bg-slate-50 border border-slate-200/50 hover:border-cyan-300 hover:shadow-md rounded-lg transition-all group"
+                                  className="w-full flex items-center justify-between p-4 glass-card-light rounded-2xl border-transparent"
                                 >
-                                  <div className="flex items-center gap-2">
-                                    <Building2 className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-600" />
-                                    <span className="text-sm font-medium text-slate-900 group-hover:text-cyan-900">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center group-hover/fac:bg-blue-600 group-hover/fac:text-white transition-colors">
+                                      <Building2 className="w-4 h-4" />
+                                    </div>
+                                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wide group-hover/fac:text-blue-900 transition-colors">
                                       {facility.facilityName}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <Badge variant="outline" className="text-cyan-600 bg-cyan-50 border-cyan-200/50 text-xs font-bold">
-                                      {facility.patientCount} screened
+                                    <Badge variant="outline" className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 border-blue-200/50 hidden sm:flex">
+                                      {facility.patientCount} Screened
                                     </Badge>
                                     {facility.pendingCount > 0 && (
-                                      <Badge variant="destructive" className="bg-red-50 text-red-700 border-red-200/50 text-xs font-bold">
-                                        {facility.pendingCount} pending
+                                      <Badge variant="destructive" className="bg-rose-50 text-rose-700 border-rose-200/50 text-[9px] font-black uppercase">
+                                        {facility.pendingCount} Alerts
                                       </Badge>
                                     )}
-                                    <ChevronRightIcon className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-600" />
+                                    <ChevronRightIcon className="w-3.5 h-3.5 text-slate-300 group-hover/fac:text-blue-600" />
                                   </div>
                                 </motion.button>
                               ))}
@@ -465,7 +491,13 @@ const GeographicHierarchy = ({
 };
 
 // Main Component
-export default function Vertex() {
+export default function Vertex({
+  externalPatients,
+  externalLoading,
+}: {
+  externalPatients?: any[];
+  externalLoading?: boolean;
+} = {}) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
@@ -473,20 +505,24 @@ export default function Vertex() {
   const [filterState, setFilterState] = useState<string>('All');
   const [filterDistrict, setFilterDistrict] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'volume' | 'breaches'>('volume');
-  
-  const { data: globalPatients = [], isLoading } = useSWRAllPatients();
 
-  // Extract available states and districts
+  // Use external data when provided (avoids duplicate fetch + 400 errors)
+  const { data: swrData = [], isLoading: swrLoading } = useSWRAllPatients();
+  const globalPatients: any[] = externalPatients ?? swrData;
+  const isLoading = externalLoading ?? swrLoading;
+
+  // Extract available states and districts (memoized with proper dependencies)
   const { availableStates, availableDistricts } = useMemo(() => {
+    if (!globalPatients?.length) return { availableStates: [], availableDistricts: [] };
+    
     const states = new Set<string>();
     const districts = new Set<string>();
     
-    globalPatients.forEach((patient: any) => {
-      const state = patient.screening_state;
-      const district = patient.screening_district;
-      if (state) states.add(state);
-      if (district) districts.add(district);
-    });
+    for (let i = 0; i < globalPatients.length; i++) {
+      const patient = globalPatients[i];
+      if (patient.screening_state) states.add(patient.screening_state);
+      if (patient.screening_district) districts.add(patient.screening_district);
+    }
     
     return {
       availableStates: Array.from(states).sort(),
@@ -496,47 +532,52 @@ export default function Vertex() {
 
   // Task 3: Derive Calendar Data from globalPatients (Single Source of Truth) with Filters
   const heatmapData = useMemo(() => {
-    if (!globalPatients || !globalPatients.length) return [];
+    if (!globalPatients?.length) return [];
     
-    // Apply geographic filters
-    const filteredPatients = globalPatients.filter((patient: any) => {
-      const stateMatch = filterState === 'All' || patient.screening_state === filterState;
-      const districtMatch = filterDistrict === 'All' || patient.screening_district === filterDistrict;
-      return stateMatch && districtMatch;
-    });
+    const grouped: Record<string, MonthlyHeatmapData> = {};
     
-    const grouped = filteredPatients.reduce((acc: Record<string, MonthlyHeatmapData>, patient: any) => {
-      // Use the exact same date logic as the briefing pane
+    for (let i = 0; i < globalPatients.length; i++) {
+      const patient = globalPatients[i];
+      
+      // Apply geographic filters early
+      if (filterState !== 'All' && patient.screening_state !== filterState) continue;
+      if (filterDistrict !== 'All' && patient.screening_district !== filterDistrict) continue;
+      
       const dateValue = patient.screening_date || patient.submitted_on;
       const normalizedDate = getLocalYMD(dateValue);
       
-      if (!normalizedDate) return acc;
+      if (!normalizedDate) continue;
       
-      if (!acc[normalizedDate]) {
-        acc[normalizedDate] = { date: normalizedDate, screenedCount: 0, breachCount: 0 };
+      if (!grouped[normalizedDate]) {
+        grouped[normalizedDate] = { date: normalizedDate, screenedCount: 0, breachCount: 0 };
       }
-      acc[normalizedDate].screenedCount++;
-      if (!patient.referral_date) acc[normalizedDate].breachCount++;
-      return acc;
-    }, {});
+      grouped[normalizedDate].screenedCount++;
+      if (!patient.referral_date) grouped[normalizedDate].breachCount++;
+    }
 
     return Object.values(grouped);
   }, [globalPatients, filterState, filterDistrict]);
 
   const patientsForSelectedDate = useMemo(() => {
-    if (!selectedDate || !globalPatients.length) return [];
+    if (!selectedDate || !globalPatients?.length) return [];
     
-    return globalPatients.filter((patient: any) => {
+    const result = [];
+    for (let i = 0; i < globalPatients.length; i++) {
+      const patient = globalPatients[i];
+      
       const dateValue = patient.screening_date || patient.submitted_on;
       const normalizedDate = getLocalYMD(dateValue);
-      const dateMatch = normalizedDate === selectedDate;
+      
+      if (normalizedDate !== selectedDate) continue;
       
       // Apply geographic filters
-      const stateMatch = filterState === 'All' || patient.screening_state === filterState;
-      const districtMatch = filterDistrict === 'All' || patient.screening_district === filterDistrict;
+      if (filterState !== 'All' && patient.screening_state !== filterState) continue;
+      if (filterDistrict !== 'All' && patient.screening_district !== filterDistrict) continue;
       
-      return dateMatch && stateMatch && districtMatch;
-    });
+      result.push(patient);
+    }
+    
+    return result;
   }, [selectedDate, globalPatients, filterState, filterDistrict]);
 
   // Task 1: Data Aggregation - Daily Sparks
@@ -549,52 +590,73 @@ export default function Vertex() {
     return { totalScreened, pendingSputum, diagnosed, onTrack };
   }, [patientsForSelectedDate]);
 
-  // Task 1: Data Aggregation - Grouped Geography
+  // Task 1: Data Aggregation - Grouped Geography (optimized)
   const groupedGeography = useMemo((): StateData[] => {
+    if (!patientsForSelectedDate.length) return [];
+    
     const stateMap = new Map<string, Map<string, Map<string, any[]>>>();
 
-    patientsForSelectedDate.forEach((patient: any) => {
+    for (let i = 0; i < patientsForSelectedDate.length; i++) {
+      const patient = patientsForSelectedDate[i];
       const state = patient.screening_state || 'Unknown State';
       const district = patient.screening_district || 'Unknown District';
       const facility = patient.facility_name || 'Unknown Facility';
 
-      if (!stateMap.has(state)) {
-        stateMap.set(state, new Map());
+      let districtMap = stateMap.get(state);
+      if (!districtMap) {
+        districtMap = new Map();
+        stateMap.set(state, districtMap);
       }
-      const districtMap = stateMap.get(state)!;
 
-      if (!districtMap.has(district)) {
-        districtMap.set(district, new Map());
+      let facilityMap = districtMap.get(district);
+      if (!facilityMap) {
+        facilityMap = new Map();
+        districtMap.set(district, facilityMap);
       }
-      const facilityMap = districtMap.get(district)!;
 
-      if (!facilityMap.has(facility)) {
-        facilityMap.set(facility, []);
+      let patients = facilityMap.get(facility);
+      if (!patients) {
+        patients = [];
+        facilityMap.set(facility, patients);
       }
-      facilityMap.get(facility)!.push(patient);
-    });
+      patients.push(patient);
+    }
 
-    return Array.from(stateMap.entries()).map(([stateName, districtMap]) => {
-      const districts = Array.from(districtMap.entries()).map(([districtName, facilityMap]) => {
-        const facilities = Array.from(facilityMap.entries()).map(([facilityName, patients]) => ({
-          facilityName,
-          patientCount: patients.length,
-          pendingCount: patients.filter((p: any) => !p.referral_date).length
-        }));
+    const result: StateData[] = [];
+    stateMap.forEach((districtMap, stateName) => {
+      const districts: DistrictData[] = [];
+      let stateTotalPatients = 0;
+      
+      districtMap.forEach((facilityMap, districtName) => {
+        const facilities: FacilityData[] = [];
+        let districtTotalPatients = 0;
+        
+        facilityMap.forEach((patients, facilityName) => {
+          const pendingCount = patients.filter((p: any) => !p.referral_date).length;
+          facilities.push({
+            facilityName,
+            patientCount: patients.length,
+            pendingCount
+          });
+          districtTotalPatients += patients.length;
+        });
 
-        return {
+        districts.push({
           districtName,
           facilities,
-          totalPatients: facilities.reduce((sum, f) => sum + f.patientCount, 0)
-        };
+          totalPatients: districtTotalPatients
+        });
+        stateTotalPatients += districtTotalPatients;
       });
 
-      return {
+      result.push({
         stateName,
         districts,
-        totalPatients: districts.reduce((sum, d) => sum + d.totalPatients, 0)
-      };
+        totalPatients: stateTotalPatients
+      });
     });
+
+    return result;
   }, [patientsForSelectedDate]);
 
   // Task 3: Filter patients for selected facility
@@ -692,159 +754,196 @@ export default function Vertex() {
     : '';
 
   return (
-    <div className="h-screen w-full bg-[#FBFBFD] overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-50/50 via-[#FBFBFD] to-[#FBFBFD]" />
-      
-      <div className="relative h-full grid grid-cols-[40%_60%] gap-6 p-6">
+    <div className="h-screen w-full overflow-hidden relative font-outfit">
+      <ThreeBackground />
+      {/* Premium Background Decorative Elements */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-400/10 blur-[150px] rounded-full animate-pulse" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-400/10 blur-[150px] rounded-full animate-pulse delay-500" />
+      </div>
+
+      <div className="relative h-full grid grid-cols-[42%_58%] gap-8 p-8 max-w-[1920px] mx-auto z-10">
         {/* Left Pane: Calendar */}
-        <Card className="bg-white/90 backdrop-blur-xl border-slate-200 shadow-xl p-6 overflow-hidden">
-          <CalendarHeader 
-            currentDate={currentDate}
-            onPrevMonth={handlePrevMonth}
-            onNextMonth={handleNextMonth}
-            filterState={filterState}
-            filterDistrict={filterDistrict}
-            onFilterStateChange={setFilterState}
-            onFilterDistrictChange={setFilterDistrict}
-            availableStates={availableStates}
-            availableDistricts={availableDistricts}
-          />
-          <CalendarGrid
-            heatmapData={heatmapData}
-            currentDate={currentDate}
-            selectedDate={selectedDate}
-            onDateSelect={handleDateSelect}
-            viewMode={viewMode}
-          />
-          
-          {/* Monthly Pulse Console */}
-          <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div>
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Screened</div>
-                <div className="text-xs font-bold text-slate-500">
-                  <span className="text-2xl text-slate-900">
-                    {heatmapData.reduce((sum, day) => sum + day.screenedCount, 0).toLocaleString()}
-                  </span>
-                  {' '}this month
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Pending</div>
-                <div className="text-xs font-bold text-slate-500">
-                  <span className="text-2xl text-red-600">
-                    {heatmapData.reduce((sum, day) => sum + day.breachCount, 0).toLocaleString()}
-                  </span>
-                  {' '}follow-ups
-                </div>
-              </div>
+        <motion.div
+           initial={{ opacity: 0, x: -40 }}
+           animate={{ opacity: 1, x: 0 }}
+           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+           className="h-full"
+        >
+          <Card className="glass-light border-white/60 shadow-2xl rounded-[32px] p-8 h-full flex flex-col overflow-hidden border-2 relative">
+            <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-blue-500/[0.02] to-transparent pointer-events-none" />
+            <CalendarHeader 
+              currentDate={currentDate}
+              onPrevMonth={handlePrevMonth}
+              onNextMonth={handleNextMonth}
+              filterState={filterState}
+              filterDistrict={filterDistrict}
+              onFilterStateChange={setFilterState}
+              onFilterDistrictChange={setFilterDistrict}
+              availableStates={availableStates}
+              availableDistricts={availableDistricts}
+            />
+            <div className="flex-1 overflow-y-auto hide-scrollbar">
+              <CalendarGrid
+                heatmapData={heatmapData}
+                currentDate={currentDate}
+                selectedDate={selectedDate}
+                onDateSelect={handleDateSelect}
+                viewMode={viewMode}
+              />
             </div>
             
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'volume' | 'breaches')} className="w-[200px]">
-              <TabsList className="grid w-full grid-cols-2 h-8 bg-slate-100 border border-slate-200">
-                <TabsTrigger value="volume" className="text-xs h-7 data-[state=active]:bg-white data-[state=active]:text-cyan-700 data-[state=active]:shadow-sm">
-                  Volume
-                </TabsTrigger>
-                <TabsTrigger value="breaches" className="text-xs h-7 data-[state=active]:bg-white data-[state=active]:text-red-700 data-[state=active]:shadow-sm">
-                  Breaches
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        </Card>
+            {/* Monthly Pulse Console */}
+            <div className="mt-8 pt-8 border-t border-slate-200/60 flex items-center justify-between">
+              <div className="flex items-center gap-8">
+                <div className="group">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-blue-500 transition-colors">Screened</div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-black text-slate-950 tracking-tighter">
+                      {heatmapData.reduce((sum, day) => sum + day.screenedCount, 0).toLocaleString()}
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase">Monthly</span>
+                  </div>
+                </div>
+                <div className="group">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-rose-500 transition-colors">Pending</div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-black text-rose-600 tracking-tighter">
+                      {heatmapData.reduce((sum, day) => sum + day.breachCount, 0).toLocaleString()}
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase">Alerts</span>
+                  </div>
+                </div>
+              </div>
+              
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'volume' | 'breaches')} className="w-[180px]">
+                <TabsList className="grid w-full grid-cols-2 h-10 bg-slate-100/50 p-1 border-slate-200/60 rounded-xl">
+                  <TabsTrigger value="volume" className="rounded-lg text-[10px] font-black uppercase tracking-wider h-8 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md">
+                    Volume
+                  </TabsTrigger>
+                  <TabsTrigger value="breaches" className="rounded-lg text-[10px] font-black uppercase tracking-wider h-8 data-[state=active]:bg-white data-[state=active]:text-rose-700 data-[state=active]:shadow-md">
+                    Alerts
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </Card>
+        </motion.div>
 
         {/* Right Pane: Daily Briefing */}
-        <Card className="bg-white/90 backdrop-blur-xl border-slate-200 shadow-xl overflow-hidden flex flex-col">
-          <AnimatePresence mode="wait">
-            {selectedDate ? (
-              <motion.div
-                key={selectedDate}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={springConfig}
-                className="h-full flex flex-col"
-              >
-                {/* Task 2: Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white/80 backdrop-blur-xl">
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900">{formattedDate}</h3>
-                    <p className="text-sm text-slate-600 mt-0.5">Daily Briefing</p>
-                  </div>
-                  <Button
-                    onClick={handleClearDate}
-                    variant="ghost"
-                    size="sm"
-                    className="text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                  >
-                    <X className="w-4 h-4 mr-1" />
-                    Clear
-                  </Button>
-                </div>
-
-                <ScrollArea className="flex-1 p-6">
-                  <div className="space-y-6">
-                    {/* Task 2: The Sparks */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <SparkCard 
-                        icon={Users}
-                        label="Total Screened"
-                        value={dailySparks.totalScreened}
-                        color="cyan"
-                      />
-                      <SparkCard 
-                        icon={CheckCircle2}
-                        label="On Track"
-                        value={dailySparks.onTrack}
-                        color="emerald"
-                      />
-                      <SparkCard 
-                        icon={AlertCircle}
-                        label="Pending Sputum"
-                        value={dailySparks.pendingSputum}
-                        color="amber"
-                      />
-                      <SparkCard 
-                        icon={Activity}
-                        label="Diagnosed"
-                        value={dailySparks.diagnosed}
-                        color="red"
-                      />
-                    </div>
-
-                    {/* Task 2: The Hierarchy List */}
+        <motion.div
+           initial={{ opacity: 0, x: 40 }}
+           animate={{ opacity: 1, x: 0 }}
+           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+           className="h-full"
+        >
+          <Card className="glass-light border-white shadow-2xl rounded-[32px] overflow-hidden flex flex-col h-full border-2 relative">
+            <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-blue-500/[0.02] to-transparent pointer-events-none" />
+            <AnimatePresence mode="wait">
+              {selectedDate ? (
+                <motion.div
+                  key={selectedDate}
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.02 }}
+                  transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  className="h-full flex flex-col"
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-8 py-6 border-b border-slate-200/50 bg-white/40 backdrop-blur-xl">
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-slate-600" />
-                        Geographic Breakdown
-                      </h4>
-                      <GeographicHierarchy 
-                        groupedGeography={groupedGeography}
-                        onFacilityClick={handleFacilityClick}
-                      />
+                      <h3 className="text-3xl font-black text-slate-950 tracking-tighter uppercase leading-none">{formattedDate}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                        <p className="text-[11px] font-bold text-blue-600 uppercase tracking-widest">Active Intelligence Feed</p>
+                      </div>
                     </div>
+                    <Button
+                      onClick={handleClearDate}
+                      variant="ghost"
+                      size="sm"
+                      className="text-slate-400 hover:text-slate-950 hover:bg-slate-100 rounded-xl font-bold uppercase text-[10px] tracking-widest border border-transparent hover:border-slate-200 px-4 h-10"
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Close
+                    </Button>
                   </div>
-                </ScrollArea>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="empty"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center justify-center h-full"
-              >
-                <div className="text-center">
-                  <CalendarIcon className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-bold text-slate-700 mb-2">Select a Date</h3>
-                  <p className="text-sm text-slate-500 max-w-xs">
-                    Click on any date in the calendar to view the daily briefing and patient breakdown
+
+                  <ScrollArea className="flex-1 px-8 py-8 hide-scrollbar">
+                    <div className="space-y-10">
+                      {/* Interactive Metrics */}
+                      <div className="grid grid-cols-2 gap-6">
+                        <SparkCard 
+                          icon={Users}
+                          label="Total Screened"
+                          value={dailySparks.totalScreened}
+                          color="cyan"
+                        />
+                        <SparkCard 
+                          icon={CheckCircle2}
+                          label="On Track"
+                          value={dailySparks.onTrack}
+                          color="emerald"
+                        />
+                        <SparkCard 
+                          icon={AlertCircle}
+                          label="Follow-ups"
+                          value={dailySparks.pendingSputum}
+                          color="amber"
+                        />
+                        <SparkCard 
+                          icon={Activity}
+                          label="Positive Diagnosed"
+                          value={dailySparks.diagnosed}
+                          color="red"
+                        />
+                      </div>
+
+                      {/* Geographic Hierarchy Breakdown */}
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center">
+                            <MapPin className="w-5 h-5 text-white" />
+                          </div>
+                          <h4 className="text-[12px] font-black text-slate-950 uppercase tracking-[0.2em]">
+                            Sector Intelligence Breakdown
+                          </h4>
+                        </div>
+                        <div className="bg-slate-50/50 rounded-[32px] p-2 border border-slate-200/50">
+                          <GeographicHierarchy 
+                            groupedGeography={groupedGeography}
+                            onFacilityClick={handleFacilityClick}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </ScrollArea>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex flex-col items-center justify-center h-full p-12 text-center"
+                >
+                  <div className="w-32 h-32 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center mb-8 relative">
+                    <CalendarIcon className="w-12 h-12 text-blue-500 opacity-40" />
+                    <motion.div 
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                      className="absolute inset-0 border-t-2 border-blue-500 rounded-full"
+                    />
+                  </div>
+                  <h3 className="text-3xl font-black text-slate-950 tracking-tighter mb-4 uppercase">Timeline Interface Offline</h3>
+                  <p className="text-sm font-medium text-slate-400 max-w-sm mx-auto leading-relaxed">
+                    Select a timestamp from the temporal grid to initialize the neural briefing and synchronize sector intelligence.
                   </p>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </Card>
+        </motion.div>
       </div>
 
       {/* Task 3: The Mega-Drawer UI & Z-Index Override */}

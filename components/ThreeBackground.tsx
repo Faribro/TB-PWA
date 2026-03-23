@@ -45,11 +45,11 @@ export default function ThreeBackground() {
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
     const material = new THREE.PointsMaterial({
-      color: 0x64748b,
-      size: 1.2,
+      color: 0x3b82f6, // Blue-500
+      size: 0.8,
       transparent: true,
-      opacity: 0.7,
-      blending: THREE.AdditiveBlending,
+      opacity: 0.2,
+      blending: THREE.NormalBlending,
       sizeAttenuation: true
     });
 
@@ -148,7 +148,7 @@ export default function ThreeBackground() {
         inset: 0,
         zIndex: -1,
         pointerEvents: 'none',
-        background: 'radial-gradient(ellipse at top, #1e293b 0%, #0f172a 50%, #020617 100%)'
+        background: 'radial-gradient(ellipse at top, #ffffff 0%, #f1f5f9 50%, #e2e8f0 100%)'
       }}
     />
   );

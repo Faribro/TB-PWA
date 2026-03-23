@@ -51,7 +51,7 @@ export default function ActionsHub() {
   }, [filteredData]);
 
   const states = useMemo(() => {
-    const unique = new Set(allPatients.map((p: any) => p.screening_state).filter(Boolean));
+    const unique = new Set<string>(allPatients.map((p: any) => p.screening_state).filter(Boolean));
     return Array.from(unique).sort();
   }, [allPatients]);
 

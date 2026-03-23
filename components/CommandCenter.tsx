@@ -6,7 +6,6 @@ import { AlertTriangle, Activity, Calendar, CheckCircle, MapPin, Search, Check, 
 import { PatientDetailDrawer } from './PatientDetailDrawer';
 import { PatientTile } from './PatientTile';
 import { PhaseCell } from './PhaseCell';
-import { AdvancedFilterBar, type FilterState } from './AdvancedFilterBar';
 import AnalyticsOverview from './AnalyticsOverview';
 import ThreeBackground from './ThreeBackground';
 import { calculatePatientPhase } from '@/lib/phase-engine';
@@ -15,6 +14,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useSWRPatients, useSWRAllPatients, useSWRFilterMetadata } from '@/hooks/useSWRPatients';
 import { createClient } from '@supabase/supabase-js';
 import { LinesAndDotsLoader } from './LinesAndDotsLoader';
+import { Z_INDEX } from '@/lib/zIndex';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -54,6 +54,18 @@ const PHASES = [
   { id: 4, name: 'ATT Initiation', icon: CheckCircle, color: 'green' },
   { id: 5, name: 'Closed', icon: CheckCircle, color: 'gray' }
 ];
+
+interface FilterState {
+  facilityType: string;
+  state: string;
+  district: string;
+  phase: string;
+  overdueOnly: boolean;
+  tbDiagnosed: string;
+  hivStatus: string;
+  dateFrom: string;
+  dateTo: string;
+}
 
 interface FilterMetadata {
   states: string[];
@@ -210,15 +222,6 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
                        symptomsText === 'none';
     
     const canSelect = isNormalXray && noSymptoms;
-    
-    console.log('Patient triage check:', patient.inmate_name, {
-      xrayResult: patient.chest_x_ray_result || patient.xray_result,
-      symptomsPresent: patient.symptoms_present,
-      isNormalXray,
-      noSymptoms,
-      canSelect
-    });
-    
     return canSelect;
   }, []);
 
@@ -313,7 +316,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
 
   if (isLoading && globalPatients.length === 0) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="h-screen flex items-center justify-center bg-linear-to-br from-slate-50 to-slate-100">
         <LinesAndDotsLoader progress={75} />
       </div>
     );
@@ -325,35 +328,41 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
       <div className="h-screen flex flex-col relative z-10">
       {/* Header */}
       <motion.header initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-        className="bg-slate-900/40 backdrop-blur-xl border-b border-slate-700/50 px-6 py-4 shadow-sm">
+        className="glass-light border-b border-white shadow-lg px-6 py-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-white">
-              Inmate Track and Chase
+            <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">
+              Inmate Track <span className="text-blue-600">&</span> Chase
             </h1>
-            <p className="text-slate-300 text-sm">Monitoring {totalCount.toLocaleString()} patients • Showing {displayTotalCount.toLocaleString()} • Page {page} of {Math.ceil(displayTotalCount / pageSize)}{initialFilter?.actionType && ` • Filter: ${initialFilter.actionType}`}</p>
+            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mt-1">
+              Monitoring {totalCount.toLocaleString()} patients • Showing {displayTotalCount.toLocaleString()} {initialFilter?.actionType && ` • Filter: ${initialFilter.actionType}`}
+            </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-1 border border-slate-600">
+            <div className="flex items-center gap-1 bg-white/50 rounded-2xl p-1.5 border border-white shadow-inner">
               <button
                 onClick={() => setViewMode('table')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-1 ${
+                aria-label="Switch to table view"
+                className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
                   viewMode === 'table' 
-                    ? 'bg-white text-slate-900 shadow-sm' 
-                    : 'text-slate-300 hover:text-white'
+                    ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/10' 
+                    : 'text-slate-400 hover:text-slate-900'
                 }`}
               >
                 <List className="w-4 h-4" />
+                <span>List</span>
               </button>
               <button
                 onClick={() => setViewMode('grid')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-1 ${
+                aria-label="Switch to grid view"
+                className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
                   viewMode === 'grid' 
-                    ? 'bg-white text-slate-900 shadow-sm' 
-                    : 'text-slate-300 hover:text-white'
+                    ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/10' 
+                    : 'text-slate-400 hover:text-slate-900'
                 }`}
               >
                 <Grid3X3 className="w-4 h-4" />
+                <span>Grid</span>
               </button>
             </div>
             <Button
@@ -374,10 +383,13 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
         
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <input type="text" placeholder="Search by name or ID..." value={searchTerm}
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+            <input type="text" 
+              placeholder="Search by name or ID..." 
+              value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-800/50 border border-slate-600 text-white placeholder-slate-400 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm" />
+              aria-label="Search patients by name or ID"
+              className="w-full pl-12 pr-4 py-3 bg-white/50 border-2 border-slate-100 text-slate-900 placeholder-slate-400 rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all shadow-sm font-medium" />
           </div>
           
           <Button
@@ -409,15 +421,46 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
           </select>
         </div>
         
-        <AdvancedFilterBar
-          filters={filters}
-          onFilterChange={setFilters}
-          states={filterMetadata?.states || []}
-          districts={availableDistricts}
-          facilityTypes={filterMetadata?.facilityTypes || []}
-          isOpen={showAdvancedFilters}
-          searchTerm={searchTerm}
-        />
+        {showAdvancedFilters && (
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <select value={filters.state} onChange={e => setFilters(f => ({ ...f, state: e.target.value, district: '' }))}
+              className="px-3 py-2 bg-white border-2 border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all">
+              <option value="">All States</option>
+              {(filterMetadata?.states || []).map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select value={filters.district} onChange={e => setFilters(f => ({ ...f, district: e.target.value }))}
+              className="px-3 py-2 bg-white border-2 border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all">
+              <option value="">All Districts</option>
+              {availableDistricts.map((d: string) => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <select value={filters.facilityType} onChange={e => setFilters(f => ({ ...f, facilityType: e.target.value }))}
+              className="px-3 py-2 bg-white border-2 border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all">
+              <option value="">All Facility Types</option>
+              {(filterMetadata?.facilityTypes || []).map(ft => <option key={ft} value={ft}>{ft}</option>)}
+            </select>
+            <select value={filters.tbDiagnosed} onChange={e => setFilters(f => ({ ...f, tbDiagnosed: e.target.value }))}
+              className="px-3 py-2 bg-white border-2 border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all">
+              <option value="">TB Status: All</option>
+              <option value="Y">TB Positive</option>
+              <option value="N">TB Negative</option>
+            </select>
+            <select value={filters.hivStatus} onChange={e => setFilters(f => ({ ...f, hivStatus: e.target.value }))}
+              className="px-3 py-2 bg-white border-2 border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all">
+              <option value="">HIV Status: All</option>
+              <option value="Positive">HIV Positive</option>
+              <option value="Negative">HIV Negative</option>
+            </select>
+            <input type="date" value={filters.dateFrom} onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
+              className="px-3 py-2 bg-white border-2 border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all" />
+            <input type="date" value={filters.dateTo} onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))}
+              className="px-3 py-2 bg-white border-2 border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all" />
+            <label className="flex items-center gap-2 px-3 py-2 bg-white border-2 border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-all">
+              <input type="checkbox" checked={filters.overdueOnly} onChange={e => setFilters(f => ({ ...f, overdueOnly: e.target.checked }))}
+                className="w-4 h-4 rounded border-slate-300 text-blue-600" />
+              <span className="text-sm font-medium text-slate-700">Overdue Only</span>
+            </label>
+          </div>
+        )}
       </motion.header>
 
       {showDashboard && (
@@ -460,7 +503,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
         <div className="flex-1 overflow-auto p-6">
           {viewMode === 'grid' ? (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredPatients.slice(0, 50).map((patient, idx) => (
                 <PatientTile
                   key={patient.id}
@@ -511,7 +554,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
             </div>
             </>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="glass-light rounded-4xl border border-white shadow-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
@@ -522,6 +565,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
                         checked={triageIds.length > 0 && triageIds.length === eligibleCount && eligibleCount > 0}
                         onChange={toggleSelectAllEligible}
                         disabled={eligibleCount === 0}
+                        aria-label={eligibleCount === 0 ? 'No eligible patients for bulk triage' : `Select all ${eligibleCount} eligible patients`}
                         className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-30 disabled:cursor-not-allowed"
                         title={eligibleCount === 0 ? 'No eligible patients for bulk triage' : `Select all ${eligibleCount} eligible patients`}
                       />
@@ -536,7 +580,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100/50">
                   {filteredPatients.map((patient, idx) => {
                     const phase = getPhase(patient);
                     const days = getDaysInPhase(patient);
@@ -549,7 +593,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
                         onClick={() => setSelectedPatient(patient)}
                         className={`cursor-pointer transition-all hover:bg-blue-50 ${selectedPatient?.id === patient.id ? 'bg-blue-50' : ''} ${overdue ? 'bg-red-50' : ''}`}>
                         <td className="px-4 py-3">
-                          <div title={!canSelect ? 'Requires manual follow-up: Abnormal X-Ray or Symptoms Present' : ''}>
+                          <div title={!canSelect ? 'Requires manual follow-up: Abnormal X-Ray or Symptoms Present' : 'Select for bulk triage'}>
                             <input
                               type="checkbox"
                               checked={triageIds.includes(patient.id)}
@@ -558,6 +602,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
                                 toggleTriageSelect(patient.id);
                               }}
                               disabled={!canSelect}
+                              aria-label={canSelect ? `Select ${patient.inmate_name} for triage` : 'Patient requires manual follow-up'}
                               className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-30 disabled:cursor-not-allowed"
                             />
                           </div>
@@ -658,16 +703,14 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
         </div>
 
         {/* Patient Detail Drawer */}
-        <AnimatePresence>
-          {selectedPatient && (
-            <PatientDetailDrawer
-              patient={selectedPatient}
-              isOpen={!!selectedPatient}
-              onClose={() => setSelectedPatient(null)}
-              onUpdate={mutate}
-            />
-          )}
-        </AnimatePresence>
+        {selectedPatient && (
+          <PatientDetailDrawer
+            patient={selectedPatient}
+            isOpen={!!selectedPatient}
+            onClose={() => setSelectedPatient(null)}
+            onUpdate={mutate}
+          />
+        )}
       </div>
 
       {/* Floating Triage Action Bar */}
@@ -677,7 +720,8 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50"
+            className="fixed bottom-8 left-1/2 -translate-x-1/2"
+            style={{ zIndex: Z_INDEX.modal }}
           >
             <div className="bg-white/90 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-2xl px-6 py-4">
               {isTriaging ? (
@@ -703,7 +747,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
                   <Button
                     onClick={handleBulkTriage}
                     disabled={isTriaging}
-                    className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg"
+                    className="bg-linear-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg"
                   >
                     Mark as Not TB ({triageIds.length} Patient{triageIds.length > 1 ? 's' : ''})
                   </Button>

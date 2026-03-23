@@ -3,7 +3,7 @@
 import { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { X, TrendingDown } from 'lucide-react';
-import { DESIGN_TOKENS } from '@/lib/designTokens';
+import { cn } from '@/lib/utils';
 
 interface Patient {
   id: number;
@@ -34,15 +34,17 @@ export const CascadeFunnelPanel = memo(function CascadeFunnelPanel({
         label: 'Screened',
         count: screened,
         percentage: 100,
-        color: 'bg-cyan-400',
-        textColor: 'text-cyan-400',
+        color: 'bg-blue-600',
+        textColor: 'text-blue-600',
+        glow: 'shadow-blue-500/20'
       },
       {
         label: 'Diagnosed',
         count: diagnosed,
         percentage: screened > 0 ? (diagnosed / screened) * 100 : 0,
-        color: 'bg-red-400',
-        textColor: 'text-red-400',
+        color: 'bg-rose-500',
+        textColor: 'text-rose-600',
+        glow: 'shadow-rose-500/20',
         attrition: screened - diagnosed,
         attritionLabel: 'not diagnosed',
       },
@@ -50,8 +52,9 @@ export const CascadeFunnelPanel = memo(function CascadeFunnelPanel({
         label: 'Initiated ATT',
         count: initiated,
         percentage: screened > 0 ? (initiated / screened) * 100 : 0,
-        color: 'bg-amber-400',
-        textColor: 'text-amber-400',
+        color: 'bg-amber-500',
+        textColor: 'text-amber-600',
+        glow: 'shadow-amber-500/20',
         attrition: diagnosed - initiated,
         attritionLabel: 'not initiated',
       },
@@ -59,8 +62,9 @@ export const CascadeFunnelPanel = memo(function CascadeFunnelPanel({
         label: 'Completed',
         count: completed,
         percentage: screened > 0 ? (completed / screened) * 100 : 0,
-        color: 'bg-emerald-400',
-        textColor: 'text-emerald-400',
+        color: 'bg-emerald-500',
+        textColor: 'text-emerald-600',
+        glow: 'shadow-emerald-500/20',
         attrition: initiated - completed,
         attritionLabel: 'not completed',
       },
@@ -73,102 +77,98 @@ export const CascadeFunnelPanel = memo(function CascadeFunnelPanel({
 
   return (
     <motion.div
-      initial={{ y: 400, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      exit={{ y: 400, opacity: 0 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className={`absolute bottom-6 left-1/2 -translate-x-1/2 ${DESIGN_TOKENS.zIndex.overlay} w-[800px]`}
+      initial={{ y: 100, opacity: 0, scale: 0.9 }}
+      animate={{ y: 0, opacity: 1, scale: 1 }}
+      exit={{ y: 100, opacity: 0, scale: 0.9 }}
+      transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+      className="absolute bottom-12 left-1/2 -translate-x-1/2 z-50 w-[800px] pointer-events-auto"
     >
-      <div className={`
-        ${DESIGN_TOKENS.backdropBlur}
-        ${DESIGN_TOKENS.background.panel}
-        ${DESIGN_TOKENS.border.inactive}
-        ${DESIGN_TOKENS.borderRadius.panel}
-        ${DESIGN_TOKENS.shadow.glow.cyan}
-        p-6
-      `}>
+      <div className="glass-light border border-white shadow-[0_32px_128px_rgba(0,0,0,0.1)] rounded-[40px] p-8 relative overflow-hidden">
+        {/* Animated Background Mesh */}
+        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-blue-500/5 to-transparent opacity-50" />
+        
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-lg font-bold text-white">TB Treatment Cascade</h3>
-            <p className="text-xs text-slate-400 mt-1">
-              Completion Rate: <span className="text-emerald-400 font-bold">{completionRate}%</span>
-            </p>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center shadow-2xl">
+              <TrendingDown className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase leading-none">Treatment Cascade</h3>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Global Success Efficiency:</span>
+                <span className="text-base font-black text-emerald-600 tracking-tighter">{completionRate}%</span>
+              </div>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className={`
-              w-8 h-8 bg-slate-800 hover:bg-slate-700
-              ${DESIGN_TOKENS.borderRadius.button}
-              ${DESIGN_TOKENS.transition.fast}
-              hover:-translate-y-1 active:scale-95
-              flex items-center justify-center
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400
-            `}
-            aria-label="Close cascade panel"
+            className="w-12 h-12 bg-slate-100 hover:bg-slate-200 rounded-2xl flex items-center justify-center transition-all hover:rotate-90 active:scale-95 shadow-sm"
           >
-            <X className="w-4 h-4 text-slate-400" />
+            <X className="w-6 h-6 text-slate-500" />
           </button>
         </div>
 
-        {/* Funnel Stages */}
-        <div className="space-y-4">
+        {/* Funnel Table */}
+        <div className="grid grid-cols-4 gap-6">
           {cascadeData.map((stage, idx) => (
-            <div key={stage.label}>
-              {/* Attrition indicator */}
-              {stage.attrition !== undefined && stage.attrition > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.1 + 0.05 }}
-                  className="flex items-center gap-2 mb-2 ml-4"
-                >
-                  <TrendingDown className="w-3 h-3 text-red-400" />
-                  <span className="text-xs text-red-400 font-semibold">
-                    ▼ {stage.attrition.toLocaleString()} {stage.attritionLabel}
-                  </span>
-                </motion.div>
-              )}
+            <motion.div 
+              key={stage.label}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.1 }}
+              className="flex flex-col"
+            >
+              {/* Stage Bar */}
+              <div className="flex-1 flex flex-col justify-end min-h-[180px] relative p-1">
+                {/* Attrition Floating Indicator */}
+                {stage.attrition !== undefined && stage.attrition > 0 && (
+                   <div className="absolute top-0 left-0 w-full flex flex-col items-center">
+                     <div className="text-[11px] font-black text-rose-500/60 uppercase tracking-tighter mb-1">
+                       -{stage.attrition.toLocaleString()}
+                     </div>
+                     <div className="w-px h-10 bg-gradient-to-b from-rose-500/20 to-transparent" />
+                   </div>
+                )}
 
-              {/* Stage bar */}
-              <div className="relative">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold text-white">{stage.label}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-400">
-                      {stage.count.toLocaleString()} patients
-                    </span>
-                    <span className={`text-sm font-bold ${stage.textColor}`}>
-                      {stage.percentage.toFixed(1)}%
+                <motion.div
+                  initial={{ height: 0 }}
+                  animate={{ height: `${stage.percentage}%` }}
+                  transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1], delay: idx * 0.1 }}
+                  className={cn(
+                    "w-full rounded-[24px] relative group overflow-hidden shadow-2xl",
+                    stage.color,
+                    stage.glow
+                  )}
+                >
+                  <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white/30 to-transparent" />
+                  <div className="absolute inset-0 flex items-center justify-center p-2 text-center">
+                    <span className="text-xl font-black text-white drop-shadow-md">
+                      {stage.percentage.toFixed(0)}%
                     </span>
                   </div>
-                </div>
-
-                {/* Progress bar container */}
-                <div className={`w-full h-10 bg-slate-800/50 ${DESIGN_TOKENS.borderRadius.button} overflow-hidden`}>
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${stage.percentage}%` }}
-                    transition={{
-                      duration: 0.8,
-                      delay: idx * 0.1,
-                      ease: [0.22, 1, 0.36, 1],
-                    }}
-                    className={`h-full ${stage.color} flex items-center justify-center`}
-                  >
-                    <span className="text-xs font-bold text-slate-900">
-                      {stage.count.toLocaleString()}
-                    </span>
-                  </motion.div>
-                </div>
+                  
+                  {/* Subtle Grain Overlay */}
+                  <div className="absolute inset-0 opacity-10 pointer-events-none mix-blend-overlay bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+                </motion.div>
               </div>
-            </div>
+
+              {/* Label Info */}
+              <div className="mt-6 pt-5 border-t border-slate-100">
+                <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase mb-1.5">{stage.label}</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-slate-950 tracking-tighter">{stage.count.toLocaleString()}</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Case Units</span>
+                </div>
+                <div className={cn("h-1.5 w-8 rounded-full mt-3", stage.color)} />
+              </div>
+            </motion.div>
           ))}
         </div>
 
-        {/* Footer note */}
-        <div className="mt-4 pt-4 border-t border-slate-700/50 text-xs text-slate-500 text-center">
-          Cascade reflects current filter selection
+        {/* Footer Note */}
+        <div className="mt-8 pt-6 border-t border-slate-50 flex items-center justify-center">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Neural Cascade Projection • Live Intelligence</p>
         </div>
       </div>
     </motion.div>

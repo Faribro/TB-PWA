@@ -43,12 +43,39 @@ export function useAllPatients() {
   return useQuery({
     queryKey: ['allPatients'],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('patients')
-        .select('*')
-        .neq('facility_name', 'Unknown')
-        .neq('facility_type', 'Unknown');
-      return data || [];
+      // ✅ FIX: Fetch ALL records using pagination (no 1000-row limit)
+      const batchSize = 1000;
+      const allData: any[] = [];
+      let offset = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('patients')
+          .select('*')
+          .neq('facility_name', 'Unknown')
+          .neq('facility_type', 'Unknown')
+          .range(offset, offset + batchSize - 1);
+
+        if (error) {
+          console.error('Batch fetch error:', error);
+          break;
+        }
+
+        if (data && data.length > 0) {
+          allData.push(...data);
+          if (data.length < batchSize) {
+            hasMore = false; // Last batch
+          } else {
+            offset += batchSize;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      console.log(`✅ Fetched ${allData.length} total patients`);
+      return allData;
     },
     staleTime: 5 * 60 * 1000,
   });

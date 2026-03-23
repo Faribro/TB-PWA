@@ -7,6 +7,24 @@ const ID_COLUMN = 'A';
 export async function POST(req: NextRequest) {
   try {
     const payload = await req.json();
+    
+    // Handle manual sync trigger from AdvancedFilterBar
+    if (payload.action === 'TRIGGER_SYNC') {
+      // Forward to Google Apps Script
+      const gasResponse = await fetch(process.env.GOOGLE_APPSCRIPT_URL!, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'TRIGGER_SYNC' }),
+      });
+      
+      if (!gasResponse.ok) {
+        throw new Error(`GAS sync failed: ${gasResponse.statusText}`);
+      }
+      
+      return NextResponse.json({ success: true, message: 'Drive sync triggered' });
+    }
+    
+    // Handle individual field updates (existing logic)
     const { uniqueId, field, value } = payload;
 
     const auth = new google.auth.GoogleAuth({

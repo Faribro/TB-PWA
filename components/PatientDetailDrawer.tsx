@@ -8,12 +8,12 @@ import { X, User, FileText, Activity, Pill, Shield, ChevronDown, ChevronUp, Aler
 import { patientFormSchema, type PatientFormData } from '@/lib/schemas';
 import { updatePatientAction } from '@/lib/patient-actions';
 import { calculatePatientPhase, calculateProgressPercentage } from '@/lib/phase-engine';
-import { Progress } from './ui/progress';
 import { PatientTimeline } from './PatientTimeline';
 import { Input } from './ui/input';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetOverlay } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetOverlay, SheetPortal } from '@/components/ui/sheet';
 import { ScrollArea } from './ui/scroll-area';
 import { useSWRConfig } from 'swr';
+import { Z_INDEX } from '@/lib/zIndex';
 
 interface PatientDetailDrawerProps {
   patient: any;
@@ -69,7 +69,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       screening_date: patient.screening_date || ''
     });
     setIsEditingDemographics(false);
-  }, [patient.id]);
+  }, [patient]);
   
   const { register, handleSubmit, watch, formState: { errors } } = useForm<PatientFormData>({
     resolver: zodResolver(patientFormSchema),
@@ -188,14 +188,14 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const Section = ({ id, title, icon: Icon, children, isCurrent = false }: any) => {
     const isExpanded = expandedSection === id;
     return (
-      <div className={`border rounded-lg overflow-hidden ${
-        isCurrent ? 'border-blue-500 shadow-md' : 'border-slate-200'
+      <div className={`overflow-hidden rounded-2xl transition-all ${
+        isCurrent ? 'ring-2 ring-blue-500 ring-offset-2' : 'glass-card-light'
       }`}>
         <button
           type="button"
           onClick={() => setExpandedSection(isExpanded ? '' : id)}
-          className={`w-full px-4 py-3 flex items-center justify-between transition-colors ${
-            isCurrent ? 'bg-blue-50 hover:bg-blue-100' : 'bg-slate-50 hover:bg-slate-100'
+          className={`w-full px-4 py-4 flex items-center justify-between transition-colors ${
+            isCurrent ? 'bg-blue-600 text-white' : 'hover:bg-white/40'
           }`}
         >
           <div className="flex items-center gap-2">
@@ -264,23 +264,23 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      {/* CRITICAL - OVERLAY: Z-Index 100000 */}
-      <SheetOverlay 
-        className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm" 
-        style={{ zIndex: 100000 }} 
-      />
-      
-      {/* CRITICAL - CONTENT: Z-Index 100001 + Optimized Width */}
-      <SheetContent 
-        className="!w-[95vw] sm:!max-w-[500px] bg-white border-l border-slate-200 shadow-2xl p-0 flex flex-col h-full" 
-        style={{ zIndex: 100001 }}
-      >
+      <SheetPortal>
+        <SheetOverlay 
+          className="fixed inset-0 bg-slate-900/10 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" 
+          style={{ zIndex: Z_INDEX.overlay }} 
+        />
+        <SheetContent 
+          className="!w-[95vw] sm:!max-w-[500px] glass-light border-l border-white shadow-2xl p-0 flex flex-col h-full" 
+          style={{ zIndex: Z_INDEX.drawer }}
+        >
         {/* Header with Patient Info */}
-        <SheetHeader className="px-6 py-4 border-b border-slate-200 bg-white">
+        <SheetHeader className="px-6 py-6 border-b border-white/20 bg-white/10 backdrop-blur-md">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <SheetTitle className="text-xl font-bold text-slate-900">{patient.inmate_name}</SheetTitle>
-              <p className="text-sm text-slate-500 font-mono mt-1">{patient.unique_id}</p>
+              <SheetTitle className="text-2xl font-black text-slate-900 tracking-tighter uppercase">
+                {patient.inmate_name}
+              </SheetTitle>
+              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mt-1 opacity-80">{patient.unique_id}</p>
               
               {/* Task 4: Patient Vitals - Contextual Metadata */}
               <div className="mt-2 flex items-center gap-2 text-xs text-slate-500 font-medium">
@@ -378,6 +378,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
             <button
               type="button"
               onClick={() => setIsEditingDemographics(!isEditingDemographics)}
+              aria-label={isEditingDemographics ? 'Lock demographics editing' : 'Unlock demographics for editing'}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${
                 isEditingDemographics
                   ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -498,41 +499,6 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
             <ReadOnlyField label="Past TB History" value={patient.tb_past_history} />
           </div>
 
-          {/* Save Demographics Button */}
-          {isEditingDemographics && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-4 pt-4 border-t border-slate-200"
-            >
-              <button
-                type="button"
-                onClick={handleSaveDemographics}
-                disabled={isSavingDemographics}
-                className="w-full px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-medium disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 transition-all"
-              >
-                {isSavingDemographics ? (
-                  <>
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                    >
-                      <Save className="w-4 h-4" />
-                    </motion.div>
-                    Syncing to Database & Sheets...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Save Demographics (Triple Sync)
-                  </>
-                )}
-              </button>
-              <p className="text-xs text-center text-slate-500 mt-2">
-                Updates Supabase + Patient Linelist + Master Database
-              </p>
-            </motion.div>
-          )}
         </Section>
 
         {/* Journey Overview Tab - Separate Section */}
@@ -729,22 +695,52 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
           </div>
         </ScrollArea>
 
-        {/* Task 1: Sticky Action Footer */}
+        {/* Unified Action Footer */}
         {!isClosed && (
           <div className="sticky bottom-0 w-full p-4 border-t border-slate-200 bg-white/80 backdrop-blur-md flex flex-col gap-3 mt-auto">
-            <button
-              type="submit"
-              form="patient-form"
-              disabled={isSubmitting}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all py-3 rounded-lg disabled:opacity-50"
-            >
-              {isSubmitting ? 'Saving...' : 'Save Updates'}
-            </button>
+            {/* Primary Save Button - handles both demographics and clinical updates */}
+            {isEditingDemographics ? (
+              <button
+                type="button"
+                onClick={handleSaveDemographics}
+                disabled={isSavingDemographics}
+                aria-label="Save demographic changes"
+                className="w-full px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-medium disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 transition-all"
+              >
+                {isSavingDemographics ? (
+                  <>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                    >
+                      <Save className="w-4 h-4" />
+                    </motion.div>
+                    Syncing Demographics...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Demographics
+                  </>
+                )}
+              </button>
+            ) : (
+              <button
+                type="submit"
+                form="patient-form"
+                disabled={isSubmitting}
+                aria-label="Save clinical updates"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all py-3 rounded-lg disabled:opacity-50"
+              >
+                {isSubmitting ? 'Saving...' : 'Save Clinical Updates'}
+              </button>
+            )}
 
             {!showCloseLoop ? (
               <button
                 type="button"
                 onClick={() => setShowCloseLoop(true)}
+                aria-label="Close patient loop as not TB"
                 className="w-full bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-medium transition-all py-3 rounded-lg flex items-center justify-center gap-2"
               >
                 <AlertCircle className="w-4 h-4" />
@@ -767,6 +763,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 <button
                   type="button"
                   onClick={() => setShowCloseLoop(false)}
+                  aria-label="Cancel loop closure"
                   className="text-sm text-red-600 hover:underline"
                 >
                   Cancel
@@ -776,6 +773,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
           </div>
         )}
       </SheetContent>
+      </SheetPortal>
     </Sheet>
   );
 }

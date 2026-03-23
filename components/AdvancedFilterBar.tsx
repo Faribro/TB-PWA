@@ -1,336 +1,185 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  X, 
-  MapPin, 
-  Building2, 
-  Activity, 
-  Calendar,
-  TriangleAlert,
-  FileSpreadsheet,
-  Loader2
-} from 'lucide-react';
-import { Card } from './ui/card';
-import { Button } from './ui/button';
-import { Switch } from './ui/switch';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './ui/select';
-
-export interface FilterState {
-  facilityType: string;
-  state: string;
-  district: string;
-  phase: string;
-  overdueOnly: boolean;
-  tbDiagnosed: string;
-  hivStatus: string;
-  dateFrom: string;
-  dateTo: string;
-}
+import { Search, SlidersHorizontal, ArrowUpDown, RefreshCw, FileText, Calendar, MapPin } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { StatusIndicator } from '@/components/StatusIndicator';
+import { toast } from 'sonner';
+import { useState, useCallback } from 'react';
+import type { NexusFilters } from '@/app/dashboard/neural-nexus/page';
 
 interface AdvancedFilterBarProps {
-  filters: FilterState;
-  onFilterChange: (filters: FilterState) => void;
-  states: string[];
+  filters: NexusFilters;
+  onFiltersChange: (filters: Partial<NexusFilters>) => void;
+  patientCount: number;
   districts: string[];
-  facilityTypes: string[];
-  isOpen: boolean;
-  searchTerm: string;
 }
 
-export function AdvancedFilterBar({
-  filters,
-  onFilterChange,
-  states,
-  districts,
-  facilityTypes,
-  isOpen,
-  searchTerm
-}: AdvancedFilterBarProps) {
-  const [isExporting, setIsExporting] = useState(false);
+export function AdvancedFilterBar({ filters, onFiltersChange, patientCount, districts }: AdvancedFilterBarProps) {
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  const updateFilter = (key: keyof FilterState, value: any) => {
-    const filterValue = value?.startsWith?.('all-') ? '' : value;
-    const newFilters = { ...filters, [key]: filterValue };
-    
-    if (key === 'state') {
-      newFilters.district = '';
-    }
-    
-    onFilterChange(newFilters);
-  };
-
-  const clearAllFilters = () => {
-    onFilterChange({
-      facilityType: '',
-      state: '',
-      district: '',
-      phase: '',
-      overdueOnly: false,
-      tbDiagnosed: '',
-      hivStatus: '',
-      dateFrom: '',
-      dateTo: ''
-    });
-  };
-
-  const handleExportXLSX = async () => {
-    setIsExporting(true);
+  const handleManualSync = useCallback(async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    toast.info('Scout initiated. Checking Drive folders...');
     try {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-      );
+      // ✅ FIX: Call internal API route instead of Google Apps Script directly
+      const response = await fetch('/api/sync-sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'TRIGGER_SYNC' }),
+      });
       
-      let query = supabase.from('patients').select('*');
-      
-      if (searchTerm) {
-        query = query.or(`inmate_name.ilike.%${searchTerm}%,unique_id.ilike.%${searchTerm}%`);
+      if (response.ok) {
+        toast.success('Drive sync completed successfully');
+      } else {
+        toast.error('Drive sync failed. Check logs.');
       }
-      if (filters.state) query = query.eq('screening_state', filters.state);
-      if (filters.district) query = query.eq('screening_district', filters.district);
-      if (filters.facilityType) query = query.eq('facility_type', filters.facilityType);
-      if (filters.tbDiagnosed) query = query.eq('tb_diagnosed', filters.tbDiagnosed);
-      if (filters.hivStatus) query = query.eq('hiv_status', filters.hivStatus);
-      if (filters.dateFrom) query = query.gte('screening_date', filters.dateFrom);
-      if (filters.dateTo) query = query.lte('screening_date', filters.dateTo);
-      
-      const { data } = await query.order('created_at', { ascending: false });
-      
-      if (data) {
-        const XLSX = await import('xlsx');
-        const worksheetData = data.map(p => ({
-          'Patient Name': p.inmate_name,
-          'Unique ID': p.unique_id,
-          'State': p.screening_state,
-          'District': p.screening_district,
-          'Facility': p.facility_name,
-          'Facility Type': p.facility_type,
-          'Screening Date': p.screening_date?.split('T')[0] || '',
-          'X-Ray Result': p.xray_result || '',
-          'Referral Date': p.referral_date?.split('T')[0] || '',
-          'TB Diagnosed': p.tb_diagnosed === 'Y' ? 'Yes' : p.tb_diagnosed === 'N' ? 'No' : 'Pending',
-          'HIV Status': p.hiv_status || 'Unknown',
-          'ATT Start Date': p.att_start_date?.split('T')[0] || '',
-          'Age': p.age,
-          'Sex': p.sex
-        }));
-        
-        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Patients');
-        XLSX.writeFile(workbook, `TB_Patient_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
-      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast.error('Drive sync failed. Check connection.');
     } finally {
-      setIsExporting(false);
+      setIsSyncing(false);
     }
-  };
+  }, [isSyncing]);
 
-  return isOpen ? (
-    <motion.div
-      initial={{ opacity: 0, height: 0, y: -10 }}
-      animate={{ opacity: 1, height: 'auto', y: 0 }}
-      exit={{ opacity: 0, height: 0, y: -10 }}
-      transition={{ duration: 0.3 }}
-      className="mt-4"
-    >
-      <Card className="bg-gradient-to-br from-slate-50/80 to-white border-slate-200/60 shadow-lg">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900">Advanced Filters</h3>
-              <p className="text-sm text-slate-500 mt-1">Refine your patient data view</p>
-            </div>
-            <Button
-              onClick={clearAllFilters}
-              variant="ghost"
-              size="sm"
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <X className="h-5 w-5 mr-1" />
-              Clear All
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-3">
-                <MapPin className="h-4 w-4 text-slate-500" />
-                <h4 className="text-xs font-bold tracking-widest text-slate-500 uppercase">Location</h4>
-              </div>
-              
-              <Select value={filters.state || 'all-states'} onValueChange={(value) => updateFilter('state', value)}>
-                <SelectTrigger className="bg-white border-slate-200 hover:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition-all">
-                  <SelectValue placeholder="Select State" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all-states">All States</SelectItem>
-                  {states.map(state => (
-                    <SelectItem key={state} value={state}>{state}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select 
-                value={filters.district || 'all-districts'} 
-                onValueChange={(value) => updateFilter('district', value)}
-                disabled={!filters.state}
-              >
-                <SelectTrigger className="bg-white border-slate-200 hover:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition-all">
-                  <SelectValue placeholder="Select District" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all-districts">All Districts</SelectItem>
-                  {districts.map(district => (
-                    <SelectItem key={district} value={district}>{district}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Building2 className="h-4 w-4 text-slate-500" />
-                <h4 className="text-xs font-bold tracking-widest text-slate-500 uppercase">Facility & Phase</h4>
-              </div>
-              
-              <Select value={filters.facilityType || 'all-facility-types'} onValueChange={(value) => updateFilter('facilityType', value)}>
-                <SelectTrigger className="bg-white border-slate-200 hover:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition-all">
-                  <SelectValue placeholder="Facility Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all-facility-types">All Facility Types</SelectItem>
-                  {facilityTypes.map(type => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={filters.phase || 'all-phases'} onValueChange={(value) => updateFilter('phase', value)}>
-                <SelectTrigger className="bg-white border-slate-200 hover:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition-all">
-                  <SelectValue placeholder="Current Phase" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all-phases">All Phases</SelectItem>
-                  <SelectItem value="Screening">Screening</SelectItem>
-                  <SelectItem value="Sputum Test">Sputum Test</SelectItem>
-                  <SelectItem value="Diagnosis">Diagnosis</SelectItem>
-                  <SelectItem value="ATT Initiation">ATT Initiation</SelectItem>
-                  <SelectItem value="Closed">Closed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Activity className="h-4 w-4 text-slate-500" />
-                <h4 className="text-xs font-bold tracking-widest text-slate-500 uppercase">Medical Status</h4>
-              </div>
-              
-              <Select value={filters.tbDiagnosed || 'all-tb-status'} onValueChange={(value) => updateFilter('tbDiagnosed', value)}>
-                <SelectTrigger className="bg-white border-slate-200 hover:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition-all">
-                  <SelectValue placeholder="TB Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all-tb-status">TB Status - All</SelectItem>
-                  <SelectItem value="Y">TB Positive</SelectItem>
-                  <SelectItem value="N">TB Negative</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={filters.hivStatus || 'all-hiv-status'} onValueChange={(value) => updateFilter('hivStatus', value)}>
-                <SelectTrigger className="bg-white border-slate-200 hover:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition-all">
-                  <SelectValue placeholder="HIV Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all-hiv-status">HIV Status - All</SelectItem>
-                  <SelectItem value="Positive">HIV Positive</SelectItem>
-                  <SelectItem value="Negative">HIV Negative</SelectItem>
-                  <SelectItem value="Unknown">HIV Unknown</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Calendar className="h-4 w-4 text-slate-500" />
-                <h4 className="text-xs font-bold tracking-widest text-slate-500 uppercase">Screening Date Range</h4>
-              </div>
-              
-              <div className="space-y-3">
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={filters.dateFrom}
-                    onChange={(e) => updateFilter('dateFrom', e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm hover:border-blue-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                  />
-                  <label className="absolute -top-2 left-3 px-1 bg-white text-xs text-slate-500 font-medium">
-                    From Date
-                  </label>
-                </div>
-                
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={filters.dateTo}
-                    onChange={(e) => updateFilter('dateTo', e.target.value)}
-                    min={filters.dateFrom || undefined}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm hover:border-blue-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                  />
-                  <label className="absolute -top-2 left-3 px-1 bg-white text-xs text-slate-500 font-medium">
-                    To Date
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 pt-6 border-t border-slate-200">
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-              <div className="flex items-center justify-between w-full">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-amber-100 rounded-lg">
-                    <TriangleAlert className="h-4 w-4 text-amber-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-sm font-semibold text-amber-900">SLA Breach Alert</h4>
-                    <p className="text-xs text-amber-700 mt-1">
-                      Show overdue cases only (30+ days without referral)
-                    </p>
-                  </div>
-                  <Switch
-                    checked={filters.overdueOnly}
-                    onCheckedChange={(checked) => updateFilter('overdueOnly', checked)}
-                    className="data-[state=checked]:bg-amber-500"
-                  />
-                </div>
-                <Button
-                  onClick={handleExportXLSX}
-                  disabled={isExporting}
-                  variant="outline"
-                  className="bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50 h-8 text-xs ml-4"
-                >
-                  {isExporting ? (
-                    <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
-                  ) : (
-                    <FileSpreadsheet className="w-3.5 h-3.5 mr-2" />
-                  )}
-                  {isExporting ? 'Exporting...' : 'Export to Excel'}
-                </Button>
-              </div>
-            </div>
-          </div>
+  return (
+    <div className="flex items-center justify-between gap-4 pb-6">
+      {/* Left: Search + Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+          <input
+            type="text"
+            placeholder="Search patients, IDs..."
+            value={filters.searchQuery}
+            onChange={(e) => onFiltersChange({ searchQuery: e.target.value })}
+            className="pl-11 pr-6 py-3 bg-white/50 backdrop-blur-xl border border-white/20 rounded-2xl w-64 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all shadow-[inset_0_0_10px_rgba(255,255,255,0.1)]"
+          />
         </div>
-      </Card>
-    </motion.div>
-  ) : null;
+
+        <Select value={filters.filterRisk} onValueChange={(v) => onFiltersChange({ filterRisk: v as any })}>
+          <SelectTrigger className="h-11 w-40 text-xs font-bold border-white/20 bg-white/50 backdrop-blur-xl hover:bg-white hover:border-blue-400 transition-all rounded-2xl focus:ring-4 focus:ring-blue-500/10 shadow-[inset_0_0_10px_rgba(255,255,255,0.1)]">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+              <SelectValue placeholder="Risk Level" />
+            </div>
+          </SelectTrigger>
+          <SelectContent className="rounded-2xl border-slate-200 shadow-2xl">
+            <SelectItem value="All" className="font-bold">All Risk</SelectItem>
+            <SelectItem value="high" className="font-bold text-red-600">High Risk (&gt;0.8)</SelectItem>
+            <SelectItem value="normal" className="font-bold">Normal Risk</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={filters.filterStatus} onValueChange={(v) => onFiltersChange({ filterStatus: v as any })}>
+          <SelectTrigger className="h-11 w-40 text-xs font-bold border-white/20 bg-white/50 backdrop-blur-xl hover:bg-white hover:border-blue-400 transition-all rounded-2xl focus:ring-4 focus:ring-blue-500/10 shadow-[inset_0_0_10px_rgba(255,255,255,0.1)]">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+              <SelectValue placeholder="Link Status" />
+            </div>
+          </SelectTrigger>
+          <SelectContent className="rounded-2xl border-slate-200 shadow-2xl">
+            <SelectItem value="All" className="font-bold">All Status</SelectItem>
+            <SelectItem value="linked" className="font-bold text-emerald-600">Linked</SelectItem>
+            <SelectItem value="unlinked" className="font-bold">Unlinked</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={filters.dateRange} onValueChange={(v) => onFiltersChange({ dateRange: v as any })}>
+          <SelectTrigger className="h-11 w-44 text-xs font-bold border-white/20 bg-white/50 backdrop-blur-xl hover:bg-white hover:border-blue-400 transition-all rounded-2xl focus:ring-4 focus:ring-blue-500/10 shadow-[inset_0_0_10px_rgba(255,255,255,0.1)]">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <SelectValue placeholder="Date Range" />
+            </div>
+          </SelectTrigger>
+          <SelectContent className="rounded-2xl border-slate-200 shadow-2xl">
+            <SelectItem value="all" className="font-bold">All Time</SelectItem>
+            <SelectItem value="today" className="font-bold">Today</SelectItem>
+            <SelectItem value="7d" className="font-bold">Last 7 Days</SelectItem>
+            <SelectItem value="30d" className="font-bold">Last 30 Days</SelectItem>
+            <SelectItem value="90d" className="font-bold">Last 90 Days</SelectItem>
+            <SelectItem value="custom" className="font-bold text-blue-600">Custom Range...</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Custom date pickers — only shown when custom is selected */}
+        {filters.dateRange === 'custom' && (
+          <>
+            <input
+              type="date"
+              value={filters.dateFrom}
+              onChange={(e) => onFiltersChange({ dateFrom: e.target.value })}
+              className="h-11 px-4 bg-white/50 backdrop-blur-xl border border-white/20 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/10 shadow-[inset_0_0_10px_rgba(255,255,255,0.1)] hover:border-blue-400 transition-all"
+            />
+            <span className="text-xs font-bold text-slate-400">→</span>
+            <input
+              type="date"
+              value={filters.dateTo}
+              min={filters.dateFrom || undefined}
+              onChange={(e) => onFiltersChange({ dateTo: e.target.value })}
+              className="h-11 px-4 bg-white/50 backdrop-blur-xl border border-white/20 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/10 shadow-[inset_0_0_10px_rgba(255,255,255,0.1)] hover:border-blue-400 transition-all"
+            />
+          </>
+        )}
+
+        <Select value={filters.district || 'all'} onValueChange={(v) => onFiltersChange({ district: v === 'all' ? '' : v })}>
+          <SelectTrigger className="h-11 w-48 text-xs font-bold border-white/20 bg-white/50 backdrop-blur-xl hover:bg-white hover:border-blue-400 transition-all rounded-2xl focus:ring-4 focus:ring-blue-500/10 shadow-[inset_0_0_10px_rgba(255,255,255,0.1)]">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-3.5 h-3.5 text-slate-400" />
+              <SelectValue placeholder="District" />
+            </div>
+          </SelectTrigger>
+          <SelectContent className="rounded-2xl border-slate-200 shadow-2xl max-h-60 overflow-y-auto">
+            <SelectItem value="all" className="font-bold">All Districts</SelectItem>
+            {districts.map((d) => (
+              <SelectItem key={d} value={d} className="font-bold">{d}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filters.filterType} onValueChange={(v) => onFiltersChange({ filterType: v as any })}>
+          <SelectTrigger className="h-11 w-44 text-xs font-bold border-white/20 bg-white/50 backdrop-blur-xl hover:bg-white hover:border-blue-400 transition-all rounded-2xl focus:ring-4 focus:ring-blue-500/10 shadow-[inset_0_0_10px_rgba(255,255,255,0.1)]">
+            <div className="flex items-center gap-2">
+              <FileText className="w-3.5 h-3.5 text-slate-400" />
+              <SelectValue placeholder="Content Type" />
+            </div>
+          </SelectTrigger>
+          <SelectContent className="rounded-2xl border-slate-200 shadow-2xl">
+            <SelectItem value="All" className="font-bold">All Diagnostic Types</SelectItem>
+            <SelectItem value="dcm" className="font-bold">Only X-Rays (DICOM)</SelectItem>
+            <SelectItem value="pdf" className="font-bold text-red-600">Only Reports (PDF)</SelectItem>
+            <SelectItem value="jpg" className="font-bold text-emerald-600">Only Lab Results (JPG)</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={filters.sortBy} onValueChange={(v) => onFiltersChange({ sortBy: v as any })}>
+          <SelectTrigger className="h-11 w-44 text-xs font-bold border-white/20 bg-white/50 backdrop-blur-xl hover:bg-white hover:border-blue-400 transition-all rounded-2xl focus:ring-4 focus:ring-blue-500/10 shadow-[inset_0_0_10px_rgba(255,255,255,0.1)]">
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+              <SelectValue placeholder="Sort By" />
+            </div>
+          </SelectTrigger>
+          <SelectContent className="rounded-2xl border-slate-200 shadow-2xl">
+            <SelectItem value="genki_desc" className="font-bold">Genki ↓ High First</SelectItem>
+            <SelectItem value="genki_asc" className="font-bold">Genki ↑ Low First</SelectItem>
+            <SelectItem value="name_asc" className="font-bold">Name A → Z</SelectItem>
+            <SelectItem value="name_desc" className="font-bold">Name Z → A</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Right: Status + Sync */}
+      <div className="flex items-center gap-3">
+        <StatusIndicator />
+        <button
+          onClick={handleManualSync}
+          disabled={isSyncing}
+          className="flex items-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 disabled:opacity-60 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-blue-500/30 transition-all"
+        >
+          <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+          {isSyncing ? 'Syncing...' : 'Sync Drive'}
+        </button>
+      </div>
+    </div>
+  );
 }

@@ -4,7 +4,6 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Users, AlertCircle, TrendingUp, CheckCircle, AlertTriangle, MapPin } from 'lucide-react';
 import { useUniversalFilter, FilterStatus } from '@/contexts/FilterContext';
-import { DESIGN_TOKENS } from '@/lib/designTokens';
 
 interface Patient {
   id: number;
@@ -143,19 +142,13 @@ export function KPIRibbon({ filteredPatients }: KPIRibbonProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 40 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.2 }}
-      className={`
-        fixed bottom-0 left-0 right-0
-        ${DESIGN_TOKENS.zIndex.interactive}
-        ${DESIGN_TOKENS.background.panel}
-        ${DESIGN_TOKENS.backdropBlur}
-        border-t ${DESIGN_TOKENS.border.inactive.split(' ')[1]}
-      `}
-      style={{ height: `${DESIGN_TOKENS.layout.footerHeight}px` }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
+      className="fixed bottom-0 left-0 right-0 z-[1200] bg-white/40 backdrop-blur-3xl border-t border-slate-200/50"
+      style={{ height: '100px' }}
     >
-      <div className="h-full px-6 flex items-center gap-4">
+      <div className="h-full px-8 flex items-center gap-4">
         {metrics.map((metric, index) => {
           const isActive = metric.filterStatus && filter.status === metric.filterStatus;
           const isClickable = !!metric.filterStatus;
@@ -170,48 +163,55 @@ export function KPIRibbon({ filteredPatients }: KPIRibbonProps) {
           return (
             <motion.button
               key={metric.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
               onClick={() => handleMetricClick(metric)}
               disabled={!isClickable}
               className={`
-                flex-1 h-16 px-4
-                ${DESIGN_TOKENS.borderRadius.panel}
-                ${DESIGN_TOKENS.backdropBlur}
-                ${isActive ? metric.borderColor : DESIGN_TOKENS.border.inactive}
-                ${isActive ? metric.bgColor : DESIGN_TOKENS.background.panelLight}
-                ${DESIGN_TOKENS.transition.fast}
-                ${isClickable ? 'cursor-pointer hover:-translate-y-1 active:scale-95' : 'cursor-default'}
-                ${DESIGN_TOKENS.shadow.md}
-                ${isHighRisk ? 'animate-pulse border-red-500/40' : ''}
+                flex-1 h-14 px-5
+                rounded-2xl
+                border transition-all duration-300
+                ${isActive 
+                  ? `${metric.borderColor} bg-white shadow-lg ${metric.id === 'breach' ? 'shadow-red-500/10' : 'shadow-blue-500/10'}` 
+                  : 'border-slate-200/40 bg-slate-50/50 hover:bg-white hover:border-slate-300 hover:shadow-md'
+                }
+                ${isClickable ? 'cursor-pointer active:scale-95' : 'cursor-default'}
+                ${isHighRisk ? 'animate-pulse' : ''}
                 flex items-center justify-between
-                group
+                group relative overflow-hidden
               `}
             >
+              {/* Subtle background gradient on active */}
+              {isActive && (
+                <div className={`absolute inset-0 opacity-5 bg-gradient-to-br ${metric.bgColor.replace('bg-', 'from-')}`} />
+              )}
+
               {/* Left: Icon + Label */}
-              <div className="flex items-center gap-3">
-                <div className={metric.color}>
+              <div className="flex items-center gap-4">
+                <div className={`
+                  ${metric.color} transition-transform duration-300 group-hover:scale-110
+                `}>
                   {metric.icon}
                 </div>
                 <div className="text-left">
-                  <div className={DESIGN_TOKENS.text.label}>
+                  <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
                     {metric.label}
                   </div>
-                  <div className={DESIGN_TOKENS.text.context}>
+                  <div className="text-[10px] text-slate-500">
                     {metric.context}
                   </div>
                 </div>
               </div>
 
               {/* Right: Value */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <motion.div
                   key={metric.value}
-                  initial={{ scale: 1.1, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                  className={`${DESIGN_TOKENS.text.value} ${metric.color}`}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4 }}
+                  className="text-2xl font-black text-slate-900 tabular-nums"
                 >
                   {metric.value.toLocaleString()}
                 </motion.div>
@@ -221,7 +221,7 @@ export function KPIRibbon({ filteredPatients }: KPIRibbonProps) {
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className={`w-2 h-2 rounded-full ${metric.color.replace('text-', 'bg-')} animate-pulse`}
+                    className={`w-1.5 h-1.5 rounded-full ${metric.color.replace('text-', 'bg-')} shadow-[0_0_8px_rgba(0,0,0,0.1)]`}
                   />
                 )}
               </div>

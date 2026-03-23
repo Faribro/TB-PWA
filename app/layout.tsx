@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { cn } from "@/lib/utils";
+import { Outfit, Share_Tech_Mono, Syncopate } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "sonner";
-import AuthProvider from "@/components/AuthProvider";
-import { QueryProvider } from "@/components/QueryProvider";
-import { SWRProvider } from "@/components/SWRProvider";
-import { TreeFilterProvider } from "@/contexts/TreeFilterContext";
-import { FilterProvider } from "@/contexts/FilterContext";
+import { Providers } from "@/components/Providers";
 
-const inter = Inter({ subsets: ["latin"] });
+const outfit = Outfit({ subsets: ["latin"], weight: ['400', '700'], variable: '--font-outfit' });
+const shareTechMono = Share_Tech_Mono({ subsets: ["latin"], weight: ['400'], variable: '--font-share-tech-mono' });
+const syncopate = Syncopate({ subsets: ["latin"], weight: ['700'], variable: '--font-syncopate' });
+
 
 export const metadata: Metadata = {
   title: "TB Command Center | Alliance India",
@@ -21,21 +20,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <SWRProvider>
-          <QueryProvider>
-            <AuthProvider>
-              <FilterProvider>
-                <TreeFilterProvider>
-                  {children}
-                  <Toaster theme="light" position="bottom-right" />
-                </TreeFilterProvider>
-              </FilterProvider>
-            </AuthProvider>
-          </QueryProvider>
-        </SWRProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body 
+        className={cn(
+          outfit.variable, 
+          shareTechMono.variable, 
+          syncopate.variable, 
+          outfit.className
+        )} 
+        suppressHydrationWarning
+      >
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
 }
+

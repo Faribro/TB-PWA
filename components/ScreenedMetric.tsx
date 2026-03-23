@@ -13,16 +13,34 @@ export default function RealTimeStats() {
   const [stats, setStats] = useState({ screened: 0, diagnosed: 0, referred: 0, ltfu: 0 });
 
   const fetchStats = async () => {
-    const { count } = await supabase.from('patients').select('*', { count: 'exact', head: true });
-    const { data: patients } = await supabase.from('patients').select('tb_diagnosed, referral_date, att_start_date, att_completion_date');
-    
-    if (!patients) return;
+    // Task 1: Use HEAD query to bypass 1000-row limit for total count
+    const { count: totalCount } = await supabase
+      .from('patients')
+      .select('*', { count: 'exact', head: true });
+
+    // Fetch all patient stats in batches (1000 per batch)
+    const batchSize = 1000;
+    const allPatients: any[] = [];
+    let offset = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('patients')
+        .select('tb_diagnosed, referral_date, att_start_date, att_completion_date')
+        .range(offset, offset + batchSize - 1);
+
+      if (error || !data) break;
+      allPatients.push(...data);
+      hasMore = data.length === batchSize;
+      offset += batchSize;
+    }
 
     const newStats = {
-      screened: count || 0,
-      diagnosed: patients.filter(p => p.tb_diagnosed === 'Yes').length,
-      referred: patients.filter(p => p.referral_date && p.tb_diagnosed !== 'Yes').length,
-      ltfu: patients.filter(p => {
+      screened: totalCount || 0,
+      diagnosed: allPatients.filter(p => p.tb_diagnosed === 'Yes').length,
+      referred: allPatients.filter(p => p.referral_date && p.tb_diagnosed !== 'Yes').length,
+      ltfu: allPatients.filter(p => {
         if (!p.att_start_date || p.att_completion_date) return false;
         const daysSince = Math.floor((Date.now() - new Date(p.att_start_date).getTime()) / 86400000);
         return daysSince > 30;

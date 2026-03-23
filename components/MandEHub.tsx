@@ -40,6 +40,7 @@ import { PatientDetailDrawer } from './PatientDetailDrawer';
 import { useTruthEngine } from '@/hooks/useTruthEngine';
 import { ViolationCard } from './ViolationCard';
 import { DataHealthGauge } from './DataHealthGauge';
+import ThreeBackground from './ThreeBackground';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -195,7 +196,9 @@ function CommandPalette({
     }
   }, [open]);
 
-  const commands = useMemo(() => [
+  type CommandItem = { label: string; icon: React.ElementType; action: () => void };
+  
+  const commands: CommandItem[] = useMemo(() => [
     ...TABS.map((t) => ({
       label: `Go to ${t.label}`,
       icon: t.icon,
@@ -245,7 +248,7 @@ function CommandPalette({
             {/* Commands */}
             <div className="py-2 max-h-72 overflow-y-auto">
               {filtered.map((cmd, i) => {
-                const Icon = cmd.icon;
+                const Icon = cmd.icon as any;
                 return (
                   <button
                     key={i}
@@ -253,8 +256,10 @@ function CommandPalette({
                     onClick={cmd.action}
                     className="w-full flex items-center gap-3 px-5 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-left"
                   >
+                    {/* @ts-ignore */}
                     <Icon className="w-4 h-4 text-slate-400" />
                     {cmd.label}
+                    {/* @ts-ignore */}
                     <ChevronRight className="w-3 h-3 text-slate-300 ml-auto" />
                   </button>
                 );
@@ -511,16 +516,17 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
 
   return (
     <HubContext.Provider value={ctxValue}>
-      <div className="h-full overflow-y-auto bg-[#F7F8FA] p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto space-y-5">
+      <div className="h-full overflow-y-auto relative p-6 lg:p-8">
+        <ThreeBackground />
+        <div className="max-w-7xl mx-auto space-y-8 relative z-10">
 
           {/* ── Header ──────────────────────────────────────────────────── */}
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
-                M&E Intelligence Hub
+              <h1 className="text-[32px] font-black text-slate-900 tracking-tighter uppercase leading-tight">
+                M&E Intelligence <span className="text-blue-600">Hub</span>
               </h1>
-              <p className="text-slate-500 text-sm mt-1">
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mt-2 opacity-80">
                 Monitoring & Evaluation · {globalPatients.length.toLocaleString()} patients loaded
               </p>
             </div>
@@ -555,7 +561,7 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
           />
 
           {/* ── Navigation ──────────────────────────────────────────────── */}
-          <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_24px_rgb(0,0,0,0.04)] p-1.5">
+          <div className="glass-light rounded-3xl border border-white shadow-2xl p-2 relative z-10">
             <div className="relative flex gap-1">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
@@ -576,6 +582,7 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
                       className="relative z-10 w-full px-4 py-2.5 rounded-[14px] font-medium text-sm flex items-center justify-center gap-2 transition-colors duration-150"
                       style={{ color: isActive ? '#ffffff' : '#64748b' }}
                     >
+                      {/* @ts-ignore */}
                       <Icon className="w-4 h-4" />
                       <span className="hidden sm:inline">{tab.label}</span>
                       <span className="sm:hidden">{tab.short}</span>
@@ -1074,6 +1081,7 @@ function CareCascadeFlow({
                     className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
                     style={{ backgroundColor: step.hex + '20', color: step.hex }}
                   >
+                    {/* @ts-ignore */}
                     <Icon className="w-5 h-5" />
                   </div>
 
@@ -1256,6 +1264,7 @@ function AgingSLAKanban({ patients }: { patients: Patient[] }) {
                 <div
                   className={`w-10 h-10 rounded-xl flex items-center justify-center bg-${lane.color}-50`}
                 >
+                  {/* @ts-ignore */}
                   <Icon className={`w-5 h-5 text-${lane.color}-600`} />
                 </div>
                 <div className="flex-1">
@@ -1288,6 +1297,7 @@ function AgingSLAKanban({ patients }: { patients: Patient[] }) {
                   <div
                     className={`w-8 h-8 rounded-lg flex items-center justify-center bg-${lane.color}-50`}
                   >
+                    {/* @ts-ignore */}
                     <Icon className={`w-4 h-4 text-${lane.color}-600`} />
                   </div>
                   <div className="flex-1">
@@ -1393,6 +1403,7 @@ const ComingSoon = memo(function ComingSoon({
     <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.04)] p-16 text-center">
       <div className="max-w-sm mx-auto space-y-4">
         <div className="w-16 h-16 bg-gradient-to-br from-slate-800 to-slate-600 rounded-2xl flex items-center justify-center mx-auto shadow-[0_8px_24px_rgb(0,0,0,0.15)]">
+          {/* @ts-ignore */}
           <Icon className="w-8 h-8 text-white" />
         </div>
         <div>

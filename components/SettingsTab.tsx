@@ -5,15 +5,20 @@ import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from
 import {
   User, RefreshCw, HardDrive, Bell, CheckCircle2,
   Wifi, WifiOff, Zap, Shield, Activity, Clock,
-  ChevronRight, Sparkles
+  Sparkles, FileText, Database
 } from 'lucide-react';
 import { useSWRConfig } from 'swr';
 import { useSession } from 'next-auth/react';
+import dynamic from 'next/dynamic';
+import { CharacterSelector } from './CharacterSelector';
+import { SyncIntelligenceCard } from './settings/SyncIntelligenceCard';
+
+const PDFLibrary = dynamic(() => import('./pdf/PDFLibrary'), { ssr: false });
 
 /* ─────────────────────────────────────────────
    TYPES
 ───────────────────────────────────────────── */
-type SubTab = 'profile' | 'sync';
+type SubTab = 'profile' | 'sync' | 'documents' | 'character' | 'pipeline';
 
 interface NotificationPreference {
   id: string;
@@ -359,6 +364,7 @@ function ProfilePanel({
 
                 <div className="flex items-start justify-between">
                   <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${notif.color} flex items-center justify-center shadow-md mb-3`}>
+                    {/* @ts-ignore */}
                     <Icon className="w-4 h-4 text-white" />
                   </div>
                   <PremiumToggle
@@ -387,11 +393,15 @@ function SyncPanel({
   offlineMode,
   onSync,
   onToggleOffline,
+  isDriveSyncing,
+  onDriveSync,
 }: {
   isSyncing: boolean;
   offlineMode: boolean;
   onSync: () => void;
   onToggleOffline: () => void;
+  isDriveSyncing: boolean;
+  onDriveSync: () => void;
 }) {
   const [syncProgress, setSyncProgress] = useState(0);
 
@@ -544,6 +554,40 @@ function SyncPanel({
           </MagneticButton>
         </div>
       </div>
+
+      {/* ── Drive Sync Card ── */}
+      <div className="relative overflow-hidden rounded-3xl bg-white border border-slate-200/60 shadow-[0_8px_40px_rgb(0,0,0,0.06)] p-8">
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-400/10 rounded-full blur-3xl" />
+        <div className="relative flex items-start justify-between">
+          <div className="max-w-md">
+            <div className="flex items-center gap-2 mb-3">
+              <RefreshCw className="w-5 h-5 text-blue-500" />
+              <span className="text-xs text-blue-500 uppercase tracking-widest font-semibold">Google Drive</span>
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900">Sync Drive Files</h3>
+            <p className="text-slate-400 text-sm mt-2 leading-relaxed">
+              Trigger the Apps Script scout to scan Drive folders and push new X-Ray files into the <span className="text-slate-700 font-medium">Orphaned Files Rail</span>.
+            </p>
+          </div>
+          <MagneticButton
+            onClick={onDriveSync}
+            disabled={isDriveSyncing}
+            className={`relative flex items-center gap-2.5 px-7 py-3.5 rounded-2xl font-semibold text-sm transition-all
+              ${isDriveSyncing
+                ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-[0_8px_32px_rgb(37,99,235,0.3)] hover:shadow-[0_12px_40px_rgb(37,99,235,0.5)]'
+              }`}
+          >
+            <motion.div
+              animate={isDriveSyncing ? { rotate: 360 } : { rotate: 0 }}
+              transition={isDriveSyncing ? { repeat: Infinity, duration: 0.9, ease: 'linear' } : {}}
+            >
+              <RefreshCw className="w-4 h-4" />
+            </motion.div>
+            <span>{isDriveSyncing ? 'Scanning...' : 'Sync Drive'}</span>
+          </MagneticButton>
+        </div>
+      </div>
     </div>
   );
 }
@@ -556,30 +600,50 @@ export default function SettingsTab() {
   const { mutate } = useSWRConfig();
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('profile');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isDriveSyncing, setIsDriveSyncing] = useState(false);
   const [offlineMode, setOfflineMode] = useState(false);
   const [notifications, setNotifications] = useState(NOTIFICATIONS);
+  const [selectedDocId, setSelectedDocId] = useState<string | undefined>();
+  const [selectedDocTitle, setSelectedDocTitle] = useState<string | undefined>();
 
-  // Track sidebar indicator position for morphing underline
-  const [indicatorStyle, setIndicatorStyle] = useState({ top: 0, height: 0 });
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-
-  useEffect(() => {
-    const el = tabRefs.current[activeSubTab];
-    if (el) {
-      setIndicatorStyle({ top: el.offsetTop, height: el.offsetHeight });
-    }
-  }, [activeSubTab]);
 
   const handleForceSync = useCallback(async () => {
     setIsSyncing(true);
     try {
-      await mutate('all-patients', undefined, { revalidate: true });
+      // 1) Pull fresh data from Kobo into Supabase (manual ETL trigger)
+      // NOTE: This is intentionally best-effort: ETL failure shouldn't prevent UI refresh.
+      try {
+        await fetch('/api/etl/kobo-sync', { method: 'POST' });
+      } catch (e) {
+        console.warn('[ForceSync] Kobo ETL trigger failed (continuing):', e);
+      }
+
+      // 2) Revalidate the correct SWR cache key for the global patient dataset
+      const userState = (session?.user as any)?.state as string | undefined;
+      await mutate(['allPatients', userState], undefined, { revalidate: true });
     } catch (e) {
       console.error('Sync failed:', e);
     } finally {
       setTimeout(() => setIsSyncing(false), 2000); // let progress bar reach ~100%
     }
-  }, [mutate]);
+  }, [mutate, session?.user]);
+
+  const handleDriveSync = useCallback(async () => {
+    if (isDriveSyncing) return;
+    setIsDriveSyncing(true);
+    try {
+      await fetch(process.env.NEXT_PUBLIC_APPS_SCRIPT_URL!, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({ action: 'TRIGGER_SYNC' }),
+      });
+      // Give Apps Script 3s to process, then revalidate the live orphans rail
+      setTimeout(() => mutate(['live_orphans']), 3000);
+    } finally {
+      setIsDriveSyncing(false);
+    }
+  }, [isDriveSyncing, mutate]);
 
   const toggleNotification = useCallback((id: string) => {
     setNotifications((prev) =>
@@ -587,87 +651,59 @@ export default function SettingsTab() {
     );
   }, []);
 
-  const subTabs: { id: SubTab; label: string; icon: React.ElementType; description: string }[] = [
-    { id: 'profile', label: 'Profile', icon: User, description: 'Identity & alerts' },
-    { id: 'sync', label: 'Data & Sync', icon: HardDrive, description: 'Cache & connectivity' },
+  const handleSelectDoc = useCallback((docId: string, title: string) => {
+    setSelectedDocId(docId);
+    setSelectedDocTitle(title);
+    // Store in localStorage so Genie can access it
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('activeDocId', docId);
+      localStorage.setItem('activeDocTitle', title);
+    }
+  }, []);
+
+  const subTabs: { id: SubTab; label: string; icon: React.ComponentType<{ className?: string }>; description: string }[] = [
+    { id: 'profile' as SubTab, label: 'Profile', icon: User, description: 'Identity & alerts' },
+    { id: 'character' as SubTab, label: 'AI Character', icon: Sparkles, description: 'Floating companion' },
+    { id: 'sync' as SubTab, label: 'Data & Sync', icon: HardDrive, description: 'Cache & connectivity' },
+    { id: 'documents' as SubTab, label: 'Documents', icon: FileText, description: 'PDF library & Q&A' },
+    { id: 'pipeline' as SubTab, label: 'Sync Intelligence', icon: Activity, description: 'Pipeline health & diagnostics' },
   ];
 
   return (
     <div className="h-full flex bg-[#F4F6F9]" style={{ fontFamily: "'Inter', sans-serif" }}>
-
-      {/* ── SIDEBAR ── */}
-      <motion.aside
-        initial={{ x: -24, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="w-64 border-r border-slate-200/80 bg-white/90 backdrop-blur-xl p-5 flex flex-col"
-      >
-        {/* Logo mark */}
-        <div className="flex items-center gap-2.5 px-2 mb-8">
-          <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-violet-600 rounded-lg flex items-center justify-center shadow-md">
-            <Sparkles className="w-3.5 h-3.5 text-white" />
+        {/* Sub-tab navigation */}
+        <aside className="w-64 border-r border-slate-200/80 bg-white/90 backdrop-blur-xl p-5 flex flex-col">
+          <div className="mb-6">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Settings</h2>
           </div>
-          <span className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Settings</span>
-        </div>
+          <nav aria-label="Settings sub-navigation" className="flex flex-col gap-1">
+            {subTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeSubTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  ref={(el) => { (tabRefs.current as Record<string, HTMLButtonElement | null>)[tab.id] = el; }}
+                  onClick={() => setActiveSubTab(tab.id)}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`relative flex items-center gap-3 px-4 py-2 rounded-xl text-left transition-all focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
+                    isActive
+                      ? 'bg-slate-900 text-white shadow-md'
+                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="w-5 h-5 flex items-center justify-center">
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <span className="text-sm font-semibold">{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
 
-        {/* Tabs with morphing indicator */}
-        <nav aria-label="Settings navigation" className="relative space-y-1">
-          {/* Sliding pill indicator */}
-          <motion.div
-            className="absolute left-0 right-0 bg-slate-100 rounded-xl z-0"
-            animate={{ top: indicatorStyle.top, height: indicatorStyle.height }}
-            transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-          />
-
-          {subTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeSubTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                ref={(el) => { tabRefs.current[tab.id] = el; }}
-                onClick={() => setActiveSubTab(tab.id)}
-                aria-current={isActive ? 'page' : undefined}
-                className="relative z-10 w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
-              >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                  isActive
-                    ? 'bg-slate-900 shadow-md'
-                    : 'bg-transparent group-hover:bg-slate-100'
-                }`}>
-                  <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                </div>
-                <div>
-                  <p className={`text-sm font-semibold transition-colors ${isActive ? 'text-slate-900' : 'text-slate-500'}`}>
-                    {tab.label}
-                  </p>
-                  <p className="text-[10px] text-slate-400">{tab.description}</p>
-                </div>
-                {isActive && (
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 ml-auto" />
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Bottom user chip */}
-        <div className="mt-auto pt-5 border-t border-slate-100">
-          <div className="flex items-center gap-3 px-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-violet-600 rounded-full flex items-center justify-center flex-shrink-0">
-              <User className="w-4 h-4 text-white" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-slate-900 truncate">{session?.user?.name || 'Program Manager'}</p>
-              <p className="text-[10px] text-slate-400 truncate">{session?.user?.email || 'manager@ntep.gov.in'}</p>
-            </div>
-          </div>
-        </div>
-      </motion.aside>
-
-      {/* ── MAIN CONTENT ── */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-8 py-10">
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto px-8 py-10">
 
           {/* Page header — reflects active tab */}
           <motion.div
@@ -701,19 +737,75 @@ export default function SettingsTab() {
                   onToggle={toggleNotification}
                 />
               )}
+              {activeSubTab === 'character' && (
+                <div className="rounded-3xl bg-white border border-slate-200/60 shadow-[0_8px_40px_rgb(0,0,0,0.06)] p-8">
+                  <CharacterSelector />
+                </div>
+              )}
               {activeSubTab === 'sync' && (
                 <SyncPanel
                   isSyncing={isSyncing}
                   offlineMode={offlineMode}
                   onSync={handleForceSync}
                   onToggleOffline={() => setOfflineMode((v) => !v)}
+                  isDriveSyncing={isDriveSyncing}
+                  onDriveSync={handleDriveSync}
                 />
+              )}
+              {activeSubTab === 'pipeline' && (
+                <SyncIntelligenceCard />
+              )}
+              {activeSubTab === 'documents' && (
+                <div className="space-y-4">
+                  {/* Info card */}
+                  {selectedDocTitle && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="rounded-2xl bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 p-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-purple-500 rounded-xl flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-slate-900">Active Document</p>
+                          <p className="text-xs text-slate-600 mt-0.5">{selectedDocTitle}</p>
+                        </div>
+                        <div className="text-xs text-purple-600 font-medium bg-purple-100 px-3 py-1 rounded-full">
+                          Ready for Q&A
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-3">
+                        Go to <span className="font-semibold text-slate-700">GIS Map</span> tab and ask Genie questions about this document via voice.
+                      </p>
+                    </motion.div>
+                  )}
+                  
+                  {/* PDF Library */}
+                  <div className="rounded-3xl bg-white border border-slate-200/60 shadow-[0_8px_40px_rgb(0,0,0,0.06)] overflow-hidden">
+                    <div className="p-6 border-b border-slate-100">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 bg-purple-500 rounded-xl flex items-center justify-center">
+                          <FileText className="w-4 h-4 text-white" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-900">PDF Document Library</h3>
+                      </div>
+                      <p className="text-sm text-slate-500">
+                        Upload policy documents, guidelines, and reports. Click a document to activate it for voice Q&A.
+                      </p>
+                    </div>
+                    <div className="p-6">
+                      <PDFLibrary onSelectDoc={handleSelectDoc} activeDocId={selectedDocId} />
+                    </div>
+                  </div>
+                </div>
               )}
             </motion.div>
           </AnimatePresence>
 
         </div>
-      </main>
+      </div>
     </div>
   );
 }

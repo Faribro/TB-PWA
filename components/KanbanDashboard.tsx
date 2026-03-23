@@ -87,16 +87,45 @@ export default function KanbanDashboard() {
   }, []);
 
   const fetchPatients = async () => {
-    const { data } = await supabase
-      .from('patients')
-      .select('*')
-      .limit(1000);
-    
-    if (data) {
+    const batchSize = 1000;
+    const allData: Patient[] = [];
+    let offset = 0;
+    let hasMore = true;
+
+    try {
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('patients')
+          .select('*')
+          .range(offset, offset + batchSize - 1);
+
+        if (error) {
+          console.error('[KanbanDashboard] Batch fetch error at offset', offset, error);
+          break;
+        }
+
+        if (data && data.length > 0) {
+          allData.push(...(data as Patient[]));
+          if (data.length < batchSize) {
+            hasMore = false;
+          } else {
+            offset += batchSize;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+    } catch (err) {
+      console.error('[KanbanDashboard] fetchPatients failed:', err);
+    }
+
+    if (allData.length > 0) {
       startTransition(() => {
-        setPatients(data);
+        setPatients(allData);
         setLoading(false);
       });
+    } else if (loading) {
+      setLoading(false);
     }
   };
 

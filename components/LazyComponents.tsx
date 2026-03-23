@@ -20,4 +20,3 @@ export const PhaseCell = dynamic(
   }
 ) as React.ComponentType<PhaseCellProps>;
 
-export type { FilterState } from './AdvancedFilterBar';
