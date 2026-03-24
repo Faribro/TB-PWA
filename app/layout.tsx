@@ -26,7 +26,8 @@ export default function RootLayout({
           outfit.variable, 
           shareTechMono.variable, 
           syncopate.variable, 
-          outfit.className
+          outfit.className,
+          "bg-slate-50 text-slate-900"
         )} 
         suppressHydrationWarning
       >

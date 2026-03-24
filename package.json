@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "rimraf .next && next dev",
-    "dev:turbo": "rimraf .next && next dev --turbopack",
+    "dev": "next dev --turbopack",
+    "dev:webpack": "next dev",
+    "dev:clean": "rimraf .next && next dev --turbopack",
     "build": "rimraf .next && cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
     "clean": "rimraf .next",
     "start": "next start",

@@ -13,6 +13,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { useSWRConfig } from 'swr';
 import { Z_INDEX } from '@/lib/zIndex';
 import { toast } from 'sonner';
+import { useSessionScope, isSuperuser } from '@/hooks/useSessionScope';
 
 interface PatientDetailDrawerProps {
   patient: any;
@@ -22,11 +23,21 @@ interface PatientDetailDrawerProps {
 }
 
 export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: PatientDetailDrawerProps) {
+  const scope = useSessionScope();
+
+  // Task 3: Ownership guard — prevent viewing patients outside user's scope
+  const isAuthorized =
+    !scope ||                        // scope not loaded yet — allow render
+    isSuperuser(scope) ||            // admin / PM / Program Manager see all
+    !scope.state ||                  // national user (state is null)
+    patient.screening_state === scope.state;
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCloseLoop, setShowCloseLoop] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string>('');
   const [isEditingDemographics, setIsEditingDemographics] = useState(false);
   const [isSavingDemographics, setIsSavingDemographics] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const { mutate } = useSWRConfig();
   
   // Demographic edit state
@@ -98,6 +109,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     console.log('[PatientDrawer] Kobo UUID:', patient.kobo_uuid);
     
     setIsSubmitting(true);
+    setSaveSuccess(false);
     try {
       toast.loading('Syncing clinical updates across all systems...', { id: 'clinical-save' });
       
@@ -180,11 +192,17 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       const sheetsMessage = result.googleSheets?.message || 'Synced to all systems';
       toast.success(`✅ ${sheetsMessage}`, { id: 'clinical-save', duration: 4000 });
       
+      setSaveSuccess(true);
+      if (patient.kobo_uuid) {
+        window.dispatchEvent(new CustomEvent('sync-confirmed', { detail: { koboUuid: patient.kobo_uuid } }));
+      }
+      
       // Small delay before closing to show success message
       setTimeout(() => {
         onUpdate();
         onClose();
-      }, 500);
+        setSaveSuccess(false);
+      }, 1500);
     } catch (error: any) {
       console.error('[PatientDrawer] Save error:', error);
       mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
@@ -444,6 +462,22 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     </div>
   );
 
+  const StepperNode = ({ isCurrent, isCompleted, label }: { isCurrent: boolean, isCompleted: boolean, label: string }) => (
+    <div className="flex flex-col items-center flex-1">
+      <div className="relative flex items-center justify-center w-5 h-5">
+        {isCurrent && (
+          <motion.div
+            className="absolute inset-0 rounded-full bg-blue-500"
+            animate={{ scale: [1, 1.8, 1], opacity: [0.6, 0, 0.6] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
+        <div className={`relative z-10 w-3 h-3 rounded-full transition-colors duration-300 ${isCompleted ? 'bg-emerald-500' : isCurrent ? 'bg-blue-600' : 'bg-slate-200'}`} />
+      </div>
+      <span className={`text-[10px] mt-1 transition-colors duration-300 ${isCurrent ? 'text-blue-700 font-bold' : isCompleted ? 'text-emerald-700 font-semibold' : 'text-slate-400 font-medium'}`}>{label}</span>
+    </div>
+  );
+
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetPortal>
@@ -452,9 +486,24 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
           style={{ zIndex: Z_INDEX.overlay }} 
         />
         <SheetContent 
-          className="!w-[95vw] sm:!max-w-[500px] glass-light border-l border-white shadow-2xl p-0 flex flex-col h-full" 
+          className="!w-[95vw] sm:!max-w-[500px] bg-white/10 backdrop-blur-md border-l border-white/20 shadow-2xl p-0 flex flex-col h-full" 
           style={{ zIndex: Z_INDEX.drawer }}
         >
+        {!isAuthorized ? (
+          <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+              <Shield className="w-8 h-8 text-red-500" />
+            </div>
+            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Access Denied</h3>
+            <p className="text-sm text-slate-500">
+              This patient belongs to <span className="font-bold text-slate-700">{patient.screening_state}</span>.
+              Your account is scoped to <span className="font-bold text-slate-700">{scope?.state}</span>.
+            </p>
+            <button onClick={onClose} className="mt-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold">
+              Close
+            </button>
+          </div>
+        ) : (<>
         {/* Header with Patient Info */}
         <SheetHeader className="px-6 py-6 border-b border-white/20 bg-white/10 backdrop-blur-md">
           <div className="flex items-start justify-between">
@@ -481,59 +530,47 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 </div>
                 <div className="flex items-center gap-1">
                   {/* Step 1: Screened */}
-                  <div className="flex flex-col items-center flex-1">
-                    <div className={`w-3 h-3 rounded-full ${
-                      phase === 'Screening' || phase === 'Sputum Test' || phase === 'Diagnosis' || phase === 'ATT Initiation' || phase === 'Closed'
-                        ? 'bg-emerald-500' 
-                        : 'bg-slate-200'
-                    }`} />
-                    <span className="text-[10px] text-slate-500 mt-1">Screened</span>
-                  </div>
-                  <div className={`flex-1 h-[2px] -mt-4 ${
+                  <StepperNode 
+                    isCurrent={phase === 'Screening'} 
+                    isCompleted={phase === 'Sputum Test' || phase === 'Diagnosis' || phase === 'ATT Initiation' || phase === 'Closed'} 
+                    label="Screened" 
+                  />
+                  <div className={`flex-1 h-[2px] transition-colors duration-300 ${
                     phase === 'Sputum Test' || phase === 'Diagnosis' || phase === 'ATT Initiation' || phase === 'Closed'
                       ? 'bg-emerald-500' 
                       : 'bg-slate-200'
                   }`} />
                   
                   {/* Step 2: Sputum */}
-                  <div className="flex flex-col items-center flex-1">
-                    <div className={`w-3 h-3 rounded-full ${
-                      phase === 'Sputum Test' ? 'bg-blue-600' :
-                      phase === 'Diagnosis' || phase === 'ATT Initiation' || phase === 'Closed' ? 'bg-emerald-500' :
-                      'bg-slate-200'
-                    }`} />
-                    <span className="text-[10px] text-slate-500 mt-1">Sputum</span>
-                  </div>
-                  <div className={`flex-1 h-[2px] -mt-4 ${
+                  <StepperNode 
+                    isCurrent={phase === 'Sputum Test'} 
+                    isCompleted={phase === 'Diagnosis' || phase === 'ATT Initiation' || phase === 'Closed'} 
+                    label="Sputum" 
+                  />
+                  <div className={`flex-1 h-[2px] transition-colors duration-300 ${
                     phase === 'Diagnosis' || phase === 'ATT Initiation' || phase === 'Closed'
                       ? 'bg-emerald-500' 
                       : 'bg-slate-200'
                   }`} />
                   
                   {/* Step 3: Diagnosis */}
-                  <div className="flex flex-col items-center flex-1">
-                    <div className={`w-3 h-3 rounded-full ${
-                      phase === 'Diagnosis' ? 'bg-blue-600' :
-                      phase === 'ATT Initiation' || phase === 'Closed' ? 'bg-emerald-500' :
-                      'bg-slate-200'
-                    }`} />
-                    <span className="text-[10px] text-slate-500 mt-1">Diagnosis</span>
-                  </div>
-                  <div className={`flex-1 h-[2px] -mt-4 ${
+                  <StepperNode 
+                    isCurrent={phase === 'Diagnosis'} 
+                    isCompleted={phase === 'ATT Initiation' || phase === 'Closed'} 
+                    label="Diagnosis" 
+                  />
+                  <div className={`flex-1 h-[2px] transition-colors duration-300 ${
                     phase === 'ATT Initiation' || phase === 'Closed'
                       ? 'bg-emerald-500' 
                       : 'bg-slate-200'
                   }`} />
                   
                   {/* Step 4: Treatment */}
-                  <div className="flex flex-col items-center flex-1">
-                    <div className={`w-3 h-3 rounded-full ${
-                      phase === 'ATT Initiation' ? 'bg-blue-600' :
-                      phase === 'Closed' ? 'bg-emerald-500' :
-                      'bg-slate-200'
-                    }`} />
-                    <span className="text-[10px] text-slate-500 mt-1">Treatment</span>
-                  </div>
+                  <StepperNode 
+                    isCurrent={phase === 'ATT Initiation'} 
+                    isCompleted={phase === 'Closed'} 
+                    label="Treatment" 
+                  />
                 </div>
               </div>
             </div>
@@ -910,11 +947,32 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
               <button
                 type="button"
                 onClick={handleSaveClinical}
-                disabled={isSubmitting}
+                disabled={isSubmitting || saveSuccess}
                 aria-label="Save clinical updates"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all duration-200 hover:-translate-y-0.5 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className={`w-full text-white font-medium shadow-sm transition-all duration-200 py-3 rounded-lg disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center gap-2 ${
+                  saveSuccess ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-blue-600 hover:bg-blue-700 hover:-translate-y-0.5 disabled:opacity-50'
+                }`}
               >
-                {isSubmitting ? 'Saving...' : 'Save Clinical Updates'}
+                {saveSuccess ? (
+                  <>
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
+                      <CheckCircle2 className="w-5 h-5 text-white" />
+                    </motion.div>
+                    Saved Successfully
+                  </>
+                ) : isSubmitting ? (
+                  <>
+                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
+                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    </motion.div>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Clinical Updates'
+                )}
               </button>
             )}
 
@@ -954,6 +1012,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
             )}
           </div>
         )}
+        </>)}
       </SheetContent>
       </SheetPortal>
     </Sheet>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
+import { useSessionScope } from '@/hooks/useSessionScope';
 import dynamic from 'next/dynamic';
 import { LinesAndDotsLoader } from '@/components/LinesAndDotsLoader';
 
@@ -14,7 +15,8 @@ const MandEHub = dynamic(() => import('@/components/MandEHub'), {
 });
 
 export default function MandEPage() {
-  const { data: globalPatients = [] } = useSWRAllPatients();
+  const scope = useSessionScope();
+  const { data: globalPatients = [] } = useSWRAllPatients(scope);
 
   return (
     <div className="h-screen">

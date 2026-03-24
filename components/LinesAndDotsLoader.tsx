@@ -59,7 +59,7 @@ export function LinesAndDotsLoader({ progress }: LinesAndDotsLoaderProps) {
           </div>
         </div>
       </div>
-      <div className="text-slate-500 text-sm font-medium">Loading...</div>
+      <div className="w-24 h-4 bg-slate-200 animate-pulse rounded-full mt-4" />
     </div>
   );
 }

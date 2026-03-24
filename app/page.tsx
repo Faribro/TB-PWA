@@ -22,7 +22,7 @@ export default function Home() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
       <div className="text-center">
         <h1 className="text-2xl font-bold text-slate-900 mb-4">TB Command Center</h1>
-        <p className="text-slate-600 mb-6">Loading...</p>
+        <div className="w-32 h-4 bg-slate-200 animate-pulse rounded-full mx-auto mb-6" />
       </div>
     </div>
   )

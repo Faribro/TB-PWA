@@ -375,14 +375,12 @@ function GLTFAvatarContent({
   );
 }
 
+useGLTF.preload('/models/sonic.glb');
+
 export default function GLTFAvatar(props: GLTFAvatarProps) {
   return (
     <Suspense fallback={null}>
       <GLTFAvatarContent {...props} />
     </Suspense>
   );
-}
-
-if (typeof window !== 'undefined') {
-  useGLTF.preload('/models/sonic.glb');
 }

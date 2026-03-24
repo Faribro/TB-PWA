@@ -136,4 +136,4 @@ class SonicSoundEngine {
   }
 }
 
-export const sonicSounds = new SonicSoundEngine();
+export const sonicSounds = typeof window !== 'undefined' ? new SonicSoundEngine() : {} as SonicSoundEngine;

@@ -1,5 +1,11 @@
 import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
+import { createClient } from "@supabase/supabase-js"
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -14,10 +20,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     async jwt({ token, user }) {
-      if (user) {
-        token.role = 'M&E'
-        token.state = 'Maharashtra'
-        token.district = 'Mumbai'
+      if (user?.email) {
+        // Look up user role/state from Supabase users table
+        const { data } = await supabase
+          .from('profiles')
+          .select('role, state, district')
+          .eq('email', user.email)
+          .single()
+
+        token.role = data?.role ?? 'M&E'
+        token.state = data?.state ?? 'All'
+        token.district = data?.district ?? 'All'
       }
       return token
     },

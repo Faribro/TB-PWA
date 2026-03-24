@@ -1,302 +1,258 @@
-'use client'
+'use client';
 
-import { signIn } from "next-auth/react"
-import { useSearchParams } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { AlertCircle } from "lucide-react"
-import { Suspense, useEffect, useRef } from "react"
+import { signIn } from "next-auth/react";
+import Image from "next/image";
+import { Card, CardContent } from "@/components/ui/card";
+import { ShieldCheck } from "lucide-react";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
-const WebGLBackground = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const animationRef = useRef<number | undefined>(undefined)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const gl = canvas.getContext('webgl2')
-    if (!gl) return
-
-    const resizeCanvas = () => {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
-      gl.viewport(0, 0, canvas.width, canvas.height)
-    }
-    resizeCanvas()
-    window.addEventListener('resize', resizeCanvas)
-
-    const vertexShaderSource = `#version 300 es
-      layout (location=0) in vec2 point;
-      void main() {
-        gl_Position = vec4(point.x, point.y, 0.0, 1.0);
-      }`
-
-    const fragmentShaderSource = `#version 300 es
-      precision highp float;
-      
-      float N21(vec2 p) {
-        p = fract(p * vec2(233.34, 851.73));
-        p += dot(p, p + 23.45);
-        return fract(p.x * p.y);
-      }
-      
-      vec2 N22(vec2 p) {
-        float n = N21(p);
-        return vec2(n, N21(p + n));
-      }
-      
-      vec2 getPos(vec2 id, vec2 offset, float iTime) {
-        vec2 n = N22(id + offset);
-        float x = cos(iTime * n.x);
-        float y = sin(iTime * n.y);
-        return vec2(x, y) * 0.4 + offset;
-      }
-      
-      float distanceToLine(vec2 p, vec2 a, vec2 b) {
-        vec2 pa = p - a;
-        vec2 ba = b - a;
-        float t = clamp(dot(pa, ba) / dot(ba, ba), 0., 1.);
-        return length(pa - t * ba);
-      }
-      
-      float getLine(vec2 p, vec2 a, vec2 b, vec2 iResolution) {
-        float distance = distanceToLine(p, a, b);
-        float dx = 15./iResolution.y;
-        return smoothstep(dx, 0., distance) * smoothstep(1.2, 0.3, length(a - b));
-      }
-      
-      float layer(vec2 st, float iTime, vec2 iResolution) {
-        float m = 0.;
-        vec2 gv = fract(st) - 0.5;
-        vec2 id = floor(st);
-        
-        vec2 p[9];
-        int i = 0;
-        for (float x = -1.; x <= 1.; x++) {
-          for (float y = -1.; y <= 1.; y++) {
-            p[i++] = getPos(id, vec2(x, y), iTime);
-          }
-        }
-        
-        for (int j = 0; j <= 8; j++) {
-          m += getLine(gv, p[4], p[j], iResolution);
-          vec2 temp = (gv - p[j]) * 20.;
-          m += 1./dot(temp, temp) * (sin(10. * iTime + fract(p[j].x) * 20.) * 0.5 + 0.5);
-        }
-        
-        m += getLine(gv, p[1], p[3], iResolution);
-        m += getLine(gv, p[1], p[5], iResolution);
-        m += getLine(gv, p[3], p[7], iResolution);
-        m += getLine(gv, p[5], p[7], iResolution);
-        
-        return m;
-      }
-      
-      uniform float iTime;
-      uniform vec2 iResolution;
-      out vec4 fragColor;
-      
-      void main() {
-        vec2 uv = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y;
-        
-        float m = 0.;
-        float theta = iTime * 0.1;
-        mat2 rot = mat2(cos(theta), -sin(theta), sin(theta), cos(theta));
-        vec2 gradient = uv;
-        uv = rot * uv;
-        
-        for (float i = 0.; i < 1.0; i += 0.25) {
-          float depth = fract(i + iTime * 0.1);
-          m += layer(uv * mix(10., 0.5, depth) + i * 20., iTime, iResolution) * smoothstep(0., 0.2, depth) * smoothstep(1., 0.8, depth);
-        }
-        
-        vec3 baseColor = sin(vec3(2.45, 4.56, 6.78) * iTime * 0.3) * 0.3 + 0.7;
-        vec3 col = (m - gradient.y * 0.3) * baseColor;
-        fragColor = vec4(col * 0.6, 1.0);
-      }`
-
-    const createShader = (type: number, source: string) => {
-      const shader = gl.createShader(type)!
-      gl.shaderSource(shader, source)
-      gl.compileShader(shader)
-      return shader
-    }
-
-    const vertexShader = createShader(gl.VERTEX_SHADER, vertexShaderSource)
-    const fragmentShader = createShader(gl.FRAGMENT_SHADER, fragmentShaderSource)
-
-    const program = gl.createProgram()!
-    gl.attachShader(program, vertexShader)
-    gl.attachShader(program, fragmentShader)
-    gl.linkProgram(program)
-    gl.useProgram(program)
-
-    const vertexBuffer = gl.createBuffer()
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, 1, -1, -1, 1, -1, 1, 1]), gl.STATIC_DRAW)
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
-    gl.enableVertexAttribArray(0)
-
-    const indexBuffer = gl.createBuffer()
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer)
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([1, 0, 2, 3]), gl.STATIC_DRAW)
-
-    const uResolution = gl.getUniformLocation(program, 'iResolution')
-    const uTime = gl.getUniformLocation(program, 'iTime')
-
-    const startTime = performance.now()
-    const render = () => {
-      const time = (performance.now() - startTime) / 1000
-      
-      gl.uniform2f(uResolution, canvas.width, canvas.height)
-      gl.uniform1f(uTime, time)
-      
-      gl.clear(gl.COLOR_BUFFER_BIT)
-      gl.drawElements(gl.TRIANGLE_STRIP, 4, gl.UNSIGNED_SHORT, 0)
-      
-      animationRef.current = requestAnimationFrame(render)
-    }
-    render()
-
-    return () => {
-      window.removeEventListener('resize', resizeCanvas)
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current)
-      }
-    }
-  }, [])
-
+function AshokaChakra({ className, style }: { className?: string, style?: React.CSSProperties }) {
   return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 w-full h-full -z-10"
-      style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #7c3aed 50%, #ec4899 100%)' }}
-    />
-  )
+    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
+      <circle cx="100" cy="100" r="90" fill="none" stroke="currentColor" strokeWidth="8"/>
+      <circle cx="100" cy="100" r="16" fill="currentColor"/>
+      {Array.from({ length: 24 }).map((_, i) => (
+        <path
+          key={i}
+          d="M 100 100 L 97 12 L 103 12 Z"
+          fill="currentColor"
+          transform={`rotate(${i * 15} 100 100)`}
+        />
+      ))}
+      <circle cx="100" cy="100" r="82" fill="none" stroke="currentColor" strokeWidth="1"/>
+    </svg>
+  );
 }
 
-function LoginContent() {
-  const searchParams = useSearchParams()
-  const error = searchParams.get('error')
+function WavingFlagBackground() {
+  return (
+    <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+      {/* Deep Background Opacity Controller */}
+      <div className="absolute inset-0 opacity-[0.08]">
+        {/* Saffron Flow */}
+        <div 
+          className="absolute top-[-30%] left-[-20%] w-[140%] h-[70%] bg-[#FF9933] blur-[120px] rounded-[100%]"
+          style={{ animation: 'flagWaveSaffron 14s ease-in-out infinite alternate' }}
+        />
+        {/* White Center Flow (Represented entirely by the negative space and base bg) */}
+        
+        {/* Green Flow */}
+        <div 
+          className="absolute bottom-[-30%] right-[-20%] w-[140%] h-[70%] bg-[#138808] blur-[120px] rounded-[100%]"
+          style={{ animation: 'flagWaveGreen 18s ease-in-out infinite alternate' }}
+        />
+      </div>
 
-  const handleGoogleSignIn = () => {
-    signIn("google", { callbackUrl: "/dashboard" })
-  }
+      {/* Central Rotating Chakra Watermark */}
+      <div className="absolute inset-0 flex items-center justify-center opacity-[0.015] blur-[1px]">
+        <AshokaChakra className="w-[120vw] md:w-[90vw] max-w-[800px] h-auto text-[#000080]" style={{ animation: 'spin 120s linear infinite' }} />
+      </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes flagWaveSaffron {
+          0% { transform: translateY(0px) scale(1) rotate(0deg); }
+          50% { transform: translateY(40px) scale(1.05) rotate(2deg); }
+          100% { transform: translateY(-20px) scale(0.95) rotate(-1deg); }
+        }
+        @keyframes flagWaveGreen {
+          0% { transform: translateY(0px) scale(1) rotate(0deg); }
+          50% { transform: translateY(-40px) scale(1.05) rotate(-2deg); }
+          100% { transform: translateY(20px) scale(0.95) rotate(1deg); }
+        }
+      `}} />
+    </div>
+  );
+}
+
+function Masthead() {
+  const [time, setTime] = useState<string>('');
+
+  useEffect(() => {
+    // Generate IST specific time string
+    const updateTime = () => {
+      const now = new Date();
+      setTime(now.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: false }));
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden p-4">
-      <WebGLBackground />
-      
-      {/* Floating particles */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(30)].map((_, i) => {
-          // Use deterministic values based on index to avoid hydration mismatch
-          const left = ((i * 37) % 100)
-          const top = ((i * 73) % 100)
-          const delay = (i * 0.3) % 3
-          const duration = 2 + (i % 3)
-          
-          return (
-            <div
-              key={i}
-              className="absolute w-1 h-1 bg-white/30 rounded-full animate-pulse"
-              style={{
-                left: `${left}%`,
-                top: `${top}%`,
-                animationDelay: `${delay}s`,
-                animationDuration: `${duration}s`
-              }}
-            />
-          )
-        })}
+    <div className="w-full flex flex-col z-50">
+      {/* Top Strip */}
+      <div className="h-8 bg-slate-100/80 backdrop-blur-sm border-b border-slate-200 flex items-center justify-between px-4 sm:px-8 shadow-xs">
+        <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest truncate max-w-[40%] sm:max-w-none">
+          Government of India | Ministry of Health &amp; Family Welfare
+        </span>
+        <div className="flex items-center gap-4">
+          <div className="hidden sm:flex items-center gap-2 text-[9px] font-mono opacity-50 text-slate-600 font-bold uppercase tracking-tight">
+             Status: <span className="text-emerald-500">🟢 Secure</span> | Server: National Hub | Latency: 24ms
+          </div>
+          <div className="flex items-center gap-2 border-l border-slate-200 pl-4">
+            <div className="relative flex items-center justify-center w-1.5 h-1.5 sm:w-2 sm:h-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 sm:h-2 sm:w-2 bg-emerald-500"></span>
+            </div>
+            <span className="text-[9px] sm:text-[10px] font-mono text-slate-600 font-bold tracking-tight">
+              IST: {time || '--:--:--'}
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* Main login card */}
-      <div className="relative z-10 w-full max-w-md">
-        <Card className="backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl hover:shadow-3xl transition-all duration-500 transform hover:scale-105">
-          <CardHeader className="text-center space-y-6 pb-8">
-            <div className="mx-auto mb-4 relative">
-              <div className="w-24 h-24 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 rounded-3xl flex items-center justify-center shadow-2xl transform rotate-3 hover:rotate-0 transition-all duration-500 hover:scale-110">
-                <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                  <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full animate-ping" />
-              <div className="absolute -bottom-2 -left-2 w-4 h-4 bg-yellow-400 rounded-full animate-bounce" />
-            </div>
-            <CardTitle className="text-4xl font-bold text-white mb-2 tracking-tight bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
-              TB Command Center
-            </CardTitle>
-            <CardDescription className="text-white/90 text-lg font-medium">
-              Alliance India - Advanced Healthcare Management
-            </CardDescription>
-          </CardHeader>
-          
-          <CardContent className="space-y-6 pb-8">
-            {error === 'AccessDenied' && (
-              <div className="flex items-center gap-3 p-4 bg-red-500/20 border border-red-400/30 rounded-xl text-red-100 text-sm backdrop-blur-sm animate-pulse">
-                <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                <span>Your account is not authorized. Please contact the M&E administrator.</span>
-              </div>
-            )}
-            
-            <Button 
-              onClick={handleGoogleSignIn}
-              className="w-full h-16 bg-white/95 hover:bg-white text-gray-800 border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 transform hover:scale-105 flex items-center justify-center gap-4 text-lg font-semibold backdrop-blur-sm group overflow-hidden relative"
-              size="lg"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 transform -skew-x-12 translate-x-full group-hover:translate-x-0 transition-transform duration-700" />
-              <div className="relative flex items-center gap-4">
-                <div className="relative">
-                  <svg className="w-7 h-7 transform group-hover:rotate-12 transition-transform duration-300" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                  </svg>
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse" />
-                </div>
-                <span className="group-hover:text-blue-600 transition-colors duration-300">Continue with Google</span>
-              </div>
-            </Button>
-            
-            <div className="text-center space-y-3">
-              <div className="flex items-center justify-center space-x-3 text-white/80 text-sm">
-                <svg className="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                <span className="font-medium">Enterprise-grade Security</span>
-              </div>
-              <div className="flex items-center justify-center space-x-6 text-white/60 text-xs">
-                <span className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                  HIPAA Compliant
-                </span>
-                <span className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-                  ISO 27001
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Main Header */}
+      <div className="h-24 bg-white/90 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-6 sm:px-12 shadow-sm">
         
-        {/* Floating decorative elements */}
-        <div className="absolute -top-8 -right-8 w-32 h-32 bg-gradient-to-br from-pink-400/30 to-red-500/30 rounded-full blur-xl animate-bounce" style={{ animationDelay: '1s', animationDuration: '3s' }} />
-        <div className="absolute -bottom-8 -left-8 w-40 h-40 bg-gradient-to-br from-green-400/20 to-blue-500/20 rounded-full blur-xl animate-pulse" style={{ animationDelay: '2s', animationDuration: '4s' }} />
-        <div className="absolute top-1/2 -right-12 w-24 h-24 bg-gradient-to-br from-yellow-400/25 to-orange-500/25 rounded-full blur-lg animate-ping" style={{ animationDelay: '0.5s', animationDuration: '2s' }} />
+        {/* Left Branding Title */}
+        <div className="flex flex-col">
+          <h1 className="text-xl font-extralight text-slate-400 tracking-[0.4em] uppercase">Track and Chase</h1>
+          <p className="text-[10px] font-black text-slate-900 tracking-normal uppercase">SAMPARK</p>
+        </div>
+
+        {/* Right Grouped Logos with Dividers */}
+        <div className="hidden lg:flex items-center gap-6">
+          <Image 
+            src="/Images/Ministry_of_Health_India.svg" 
+            alt="MoHFW" 
+            width={180} 
+            height={48} 
+            className="h-12 w-auto object-contain" 
+          />
+          <div className="w-[1px] h-10 bg-slate-200" />
+          <Image 
+            src="/Images/NacoLogo.png" 
+            alt="NACO" 
+            width={120} 
+            height={48} 
+            className="h-12 w-auto object-contain" 
+          />
+          <div className="w-[1px] h-10 bg-slate-200" />
+          <Image 
+            src="/Images/Ministry_of_Law_and_Justice.png" 
+            alt="Ministry of Law and Justice" 
+            width={180} 
+            height={48} 
+            className="h-12 w-auto object-contain" 
+          />
+        </div>
+        
+        {/* Mobile Fallback layout */}
+        <div className="flex lg:hidden items-center">
+            <Image 
+              src="/Images/Ministry_of_Health_India.svg" 
+              alt="MoHFW" 
+              width={140} 
+              height={40} 
+              className="h-10 w-auto object-contain" 
+            />
+        </div>
+
       </div>
     </div>
-  )
+  );
 }
 
 export default function LoginPage() {
+  const [isHovering, setIsHovering] = useState(false);
+
+  const handleGoogleSignIn = () => {
+    signIn("google", { callbackUrl: "/dashboard" });
+  };
+
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <LoginContent />
-    </Suspense>
-  )
+    <div className="min-h-screen relative flex flex-col items-center justify-start overflow-hidden font-outfit bg-slate-50 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px]">
+      
+      {/* High-End Atmospheric Waving Flag Layer */}
+      <WavingFlagBackground />
+
+      <Masthead />
+      
+      <main className="flex-1 flex flex-col items-center justify-center w-full px-4 pt-10 pb-24 relative z-10">
+        
+        {/* Command Vault Card */}
+        <Card 
+          className={`w-full max-w-md bg-white border-0 border-t-4 transition-all duration-500 transform
+            ${isHovering 
+                ? 'border-t-blue-500 shadow-[0_30px_60px_rgba(59,130,246,0.15)] -translate-y-1' 
+                : 'border-t-[#004a99] shadow-[0_20px_50px_rgba(0,0,0,0.05)]'} 
+            rounded-2xl overflow-hidden mb-8 relative`}
+        >
+          {/* Beveled Inner Top Highlight */}
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-blue-100/10 via-blue-200/60 to-blue-100/10 z-10" />
+          
+          <CardContent className="p-10 flex flex-col items-center relative z-20 overflow-hidden">
+            {/* Identity Scan Animation */}
+            <AnimatePresence>
+              {isHovering && (
+                <motion.div 
+                  initial={{ top: "-10%" }}
+                  animate={{ top: "110%" }}
+                  exit={{ opacity: 0 }}
+                  transition={{ 
+                    duration: 2, 
+                    repeat: Infinity, 
+                    ease: "linear",
+                    repeatDelay: 0.5
+                  }}
+                  className="absolute left-0 right-0 h-[2px] bg-blue-400/30 z-30 pointer-events-none shadow-[0_0_8px_rgba(96,165,250,0.5)]"
+                />
+              )}
+            </AnimatePresence>
+            
+            <div className="mb-6 w-full flex justify-center">
+              <Image 
+                src="/Images/Logo/AllianceIndia-Logo.png" 
+                alt="Alliance India" 
+                width={280} 
+                height={100} 
+                className="h-28 w-auto object-contain drop-shadow-sm" 
+                priority 
+              />
+            </div>
+
+            <div className="text-center mb-10 w-full flex flex-col items-center">
+              <p className="uppercase tracking-[0.2em] text-[10px] font-bold text-slate-400 w-full text-center">National Integrated Monitoring &amp; Evaluation Portal</p>
+            </div>
+
+            <button 
+              onClick={handleGoogleSignIn}
+              onMouseEnter={() => setIsHovering(true)}
+              onMouseLeave={() => setIsHovering(false)}
+              onFocus={() => setIsHovering(true)}
+              onBlur={() => setIsHovering(false)}
+              className="w-full h-14 bg-white flex items-center justify-center gap-4 border border-slate-200 rounded-xl text-slate-700 font-bold hover:bg-blue-50/50 hover:border-blue-400 hover:text-blue-700 hover:shadow-md transition-all duration-300 group/btn relative overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-blue-50/0 group-hover/btn:bg-blue-50/50 transition-colors duration-300" />
+              <ShieldCheck className="w-5 h-5 text-slate-400 group-hover/btn:text-blue-500 transition-colors z-10" />
+              <div className="w-px h-6 bg-slate-200 group-hover/btn:bg-blue-200 transition-colors z-10" />
+              <svg className="w-5 h-5 z-10" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              <span className="z-10 tracking-tight">Sign in with Google</span>
+            </button>
+
+          </CardContent>
+        </Card>
+
+        {/* Official Footer Space */}
+        <footer className="text-center w-full max-w-lg mt-4 flex flex-col items-center gap-4">
+          <p className="text-xs text-slate-400 font-medium leading-relaxed tracking-wide">
+            Authorized Access Only. This system is monitored and intended for use by MoHFW, NACO, and Ministry of Law &amp; Justice personnel.
+          </p>
+          <div className="flex items-center gap-3 bg-white/60 backdrop-blur-sm border border-slate-200/60 shadow-sm px-4 py-2 rounded-full mt-2 transition-all hover:bg-white/80">
+            <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+              Supported by MoHFW, NACO &amp; SACS
+            </span>
+          </div>
+        </footer>
+
+      </main>
+    </div>
+  );
 }

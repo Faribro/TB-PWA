@@ -14,7 +14,9 @@ import Image from 'next/image';
 
 const MotionLink = motion.create(Link);
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
+import { useSessionScope } from '@/hooks/useSessionScope';
 import { EntityDataSync } from '@/components/EntityDataSync';
+import { SyncStatusFeed } from '@/components/SyncStatusFeed';
 import { useSonicIntelligence } from '@/hooks/useSonicIntelligence';
 import { useEntityStore } from '@/stores/useEntityStore';
 
@@ -105,7 +107,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [eligibleCount] = useState(0);
   const [dataHealthScore] = useState(100);
 
-  const { data: globalPatients = [], isLoading } = useSWRAllPatients();
+  const scope = useSessionScope();
+  const { data: globalPatients = [], isLoading } = useSWRAllPatients(scope);
   const memoizedPatients = useMemo(() => globalPatients ?? [], [globalPatients]);
 
   // Only initialize Sonic intelligence once
@@ -161,6 +164,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden selection:bg-blue-500/30">
       <EntityDataSync patients={memoizedPatients} />
+      <SyncStatusFeed />
 
       <motion.aside
         layout
@@ -260,18 +264,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </motion.aside>
 
       <main className="flex-1 h-full overflow-hidden relative z-10 flex flex-col">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={pathname}
-            initial={{ opacity: 0, scale: 0.99, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 1.01, y: -10 }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="flex-1 h-full w-full"
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
+        <motion.div
+          key={pathname}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+          className="flex-1 h-full w-full relative"
+        >
+          {session?.user?.state && (
+             <div className="absolute top-6 right-8 z-[55]">
+               <div className="bg-white/70 backdrop-blur-xl border border-white shadow-sm px-4 py-2.5 rounded-2xl flex items-center gap-2.5 transition-all hover:shadow-md hover:bg-white/90">
+                 <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center">
+                   <Map className="w-3.5 h-3.5 text-blue-600" />
+                 </div>
+                 <div className="flex flex-col border-l border-slate-200 pl-3">
+                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">Active Region</span>
+                   <span className="text-xs font-bold text-slate-800 leading-none">{session.user.state}</span>
+                 </div>
+               </div>
+             </div>
+          )}
+          {children}
+        </motion.div>
       </main>
     </div>
   );

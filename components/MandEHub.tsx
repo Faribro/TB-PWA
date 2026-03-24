@@ -517,7 +517,6 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
   return (
     <HubContext.Provider value={ctxValue}>
       <div className="h-full overflow-y-auto relative p-6 lg:p-8">
-        <ThreeBackground />
         <div className="max-w-7xl mx-auto space-y-8 relative z-10">
 
           {/* ── Header ──────────────────────────────────────────────────── */}

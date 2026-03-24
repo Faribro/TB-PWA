@@ -6,7 +6,6 @@ import { Filter, Layers, X, BarChart3, Trophy, Globe, Building2, Hospital, Maxim
 import { useUniversalFilter } from '@/contexts/FilterContext';
 import { KPIRibbon } from './KPIRibbon';
 import { ColorLegend } from './ColorLegend';
-import ThreeBackground from './ThreeBackground';
 
 interface CommandCenterLayoutProps {
   children: ReactNode;
@@ -38,8 +37,7 @@ export function CommandCenterLayout({
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
 
   return (
-    <div className="relative w-full h-full overflow-hidden">
-      <ThreeBackground />
+    <div className="relative w-full h-full overflow-hidden bg-slate-50">
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* HEADER BAR - Docked Top */}
       {/* ═══════════════════════════════════════════════════════════ */}

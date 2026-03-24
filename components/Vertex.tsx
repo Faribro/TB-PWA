@@ -28,8 +28,8 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { FollowUpPipeline } from '@/components/FollowUpPipeline';
 import { PatientDetailDrawer } from '@/components/PatientDetailDrawer';
+import { VertexChart } from '@/components/VertexChart';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
-import ThreeBackground from './ThreeBackground';
 
 // TypeScript Interfaces
 interface MonthlyHeatmapData {
@@ -755,7 +755,6 @@ export default function Vertex({
 
   return (
     <div className="h-screen w-full overflow-hidden relative font-outfit">
-      <ThreeBackground />
       {/* Premium Background Decorative Elements */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-400/10 blur-[150px] rounded-full animate-pulse" />
@@ -918,6 +917,9 @@ export default function Vertex({
                         />
                       </div>
 
+                      {/* ATT Line Chart */}
+                      <VertexChart patients={globalPatients} />
+
                       {/* Geographic Hierarchy Breakdown */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3">
@@ -972,7 +974,7 @@ export default function Vertex({
         
         {/* Task 2: GOLDILOCKS WIDTH - Professional fixed width with responsive mobile fallback */}
         <SheetContent 
-          className="!w-[90vw] sm:!max-w-[550px] md:!max-w-[600px] !z-[99999] bg-[#FBFBFD] border-l border-slate-200 shadow-2xl p-0 flex flex-col"
+          className="!w-[90vw] sm:!max-w-[550px] md:!max-w-[600px] !z-[99999] bg-white/10 backdrop-blur-md border-l border-white/20 shadow-2xl p-0 flex flex-col"
         >
           <SheetHeader className="px-6 py-5 border-b border-slate-200 bg-white">
             <div className="flex items-center justify-between">

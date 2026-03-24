@@ -6,7 +6,6 @@ import { QueryProvider } from "./QueryProvider";
 import AuthProvider from "./AuthProvider";
 import { RootClientWrapper } from "./RootClientWrapper";
 import SimpleErrorBoundary from "./SimpleErrorBoundary";
-import ClientFloatingEntity from "./ClientFloatingEntity";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -15,7 +14,6 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   return (
     <>
-      <ClientFloatingEntity />
       <SimpleErrorBoundary key="root-error-boundary">
         <SWRProvider>
           <QueryProvider>

@@ -3,7 +3,7 @@
 import { useMemo, useState, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Filter, X, ChevronLeft, ChevronRight, AlertCircle, ClockAlert } from 'lucide-react';
 import { useTreeFilter } from '@/contexts/TreeFilterContext';
 import { useEntityStore } from '@/stores/useEntityStore';
 import { normalizeGeographicKey } from '@/lib/normalizeGeographicKey';
@@ -114,6 +114,18 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
       });
     }
 
+    if (activeFilters?.phase) {
+      filtered = filtered.filter(p => calculatePatientPhase(p).phase === activeFilters.phase);
+    }
+
+    if (activeFilters?.status === 'High Alert') {
+      filtered = filtered.filter(p => {
+        const isAbnormal = p.xray_result?.toLowerCase().includes('abnormal');
+        const noTreatment = !p.att_start_date && !p.referral_date;
+        return isAbnormal && noTreatment;
+      });
+    }
+
     // Notify Sonic of filter change
     if (treeFilter.actionType || treeFilter.date || treeFilter.district || treeFilter.year) {
       window.dispatchEvent(new CustomEvent('sonic-search', {
@@ -136,7 +148,7 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
 
   const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE);
 
-  const hasActiveFilter = treeFilter.year || treeFilter.month !== undefined || treeFilter.district || treeFilter.date || treeFilter.actionType || activeFilters?.district || activeFilters?.state;
+  const hasActiveFilter = treeFilter.year || treeFilter.month !== undefined || treeFilter.district || treeFilter.date || treeFilter.actionType || activeFilters?.district || activeFilters?.state || activeFilters?.phase || activeFilters?.status !== 'All';
 
   const canSelectForTriage = (patient: Patient): boolean => {
     const xrayResult = (patient.chest_x_ray_result || patient.xray_result || '').toLowerCase();
@@ -233,9 +245,15 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
           <div className="w-32 h-6 bg-slate-200 animate-pulse rounded-full" />
         </div>
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="w-full h-28 bg-white border border-slate-100 rounded-xl animate-pulse shadow-sm flex flex-col justify-center p-5">
-            <div className="w-1/2 h-5 bg-slate-200 rounded mb-3" />
-            <div className="w-1/4 h-4 bg-slate-200 rounded" />
+          <div key={i} className="w-full h-[110px] bg-white border border-slate-100 rounded-xl animate-pulse shadow-sm flex flex-col justify-between p-5 mt-2">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <div className="w-48 h-6 bg-slate-200 rounded mb-2" />
+                <div className="w-24 h-5 bg-slate-200 rounded mb-2" />
+                <div className="w-32 h-4 bg-slate-200 rounded" />
+              </div>
+              <div className="w-20 h-6 bg-slate-200 rounded-full" />
+            </div>
           </div>
         ))}
       </div>
@@ -329,6 +347,17 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
               const phase = calculatePatientPhase(patient);
               const canSelect = canSelectForTriage(patient);
 
+              // Phase Aging Validation
+              const calculateDaysElapsed = (screeningDateStr: string | undefined) => {
+                if (!screeningDateStr) return 0;
+                const screeningDate = new Date(screeningDateStr);
+                const now = new Date();
+                const diffTime = Math.abs(now.getTime() - screeningDate.getTime());
+                return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+              };
+              const daysElapsed = calculateDaysElapsed(patient.screening_date);
+              const isStalled = phase.phase !== 'Closed' && daysElapsed > 5;
+
               return (
                 <div
                   key={patient.id}
@@ -340,7 +369,7 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
                     padding: '4px 0',
                   }}
                 >
-                  <div className="bg-white rounded-xl p-5 border border-slate-100 shadow-sm transition-all duration-200 hover:shadow-md hover:border-blue-300 hover:-translate-y-0.5 group">
+                  <div className={`rounded-xl p-5 border shadow-sm transition-all duration-200 hover:-translate-y-0.5 group ${isStalled ? 'bg-amber-50/10 border-l-4 border-l-amber-500 border-amber-200/50 backdrop-blur-md hover:shadow-amber-500/10 hover:border-r-amber-400 hover:border-y-amber-400' : 'bg-white border-slate-100 hover:shadow-md hover:border-blue-300'}`}>
                     <div className="flex items-start gap-4">
                       <div className="pt-1" title={!canSelect ? 'Requires manual follow-up: Abnormal X-Ray or Symptoms Present' : 'Select for bulk triage'}>
                         <input
@@ -357,7 +386,14 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
                           <div className="flex-1">
                             {/* Data Hierarchy: Name > ID > Status */}
                             <div className="flex items-start justify-between mb-2">
-                              <div className="text-slate-900 font-bold text-lg leading-tight group-hover:text-blue-700 transition-colors">{patient.inmate_name}</div>
+                              <div className="flex items-center gap-2">
+                                <div className="text-slate-900 font-bold text-lg leading-tight group-hover:text-blue-700 transition-colors">{patient.inmate_name}</div>
+                                {isStalled && (
+                                  <div className="flex items-center gap-1 bg-amber-50 text-amber-600 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-200/50 shadow-sm backdrop-blur-sm">
+                                    <ClockAlert className="w-3 h-3" /> Stale ({daysElapsed}d)
+                                  </div>
+                                )}
+                              </div>
                               <div className={`px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase shadow-sm ${
                                 phase.phase === 'Sputum Test' ? 'bg-amber-50 text-amber-700 border border-amber-200/50' :
                                 phase.phase === 'Diagnosis' ? 'bg-blue-50 text-blue-700 border border-blue-200/50' :

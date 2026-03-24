@@ -220,26 +220,34 @@ export const cacheManager = new CacheManager({
   ],
 });
 
-// Initialize on load
-if (typeof window !== 'undefined') {
-  cacheManager.init().catch(console.error);
-  
-  // Clean expired entries every 5 minutes
-  setInterval(() => {
-    cacheManager.cleanExpired('patients').catch(console.error);
-    cacheManager.cleanExpired('districts').catch(console.error);
-    cacheManager.cleanExpired('analytics').catch(console.error);
-  }, 5 * 60 * 1000);
+// Lazy init — only runs when first cache operation is called, not at import time
+let _initPromise: Promise<void> | null = null;
+function ensureInit(): Promise<void> {
+  if (!_initPromise) {
+    _initPromise = cacheManager.init().then(() => {
+      // Clean expired entries every 5 minutes, started once
+      setInterval(() => {
+        cacheManager.cleanExpired('patients').catch(console.error);
+        cacheManager.cleanExpired('districts').catch(console.error);
+        cacheManager.cleanExpired('analytics').catch(console.error);
+      }, 5 * 60 * 1000);
+    }).catch(console.error) as Promise<void>;
+  }
+  return _initPromise;
 }
 
 // Helper functions
-export async function cachePatients(patients: any[]): Promise<void> {
-  await cacheManager.set('patients', 'all', patients, 30 * 60 * 1000); // 30 min TTL
+export async function cachePatients(patients: any[], key = 'all'): Promise<void> {
+  if (typeof window === 'undefined') return;
+  await ensureInit();
+  await cacheManager.set('patients', key, patients, 30 * 60 * 1000);
 }
 
-export async function getCachedPatients(): Promise<any[]> {
+export async function getCachedPatients(key = 'all'): Promise<any[]> {
+  if (typeof window === 'undefined') return [];
   try {
-    const result = await cacheManager.get<any[]>('patients', 'all');
+    await ensureInit();
+    const result = await cacheManager.get<any[]>('patients', key);
     return result ?? [];
   } catch {
     return [];
@@ -247,9 +255,13 @@ export async function getCachedPatients(): Promise<any[]> {
 }
 
 export async function cacheDistricts(districts: any[]): Promise<void> {
-  await cacheManager.set('districts', 'all', districts, 60 * 60 * 1000); // 1 hour TTL
+  if (typeof window === 'undefined') return;
+  await ensureInit();
+  await cacheManager.set('districts', 'all', districts, 60 * 60 * 1000);
 }
 
 export async function getCachedDistricts(): Promise<any[] | null> {
+  if (typeof window === 'undefined') return null;
+  await ensureInit();
   return cacheManager.get('districts', 'all');
 }

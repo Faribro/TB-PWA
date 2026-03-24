@@ -1,6 +1,7 @@
 'use client';
 
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
+import { useSessionScope } from '@/hooks/useSessionScope';
 import dynamic from 'next/dynamic';
 import { LinesAndDotsLoader } from '@/components/LinesAndDotsLoader';
 
@@ -14,7 +15,8 @@ const CommandCenter = dynamic(() => import('@/components/CommandCenter'), {
 });
 
 export default function FollowUpPage() {
-  const { data: globalPatients = [], isLoading } = useSWRAllPatients();
+  const scope = useSessionScope();
+  const { data: globalPatients = [], isLoading } = useSWRAllPatients(scope);
 
   return (
     <div className="h-screen">

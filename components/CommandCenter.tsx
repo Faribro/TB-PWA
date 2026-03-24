@@ -6,7 +6,6 @@ import { AlertTriangle, Activity, Calendar, CheckCircle, MapPin, Search, Check, 
 import { PatientDetailDrawer } from './PatientDetailDrawer';
 import { PhaseCell } from './PhaseCell';
 import AnalyticsOverview from './AnalyticsOverview';
-import ThreeBackground from './ThreeBackground';
 import { calculatePatientPhase } from '@/lib/phase-engine';
 import { Button } from './ui/button';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -324,7 +323,6 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
 
   return (
     <>
-      <ThreeBackground />
       <div className="h-screen flex flex-col relative z-10">
       {/* Header */}
       <motion.header initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}

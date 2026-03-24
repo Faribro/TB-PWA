@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { withRetry } from '@/lib/retryMechanism';
 import { cachePatients, getCachedPatients } from '@/lib/cacheManager';
 import { swrPaginatedConfig, swrAllPatientsConfig } from '@/lib/swrConfig';
+import type { SessionScope } from '@/hooks/useSessionScope';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -60,52 +61,45 @@ const fetcher = async (key: string, params: FetchPatientsParams) => {
   });
 };
 
-const allPatientsFetcher = async (userState?: string) => {
+const allPatientsFetcher = async (scope: SessionScope | null) => {
   try {
-    // Try cache first
-    const cached = await getCachedPatients();
-    if (cached.length > 0) {
-      return cached;
-    }
-    
+    const cacheKey = `${scope?.state ?? 'all'}::${scope?.district ?? 'all'}`;
+    const cached = await getCachedPatients(cacheKey);
+    if (cached.length > 0) return cached;
+
+    // Step 1: get total count
+    let countQuery = supabase
+      .from('patients')
+      .select('*', { count: 'exact', head: true });
+    if (scope?.state)    countQuery = countQuery.ilike('screening_state',    scope.state);
+    if (scope?.district) countQuery = countQuery.ilike('screening_district', scope.district);
+
+    const { count, error: countError } = await countQuery;
+    if (countError || !count) return [];
+
+    // Step 2: fire all pages in parallel
     const batchSize = 1000;
+    const pages = Math.ceil(count / batchSize);
+    const fetches = Array.from({ length: pages }, (_, i) => {
+      let q = supabase
+        .from('patients')
+        .select('*')
+        .range(i * batchSize, (i + 1) * batchSize - 1);
+      if (scope?.state)    q = q.ilike('screening_state',    scope.state);
+      if (scope?.district) q = q.ilike('screening_district', scope.district);
+      return q;
+    });
+
+    const results = await Promise.all(fetches);
     const allData: any[] = [];
-    let offset = 0;
-    let hasMore = true;
-    
-    // Task 3: Sequential batch fetching to bypass 1000-row limit
-    while (hasMore) {
-      const { data, error } = await withRetry(async () => {
-        let query = supabase
-          .from('patients')
-          .select('*')
-          .range(offset, offset + batchSize - 1);
-        
-        if (userState) {
-          query = query.eq('screening_state', userState);
-        }
-        
-        return query;
-      }, {
-        maxRetries: 3,
-        onRetry: (attempt) => console.log(`[SWR] Retry attempt ${attempt} for batch at offset ${offset}`)
-      });
-      
-      if (error || !data) break;
-      
-      // Filter out Unknown values client-side
-      const filtered = data.filter(p => 
-        p.facility_name !== 'Unknown' && p.facility_type !== 'Unknown'
-      );
-      
-      allData.push(...filtered);
-      hasMore = data.length === batchSize;
-      offset += batchSize;
+    for (const { data, error } of results) {
+      if (error || !data) continue;
+      allData.push(...data.filter(
+        (p: any) => p.facility_name !== 'Unknown' && p.facility_type !== 'Unknown'
+      ));
     }
-    
-    // Cache the results
-    await cachePatients(allData);
-    
+
+    await cachePatients(allData, cacheKey);
     return allData;
   } catch (error) {
     console.error('[useSWRPatients] allPatientsFetcher failed:', error);
@@ -123,10 +117,11 @@ export function useSWRPatients(params: FetchPatientsParams) {
   );
 }
 
-export function useSWRAllPatients(userState?: string) {
+export function useSWRAllPatients(scope?: SessionScope | null) {
   return useSWR(
-    ['allPatients', userState], 
-    () => allPatientsFetcher(userState), 
+    // Key includes scope so different users never share cache entries
+    ['allPatients', scope?.state ?? 'all', scope?.district ?? 'all'],
+    () => allPatientsFetcher(scope ?? null),
     swrAllPatientsConfig
   );
 }

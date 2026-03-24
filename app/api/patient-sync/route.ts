@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getSessionScope } from '@/lib/session-scope';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
 // Google Apps Script Web App URL (set this in your .env.local)
@@ -48,6 +49,14 @@ const GOOGLE_SHEET_HEADERS = [
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth + ownership check
+    let scope;
+    try {
+      scope = await getSessionScope();
+    } catch {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { patientId, koboUuid, updates } = body;
 
@@ -113,10 +122,15 @@ export async function POST(request: NextRequest) {
 
     console.log('[patient-sync] Supabase updates:', supabaseUpdates);
 
-    const { data: supabaseData, error: supabaseError } = await supabase
+    let updateQuery = supabase
       .from('patients')
       .update(supabaseUpdates)
-      .eq('id', patientId)
+      .eq('id', patientId);
+
+    // Ownership guard: non-admins can only update patients in their own state
+    if (scope.state) updateQuery = updateQuery.eq('screening_state', scope.state);
+
+    const { data: supabaseData, error: supabaseError } = await updateQuery
       .select()
       .single();
 
