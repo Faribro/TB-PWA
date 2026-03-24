@@ -21,20 +21,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step A: Update Supabase
+    // Step A: Update Supabase (handle all fields dynamically)
+    const supabaseUpdates: any = {
+      updated_at: new Date().toISOString()
+    };
+
+    // Map form fields to database columns
+    const fieldMapping: Record<string, string> = {
+      'inmate_name': 'inmate_name',
+      'age': 'age',
+      'sex': 'sex',
+      'contact_number': 'contact_number',
+      'address': 'address',
+      'facility_name': 'facility_name',
+      'dob': 'dob',
+      'screening_date': 'screening_date',
+      'Date of referral for TB Examination (sputum) (dd/mm/yy)': 'referral_date',
+      'Name of facility where referred to (Give code/name of all facilities)': 'referral_facility',
+      'TB diagnosed (Y/N)': 'tb_diagnosed',
+      'Date of TB Diagnosed (dd/mm/yy)': 'diagnosis_date',
+      'Type of TB Diagnosed (P/EP)': 'tb_type',
+      'Date of starting ATT (dd/mm/yyyy)': 'att_start_date',
+      'Date of Treatment Completion (dd/mm/yyyy)': 'att_completion_date',
+      'HIV Status (Positive/Negative/Unknown)': 'hiv_status',
+      'Status at the time of referral (Pre ART/On ART)': 'art_status',
+      'ART Number': 'art_number',
+      'NIKSHAY/ABHA ID': 'nikshay_id',
+      'Date of registration (dd/mm/yyyy)': 'registration_date',
+      'Remarks': 'remarks',
+      'closure_reason': 'closure_reason'
+    };
+
+    // Map updates to database columns
+    Object.keys(updates).forEach(key => {
+      const dbColumn = fieldMapping[key] || key;
+      supabaseUpdates[dbColumn] = updates[key];
+    });
+
     const { data: supabaseData, error: supabaseError } = await supabase
       .from('patients')
-      .update({
-        inmate_name: updates.inmate_name,
-        age: updates.age,
-        sex: updates.sex,
-        contact_number: updates.contact_number,
-        address: updates.address,
-        facility_name: updates.facility_name,
-        dob: updates.dob,
-        screening_date: updates.screening_date,
-        updated_at: new Date().toISOString()
-      })
+      .update(supabaseUpdates)
       .eq('id', patientId)
       .select()
       .single();
@@ -56,18 +82,9 @@ export async function POST(request: NextRequest) {
     if (GOOGLE_SCRIPT_URL && koboUuid) {
       try {
         const webhookPayload = {
-          action: 'update_demographics',
+          action: 'update_patient',
           uuid: koboUuid,
-          updates: {
-            inmate_name: updates.inmate_name,
-            age: updates.age,
-            sex: updates.sex,
-            contact_number: updates.contact_number,
-            address: updates.address,
-            facility_name: updates.facility_name,
-            dob: updates.dob,
-            screening_date: updates.screening_date
-          }
+          updates: updates
         };
 
         const webhookResponse = await fetch(GOOGLE_SCRIPT_URL, {
@@ -106,7 +123,7 @@ export async function POST(request: NextRequest) {
     // Return success even if webhook fails (Supabase is the source of truth)
     return NextResponse.json({
       success: true,
-      message: 'Patient demographics updated',
+      message: 'Patient data updated',
       supabase: {
         success: true,
         data: supabaseData
