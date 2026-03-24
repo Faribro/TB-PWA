@@ -87,11 +87,26 @@ export async function POST(request: NextRequest) {
     
     if (GOOGLE_SCRIPT_URL && koboUuid) {
       try {
+        // Normalize keys: trim whitespace, lowercase for fuzzy matching
+        const normalizedUpdates: Record<string, any> = {};
+        Object.keys(updates).forEach(key => {
+          const trimmedKey = key.trim();
+          normalizedUpdates[trimmedKey] = updates[key];
+        });
+
         const webhookPayload = {
           action: 'update_patient',
           uuid: koboUuid,
-          updates: updates
+          updates: normalizedUpdates
         };
+
+        // CRITICAL DEBUG LOG: Print exact payload being sent
+        console.log('═══════════════════════════════════════════════════════════');
+        console.log('🚀 SENDING TO GOOGLE SHEETS:');
+        console.log('UUID:', koboUuid);
+        console.log('Payload Keys:', Object.keys(normalizedUpdates));
+        console.log('Full Payload:', JSON.stringify(webhookPayload, null, 2));
+        console.log('═══════════════════════════════════════════════════════════');
 
         const webhookResponse = await fetch(GOOGLE_SCRIPT_URL, {
           method: 'POST',
@@ -102,21 +117,33 @@ export async function POST(request: NextRequest) {
           signal: AbortSignal.timeout(10000) // 10 second timeout
         });
 
+        const responseText = await webhookResponse.text();
+        console.log('📥 Google Sheets Response:', responseText);
+
         if (webhookResponse.ok) {
-          const webhookData = await webhookResponse.json();
-          googleSheetsResult = {
-            success: true,
-            message: 'Google Sheets updated successfully',
-            data: webhookData
-          };
+          try {
+            const webhookData = JSON.parse(responseText);
+            googleSheetsResult = {
+              success: true,
+              message: 'Google Sheets updated successfully',
+              data: webhookData
+            };
+          } catch {
+            googleSheetsResult = {
+              success: true,
+              message: 'Google Sheets updated (non-JSON response)',
+              data: { response: responseText }
+            };
+          }
         } else {
+          console.error('❌ Google Sheets Error:', webhookResponse.status, responseText);
           googleSheetsResult = {
             success: false,
-            message: `Webhook returned status ${webhookResponse.status}`
+            message: `Webhook returned status ${webhookResponse.status}: ${responseText}`
           };
         }
       } catch (webhookError: any) {
-        console.error('Google Sheets webhook failed:', webhookError);
+        console.error('❌ Google Sheets webhook failed:', webhookError);
         googleSheetsResult = {
           success: false,
           message: webhookError.name === 'TimeoutError' 

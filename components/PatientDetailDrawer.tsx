@@ -128,6 +128,15 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       console.log('[PatientDrawer] Calling /api/patient-sync...');
       
+      // CRITICAL DEBUG: Log exact payload being sent to Google Sheets
+      console.log('═══════════════════════════════════════════════════════════');
+      console.log('🚀 SENDING TO SHEETS (Clinical):');
+      console.log('Patient ID:', patient.id);
+      console.log('Kobo UUID:', patient.kobo_uuid);
+      console.log('Update Keys:', Object.keys(data));
+      console.log('Full Payload:', JSON.stringify(data, null, 2));
+      console.log('═══════════════════════════════════════════════════════════');
+      
       // Triple-sync API call
       const response = await fetch('/api/patient-sync', {
         method: 'POST',
@@ -217,6 +226,15 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         { revalidate: false }
       );
 
+      // CRITICAL DEBUG: Log exact payload being sent to Google Sheets
+      console.log('═══════════════════════════════════════════════════════════');
+      console.log('🚀 SENDING TO SHEETS (Close Loop):');
+      console.log('Patient ID:', patient.id);
+      console.log('Kobo UUID:', patient.kobo_uuid);
+      console.log('Update Keys:', Object.keys(updates));
+      console.log('Full Payload:', JSON.stringify(updates, null, 2));
+      console.log('═══════════════════════════════════════════════════════════');
+
       // Triple-sync API call
       const response = await fetch('/api/patient-sync', {
         method: 'POST',
@@ -276,6 +294,15 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         },
         { revalidate: false } // Don't revalidate immediately, we'll do it after API call
       );
+
+      // CRITICAL DEBUG: Log exact payload being sent to Google Sheets
+      console.log('═══════════════════════════════════════════════════════════');
+      console.log('🚀 SENDING TO SHEETS (Demographics):');
+      console.log('Patient ID:', patient.id);
+      console.log('Kobo UUID:', patient.kobo_uuid);
+      console.log('Update Keys:', Object.keys(editedDemographics));
+      console.log('Full Payload:', JSON.stringify(editedDemographics, null, 2));
+      console.log('═══════════════════════════════════════════════════════════');
 
       // Call the triple-sync API
       const response = await fetch('/api/patient-sync', {
