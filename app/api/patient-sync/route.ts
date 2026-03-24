@@ -24,9 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Step A: Update Supabase (handle all fields dynamically)
-    const supabaseUpdates: any = {
-      updated_at: new Date().toISOString()
-    };
+    const supabaseUpdates: any = {};
 
     // Map form fields to database columns (using ACTUAL Supabase column names)
     const fieldMapping: Record<string, string> = {

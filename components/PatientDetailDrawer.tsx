@@ -142,9 +142,16 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       console.log('[PatientDrawer] API response status:', response.status);
       
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorText = await response.text();
+        console.error('[PatientDrawer] API error response:', errorText);
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: 'Failed to parse error response', details: errorText };
+        }
         console.error('[PatientDrawer] API error:', errorData);
-        throw new Error(errorData.error || 'Failed to sync clinical updates');
+        throw new Error(errorData.error || errorData.details || 'Failed to sync clinical updates');
       }
 
       const result = await response.json();
