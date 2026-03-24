@@ -14,6 +14,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetOverlay, SheetPortal
 import { ScrollArea } from './ui/scroll-area';
 import { useSWRConfig } from 'swr';
 import { Z_INDEX } from '@/lib/zIndex';
+import { toast } from 'sonner';
 
 interface PatientDetailDrawerProps {
   patient: any;
@@ -96,9 +97,18 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const onSubmit = async (data: PatientFormData) => {
     setIsSubmitting(true);
     try {
-      await updatePatientAction(patient.unique_id, data);
-      onUpdate();
-      onClose();
+      toast.loading('Saving clinical updates...', { id: 'clinical-save' });
+      const result = await updatePatientAction(patient.unique_id, data);
+      
+      if (result.success) {
+        toast.success('Clinical updates saved successfully!', { id: 'clinical-save' });
+        onUpdate();
+        onClose();
+      } else {
+        toast.error(`Failed to save: ${result.error}`, { id: 'clinical-save' });
+      }
+    } catch (error: any) {
+      toast.error(`Error: ${error.message}`, { id: 'clinical-save' });
     } finally {
       setIsSubmitting(false);
     }
@@ -107,13 +117,22 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const handleCloseLoop = async (reason: string) => {
     setIsSubmitting(true);
     try {
-      await updatePatientAction(patient.unique_id, {
+      toast.loading('Closing patient loop...', { id: 'close-loop' });
+      const result = await updatePatientAction(patient.unique_id, {
         'TB diagnosed (Y/N)': 'N',
         'closure_reason': reason,
         'Remarks': `Loop closed: ${reason}`
       });
-      onUpdate();
-      onClose();
+      
+      if (result.success) {
+        toast.success('Patient loop closed successfully!', { id: 'close-loop' });
+        onUpdate();
+        onClose();
+      } else {
+        toast.error(`Failed to close loop: ${result.error}`, { id: 'close-loop' });
+      }
+    } catch (error: any) {
+      toast.error(`Error: ${error.message}`, { id: 'close-loop' });
     } finally {
       setIsSubmitting(false);
     }
@@ -122,6 +141,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const handleSaveDemographics = async () => {
     setIsSavingDemographics(true);
     try {
+      toast.loading('Syncing demographics across all systems...', { id: 'demo-save' });
+      
       // Optimistic update - update all SWR caches immediately
       mutate(
         (key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'),
@@ -173,13 +194,12 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       setIsEditingDemographics(false);
       onUpdate();
       
-      // Show success feedback
-      console.log('Demographics synced:', result);
+      toast.success('Demographics synced to Supabase, KoboToolbox & Google Sheets!', { id: 'demo-save' });
     } catch (error) {
       console.error('Failed to save demographics:', error);
       // Revert optimistic update on error
       mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
-      alert('Failed to save demographics. Please try again.');
+      toast.error('Failed to save demographics. Please try again.', { id: 'demo-save' });
     } finally {
       setIsSavingDemographics(false);
     }
