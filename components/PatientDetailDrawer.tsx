@@ -83,8 +83,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       'Date of starting ATT (dd/mm/yyyy)': patient.att_start_date || '',
       'Date of Treatment Completion (dd/mm/yyyy)': patient.att_completion_date || '',
       'HIV Status (Positive/Negative/Unknown)': patient.hiv_status || '',
-      'Status at the time of referral (Pre ART/On ART)': patient.art_status || '',
-      'ART Number': patient.art_number || '',
+      'Status at the time of referral (Pre ART/On ART) [If on ART at time of referral]': patient.art_status || '',
+      'ART Number (if on ART at the time of referral)': patient.art_number || '',
       'NIKSHAY/ABHA ID': patient.nikshay_abha_id || '',
       'Date of registration (dd/mm/yyyy)': patient.registration_date || '',
       'Remarks': patient.remarks || ''
@@ -92,7 +92,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   });
 
   const hivStatus = watch('HIV Status (Positive/Negative/Unknown)');
-  const artStatus = watch('Status at the time of referral (Pre ART/On ART)');
+  const artStatus = watch('Status at the time of referral (Pre ART/On ART) [If on ART at time of referral]');
 
   const onSubmit = async (data: PatientFormData) => {
     console.log('[PatientDrawer] onSubmit called with data:', data);
@@ -785,7 +785,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                       Status at the time of referral
                     </label>
                     <select
-                      {...register('Status at the time of referral (Pre ART/On ART)')}
+                      {...register('Status at the time of referral (Pre ART/On ART) [If on ART at time of referral]')}
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Select</option>
@@ -801,7 +801,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                       </label>
                       <input
                         type="text"
-                        {...register('ART Number')}
+                        {...register('ART Number (if on ART at the time of referral)')}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                       />
                     </div>

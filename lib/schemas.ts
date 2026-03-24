@@ -17,8 +17,8 @@ export const patientFormSchema = z.object({
   'Date of starting ATT (dd/mm/yyyy)': optionalString,
   'Date of Treatment Completion (dd/mm/yyyy)': optionalString,
   'HIV Status (Positive/Negative/Unknown)': optionalString,
-  'Status at the time of referral (Pre ART/On ART)': optionalString,
-  'ART Number': optionalString,
+  'Status at the time of referral (Pre ART/On ART) [If on ART at time of referral]': optionalString,
+  'ART Number (if on ART at the time of referral)': optionalString,
   
   // Group D: Administration
   'NIKSHAY/ABHA ID': optionalString,

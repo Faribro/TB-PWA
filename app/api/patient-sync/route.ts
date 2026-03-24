@@ -9,6 +9,43 @@ const supabase = createClient(
 // Google Apps Script Web App URL (set this in your .env.local)
 const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_WEBHOOK_URL || '';
 
+// Definitive list of 32 Google Sheet column headers (EXACT match required)
+const GOOGLE_SHEET_HEADERS = [
+  'Serial Number',
+  'KoboUUID',
+  'KoboID',
+  'Name of the staff',
+  'State',
+  'District',
+  'Name of the facility',
+  'Type of facility',
+  'Type of inmate',
+  'Name of the inmate',
+  'Father/Husband Name',
+  'Age',
+  'Sex',
+  'Date of Birth (dd/mm/yyyy)',
+  'Contact Number',
+  'Address',
+  'Date of Screening (dd/mm/yyyy)',
+  'Chest X-ray Result',
+  '10s Symptoms Present',
+  'Past TB History',
+  'Date of referral for TB Examination (sputum) (dd/mm/yy)',
+  'Name of facility where referred to (Give code/name of all facilities)',
+  'TB diagnosed (Y/N)',
+  'Date of TB Diagnosed (dd/mm/yy)',
+  'Type of TB Diagnosed (P/EP)',
+  'Date of starting ATT (dd/mm/yyyy)',
+  'Date of Treatment Completion (dd/mm/yyyy)',
+  'HIV Status (Positive/Negative/Unknown)',
+  'Status at the time of referral (Pre ART/On ART) [If on ART at time of referral]',
+  'ART Number (if on ART at the time of referral)',
+  'NIKSHAY/ABHA ID',
+  'Date of registration (dd/mm/yyyy)',
+  'Remarks'
+];
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -87,11 +124,40 @@ export async function POST(request: NextRequest) {
     
     if (GOOGLE_SCRIPT_URL && koboUuid) {
       try {
-        // Normalize keys: trim whitespace, lowercase for fuzzy matching
+        // FUZZY KEY NORMALIZATION: Sanitize and filter keys
         const normalizedUpdates: Record<string, any> = {};
+        
         Object.keys(updates).forEach(key => {
+          // Step 1: Trim whitespace
           const trimmedKey = key.trim();
-          normalizedUpdates[trimmedKey] = updates[key];
+          
+          // Step 2: Fuzzy match - treat (dd/mm/yyyy) and (dd/mm/yy) as identical
+          let matchedKey = trimmedKey;
+          
+          // Check if key exists in allowed headers (exact match first)
+          if (GOOGLE_SHEET_HEADERS.includes(trimmedKey)) {
+            matchedKey = trimmedKey;
+          } else {
+            // Try fuzzy matching for date format variations
+            const fuzzyMatch = GOOGLE_SHEET_HEADERS.find(header => {
+              const normalizedHeader = header.replace(/\(dd\/mm\/yyyy\)/g, '(dd/mm/yy)').replace(/\(dd\/mm\/yy\)/g, '(dd/mm/yyyy)');
+              const normalizedKey = trimmedKey.replace(/\(dd\/mm\/yyyy\)/g, '(dd/mm/yy)').replace(/\(dd\/mm\/yy\)/g, '(dd/mm/yyyy)');
+              return normalizedHeader === normalizedKey || header === trimmedKey;
+            });
+            
+            if (fuzzyMatch) {
+              matchedKey = fuzzyMatch; // Use the exact header name from sheet
+            } else {
+              // Step 3: Skip keys not in the 32-column list (local UI state)
+              console.log(`⚠️ Skipping key not in Google Sheet headers: "${trimmedKey}"`);
+              return;
+            }
+          }
+          
+          // Only add non-empty values
+          if (updates[key] !== undefined && updates[key] !== null && updates[key] !== '') {
+            normalizedUpdates[matchedKey] = updates[key];
+          }
         });
 
         const webhookPayload = {
