@@ -90,9 +90,6 @@ export function SonicLivePresentation({ isAnalyzing, command, districtData, isEm
       {/* Cinematic video overlay */}
       <VideoScannerOverlay />
 
-      {/* Particle stream background */}
-      <ParticleStream />
-
       <AnimatePresence mode="wait">
         {cue.type === 'intro' && <IntroPresentation key="intro" />}
         {cue.type === 'midpoint' && <MidpointPresentation key="midpoint" data={districtData} />}
@@ -254,30 +251,6 @@ function AnalysisVideoState({ isEmbedded = false }: { isEmbedded?: boolean }) {
         AI Neural Generation Active
       </motion.p>
     </motion.div>
-  );
-}
-
-function ParticleStream() {
-  return (
-    <div className="absolute inset-0 z-0 opacity-50">
-      {Array.from({ length: 30 }).map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ x: Math.random() * 400 - 200, y: 300, opacity: 0 }}
-          animate={{
-            y: [-30, 320],
-            opacity: [0, 1, 0],
-            x: (Math.random() * 400 - 200) + (Math.random() * 30 - 15),
-          }}
-          transition={{
-            duration: 2.5 + Math.random() * 2,
-            repeat: Infinity,
-            delay: Math.random() * 2.5,
-          }}
-          className="absolute w-0.5 h-20 bg-gradient-to-b from-transparent via-[#00d2ff] to-transparent shadow-[0_0_12px_#00d2ff]"
-        />
-      ))}
-    </div>
   );
 }
 

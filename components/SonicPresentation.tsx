@@ -22,9 +22,6 @@ export function SonicPresentation({ isAnalyzing }: { isAnalyzing?: boolean }) {
     >
       {/* CINEMATIC VIDEO OVERLAY */}
       <VideoScannerOverlay />
-      
-      {/* BACKGROUND PARTICLE FEED */}
-      <ParticleStream />
 
       <AnimatePresence mode="wait">
         {cue.type === 'intro' && <IntroAnimation key="intro" />}
@@ -131,30 +128,6 @@ function ProcessingVideoState() {
       </div>
       <p className="mt-4 font-share-tech text-[10px] text-white/40 uppercase tracking-widest animate-pulse">Live AI Generation in Progress...</p>
     </motion.div>
-  );
-}
-
-function ParticleStream() {
-  return (
-    <div className="absolute inset-0 z-0 opacity-40">
-      {Array.from({ length: 20 }).map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ x: Math.random() * 400, y: 300, opacity: 0 }}
-          animate={{ 
-            y: [-20, 320],
-            opacity: [0, 1, 0],
-            x: (Math.random() * 400) + (Math.random() * 20 - 10)
-          }}
-          transition={{ 
-            duration: 2 + Math.random() * 3,
-            repeat: Infinity,
-            delay: Math.random() * 2
-          }}
-          className="absolute w-px h-16 bg-gradient-to-b from-transparent via-[#00d2ff] to-transparent shadow-[0_0_8px_#00d2ff]"
-        />
-      ))}
-    </div>
   );
 }
 

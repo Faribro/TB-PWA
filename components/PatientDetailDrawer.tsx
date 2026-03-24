@@ -72,7 +72,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     setIsEditingDemographics(false);
   }, [patient]);
   
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<PatientFormData>({
+  const { register, handleSubmit, watch, getValues, formState: { errors } } = useForm<PatientFormData>({
     resolver: zodResolver(patientFormSchema),
     defaultValues: {
       'Date of referral for TB Examination (sputum) (dd/mm/yy)': patient.referral_date || '',
@@ -832,7 +832,10 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
             ) : (
               <button
                 type="button"
-                onClick={handleSubmit(onSubmit, onError)}
+                onClick={() => {
+                  const currentData = getValues();
+                  onSubmit(currentData);
+                }}
                 disabled={isSubmitting}
                 aria-label="Save clinical updates"
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all duration-200 hover:-translate-y-0.5 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"

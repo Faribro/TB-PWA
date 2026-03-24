@@ -54,7 +54,6 @@ function SonicDisplayTVComponent({
     let animationFrameId: number;
 
     const resizeCanvas = () => {
-      // High-DPI canvas for latest-gen crispness
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width * dpr;
@@ -71,22 +70,14 @@ function SonicDisplayTVComponent({
       
       ctx.clearRect(0, 0, w, h);
       
-      // Draw subtle "Neural Static" instead of heavy VCR blocks
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.05)'; // Very faint white
-      const numParticles = generationState === 'generating' ? 150 : 30; // More static when generating
+      // Draw subtle "Neural Static" - no particles
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
+      const numDots = generationState === 'generating' ? 50 : 10;
       
-      for (let i = 0; i < numParticles; i++) {
+      for (let i = 0; i < numDots; i++) {
         const x = Math.random() * w;
         const y = Math.random() * h;
-        const size = Math.random() * 1.5;
-        ctx.fillRect(x, y, size, size);
-        
-        // Occasional digital "streak"
-        if (Math.random() > 0.95) {
-          ctx.fillStyle = 'rgba(0, 210, 255, 0.1)'; // Cyan streak
-          ctx.fillRect(x, y, Math.random() * 20, 1);
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.05)'; // Reset
-        }
+        ctx.fillRect(x, y, 1, 1);
       }
 
       animationFrameId = requestAnimationFrame(drawDigitalNoise);

@@ -1,34 +1,37 @@
 import { z } from 'zod';
 
+// Permissive schema that accepts empty strings, undefined, and null
+const optionalString = z.string().optional().or(z.literal('')).or(z.null()).catch('');
+
 export const patientFormSchema = z.object({
   // Group A: Sputum & Referral
-  'Date of referral for TB Examination (sputum) (dd/mm/yy)': z.string().optional().or(z.literal('')).or(z.undefined()),
-  'Name of facility where referred to (Give code/name of all facilities)': z.string().optional().or(z.literal('')).or(z.undefined()),
+  'Date of referral for TB Examination (sputum) (dd/mm/yy)': optionalString,
+  'Name of facility where referred to (Give code/name of all facilities)': optionalString,
   
   // Group B: Diagnosis
-  'TB diagnosed (Y/N)': z.string().optional().or(z.literal('')).or(z.undefined()),
-  'Date of TB Diagnosed (dd/mm/yy)': z.string().optional().or(z.literal('')).or(z.undefined()),
-  'Type of TB Diagnosed (P/EP)': z.string().optional().or(z.literal('')).or(z.undefined()),
+  'TB diagnosed (Y/N)': optionalString,
+  'Date of TB Diagnosed (dd/mm/yy)': optionalString,
+  'Type of TB Diagnosed (P/EP)': optionalString,
   
   // Group C: Treatment & Comorbidities
-  'Date of starting ATT (dd/mm/yyyy)': z.string().optional().or(z.literal('')).or(z.undefined()),
-  'Date of Treatment Completion (dd/mm/yyyy)': z.string().optional().or(z.literal('')).or(z.undefined()),
-  'HIV Status (Positive/Negative/Unknown)': z.string().optional().or(z.literal('')).or(z.undefined()),
-  'Status at the time of referral (Pre ART/On ART)': z.string().optional().or(z.literal('')).or(z.undefined()),
-  'ART Number': z.string().optional().or(z.literal('')).or(z.undefined()),
+  'Date of starting ATT (dd/mm/yyyy)': optionalString,
+  'Date of Treatment Completion (dd/mm/yyyy)': optionalString,
+  'HIV Status (Positive/Negative/Unknown)': optionalString,
+  'Status at the time of referral (Pre ART/On ART)': optionalString,
+  'ART Number': optionalString,
   
   // Group D: Administration
-  'NIKSHAY/ABHA ID': z.string().optional().or(z.literal('')).or(z.undefined()),
-  'Date of registration (dd/mm/yyyy)': z.string().optional().or(z.literal('')).or(z.undefined()),
-  'Remarks': z.string().optional().or(z.literal('')).or(z.undefined()),
+  'NIKSHAY/ABHA ID': optionalString,
+  'Date of registration (dd/mm/yyyy)': optionalString,
+  'Remarks': optionalString,
   
   // Hidden system fields
-  'KoboUUID': z.string().optional().or(z.literal('')).or(z.undefined()),
-  'KoboID': z.string().optional().or(z.literal('')).or(z.undefined()),
-  'Serial Number': z.string().optional().or(z.literal('')).or(z.undefined()),
+  'KoboUUID': optionalString,
+  'KoboID': optionalString,
+  'Serial Number': optionalString,
   
   // Closure
-  'closure_reason': z.string().optional().or(z.literal('')).or(z.undefined())
+  'closure_reason': optionalString
 });
 
 export type PatientFormData = z.infer<typeof patientFormSchema>;
