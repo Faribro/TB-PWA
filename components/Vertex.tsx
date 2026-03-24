@@ -793,25 +793,44 @@ export default function Vertex({
               />
             </div>
             
-            {/* Monthly Pulse Console */}
+            {/* Monthly Pulse Console - Dynamic Metrics */}
             <div className="mt-8 pt-8 border-t border-slate-200/60 flex items-center justify-between">
-              <div className="flex items-center gap-8">
+              <div className="flex items-center gap-6">
                 <div className="group">
-                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-blue-500 transition-colors">Screened</div>
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-blue-500 transition-colors">Total</div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-black text-slate-950 tracking-tighter">
-                      {heatmapData.reduce((sum, day) => sum + day.screenedCount, 0).toLocaleString()}
+                    <span className="text-3xl font-black text-slate-950 tracking-tighter">
+                      {globalPatients.length.toLocaleString()}
                     </span>
-                    <span className="text-[11px] font-bold text-slate-400 uppercase">Monthly</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Screened</span>
                   </div>
                 </div>
                 <div className="group">
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-rose-500 transition-colors">Pending</div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-black text-rose-600 tracking-tighter">
-                      {heatmapData.reduce((sum, day) => sum + day.breachCount, 0).toLocaleString()}
+                    <span className="text-3xl font-black text-rose-600 tracking-tighter">
+                      {globalPatients.filter((p: any) => {
+                        const isAbnormal = p.xray_result?.toLowerCase().includes('abnormal');
+                        const noTreatment = !p.att_start_date && !p.referral_date;
+                        return isAbnormal && noTreatment;
+                      }).length.toLocaleString()}
                     </span>
-                    <span className="text-[11px] font-bold text-slate-400 uppercase">Alerts</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Alerts</span>
+                  </div>
+                </div>
+                <div className="group">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-emerald-500 transition-colors">This Month</div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-black text-emerald-600 tracking-tighter">
+                      {globalPatients.filter((p: any) => {
+                        const dateValue = p.screening_date || p.submitted_on;
+                        if (!dateValue) return false;
+                        const date = new Date(dateValue);
+                        const now = new Date();
+                        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+                      }).length.toLocaleString()}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Screened</span>
                   </div>
                 </div>
               </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Activity, Beaker, CheckCircle2, ChevronRight, Heart, Clock, AlertTriangle } from 'lucide-react';
+import { Activity, Beaker, CheckCircle2, ChevronRight, Clock, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, memo } from 'react';
 import { calculatePatientPhase } from '@/lib/phase-engine';
@@ -21,7 +21,7 @@ const PHASE_BADGE: Record<string, { bg: string; text: string; border: string }> 
 };
 
 export const PatientTile = memo(function PatientTile({ patient, onClick }: PatientTileProps) {
-  const isHighRisk = patient.genki_score > 0.8;
+  const isHighRisk = (patient.xray_result || patient.chest_x_ray_result || '').toLowerCase().includes('abnormal');
   const isLinked = patient.link_status === 'LINKED';
   const [isDragOver, setIsDragOver] = useState(false);
   const { phase } = calculatePatientPhase(patient);
@@ -103,10 +103,16 @@ export const PatientTile = memo(function PatientTile({ patient, onClick }: Patie
             <Activity className="w-4 h-4 text-blue-500" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Genki Score</p>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">X-Ray Result</p>
             <div className="flex items-center gap-2">
-              <p className="text-xs font-black text-slate-800">{patient.genki_score?.toFixed(2) || '0.00'}</p>
-              <Heart className="w-3 h-3 text-red-400 fill-red-400 animate-pulse" />
+              <p className={cn(
+                "text-xs font-black truncate",
+                (patient.xray_result || patient.chest_x_ray_result || '').toLowerCase().includes('abnormal') 
+                  ? "text-red-600" 
+                  : "text-emerald-600"
+              )}>
+                {patient.xray_result || patient.chest_x_ray_result || 'Pending'}
+              </p>
             </div>
           </div>
         </div>
@@ -116,8 +122,8 @@ export const PatientTile = memo(function PatientTile({ patient, onClick }: Patie
             <Beaker className="w-4 h-4 text-purple-500" />
           </div>
           <div className="min-w-0">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Primary Scan</p>
-            <p className="text-xs font-bold text-slate-700 truncate">{patient.primary_scan || 'Chest X-Ray Digital'}</p>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">District</p>
+            <p className="text-xs font-bold text-slate-700 truncate">{patient.screening_district || 'Unknown'}</p>
           </div>
         </div>
       </div>
