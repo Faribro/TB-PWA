@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
       'address': 'address',
       'facility_name': 'facility_name',
       'dob': 'date_of_birth',
+      'date_of_birth': 'date_of_birth',
       'screening_date': 'screening_date',
       'Date of referral for TB Examination (sputum) (dd/mm/yy)': 'referral_date',
       'Name of facility where referred to (Give code/name of all facilities)': 'referred_facility',
@@ -81,19 +82,32 @@ export async function POST(request: NextRequest) {
       'Date of starting ATT (dd/mm/yyyy)': 'att_start_date',
       'Date of Treatment Completion (dd/mm/yyyy)': 'att_completion_date',
       'HIV Status (Positive/Negative/Unknown)': 'hiv_status',
-      'Status at the time of referral (Pre ART/On ART)': 'art_status',
-      'ART Number': 'art_number',
+      'Status at the time of referral (Pre ART/On ART) [If on ART at time of referral]': 'art_status',
+      'ART Number (if on ART at the time of referral)': 'art_number',
       'NIKSHAY/ABHA ID': 'nikshay_abha_id',
       'Date of registration (dd/mm/yyyy)': 'registration_date',
       'Remarks': 'remarks',
-      'closure_reason': 'closure_reason'
+      'closure_reason': 'closure_reason',
+      // Google Sheets identifiers - skip for Supabase
+      'Serial Number': null,
+      'KoboUUID': null,
+      'KoboID': null
     };
 
-    // Map updates to database columns
+    // Map updates to database columns (skip null mappings)
     Object.keys(updates).forEach(key => {
-      const dbColumn = fieldMapping[key] || key;
+      const dbColumn = fieldMapping[key];
+      
+      // Skip if mapping is explicitly null (Google Sheets only fields)
+      if (dbColumn === null) {
+        return;
+      }
+      
+      // Use mapped column or original key
+      const columnName = dbColumn || key;
+      
       if (updates[key] !== undefined && updates[key] !== null && updates[key] !== '') {
-        supabaseUpdates[dbColumn] = updates[key];
+        supabaseUpdates[columnName] = updates[key];
       }
     });
 
