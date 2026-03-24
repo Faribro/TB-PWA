@@ -142,6 +142,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       console.log('Patient ID:', patient.id);
       console.log('Kobo UUID:', patient.kobo_uuid);
       console.log('Update Keys:', Object.keys(updatesWithIdentifiers));
+      console.log('\n📋 PAYLOAD TABLE (Verify against Sheet headers):');
+      console.table(updatesWithIdentifiers);
       console.log('Full Payload:', JSON.stringify(updatesWithIdentifiers, null, 2));
       console.log('═══════════════════════════════════════════════════════════');
       
@@ -177,7 +179,9 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       // Revalidate caches
       mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
       
-      toast.success('Clinical updates synced to Supabase, KoboToolbox & Google Sheets!', { id: 'clinical-save' });
+      // Show detailed success message from Google Sheets
+      const sheetsMessage = result.googleSheets?.message || 'Synced to all systems';
+      toast.success(`✅ ${sheetsMessage}`, { id: 'clinical-save', duration: 4000 });
       
       // Small delay before closing to show success message
       setTimeout(() => {
@@ -244,6 +248,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       console.log('Patient ID:', patient.id);
       console.log('Kobo UUID:', patient.kobo_uuid);
       console.log('Update Keys:', Object.keys(updates));
+      console.log('\n📋 PAYLOAD TABLE (Verify against Sheet headers):');
+      console.table(updates);
       console.log('Full Payload:', JSON.stringify(updates, null, 2));
       console.log('═══════════════════════════════════════════════════════════');
 
@@ -260,12 +266,17 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       if (!response.ok) throw new Error('Failed to close loop');
 
+      const result = await response.json();
+
       // Revalidate caches
       mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
       
       onUpdate();
       onClose();
-      toast.success('Patient loop closed successfully!', { id: 'close-loop' });
+      
+      // Show detailed success message from Google Sheets
+      const sheetsMessage = result.googleSheets?.message || 'Loop closed successfully';
+      toast.success(`✅ ${sheetsMessage}`, { id: 'close-loop', duration: 4000 });
     } catch (error: any) {
       mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
       toast.error(`Error: ${error.message}`, { id: 'close-loop' });
@@ -321,6 +332,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       console.log('Patient ID:', patient.id);
       console.log('Kobo UUID:', patient.kobo_uuid);
       console.log('Update Keys:', Object.keys(updatesWithIdentifiers));
+      console.log('\n📋 PAYLOAD TABLE (Verify against Sheet headers):');
+      console.table(updatesWithIdentifiers);
       console.log('Full Payload:', JSON.stringify(updatesWithIdentifiers, null, 2));
       console.log('═══════════════════════════════════════════════════════════');
 
@@ -347,7 +360,9 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       setIsEditingDemographics(false);
       onUpdate();
       
-      toast.success('Demographics synced to Supabase, KoboToolbox & Google Sheets!', { id: 'demo-save' });
+      // Show detailed success message from Google Sheets
+      const sheetsMessage = result.googleSheets?.message || 'Demographics synced successfully';
+      toast.success(`✅ ${sheetsMessage}`, { id: 'demo-save', duration: 4000 });
     } catch (error) {
       console.error('Failed to save demographics:', error);
       // Revert optimistic update on error

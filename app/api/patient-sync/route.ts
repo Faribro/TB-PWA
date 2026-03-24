@@ -191,13 +191,14 @@ export async function POST(request: NextRequest) {
             const webhookData = JSON.parse(responseText);
             googleSheetsResult = {
               success: true,
-              message: 'Google Sheets updated successfully',
+              message: webhookData.message || `Google Sheets updated: ${webhookData.rowsUpdated || 1} row(s)`,
               data: webhookData
             };
           } catch {
+            // Non-JSON response (likely plain text success message)
             googleSheetsResult = {
               success: true,
-              message: 'Google Sheets updated (non-JSON response)',
+              message: responseText || 'Google Sheets updated successfully',
               data: { response: responseText }
             };
           }
@@ -205,7 +206,7 @@ export async function POST(request: NextRequest) {
           console.error('❌ Google Sheets Error:', webhookResponse.status, responseText);
           googleSheetsResult = {
             success: false,
-            message: `Webhook returned status ${webhookResponse.status}: ${responseText}`
+            message: `Webhook failed (${webhookResponse.status}): ${responseText}`
           };
         }
       } catch (webhookError: any) {
