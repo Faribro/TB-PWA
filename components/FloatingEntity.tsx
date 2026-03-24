@@ -35,13 +35,6 @@ const PAGE_SPAWN: Record<string, number> = {
   '/dashboard/follow-up': 0.5,
 };
 
-const MOOD_AURA: Record<SonicMood, string | null> = {
-  urgent:  'radial-gradient(circle, rgba(239,68,68,0.15) 0%, transparent 70%)',
-  happy:   'radial-gradient(circle, rgba(34,197,94,0.15) 0%, transparent 70%)',
-  worried: 'radial-gradient(circle, rgba(234,179,8,0.15) 0%, transparent 70%)',
-  normal:  null,
-};
-
 export default function FloatingEntity() {
   const divRef        = useRef<HTMLDivElement>(null);
   // Safe default — mount useEffect always corrects this before first paint
@@ -737,9 +730,6 @@ export default function FloatingEntity() {
     return () => window.removeEventListener('keydown', handle);
   }, []);
 
-  // ── Derived mood aura ─────────────────────────────────────────────────────
-  const aura = MOOD_AURA[sonicMoodState];
-
   return (
     <>
       <div
@@ -892,19 +882,7 @@ export default function FloatingEntity() {
           )}
         </AnimatePresence>
 
-        {/* Mood aura — single element, driven by lookup table */}
-        {aura && (
-          <div
-            className="absolute pointer-events-none rounded-full animate-pulse"
-            style={{
-              left: '50%', top: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: 160, height: 160,
-              background: aura,
-              zIndex: 999997,
-            }}
-          />
-        )}
+
       </div>
 
       <AnimatePresence>
