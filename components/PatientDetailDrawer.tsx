@@ -95,6 +95,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const artStatus = watch('Status at the time of referral (Pre ART/On ART)');
 
   const onSubmit = async (data: PatientFormData) => {
+    console.log('[PatientDrawer] onSubmit called with data:', data);
     setIsSubmitting(true);
     try {
       toast.loading('Syncing clinical updates across all systems...', { id: 'clinical-save' });
@@ -142,6 +143,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       onClose();
       toast.success('Clinical updates synced to Supabase, KoboToolbox & Google Sheets!', { id: 'clinical-save' });
     } catch (error: any) {
+      console.error('[PatientDrawer] Save error:', error);
       mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
       toast.error(`Error: ${error.message}`, { id: 'clinical-save' });
     } finally {
@@ -151,7 +153,9 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
   const onError = (errors: any) => {
     console.error('[PatientDrawer] Form validation errors:', errors);
-    toast.error('Please check the form for errors', { id: 'validation-error' });
+    if (Object.keys(errors).length > 0) {
+      toast.error('Please check the form for errors', { id: 'validation-error' });
+    }
   };
 
   const handleCloseLoop = async (reason: string) => {
