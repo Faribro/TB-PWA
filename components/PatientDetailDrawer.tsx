@@ -6,7 +6,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, FileText, Activity, Pill, Shield, ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Calendar, Sparkles, Lock, Unlock, Save } from 'lucide-react';
 import { patientFormSchema, type PatientFormData } from '@/lib/schemas';
-import { updatePatientAction } from '@/lib/patient-actions';
 import { calculatePatientPhase, calculateProgressPercentage } from '@/lib/phase-engine';
 import { PatientTimeline } from './PatientTimeline';
 import { Input } from './ui/input';
