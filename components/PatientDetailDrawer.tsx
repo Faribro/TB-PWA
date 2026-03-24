@@ -95,25 +95,54 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const artStatus = watch('Status at the time of referral (Pre ART/On ART)');
 
   const onSubmit = async (data: PatientFormData) => {
-    console.log('[PatientDrawer] Form submitted with data:', data);
     setIsSubmitting(true);
     try {
-      toast.loading('Saving clinical updates...', { id: 'clinical-save' });
-      console.log('[PatientDrawer] Calling updatePatientAction for:', patient.unique_id);
+      toast.loading('Syncing clinical updates across all systems...', { id: 'clinical-save' });
       
-      const result = await updatePatientAction(patient.unique_id, data);
-      console.log('[PatientDrawer] Update result:', result);
+      // Optimistic update
+      mutate(
+        (key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'),
+        async (currentData: any) => {
+          if (!currentData) return currentData;
+          if (currentData.data && Array.isArray(currentData.data)) {
+            return {
+              ...currentData,
+              data: currentData.data.map((p: any) => 
+                p.id === patient.id ? { ...p, ...data } : p
+              )
+            };
+          }
+          if (Array.isArray(currentData)) {
+            return currentData.map((p: any) => 
+              p.id === patient.id ? { ...p, ...data } : p
+            );
+          }
+          return currentData;
+        },
+        { revalidate: false }
+      );
+
+      // Triple-sync API call
+      const response = await fetch('/api/patient-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientId: patient.id,
+          koboUuid: patient.kobo_uuid,
+          updates: data
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to sync clinical updates');
+
+      // Revalidate caches
+      mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
       
-      if (result.success) {
-        toast.success('Clinical updates saved successfully!', { id: 'clinical-save' });
-        onUpdate();
-        onClose();
-      } else {
-        console.error('[PatientDrawer] Update failed:', result.error);
-        toast.error(`Failed to save: ${result.error}`, { id: 'clinical-save' });
-      }
+      onUpdate();
+      onClose();
+      toast.success('Clinical updates synced to Supabase, KoboToolbox & Google Sheets!', { id: 'clinical-save' });
     } catch (error: any) {
-      console.error('[PatientDrawer] Exception during save:', error);
+      mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
       toast.error(`Error: ${error.message}`, { id: 'clinical-save' });
     } finally {
       setIsSubmitting(false);
@@ -129,20 +158,57 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     setIsSubmitting(true);
     try {
       toast.loading('Closing patient loop...', { id: 'close-loop' });
-      const result = await updatePatientAction(patient.unique_id, {
+      
+      const updates = {
         'TB diagnosed (Y/N)': 'N',
         'closure_reason': reason,
         'Remarks': `Loop closed: ${reason}`
+      };
+
+      // Optimistic update
+      mutate(
+        (key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'),
+        async (currentData: any) => {
+          if (!currentData) return currentData;
+          if (currentData.data && Array.isArray(currentData.data)) {
+            return {
+              ...currentData,
+              data: currentData.data.map((p: any) => 
+                p.id === patient.id ? { ...p, ...updates } : p
+              )
+            };
+          }
+          if (Array.isArray(currentData)) {
+            return currentData.map((p: any) => 
+              p.id === patient.id ? { ...p, ...updates } : p
+            );
+          }
+          return currentData;
+        },
+        { revalidate: false }
+      );
+
+      // Triple-sync API call
+      const response = await fetch('/api/patient-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientId: patient.id,
+          koboUuid: patient.kobo_uuid,
+          updates
+        })
       });
+
+      if (!response.ok) throw new Error('Failed to close loop');
+
+      // Revalidate caches
+      mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
       
-      if (result.success) {
-        toast.success('Patient loop closed successfully!', { id: 'close-loop' });
-        onUpdate();
-        onClose();
-      } else {
-        toast.error(`Failed to close loop: ${result.error}`, { id: 'close-loop' });
-      }
+      onUpdate();
+      onClose();
+      toast.success('Patient loop closed successfully!', { id: 'close-loop' });
     } catch (error: any) {
+      mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
       toast.error(`Error: ${error.message}`, { id: 'close-loop' });
     } finally {
       setIsSubmitting(false);
@@ -761,10 +827,9 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
               </button>
             ) : (
               <button
-                type="submit"
-                form="patient-form"
+                type="button"
+                onClick={handleSubmit(onSubmit, onError)}
                 disabled={isSubmitting}
-                onClick={() => console.log('[PatientDrawer] Save button clicked!')}
                 aria-label="Save clinical updates"
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all duration-200 hover:-translate-y-0.5 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
