@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, FileText, Activity, Pill, Shield, ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Calendar, Sparkles, Lock, Unlock, Save } from 'lucide-react';
-import { patientFormSchema, type PatientFormData } from '@/lib/schemas';
+import { type PatientFormData } from '@/lib/schemas';
 import { calculatePatientPhase, calculateProgressPercentage } from '@/lib/phase-engine';
 import { PatientTimeline } from './PatientTimeline';
 import { Input } from './ui/input';
@@ -71,8 +70,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     setIsEditingDemographics(false);
   }, [patient]);
   
-  const { register, handleSubmit, watch, getValues, formState: { errors } } = useForm<PatientFormData>({
-    resolver: zodResolver(patientFormSchema),
+  const { register, watch, getValues } = useForm<PatientFormData>({
     defaultValues: {
       'Date of referral for TB Examination (sputum) (dd/mm/yy)': patient.referral_date || '',
       'Name of facility where referred to (Give code/name of all facilities)': patient.referred_facility || '',
@@ -93,7 +91,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const hivStatus = watch('HIV Status (Positive/Negative/Unknown)');
   const artStatus = watch('Status at the time of referral (Pre ART/On ART) [If on ART at time of referral]');
 
-  const onSubmit = async (data: PatientFormData) => {
+  const handleSaveClinical = async () => {
+    const data = getValues();
     console.log('[PatientDrawer] onSubmit called with data:', data);
     console.log('[PatientDrawer] Patient ID:', patient.id);
     console.log('[PatientDrawer] Kobo UUID:', patient.kobo_uuid);
@@ -195,12 +194,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     }
   };
 
-  const onError = (errors: any) => {
-    console.error('[PatientDrawer] Form validation errors:', errors);
-    if (Object.keys(errors).length > 0) {
-      toast.error('Please check the form for errors', { id: 'validation-error' });
-    }
-  };
+
 
   const handleCloseLoop = async (reason: string) => {
     setIsSubmitting(true);
@@ -698,7 +692,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
         {/* Phase-Aware Quick Actions - All Sections Visible */}
         {!isClosed ? (
-          <form id="patient-form" onSubmit={handleSubmit(onSubmit, onError)} className="space-y-4">
+          <div className="space-y-4">
             {/* Group A: Sputum & Referral - Always visible */}
             <Section id="referral" title="Sputum & Referral" icon={FileText} isCurrent={phase === 'Sputum Test'}>
               <div>
@@ -874,7 +868,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 />
               </div>
             </Section>
-          </form>
+          </div>
         ) : (
           <div className="space-y-6">
             <PatientTimeline patient={patient} />
@@ -915,10 +909,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
             ) : (
               <button
                 type="button"
-                onClick={() => {
-                  const currentData = getValues();
-                  onSubmit(currentData);
-                }}
+                onClick={handleSaveClinical}
                 disabled={isSubmitting}
                 aria-label="Save clinical updates"
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all duration-200 hover:-translate-y-0.5 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
