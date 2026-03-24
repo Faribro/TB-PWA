@@ -174,11 +174,12 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
     const patient = patients.find(p => p.id === id);
     if (!patient) return;
 
-    const response = await fetch('/api/update-patient', {
+    const response = await fetch('/api/patient-sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        uniqueId: patient.unique_id,
+        patientId: patient.id,
+        koboUuid: patient.kobo_uuid,
         updates
       })
     });
