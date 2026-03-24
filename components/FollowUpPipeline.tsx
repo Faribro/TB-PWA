@@ -227,17 +227,17 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
 
   if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-blue-50">
-        <div className="text-center">
-          <div className="inline-block">
-            <svg className="w-12 h-12 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
-          </div>
-          <p className="mt-4 text-slate-600 font-medium">Loading patients...</p>
-          <p className="text-sm text-slate-500 mt-1">0 patients</p>
+      <div className="h-full flex flex-col p-6 gap-4 bg-[#F4F6F9]">
+        <div className="flex items-center justify-between mb-4">
+          <div className="w-1/3 h-8 bg-slate-200 animate-pulse rounded-md" />
+          <div className="w-32 h-6 bg-slate-200 animate-pulse rounded-full" />
         </div>
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="w-full h-28 bg-white border border-slate-100 rounded-xl animate-pulse shadow-sm flex flex-col justify-center p-5">
+            <div className="w-1/2 h-5 bg-slate-200 rounded mb-3" />
+            <div className="w-1/4 h-4 bg-slate-200 rounded" />
+          </div>
+        ))}
       </div>
     );
   }
@@ -340,7 +340,7 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
                     padding: '4px 0',
                   }}
                 >
-                  <div className="glass-card-light rounded-2xl p-5 border-transparent">
+                  <div className="bg-white rounded-xl p-5 border border-slate-100 shadow-sm transition-all duration-200 hover:shadow-md hover:border-blue-300 hover:-translate-y-0.5 group">
                     <div className="flex items-start gap-4">
                       <div className="pt-1" title={!canSelect ? 'Requires manual follow-up: Abnormal X-Ray or Symptoms Present' : 'Select for bulk triage'}>
                         <input
@@ -349,26 +349,38 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
                           onChange={(e) => { e.stopPropagation(); toggleTriageSelect(patient.id); }}
                           disabled={!canSelect}
                           aria-label={canSelect ? `Select ${patient.inmate_name} for triage` : 'Patient requires manual follow-up'}
-                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                         />
                       </div>
                       <div className="flex-1 cursor-pointer" onClick={() => onPatientClick?.(patient)}>
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-3">
-                              <div className="text-sm font-mono font-bold text-cyan-700 bg-cyan-50 px-2.5 py-1 rounded-lg">{patient.unique_id}</div>
-                              <div className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                                phase.phase === 'Sputum Test' ? 'bg-amber-100 text-amber-700' :
-                                phase.phase === 'Diagnosis' ? 'bg-purple-100 text-purple-700' :
-                                phase.phase === 'ATT Initiation' ? 'bg-emerald-100 text-emerald-700' :
-                                'bg-slate-100 text-slate-700'
+                            {/* Data Hierarchy: Name > ID > Status */}
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="text-slate-900 font-bold text-lg leading-tight group-hover:text-blue-700 transition-colors">{patient.inmate_name}</div>
+                              <div className={`px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase shadow-sm ${
+                                phase.phase === 'Sputum Test' ? 'bg-amber-50 text-amber-700 border border-amber-200/50' :
+                                phase.phase === 'Diagnosis' ? 'bg-blue-50 text-blue-700 border border-blue-200/50' :
+                                phase.phase === 'ATT Initiation' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/50' :
+                                'bg-slate-50 text-slate-700 border border-slate-200/50'
                               }`}>{phase.phase}</div>
                             </div>
-                            <div className="text-slate-900 font-bold text-lg mb-2">{patient.inmate_name}</div>
-                            <div className="flex items-center gap-4 text-xs font-medium text-slate-600">
-                              <span>{patient.facility_name}</span>
-                              <span className="text-slate-400">•</span>
-                              <span>{patient.screening_district}</span>
+                            
+                            <div className="flex flex-col gap-2">
+                              <div className="inline-flex items-center w-max">
+                                <span className="text-xs font-mono font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/50">
+                                  {patient.unique_id}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3 text-xs font-medium text-slate-500">
+                                <span className="flex items-center gap-1 group-hover:text-slate-700 transition-colors">
+                                  {patient.facility_name}
+                                </span>
+                                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                <span className="flex items-center gap-1 group-hover:text-slate-700 transition-colors">
+                                  {patient.screening_district}
+                                </span>
+                              </div>
                             </div>
                           </div>
                           <div className="text-right">
@@ -398,10 +410,13 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
             animate={{ opacity: 1 }}
             className="flex items-center justify-center h-64"
           >
-            <div className="text-center">
-              <div className="text-slate-400 text-lg font-bold mb-2">No patients found</div>
-              <div className="text-slate-500 text-sm font-medium">
-                {hasActiveFilter ? 'Try adjusting your filters' : 'No data available'}
+            <div className="flex flex-col items-center justify-center text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-12 h-12 text-slate-300 mb-3">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 8 5 5"/><path d="m22 8-5 5"/>
+              </svg>
+              <div className="text-slate-500 text-lg font-semibold mb-1">No patients found</div>
+              <div className="text-slate-400 text-sm">
+                {hasActiveFilter ? 'We couldn\'t find any patients matching your filters.' : 'There are currently no patients in the pipeline.'}
               </div>
             </div>
           </motion.div>

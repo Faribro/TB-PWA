@@ -95,19 +95,25 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const artStatus = watch('Status at the time of referral (Pre ART/On ART)');
 
   const onSubmit = async (data: PatientFormData) => {
+    console.log('[PatientDrawer] Form submitted with data:', data);
     setIsSubmitting(true);
     try {
       toast.loading('Saving clinical updates...', { id: 'clinical-save' });
+      console.log('[PatientDrawer] Calling updatePatientAction for:', patient.unique_id);
+      
       const result = await updatePatientAction(patient.unique_id, data);
+      console.log('[PatientDrawer] Update result:', result);
       
       if (result.success) {
         toast.success('Clinical updates saved successfully!', { id: 'clinical-save' });
         onUpdate();
         onClose();
       } else {
+        console.error('[PatientDrawer] Update failed:', result.error);
         toast.error(`Failed to save: ${result.error}`, { id: 'clinical-save' });
       }
     } catch (error: any) {
+      console.error('[PatientDrawer] Exception during save:', error);
       toast.error(`Error: ${error.message}`, { id: 'clinical-save' });
     } finally {
       setIsSubmitting(false);
@@ -208,29 +214,31 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const Section = ({ id, title, icon: Icon, children, isCurrent = false }: any) => {
     const isExpanded = expandedSection === id;
     return (
-      <div className={`overflow-hidden rounded-2xl transition-all ${
-        isCurrent ? 'ring-2 ring-blue-500 ring-offset-2' : 'glass-card-light'
+      <div className={`overflow-hidden rounded-xl border border-slate-100 shadow-sm transition-all duration-200 hover:border-blue-300 ${
+        isCurrent ? 'ring-2 ring-blue-500 ring-offset-2' : 'bg-white'
       }`}>
         <button
           type="button"
           onClick={() => setExpandedSection(isExpanded ? '' : id)}
-          className={`w-full px-4 py-4 flex items-center justify-between transition-colors ${
-            isCurrent ? 'bg-blue-600 text-white' : 'hover:bg-white/40'
+          className={`w-full px-4 py-4 flex items-center justify-between transition-all duration-200 ${
+            isCurrent ? 'bg-blue-50 text-blue-900' : 'hover:bg-slate-50'
           }`}
         >
           <div className="flex items-center gap-2">
-            <Icon className={`w-4 h-4 ${isCurrent ? 'text-blue-600' : 'text-slate-600'}`} />
-            <span className={`font-semibold text-sm ${isCurrent ? 'text-blue-900' : 'text-slate-700'}`}>
+            <Icon className={`w-5 h-5 ${isCurrent ? 'text-blue-600' : 'text-slate-500'}`} />
+            <span className={`font-semibold text-slate-900 text-sm`}>
               {title}
             </span>
             {isCurrent && (
-              <span className="ml-2 px-2 py-0.5 bg-blue-600 text-white text-xs rounded-full flex items-center gap-1">
+              <span className="ml-2 px-2.5 py-0.5 bg-blue-100 text-blue-700 font-bold text-xs rounded-full flex items-center gap-1">
                 <Sparkles className="w-3 h-3" />
-                Current Phase
+                Active Phase
               </span>
             )}
           </div>
-          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
+            <ChevronDown className="w-5 h-5 text-slate-400" />
+          </motion.div>
         </button>
         <AnimatePresence>
           {isExpanded && (
@@ -250,30 +258,32 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
   const ReadOnlyField = ({ label, value }: { label: string; value: any }) => (
     <div>
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="font-medium text-slate-900">{value || 'N/A'}</p>
+      <p className="text-xs font-medium text-slate-500 mb-1">{label}</p>
+      <div className="font-medium text-slate-900 bg-slate-50 px-3 py-2 rounded-lg border border-slate-100 min-h-[38px] flex items-center">
+        {value || 'N/A'}
+      </div>
     </div>
   );
 
   const EditableField = ({ label, value, onChange, type = 'text' }: { label: string; value: any; onChange: (val: string) => void; type?: string }) => (
     <div>
-      <label className="block text-xs text-slate-500 mb-1">{label}</label>
+      <label className="block text-xs font-medium text-slate-500 mb-1">{label}</label>
       <Input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 text-sm"
+        className="h-9 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-blue-300"
       />
     </div>
   );
 
   const EditableSelect = ({ label, value, onChange, options }: { label: string; value: any; onChange: (val: string) => void; options: { value: string; label: string }[] }) => (
     <div>
-      <label className="block text-xs text-slate-500 mb-1">{label}</label>
+      <label className="block text-xs font-medium text-slate-500 mb-1">{label}</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+        className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-blue-300"
       >
         {options.map(opt => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -399,10 +409,10 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
               type="button"
               onClick={() => setIsEditingDemographics(!isEditingDemographics)}
               aria-label={isEditingDemographics ? 'Lock demographics editing' : 'Unlock demographics for editing'}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:-translate-y-0.5 flex items-center gap-2 ${
                 isEditingDemographics
-                  ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                  ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 focus:ring-2 focus:ring-slate-400'
+                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100 focus:ring-2 focus:ring-blue-500'
               }`}
             >
               {isEditingDemographics ? (
@@ -725,7 +735,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 onClick={handleSaveDemographics}
                 disabled={isSavingDemographics}
                 aria-label="Save demographic changes"
-                className="w-full px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-medium disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 transition-all"
+                className="w-full px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 transition-all duration-200 hover:-translate-y-0.5 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
               >
                 {isSavingDemographics ? (
                   <>
@@ -749,8 +759,9 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 type="submit"
                 form="patient-form"
                 disabled={isSubmitting}
+                onClick={() => console.log('[PatientDrawer] Save button clicked!')}
                 aria-label="Save clinical updates"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all py-3 rounded-lg disabled:opacity-50"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all duration-200 hover:-translate-y-0.5 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 {isSubmitting ? 'Saving...' : 'Save Clinical Updates'}
               </button>
@@ -761,7 +772,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 type="button"
                 onClick={() => setShowCloseLoop(true)}
                 aria-label="Close patient loop as not TB"
-                className="w-full bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-medium transition-all py-3 rounded-lg flex items-center justify-center gap-2"
+                className="w-full bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-medium transition-all duration-200 hover:-translate-y-0.5 py-3 rounded-lg flex items-center justify-center gap-2 focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
               >
                 <AlertCircle className="w-4 h-4" />
                 Close Loop (Not TB)

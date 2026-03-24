@@ -312,7 +312,7 @@ const SparkCard = ({
   };
 
   return (
-    <Card className="glass-card-light p-5 rounded-[24px] group border-transparent">
+    <Card className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 group transition-all duration-200 hover:shadow-md hover:border-blue-300">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 opacity-80">
@@ -382,7 +382,7 @@ const GeographicHierarchy = ({
               onClick={() => toggleState(state.stateName)}
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
-              className="w-full flex items-center justify-between p-5 glass-card-light rounded-[24px] border-transparent"
+              className="w-full flex items-center justify-between p-5 bg-white rounded-xl border border-slate-100 shadow-sm transition-all duration-200 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5"
             >
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
@@ -451,7 +451,7 @@ const GeographicHierarchy = ({
                                   onClick={() => onFacilityClick(facility.facilityName)}
                                   whileHover={{ scale: 1.01, x: 8 }}
                                   whileTap={{ scale: 0.98 }}
-                                  className="w-full flex items-center justify-between p-4 glass-card-light rounded-2xl border-transparent"
+                                  className="w-full flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 shadow-sm transition-all duration-200 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5"
                                 >
                                   <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center group-hover/fac:bg-blue-600 group-hover/fac:text-white transition-colors">
@@ -770,7 +770,7 @@ export default function Vertex({
            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
            className="h-full"
         >
-          <Card className="glass-light border-white/60 shadow-2xl rounded-[32px] p-8 h-full flex flex-col overflow-hidden border-2 relative">
+          <Card className="bg-white border-slate-200 shadow-sm rounded-xl p-8 h-full flex flex-col overflow-hidden border relative">
             <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-blue-500/[0.02] to-transparent pointer-events-none" />
             <CalendarHeader 
               currentDate={currentDate}
@@ -856,7 +856,7 @@ export default function Vertex({
            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
            className="h-full"
         >
-          <Card className="glass-light border-white shadow-2xl rounded-[32px] overflow-hidden flex flex-col h-full border-2 relative">
+          <Card className="bg-white border-slate-200 shadow-sm rounded-xl overflow-hidden flex flex-col h-full border relative">
             <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-blue-500/[0.02] to-transparent pointer-events-none" />
             <AnimatePresence mode="wait">
               {selectedDate ? (
