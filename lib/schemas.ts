@@ -27,7 +27,6 @@ export const patientFormSchema = z.object({
   
   // Hidden system fields
   'KoboUUID': optionalString,
-  'KoboID': optionalString,
   'Serial Number': optionalString,
   
   // Closure

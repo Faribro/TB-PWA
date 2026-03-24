@@ -107,8 +107,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       const updatesWithIdentifiers = {
         ...data,
         'Serial Number': patient.serial_number || patient.id,
-        'KoboUUID': patient.kobo_uuid,
-        'KoboID': patient.kobo_id || patient.id
+        'KoboUUID': patient.kobo_uuid
       };
       
       // Optimistic update
@@ -215,8 +214,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         'closure_reason': reason,
         'Remarks': `Loop closed: ${reason}`,
         'Serial Number': patient.serial_number || patient.id,
-        'KoboUUID': patient.kobo_uuid,
-        'KoboID': patient.kobo_id || patient.id
+        'KoboUUID': patient.kobo_uuid
       };
 
       // Optimistic update
@@ -294,8 +292,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       const updatesWithIdentifiers = {
         ...editedDemographics,
         'Serial Number': patient.serial_number || patient.id,
-        'KoboUUID': patient.kobo_uuid,
-        'KoboID': patient.kobo_id || patient.id
+        'KoboUUID': patient.kobo_uuid
       };
       
       // Optimistic update - update all SWR caches immediately
