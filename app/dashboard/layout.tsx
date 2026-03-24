@@ -181,9 +181,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Image
                   src="/Images/Logo/AllianceIndia-Logo.png"
                   alt="Alliance India"
-                  width={160}
-                  height={54}
-                  style={{ width: 'auto', height: '54px' }}
+                  width={200}
+                  height={68}
+                  style={{ width: 'auto', height: '68px' }}
                   className="object-contain flex-shrink-0"
                   priority
                   unoptimized
