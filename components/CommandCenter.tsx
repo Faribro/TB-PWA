@@ -4,7 +4,6 @@ import { useState, useMemo, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, Activity, Calendar, CheckCircle, MapPin, Search, Check, X, ChevronRight, Clock, Filter, CheckSquare, Square, Grid3X3, List, Edit3, ChevronUp, ChevronDown } from 'lucide-react';
 import { PatientDetailDrawer } from './PatientDetailDrawer';
-import { PatientTile } from './PatientTile';
 import { PhaseCell } from './PhaseCell';
 import AnalyticsOverview from './AnalyticsOverview';
 import ThreeBackground from './ThreeBackground';
@@ -504,14 +503,9 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
           {viewMode === 'grid' ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredPatients.slice(0, 50).map((patient, idx) => (
-                <PatientTile
-                  key={patient.id}
-                  patient={patient}
-                  onClick={() => setSelectedPatient(patient)}
-                  index={idx}
-                />
-              ))}
+              <div className="col-span-full text-center py-12 text-slate-500">
+                Grid view temporarily unavailable
+              </div>
             </div>
             <div className="mt-6 border-t border-slate-200 pt-4 flex items-center justify-between bg-white rounded-xl px-6 py-4 shadow-sm">
               <div className="text-sm text-slate-600">

@@ -17,14 +17,12 @@ import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { EntityDataSync } from '@/components/EntityDataSync';
 import { useSonicIntelligence } from '@/hooks/useSonicIntelligence';
 import { useEntityStore } from '@/stores/useEntityStore';
-import ClientFloatingEntity from '@/components/ClientFloatingEntity';
 
 const TAB_CONFIG = [
   { id: 'vertex', path: '/dashboard/vertex', icon: Network, label: 'Vertex', description: 'Neural overview', sonicId: 'nav-vertex' },
   { id: 'follow-up', path: '/dashboard/follow-up', icon: GitBranch, label: 'Follow-up Pipeline', description: 'Patient pipeline', sonicId: 'nav-followup' },
   { id: 'mande', path: '/dashboard/mande', icon: Copy, label: 'M&E Tools', description: 'Monitoring & eval', sonicId: 'nav-mande' },
   { id: 'gis', path: '/dashboard/gis', icon: Map, label: 'GIS Map', description: 'Spatial intelligence', sonicId: 'nav-gis' },
-  { id: 'neural-nexus', path: '/dashboard/neural-nexus', icon: Brain, label: 'Neural Nexus', description: 'X-Ray Intelligence', sonicId: 'nav-neural-nexus' },
   { id: 'settings', path: '/dashboard', icon: Settings, label: 'Settings', description: 'Account & sync', sonicId: 'nav-settings' },
 ];
 
@@ -260,8 +258,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         )}
       </motion.aside>
-
-      <ClientFloatingEntity />
 
       <main className="flex-1 h-full overflow-hidden relative z-10 flex flex-col">
         <AnimatePresence mode="wait">

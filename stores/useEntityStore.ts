@@ -57,9 +57,6 @@ interface EntityStore {
   sonicLanguage: SonicLanguage;
   sonicDeepScanTarget: string | null;
   sonicDeepScanData: { district: string; screened: number; breaches: number; breachRate: number } | null;
-  // Neural Nexus State
-  selectedPatient: any | null;
-  neuralNexusViewerOpen: boolean;
 
   setMode: (mode: EntityMode) => void;
   setState: (state: EntityState) => void;
@@ -91,8 +88,6 @@ interface EntityStore {
   setSonicLanguage: (lang: SonicLanguage) => void;
   setSonicDeepScanTarget: (district: string | null) => void;
   setSonicDeepScanData: (data: { district: string; screened: number; breaches: number; breachRate: number } | null) => void;
-  setSelectedPatient: (patient: any | null) => void;
-  setNeuralNexusViewerOpen: (open: boolean) => void;
   
   // Temporal Mapping State
   isTemporalMode: boolean;
@@ -147,8 +142,6 @@ export const useEntityStore = create<EntityStore>()(
       sonicLanguage: 'en' as SonicLanguage,
       sonicDeepScanTarget: null,
       sonicDeepScanData: null,
-      selectedPatient: null,
-      neuralNexusViewerOpen: false,
       
       // Temporal initial state (SSR-safe: using static timestamps)
       isTemporalMode: false,
@@ -241,8 +234,6 @@ export const useEntityStore = create<EntityStore>()(
       },
       setSonicDeepScanTarget: (district) => set({ sonicDeepScanTarget: district }),
       setSonicDeepScanData: (data) => set({ sonicDeepScanData: data }),
-      setSelectedPatient: (patient) => set({ selectedPatient: patient }),
-      setNeuralNexusViewerOpen: (open) => set({ neuralNexusViewerOpen: open }),
       setTemporalMode: (v) => set({ isTemporalMode: v }),
       setTimeRange: (range) => set({ timeRange: range }),
       setCurrentPlayhead: (ts) => set({ currentPlayhead: ts }),

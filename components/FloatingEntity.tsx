@@ -6,7 +6,6 @@ import { useEntityStore } from '@/stores/useEntityStore';
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { sonicSounds } from '@/utils/sonicSounds';
-import SonicSpeedTrails, { type SonicSpeedTrailsHandle } from './SonicSpeedTrails';
 
 const SonicCanvas = dynamic(() => import('./SonicCanvas'), { ssr: false, loading: () => null });
 const SonicAssistantPanelDynamic = dynamic(() => import('./SonicAssistantPanel'), {
@@ -45,9 +44,9 @@ const MOOD_AURA: Record<SonicMood, string | null> = {
 
 export default function FloatingEntity() {
   const divRef        = useRef<HTMLDivElement>(null);
-  const trailsRef     = useRef<SonicSpeedTrailsHandle>(null);
   // Safe default — mount useEffect always corrects this before first paint
   const posRef        = useRef({ x: 320, y: 600 });
+  const prevPosRef    = useRef({ x: 320, y: 600 });
   const edgeRef       = useRef<Edge>('bottom');
   const dirRef        = useRef<EdgeDir>('forward');
   const rotRef        = useRef(0);
@@ -109,11 +108,36 @@ export default function FloatingEntity() {
   const globalState   = useEntityStore((s) => s.state);
   const characterType = useEntityStore((s) => s.characterType);
 
-  // ── Stable transform applier (no deps, reads refs directly) ──────────────
+  // ── Smart Gravity Transform: Edge-Based Rotation + Directional Flip ──────
   const applyTransform = useCallback(() => {
     if (!divRef.current) return;
-    divRef.current.style.transform =
-      `translate(${posRef.current.x - CANVAS_SIZE / 2}px, ${posRef.current.y - CANVAS_SIZE / 2}px) rotate(${rotRef.current}deg)`;
+    const isMovingLeft = posRef.current.x < prevPosRef.current.x;
+    const { x, y } = posRef.current;
+    const W = window.innerWidth;
+    
+    let transform = '';
+    
+    // Ceiling
+    if (y < 60) {
+      const scaleX = isMovingLeft ? 1 : -1;
+      transform = `translate(${x - CANVAS_SIZE / 2}px, ${y - CANVAS_SIZE / 2}px) rotate(180deg) scaleX(${scaleX})`;
+    }
+    // Left Wall
+    else if (x < 60) {
+      transform = `translate(${x - CANVAS_SIZE / 2}px, ${y - CANVAS_SIZE / 2}px) rotate(90deg)`;
+    }
+    // Right Wall
+    else if (x > W - 60) {
+      transform = `translate(${x - CANVAS_SIZE / 2}px, ${y - CANVAS_SIZE / 2}px) rotate(-90deg)`;
+    }
+    // Floor/Middle
+    else {
+      const scaleX = isMovingLeft ? -1 : 1;
+      transform = `translate(${x - CANVAS_SIZE / 2}px, ${y - CANVAS_SIZE / 2}px) rotate(0deg) scaleX(${scaleX})`;
+    }
+    
+    divRef.current.style.transform = transform;
+    prevPosRef.current = { x, y };
   }, []);
 
   // ── Keep walking ref in sync with state ──────────────────────────────────
@@ -289,7 +313,6 @@ export default function FloatingEntity() {
           setIsJumping(true);
           vyRef.current = -14;
           sonicSounds.jump();
-          trailsRef.current?.corner && trailsRef.current.corner(posRef.current.x, posRef.current.y);
         }
       }
 
@@ -350,13 +373,7 @@ export default function FloatingEntity() {
     } else {
       // DRAGGING: suspend gravity, emit trail from center
       vyRef.current = 0;
-      const lp = lastDragPosRef.current;
-      const ddx = posRef.current.x - lp.x;
-      const ddy = posRef.current.y - lp.y;
-      if (Math.hypot(ddx, ddy) > 0.5) {
-        trailsRef.current?.emit?.(posRef.current.x, posRef.current.y, ddx, ddy, false);
-        lastDragPosRef.current = { x: posRef.current.x, y: posRef.current.y };
-      }
+      lastDragPosRef.current = { x: posRef.current.x, y: posRef.current.y };
     }
 
     // ── Walking movement ──────────────────────────────────────────────────
@@ -368,7 +385,6 @@ export default function FloatingEntity() {
           edgeRef.current = 'right'; setCurrentEdge('right');
           targetRotRef.current = -90;
           isJumpingRef.current = false; setIsJumping(false); vyRef.current = 0;
-          trailsRef.current?.corner && trailsRef.current.corner(posRef.current.x, posRef.current.y);
         }
       } else if (edge === 'right') {
         posRef.current.x = W - 36;
@@ -377,7 +393,6 @@ export default function FloatingEntity() {
           posRef.current.x = W - 80; posRef.current.y = 36;
           edgeRef.current = 'top'; setCurrentEdge('top');
           targetRotRef.current = 180;
-          trailsRef.current?.corner && trailsRef.current.corner(posRef.current.x, posRef.current.y);
         }
       } else if (edge === 'top') {
         posRef.current.y = 36;
@@ -386,7 +401,6 @@ export default function FloatingEntity() {
           posRef.current.x = 36; posRef.current.y = 80;
           edgeRef.current = 'left'; setCurrentEdge('left');
           targetRotRef.current = 90;
-          trailsRef.current?.corner && trailsRef.current.corner(posRef.current.x, posRef.current.y);
         }
       } else if (edge === 'left') {
         posRef.current.x = 36;
@@ -395,7 +409,6 @@ export default function FloatingEntity() {
           posRef.current.x = 80; posRef.current.y = H - 48;
           edgeRef.current = 'bottom'; setCurrentEdge('bottom');
           targetRotRef.current = 0;
-          trailsRef.current?.corner && trailsRef.current.corner(posRef.current.x, posRef.current.y);
         }
       }
     }
@@ -408,7 +421,6 @@ export default function FloatingEntity() {
     const moved = Math.hypot(dx, dy);
     if (moved > 0.1) {
       distanceRef.current += moved;
-      trailsRef.current?.emit?.(posRef.current.x, posRef.current.y, dx, dy, isBoostingRef.current);
     }
 
     const diff      = targetRotRef.current - rotRef.current;
@@ -512,7 +524,6 @@ export default function FloatingEntity() {
       posRef.current.y = e.clientY - dragOffsetRef.current.y;
       lastDragPosRef.current = { x: posRef.current.x, y: posRef.current.y };
       applyTransform();
-      trailsRef.current?.emit?.(posRef.current.x, posRef.current.y, dx, dy, false);
     };
 
     const onUp = () => {
@@ -731,12 +742,6 @@ export default function FloatingEntity() {
 
   return (
     <>
-      <SonicSpeedTrails
-        ref={trailsRef}
-        mood={sonicMoodState}
-        intensity={2.5}
-      />
-
       <div
         ref={divRef}
         id="sonic-entity"
