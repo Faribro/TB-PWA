@@ -39,7 +39,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     contact_number: patient.contact_number || '',
     address: patient.address || '',
     facility_name: patient.facility_name || '',
-    dob: patient.dob || '',
+    date_of_birth: patient.date_of_birth || '',
     screening_date: patient.screening_date || ''
   });
 
@@ -66,7 +66,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       contact_number: patient.contact_number || '',
       address: patient.address || '',
       facility_name: patient.facility_name || '',
-      dob: patient.dob || '',
+      date_of_birth: patient.date_of_birth || '',
       screening_date: patient.screening_date || ''
     });
     setIsEditingDemographics(false);
@@ -76,16 +76,16 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     resolver: zodResolver(patientFormSchema),
     defaultValues: {
       'Date of referral for TB Examination (sputum) (dd/mm/yy)': patient.referral_date || '',
-      'Name of facility where referred to (Give code/name of all facilities)': patient.referral_facility || '',
+      'Name of facility where referred to (Give code/name of all facilities)': patient.referred_facility || '',
       'TB diagnosed (Y/N)': patient.tb_diagnosed || '',
-      'Date of TB Diagnosed (dd/mm/yy)': patient.diagnosis_date || '',
+      'Date of TB Diagnosed (dd/mm/yy)': patient.tb_diagnosis_date || '',
       'Type of TB Diagnosed (P/EP)': patient.tb_type || '',
       'Date of starting ATT (dd/mm/yyyy)': patient.att_start_date || '',
       'Date of Treatment Completion (dd/mm/yyyy)': patient.att_completion_date || '',
       'HIV Status (Positive/Negative/Unknown)': patient.hiv_status || '',
       'Status at the time of referral (Pre ART/On ART)': patient.art_status || '',
       'ART Number': patient.art_number || '',
-      'NIKSHAY/ABHA ID': patient.nikshay_id || '',
+      'NIKSHAY/ABHA ID': patient.nikshay_abha_id || '',
       'Date of registration (dd/mm/yyyy)': patient.registration_date || '',
       'Remarks': patient.remarks || ''
     }
@@ -96,6 +96,9 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
   const onSubmit = async (data: PatientFormData) => {
     console.log('[PatientDrawer] onSubmit called with data:', data);
+    console.log('[PatientDrawer] Patient ID:', patient.id);
+    console.log('[PatientDrawer] Kobo UUID:', patient.kobo_uuid);
+    
     setIsSubmitting(true);
     try {
       toast.loading('Syncing clinical updates across all systems...', { id: 'clinical-save' });
@@ -123,6 +126,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         { revalidate: false }
       );
 
+      console.log('[PatientDrawer] Calling /api/patient-sync...');
+      
       // Triple-sync API call
       const response = await fetch('/api/patient-sync', {
         method: 'POST',
@@ -134,14 +139,27 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         })
       });
 
-      if (!response.ok) throw new Error('Failed to sync clinical updates');
+      console.log('[PatientDrawer] API response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('[PatientDrawer] API error:', errorData);
+        throw new Error(errorData.error || 'Failed to sync clinical updates');
+      }
+
+      const result = await response.json();
+      console.log('[PatientDrawer] API success:', result);
 
       // Revalidate caches
       mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
       
-      onUpdate();
-      onClose();
       toast.success('Clinical updates synced to Supabase, KoboToolbox & Google Sheets!', { id: 'clinical-save' });
+      
+      // Small delay before closing to show success message
+      setTimeout(() => {
+        onUpdate();
+        onClose();
+      }, 500);
     } catch (error: any) {
       console.error('[PatientDrawer] Save error:', error);
       mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
@@ -533,8 +551,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 />
                 <EditableField
                   label="Date of Birth"
-                  value={editedDemographics.dob}
-                  onChange={(val) => setEditedDemographics({ ...editedDemographics, dob: val })}
+                  value={editedDemographics.date_of_birth}
+                  onChange={(val) => setEditedDemographics({ ...editedDemographics, date_of_birth: val })}
                   type="date"
                 />
                 <EditableField
@@ -573,7 +591,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 </div>
                 <ReadOnlyField label="Age" value={patient.age} />
                 <ReadOnlyField label="Sex" value={patient.sex} />
-                <ReadOnlyField label="Date of Birth" value={patient.dob} />
+                <ReadOnlyField label="Date of Birth" value={patient.date_of_birth} />
                 <ReadOnlyField label="Screening Date" value={patient.screening_date} />
                 <div className="col-span-2">
                   <ReadOnlyField label="Contact Number" value={patient.contact_number} />

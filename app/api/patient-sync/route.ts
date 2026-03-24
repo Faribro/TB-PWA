@@ -14,6 +14,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { patientId, koboUuid, updates } = body;
 
+    console.log('[patient-sync] Request received:', { patientId, koboUuid, updateKeys: Object.keys(updates) });
+
     if (!patientId || !updates) {
       return NextResponse.json(
         { error: 'Missing required fields: patientId and updates' },
@@ -26,7 +28,7 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString()
     };
 
-    // Map form fields to database columns
+    // Map form fields to database columns (using ACTUAL Supabase column names)
     const fieldMapping: Record<string, string> = {
       'inmate_name': 'inmate_name',
       'age': 'age',
@@ -34,19 +36,19 @@ export async function POST(request: NextRequest) {
       'contact_number': 'contact_number',
       'address': 'address',
       'facility_name': 'facility_name',
-      'dob': 'dob',
+      'dob': 'date_of_birth',
       'screening_date': 'screening_date',
       'Date of referral for TB Examination (sputum) (dd/mm/yy)': 'referral_date',
-      'Name of facility where referred to (Give code/name of all facilities)': 'referral_facility_name',
+      'Name of facility where referred to (Give code/name of all facilities)': 'referred_facility',
       'TB diagnosed (Y/N)': 'tb_diagnosed',
       'Date of TB Diagnosed (dd/mm/yy)': 'tb_diagnosis_date',
       'Type of TB Diagnosed (P/EP)': 'tb_type',
       'Date of starting ATT (dd/mm/yyyy)': 'att_start_date',
       'Date of Treatment Completion (dd/mm/yyyy)': 'att_completion_date',
       'HIV Status (Positive/Negative/Unknown)': 'hiv_status',
-      'Status at the time of referral (Pre ART/On ART)': 'hiv_art_status',
+      'Status at the time of referral (Pre ART/On ART)': 'art_status',
       'ART Number': 'art_number',
-      'NIKSHAY/ABHA ID': 'nikshay_id',
+      'NIKSHAY/ABHA ID': 'nikshay_abha_id',
       'Date of registration (dd/mm/yyyy)': 'registration_date',
       'Remarks': 'remarks',
       'closure_reason': 'closure_reason'
@@ -55,8 +57,12 @@ export async function POST(request: NextRequest) {
     // Map updates to database columns
     Object.keys(updates).forEach(key => {
       const dbColumn = fieldMapping[key] || key;
-      supabaseUpdates[dbColumn] = updates[key];
+      if (updates[key] !== undefined && updates[key] !== null && updates[key] !== '') {
+        supabaseUpdates[dbColumn] = updates[key];
+      }
     });
+
+    console.log('[patient-sync] Supabase updates:', supabaseUpdates);
 
     const { data: supabaseData, error: supabaseError } = await supabase
       .from('patients')
@@ -66,12 +72,14 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (supabaseError) {
-      console.error('Supabase update failed:', supabaseError);
+      console.error('[patient-sync] Supabase error:', supabaseError);
       return NextResponse.json(
         { error: 'Failed to update Supabase', details: supabaseError.message },
         { status: 500 }
       );
     }
+
+    console.log('[patient-sync] Supabase success, updated patient:', supabaseData?.id);
 
     // Step B: Forward to Google Apps Script (with timeout handling)
     let googleSheetsResult: { success: boolean; message: string; data?: any } = { 
