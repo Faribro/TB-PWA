@@ -120,6 +120,11 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     }
   };
 
+  const onError = (errors: any) => {
+    console.error('[PatientDrawer] Form validation errors:', errors);
+    toast.error('Please check the form for errors', { id: 'validation-error' });
+  };
+
   const handleCloseLoop = async (reason: string) => {
     setIsSubmitting(true);
     try {
@@ -540,7 +545,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
         {/* Phase-Aware Quick Actions - All Sections Visible */}
         {!isClosed ? (
-          <form id="patient-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form id="patient-form" onSubmit={handleSubmit(onSubmit, onError)} className="space-y-4">
             {/* Group A: Sputum & Referral - Always visible */}
             <Section id="referral" title="Sputum & Referral" icon={FileText} isCurrent={phase === 'Sputum Test'}>
               <div>
