@@ -103,6 +103,14 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     try {
       toast.loading('Syncing clinical updates across all systems...', { id: 'clinical-save' });
       
+      // CRITICAL: Add identifier keys for Google Sheets row matching
+      const updatesWithIdentifiers = {
+        ...data,
+        'Serial Number': patient.serial_number || patient.id,
+        'KoboUUID': patient.kobo_uuid,
+        'KoboID': patient.kobo_id || patient.id
+      };
+      
       // Optimistic update
       mutate(
         (key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'),
@@ -133,8 +141,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       console.log('🚀 SENDING TO SHEETS (Clinical):');
       console.log('Patient ID:', patient.id);
       console.log('Kobo UUID:', patient.kobo_uuid);
-      console.log('Update Keys:', Object.keys(data));
-      console.log('Full Payload:', JSON.stringify(data, null, 2));
+      console.log('Update Keys:', Object.keys(updatesWithIdentifiers));
+      console.log('Full Payload:', JSON.stringify(updatesWithIdentifiers, null, 2));
       console.log('═══════════════════════════════════════════════════════════');
       
       // Triple-sync API call
@@ -144,7 +152,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         body: JSON.stringify({
           patientId: patient.id,
           koboUuid: patient.kobo_uuid,
-          updates: data
+          updates: updatesWithIdentifiers
         })
       });
 
@@ -197,10 +205,14 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     try {
       toast.loading('Closing patient loop...', { id: 'close-loop' });
       
+      // CRITICAL: Add identifier keys for Google Sheets row matching
       const updates = {
         'TB diagnosed (Y/N)': 'N',
         'closure_reason': reason,
-        'Remarks': `Loop closed: ${reason}`
+        'Remarks': `Loop closed: ${reason}`,
+        'Serial Number': patient.serial_number || patient.id,
+        'KoboUUID': patient.kobo_uuid,
+        'KoboID': patient.kobo_id || patient.id
       };
 
       // Optimistic update
@@ -267,6 +279,14 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     try {
       toast.loading('Syncing demographics across all systems...', { id: 'demo-save' });
       
+      // CRITICAL: Add identifier keys for Google Sheets row matching
+      const updatesWithIdentifiers = {
+        ...editedDemographics,
+        'Serial Number': patient.serial_number || patient.id,
+        'KoboUUID': patient.kobo_uuid,
+        'KoboID': patient.kobo_id || patient.id
+      };
+      
       // Optimistic update - update all SWR caches immediately
       mutate(
         (key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'),
@@ -300,8 +320,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       console.log('🚀 SENDING TO SHEETS (Demographics):');
       console.log('Patient ID:', patient.id);
       console.log('Kobo UUID:', patient.kobo_uuid);
-      console.log('Update Keys:', Object.keys(editedDemographics));
-      console.log('Full Payload:', JSON.stringify(editedDemographics, null, 2));
+      console.log('Update Keys:', Object.keys(updatesWithIdentifiers));
+      console.log('Full Payload:', JSON.stringify(updatesWithIdentifiers, null, 2));
       console.log('═══════════════════════════════════════════════════════════');
 
       // Call the triple-sync API
@@ -311,7 +331,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         body: JSON.stringify({
           patientId: patient.id,
           koboUuid: patient.kobo_uuid,
-          updates: editedDemographics
+          updates: updatesWithIdentifiers
         })
       });
 
