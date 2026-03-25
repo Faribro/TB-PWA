@@ -20,6 +20,7 @@ import {
   Merge,
   X,
   Eye,
+  EyeOff,
   Calendar,
   Stethoscope,
   Microscope,
@@ -365,6 +366,7 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
   const [dismissedPairs, setDismissedPairs] = useState<Set<string>>(new Set());
   const [cmdOpen, setCmdOpen] = useState(false);
   const [integrityFilter, setIntegrityFilter] = useState<'all' | 'high' | 'medium'>('all');
+  const [isDashboardHidden, setIsDashboardHidden] = useState(false);
 
   // ── Keyboard shortcut ──────────────────────────────────────────────────
 
@@ -530,34 +532,68 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
               </p>
             </div>
 
-            {/* Command palette trigger */}
-            <button
-              type="button"
-              onClick={() => setCmdOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-500 hover:border-slate-300 hover:text-slate-700 transition-all shadow-sm"
-            >
-              <Command className="w-4 h-4" />
-              <span>Commands</span>
-              <kbd className="ml-1 text-xs bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Hide Dashboard Toggle */}
+              <button
+                type="button"
+                onClick={() => setIsDashboardHidden(!isDashboardHidden)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-full text-sm text-slate-600 hover:border-slate-300 hover:text-slate-900 transition-all shadow-sm"
+              >
+                {isDashboardHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                <span>{isDashboardHidden ? 'Show' : 'Hide'} Dashboard</span>
+              </button>
+
+              {/* Command palette trigger */}
+              <button
+                type="button"
+                onClick={() => setCmdOpen(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-500 hover:border-slate-300 hover:text-slate-700 transition-all shadow-sm"
+              >
+                <Command className="w-4 h-4" />
+                <span>Commands</span>
+                <kbd className="ml-1 text-xs bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
+              </button>
+            </div>
           </div>
 
           {/* ── Intelligence Bar ─────────────────────────────────────────── */}
-          <IntelligenceBar
-            duplicates={duplicatePairs.length}
-            high={highCount}
-            medium={mediumCount}
-            attLeak={cascadeData.criticalLeak}
-            onChipClick={setActiveTab}
-          />
+          <AnimatePresence>
+            {!isDashboardHidden && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <IntelligenceBar
+                  duplicates={duplicatePairs.length}
+                  high={highCount}
+                  medium={mediumCount}
+                  attLeak={cascadeData.criticalLeak}
+                  onChipClick={setActiveTab}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* ── Data Health Gauge ────────────────────────────────────────── */}
-          <DataHealthGauge
-            healthScore={healthScore}
-            highCount={highCount}
-            mediumCount={mediumCount}
-            onSectionClick={handleGaugeClick}
-          />
+          <AnimatePresence>
+            {!isDashboardHidden && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <DataHealthGauge
+                  healthScore={healthScore}
+                  highCount={highCount}
+                  mediumCount={mediumCount}
+                  onSectionClick={handleGaugeClick}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* ── Navigation ──────────────────────────────────────────────── */}
           <div className="glass-light rounded-3xl border border-white shadow-2xl p-2 relative z-10">
@@ -724,8 +760,20 @@ function DuplicateAssassin({
           transition={{ duration: 0.28 }}
           className="grid grid-cols-1 md:grid-cols-2 gap-4"
         >
-          <RecordCard record={pair.recordA} label="Record A" conflicts={conflicts} onView={() => openPatient(pair.recordA)} />
-          <RecordCard record={pair.recordB} label="Record B" conflicts={conflicts} onView={() => openPatient(pair.recordB)} />
+          <RecordCard 
+            record={pair.recordA} 
+            label="Record A" 
+            conflicts={conflicts} 
+            onView={() => openPatient(pair.recordA)}
+            side="left"
+          />
+          <RecordCard 
+            record={pair.recordB} 
+            label="Record B" 
+            conflicts={conflicts} 
+            onView={() => openPatient(pair.recordB)}
+            side="right"
+          />
         </motion.div>
       </AnimatePresence>
 
@@ -808,7 +856,7 @@ function ActionButton({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Record Card
+// Record Card with whileInView Cinematic Split Effect
 // ─────────────────────────────────────────────────────────────────────────────
 
 const RecordCard = memo(function RecordCard({
@@ -816,14 +864,35 @@ const RecordCard = memo(function RecordCard({
   label,
   conflicts,
   onView,
+  side,
 }: {
   record: Patient;
   label: string;
   conflicts: Set<string>;
   onView: () => void;
+  side: 'left' | 'right';
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.04)] p-5 space-y-3">
+    <motion.div
+      initial={{ 
+        opacity: 0, 
+        x: side === 'left' ? -100 : 100, 
+        y: 50 
+      }}
+      whileInView={{ 
+        opacity: 1, 
+        x: 0, 
+        y: 0 
+      }}
+      viewport={{ once: false, amount: 0.3 }}
+      transition={{ 
+        type: "spring", 
+        stiffness: 200, 
+        damping: 20,
+        delay: side === 'right' ? 0.1 : 0
+      }}
+      className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.04)] p-5 space-y-3"
+    >
       <div className="flex items-center justify-between">
         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{label}</span>
         <button
@@ -856,7 +925,7 @@ const RecordCard = memo(function RecordCard({
           );
         })}
       </div>
-    </div>
+    </motion.div>
   );
 });
 

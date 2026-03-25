@@ -870,7 +870,7 @@ export default function SonicAssistantPanel({ onClose }: Props) {
                 onClick={() => setShowLanguageMenu(!showLanguageMenu)} 
                 aria-label="Select language"
                 aria-expanded={showLanguageMenu}
-                className="w-10 h-10 rounded-2xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-900 transition-all active:scale-90"
+                className="w-10 h-10 rounded-2xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-900 transition-all active:scale-90 pointer-events-auto"
               >
                 <Globe className="w-5 h-5" />
               </button>
@@ -926,9 +926,9 @@ export default function SonicAssistantPanel({ onClose }: Props) {
               </AnimatePresence>
             </div>
             <button 
-              onPointerDownCapture={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }}
+              onClick={(e) => { e.stopPropagation(); onClose(); }}
               aria-label="Close Sonic assistant"
-              className="relative z-[99999] w-10 h-10 rounded-2xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 flex items-center justify-center text-slate-500 transition-all active:scale-90 pointer-events-auto"
+              className="w-10 h-10 rounded-2xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 flex items-center justify-center text-slate-500 transition-all active:scale-90 pointer-events-auto"
             >
               <X className="w-5 h-5" />
             </button>

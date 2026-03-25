@@ -112,55 +112,6 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
           onSetFilter={() => {}}
         />
       </div>
-
-      <div className="h-[100px] shrink-0 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.02)] z-50 flex items-center justify-between px-8">
-        {/* Scope badge */}
-        <div className="flex flex-col items-start">
-          <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400 mb-1">
-            {national ? 'National Command Center' : `${scope.state ?? 'State'} Command Center`}
-          </p>
-          <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full transition-all duration-300 ${
-            national
-              ? 'bg-indigo-900 border border-indigo-500 text-indigo-50 shadow-[0_0_15px_rgba(37,99,235,0.4)]'
-              : metrics.pending > 0 
-                ? 'bg-amber-100 border border-amber-300 text-amber-800 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
-                : 'bg-emerald-100 border border-emerald-300 text-emerald-800 shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-          }`}>
-            <span className="flex items-center gap-1.5">
-               {national ? <span className="animate-pulse drop-shadow-md">🇮🇳</span> : '🗺️'} 
-               {national ? 'All India' : scope.state}
-            </span>
-          </span>
-        </div>
-
-        {/* Metrics */}
-        <div className="flex items-center gap-12">
-          <button onClick={() => setFilter({ status: 'All' })} className="flex flex-col items-center hover:scale-105 transition-transform active:scale-95 group">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1 group-hover:text-blue-500 transition-colors">Total Screened</p>
-            <p className="text-4xl font-black text-slate-900 tracking-tighter tabular-nums leading-none group-hover:text-blue-600 transition-colors">
-              {metrics.total.toLocaleString()}
-            </p>
-          </button>
-
-          <div className="w-px h-12 bg-slate-200" />
-
-          <button onClick={() => setFilter({ status: 'High Alert' })} className="flex flex-col items-center hover:scale-105 transition-transform active:scale-95 group">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-rose-400 mb-1 group-hover:text-rose-500 transition-colors">Pending Alerts</p>
-            <p className="text-4xl font-black text-rose-600 tracking-tighter tabular-nums leading-none group-hover:text-rose-700 transition-colors">
-              {metrics.pending.toLocaleString()}
-            </p>
-          </button>
-
-          <div className="w-px h-12 bg-slate-200" />
-
-          <button onClick={() => setFilter({ phase: 'ATT Initiation' })} className="flex flex-col items-center hover:scale-105 transition-transform active:scale-95 group">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-400 mb-1 group-hover:text-emerald-500 transition-colors">On ATT</p>
-            <p className="text-4xl font-black text-emerald-600 tracking-tighter tabular-nums leading-none group-hover:text-emerald-700 transition-colors">
-              {metrics.onATT.toLocaleString()}
-            </p>
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

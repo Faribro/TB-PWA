@@ -19,11 +19,14 @@ export default function ClientFloatingEntity() {
   return (
     <div
       suppressHydrationWarning
-      className="fixed inset-0 z-50"
-      style={{ pointerEvents: 'none' }}
+      className="fixed inset-0 z-[45] pointer-events-none"
       onError={() => setFailed(true)}
     >
-      {ready && <FloatingEntity />}
+      {ready && (
+        <div className="pointer-events-auto">
+          <FloatingEntity />
+        </div>
+      )}
     </div>
   );
 }

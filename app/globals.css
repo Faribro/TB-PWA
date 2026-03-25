@@ -50,6 +50,16 @@ canvas[data-engine] {
   50% { opacity: 0.8; transform: scale(1.1); }
 }
 
+@keyframes accordion-down {
+  from { height: 0; }
+  to { height: var(--radix-accordion-content-height); }
+}
+
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); }
+  to { height: 0; }
+}
+
 @keyframes cube-rotate {
   0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
   100% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }

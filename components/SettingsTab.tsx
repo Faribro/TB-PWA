@@ -674,7 +674,7 @@ export default function SettingsTab() {
         {/* Sub-tab navigation */}
         <aside className="w-64 border-r border-slate-200/80 bg-white/90 backdrop-blur-xl p-5 flex flex-col">
           <div className="mb-6">
-            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Settings</h2>
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.4em]">Settings</h2>
           </div>
           <nav aria-label="Settings sub-navigation" className="flex flex-col gap-1">
             {subTabs.map((tab) => {

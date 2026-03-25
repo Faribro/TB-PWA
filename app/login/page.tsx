@@ -106,9 +106,9 @@ function Masthead() {
       <div className="h-24 bg-white/90 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-6 sm:px-12 shadow-sm">
         
         {/* Left Branding Title */}
-        <div className="flex flex-col">
-          <h1 className="text-xl font-extralight text-slate-400 tracking-[0.4em] uppercase">Track and Chase</h1>
-          <p className="text-[10px] font-black text-slate-900 tracking-normal uppercase">SAMPARK</p>
+        <div className="flex flex-col items-start">
+          <h1 className="text-xl font-black text-slate-800 tracking-[0.4em] uppercase">S A M A D H A A N</h1>
+          <p className="text-[10px] text-slate-500 tracking-[0.2em] uppercase text-center w-full">Track and Chase</p>
         </div>
 
         {/* Right Grouped Logos with Dividers */}
@@ -126,7 +126,7 @@ function Masthead() {
             alt="NACO" 
             width={120} 
             height={48} 
-            className="h-12 w-auto object-contain" 
+            className="h-12 w-auto object-contain bg-white mix-blend-multiply" 
           />
           <div className="w-[1px] h-10 bg-slate-200" />
           <Image 
@@ -156,6 +156,15 @@ function Masthead() {
 
 export default function LoginPage() {
   const [isHovering, setIsHovering] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const reason = params.get('reason');
+    if (reason === 'expired' || reason === 'session_expired') {
+      setSessionExpired(true);
+    }
+  }, []);
 
   const handleGoogleSignIn = () => {
     signIn("google", { callbackUrl: "/dashboard" });
@@ -171,6 +180,21 @@ export default function LoginPage() {
       
       <main className="flex-1 flex flex-col items-center justify-center w-full px-4 pt-10 pb-24 relative z-10">
         
+        {/* Session Expired Banner */}
+        <AnimatePresence>
+          {sessionExpired && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="w-full max-w-md mb-4 flex items-center gap-3 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold px-4 py-3 rounded-xl shadow-lg"
+            >
+              <ShieldCheck className="w-4 h-4 shrink-0" />
+              Your 8-hour shift has ended. Please authenticate again to continue.
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Command Vault Card */}
         <Card 
           className={`w-full max-w-md bg-white border-0 border-t-4 transition-all duration-500 transform
@@ -178,6 +202,7 @@ export default function LoginPage() {
                 ? 'border-t-blue-500 shadow-[0_30px_60px_rgba(59,130,246,0.15)] -translate-y-1' 
                 : 'border-t-[#004a99] shadow-[0_20px_50px_rgba(0,0,0,0.05)]'} 
             rounded-2xl overflow-hidden mb-8 relative`}
+          style={{ boxShadow: isHovering ? '0 30px 60px rgba(59,130,246,0.15), inset 0 0 0 1px rgba(0,0,0,0.04)' : '0 20px 50px rgba(0,0,0,0.05), inset 0 0 0 1px rgba(0,0,0,0.04)' }}
         >
           {/* Beveled Inner Top Highlight */}
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-blue-100/10 via-blue-200/60 to-blue-100/10 z-10" />
@@ -213,7 +238,7 @@ export default function LoginPage() {
             </div>
 
             <div className="text-center mb-10 w-full flex flex-col items-center">
-              <p className="uppercase tracking-[0.2em] text-[10px] font-bold text-slate-400 w-full text-center">National Integrated Monitoring &amp; Evaluation Portal</p>
+              <p className="uppercase tracking-[0.2em] text-[10px] font-bold text-slate-400 w-full text-center">National Monitoring &amp; Evaluation Portal</p>
             </div>
 
             <button 

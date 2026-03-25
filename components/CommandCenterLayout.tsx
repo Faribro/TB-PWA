@@ -280,7 +280,7 @@ export function CommandCenterLayout({
       </AnimatePresence>
 
       {/* ═══════════════════════════════════════════════════════════ */}
-      {/* RIGHT SIDEBAR - Legend & Controls */}
+      {/* RIGHT SIDEBAR - Legend & Controls (with migrated KPI Dashboard) */}
       {/* ═══════════════════════════════════════════════════════════ */}
       <AnimatePresence>
         {rightSidebarOpen && (
@@ -289,10 +289,10 @@ export function CommandCenterLayout({
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 400, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="absolute right-0 z-50 glass-light border-l border-white shadow-2xl overflow-y-auto hide-scrollbar"
+            className="absolute right-0 z-50 glass-light border-l border-white shadow-2xl overflow-y-auto no-scrollbar pb-32"
             style={{
               top: '80px',
-              bottom: '100px',
+              bottom: 0,
               width: '400px',
             }}
           >
@@ -304,7 +304,7 @@ export function CommandCenterLayout({
                     <Layers className="w-4 h-4 text-blue-600" />
                   </div>
                   <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                    Intelligence Map Legend
+                    Intelligence Layer
                   </h2>
                 </div>
                 <button
@@ -315,8 +315,23 @@ export function CommandCenterLayout({
                 </button>
               </div>
 
+              {/* KPI Metrics (Migrated from Bottom) */}
+              <div className="mb-8">
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  Key Indicators
+                </h3>
+                <div className="bg-white/50 rounded-2xl border border-slate-200 p-6 shadow-sm">
+                  <KPIRibbon filteredPatients={filteredPatients} compact />
+                </div>
+              </div>
+
               {/* Legend */}
               <div className="mb-8">
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  Color Legend
+                </h3>
                 <ColorLegend className="p-0" />
               </div>
 
@@ -349,24 +364,19 @@ export function CommandCenterLayout({
       </AnimatePresence>
 
       {/* ═══════════════════════════════════════════════════════════ */}
-      {/* MAP STAGE - Center (fills remaining space) */}
+      {/* MAP STAGE - Center (fills remaining space, no bottom cramping) */}
       {/* ═══════════════════════════════════════════════════════════ */}
       <main
         className="absolute z-0"
         style={{
           top: '80px',
-          bottom: '100px',
+          bottom: 0,
           left: 0,
           right: 0,
         }}
       >
         {children}
       </main>
-
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {/* FOOTER RIBBON - KPI Dashboard */}
-      {/* ═══════════════════════════════════════════════════════════ */}
-      <KPIRibbon filteredPatients={filteredPatients} />
     </div>
   );
 }

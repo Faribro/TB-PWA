@@ -699,7 +699,7 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
     }
   }, [isClient, webGLSupported, geoData, choroplethDict, activeMetric, getColorFromMetric, setDistrict, filter.state, filter.district, hoveredHUD, flyToDistrict]);
 
-  // City Pillars Layer (Glowing Columns)
+  // City Pillars Layer (Glowing Columns) - Wired to Active Metric
   const cityPillarsLayer = useMemo(() => {
     if (!isClient || !webGLSupported || enrichedCities.length === 0) return null;
 
@@ -718,7 +718,10 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
       },
       getPosition: (d: any) => d.position,
       getElevation: (d: any) => {
-        const baseHeight = d.tbCases * 200;
+        const key = normalizeGeographicKey(d.city);
+        const metrics = choroplethDict.get(key);
+        const value = metrics ? metrics[activeMetric] : d.tbCases;
+        const baseHeight = value * 2;
         const isInHoveredDistrict = hoveredHUD && 
           normalizeGeographicKey(d.city) === normalizeGeographicKey(hoveredHUD.district);
         return isInHoveredDistrict ? baseHeight * 1.5 : baseHeight;
@@ -731,12 +734,13 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
           return [100, 200, 255, 255];
         }
         
-        // If breaches is active (either via panel or global metric)
         const isBreachView = activeMetric === 'breaches' || activeGISMetric === 'breaches';
-        const intensity = Math.min(d.tbCases / 150, 1);
+        const key = normalizeGeographicKey(d.city);
+        const metrics = choroplethDict.get(key);
+        const value = metrics ? metrics[activeMetric] : d.tbCases;
+        const intensity = Math.min(value / 150, 1);
 
         if (isBreachView) {
-          // High-visibility red gradient for breaches
           return [
             255,
             Math.max(20, 100 * (1 - intensity)),
@@ -745,7 +749,6 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
           ];
         }
 
-        // Default blue-cyan gradient for other metrics
         return [
           Math.max(20, 255 * (1 - intensity)),
           200,
@@ -754,45 +757,60 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
         ];
       },
       updateTriggers: {
-        getElevation: [hoveredHUD, activeMetric, activeGISMetric],
-        getFillColor: [hoveredHUD, activeMetric, activeGISMetric]
+        getElevation: [hoveredHUD, activeMetric, activeGISMetric, choroplethDict],
+        getFillColor: [hoveredHUD, activeMetric, activeGISMetric, choroplethDict]
       }
     });
-  }, [isClient, webGLSupported, enrichedCities, hoveredHUD, activeMetric, activeGISMetric]);
+  }, [isClient, webGLSupported, enrichedCities, hoveredHUD, activeMetric, activeGISMetric, choroplethDict]);
 
-  // City Pillars Text Layer (Numbers on top of Columns)
+  // City Pillars Text Layer (Numbers on top of Columns with Dynamic Scaling & Glow)
   const cityPillarsTextLayer = useMemo(() => {
     if (!isClient || !webGLSupported || enrichedCities.length === 0) return null;
 
     return new TextLayer({
       id: 'city-pillars-text-layer',
       data: enrichedCities,
-      getPosition: (d: any) => {
-        const baseHeight = d.tbCases * 200;
-        const isInHoveredDistrict = hoveredHUD && 
-          normalizeGeographicKey(d.city) === normalizeGeographicKey(hoveredHUD.district);
-        const z = isInHoveredDistrict ? baseHeight * 1.5 : baseHeight;
-        return [d.position[0], d.position[1], z + 5000]; // Shift up slightly above the pillar
+      parameters: {
+        depthTest: false,
+        blend: true
       },
-      getText: (d: any) => `${d.tbCases === 0 ? '' : d.tbCases}`, // Don't show 0
-      getSize: 32000, // Increased size for visibility
+      getPosition: (d: any) => {
+        const key = normalizeGeographicKey(d.city);
+        const metrics = choroplethDict.get(key);
+        const value = metrics ? metrics[activeMetric] : d.tbCases;
+        return [d.position[0], d.position[1], (value * 2) + 5000];
+      },
+      getText: (d: any) => {
+        const key = normalizeGeographicKey(d.city);
+        const metrics = choroplethDict.get(key);
+        const value = metrics ? metrics[activeMetric] : d.tbCases;
+        return value === 0 ? ' ' : String(value);
+      },
+      getSize: 25000,
       sizeUnits: 'meters',
       getColor: [255, 255, 255, 255],
+      getTextAnchor: 'middle',
       getAlignmentBaseline: 'bottom',
       fontFamily: 'Outfit, sans-serif',
       fontWeight: 'bold',
-      outlineColor: [0, 0, 0, 180],
-      outlineWidth: 2,
-      billboard: true, // Always face camera
+      outlineColor: [59, 130, 246, 220],
+      outlineWidth: 3,
+      billboard: true,
+      fontSettings: {
+        sdf: true,
+        buffer: 4,
+        cutoff: 0.25,
+        radius: 8
+      },
       updateTriggers: {
-        getPosition: [hoveredHUD, activeMetric, activeGISMetric],
-        getText: [activeMetric, activeGISMetric]
+        getPosition: [hoveredHUD, activeMetric, activeGISMetric, choroplethDict],
+        getText: [activeMetric, activeGISMetric, choroplethDict]
       },
       transitions: {
         getPosition: { duration: 600, type: 'spring' }
       }
     });
-  }, [isClient, webGLSupported, enrichedCities, hoveredHUD]);
+  }, [isClient, webGLSupported, enrichedCities, hoveredHUD, activeMetric, activeGISMetric, choroplethDict]);
 
   // Lighting effect for 3D visualization
   const lightingEffect = useMemo(() => {
@@ -810,12 +828,12 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
     return new LightingEffect({ ambientLight, pointLight });
   }, []);
 
-  // Performance guardrail: Memoized layers array
+  // Performance guardrail: Memoized layers array - TextLayer MUST be last for proper depth rendering
   const layers = useMemo(() => {
     const layerList = [];
     if (choroplethLayer) layerList.push(choroplethLayer);
     if (cityPillarsLayer) layerList.push(cityPillarsLayer);
-    if (cityPillarsTextLayer) layerList.push(cityPillarsTextLayer);
+    if (cityPillarsTextLayer) layerList.push(cityPillarsTextLayer); // CRITICAL: Text layer last
     return layerList;
   }, [choroplethLayer, cityPillarsLayer, cityPillarsTextLayer]);
 

@@ -5,12 +5,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSession, signOut } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  Map, Settings, GitBranch, Copy,
-  LogOut, Network, ChevronLeft, Calendar, AlertCircle, Brain, RefreshCw
+  Settings, GitBranch, Copy,
+  LogOut, Network, ChevronLeft, LayoutDashboard
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
+
+const ClientFloatingEntity = dynamic(() => import('@/components/ClientFloatingEntity'), {
+  ssr: false,
+  loading: () => null,
+});
 
 const MotionLink = motion.create(Link);
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
@@ -21,11 +27,12 @@ import { useSonicIntelligence } from '@/hooks/useSonicIntelligence';
 import { useEntityStore } from '@/stores/useEntityStore';
 
 const TAB_CONFIG = [
+  { id: 'command-hub', path: '/dashboard/command-hub', icon: LayoutDashboard, label: 'Command Hub', description: 'Unified Hub', sonicId: 'nav-command' },
   { id: 'vertex', path: '/dashboard/vertex', icon: Network, label: 'Vertex', description: 'Neural overview', sonicId: 'nav-vertex' },
   { id: 'follow-up', path: '/dashboard/follow-up', icon: GitBranch, label: 'Follow-up Pipeline', description: 'Patient pipeline', sonicId: 'nav-followup' },
   { id: 'mande', path: '/dashboard/mande', icon: Copy, label: 'M&E Tools', description: 'Monitoring & eval', sonicId: 'nav-mande' },
-  { id: 'gis', path: '/dashboard/gis', icon: Map, label: 'GIS Map', description: 'Spatial intelligence', sonicId: 'nav-gis' },
-  { id: 'settings', path: '/dashboard', icon: Settings, label: 'Settings', description: 'Account & sync', sonicId: 'nav-settings' },
+  { id: 'gis', path: '/dashboard/gis', icon: Network, label: 'GIS Map', description: 'Spatial intelligence', sonicId: 'nav-gis' },
+  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account & sync', sonicId: 'nav-settings' },
 ];
 
 function NavItem({ tab, isActive, isCollapsed, delay }: {
@@ -163,6 +170,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden selection:bg-blue-500/30">
+      <ClientFloatingEntity />
       <EntityDataSync patients={memoizedPatients} />
       <SyncStatusFeed />
 
@@ -213,15 +221,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         <nav aria-label="Main navigation" className="flex-1 px-4 py-8 space-y-2 overflow-y-auto hide-scrollbar">
-          {TAB_CONFIG.map((tab, idx) => (
-            <NavItem
-              key={tab.id}
-              tab={tab}
-              isActive={pathname === tab.path}
-              isCollapsed={!sidebarOpen}
-              delay={idx * 0.05}
-            />
-          ))}
+          {TAB_CONFIG.map((tab, idx) => {
+            const isActive = pathname === tab.path;
+            
+            return (
+              <NavItem
+                key={tab.id}
+                tab={tab}
+                isActive={isActive}
+                isCollapsed={!sidebarOpen}
+                delay={idx * 0.05}
+              />
+            );
+          })}
         </nav>
 
         {session && (
@@ -271,19 +283,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           transition={{ duration: 0.15, ease: 'easeOut' }}
           className="flex-1 h-full w-full relative"
         >
-          {session?.user?.state && (
-             <div className="absolute top-6 right-8 z-[55]">
-               <div className="bg-white/70 backdrop-blur-xl border border-white shadow-sm px-4 py-2.5 rounded-2xl flex items-center gap-2.5 transition-all hover:shadow-md hover:bg-white/90">
-                 <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center">
-                   <Map className="w-3.5 h-3.5 text-blue-600" />
-                 </div>
-                 <div className="flex flex-col border-l border-slate-200 pl-3">
-                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">Active Region</span>
-                   <span className="text-xs font-bold text-slate-800 leading-none">{session.user.state}</span>
-                 </div>
-               </div>
-             </div>
-          )}
           {children}
         </motion.div>
       </main>

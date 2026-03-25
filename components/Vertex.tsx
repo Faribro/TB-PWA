@@ -1,8 +1,14 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@supabase/supabase-js';
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { BentoTilt } from '@/components/BentoTilt';
+import { AnimatedTitle } from '@/components/AnimatedTitle';
+import { SmokeCard } from '@/components/SmokeCard';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -61,6 +67,11 @@ interface StateData {
   stateName: string;
   districts: DistrictData[];
   totalPatients: number;
+}
+
+// Register GSAP plugins
+if (typeof window !== 'undefined') {
+  gsap.registerPlugin(ScrollTrigger);
 }
 
 // Supabase Client
@@ -290,7 +301,7 @@ const CalendarGrid = ({
   );
 };
 
-// Spark Metric Card
+// Spark Metric Card with BentoTilt and SmokeCard
 const SparkCard = ({ 
   icon: Icon, 
   label, 
@@ -312,27 +323,31 @@ const SparkCard = ({
   };
 
   return (
-    <Card className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 group transition-all duration-200 hover:shadow-md hover:border-blue-300">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 opacity-80">
-            {label}
-          </p>
-          <p className="text-4xl font-black text-slate-900 tracking-tighter group-hover:scale-105 transition-transform duration-500">
-            {value.toLocaleString()}
-          </p>
-          {trend && (
-            <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-wide">{trend}</p>
-          )}
-        </div>
-        <div className={cn(
-          "w-12 h-12 rounded-2xl border-2 flex items-center justify-center shadow-lg transition-transform duration-500 group-hover:rotate-12", 
-          colorClasses[color]
-        )}>
-          <Icon className="w-6 h-6" />
-        </div>
-      </div>
-    </Card>
+    <SmokeCard>
+      <BentoTilt>
+        <Card className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 group transition-all duration-200 hover:shadow-md hover:border-blue-300">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 opacity-80">
+                {label}
+              </p>
+              <p className="text-4xl font-black text-slate-900 tracking-tighter group-hover:scale-105 transition-transform duration-500">
+                {value.toLocaleString()}
+              </p>
+              {trend && (
+                <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-wide">{trend}</p>
+              )}
+            </div>
+            <div className={cn(
+              "w-12 h-12 rounded-2xl border-2 flex items-center justify-center shadow-lg transition-transform duration-500 group-hover:rotate-12", 
+              colorClasses[color]
+            )}>
+              <Icon className="w-6 h-6" />
+            </div>
+          </div>
+        </Card>
+      </BentoTilt>
+    </SmokeCard>
   );
 };
 
@@ -505,6 +520,19 @@ export default function Vertex({
   const [filterState, setFilterState] = useState<string>('All');
   const [filterDistrict, setFilterDistrict] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'volume' | 'breaches'>('volume');
+  const [hudVisible, setHudVisible] = useState(true);
+
+  // HUD bounce animation cycle with realistic physics
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHudVisible(false);
+      setTimeout(() => {
+        setHudVisible(true);
+      }, 800);
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Use external data when provided (avoids duplicate fetch + 400 errors)
   const { data: swrData = [], isLoading: swrLoading } = useSWRAllPatients();
@@ -753,24 +781,169 @@ export default function Vertex({
       })
     : '';
 
+  // Dynamic Calendar Sentence
+  const dynamicSentence = useMemo(() => {
+    if (selectedDate) {
+      const dateObj = new Date(selectedDate);
+      const formattedDateShort = dateObj.toLocaleDateString('en-US', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      });
+      const screened = dailySparks.totalScreened;
+      const suspected = dailySparks.pendingSputum;
+      return (
+        <>
+          On {formattedDateShort}, <span className="text-blue-700 font-black text-xl">{screened}</span> screenings were conducted, out of which <span className="text-blue-700 font-black text-xl">{suspected}</span> were found suspected.
+        </>
+      );
+    } else {
+      const now = new Date();
+      const monthYear = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const monthTotal = globalPatients.filter((p: any) => {
+        const dateValue = p.screening_date || p.submitted_on;
+        if (!dateValue) return false;
+        const date = new Date(dateValue);
+        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+      }).length;
+      return (
+        <>
+          In {monthYear}, a total of <span className="text-blue-700 font-black text-xl">{monthTotal}</span> screenings have been conducted.
+        </>
+      );
+    }
+  }, [selectedDate, dailySparks, globalPatients]);
+
   return (
-    <div className="h-screen w-full overflow-hidden relative font-outfit">
+    <div className="relative flex flex-col lg:flex-row items-start w-full gap-8 font-outfit">
       {/* Premium Background Decorative Elements */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-400/10 blur-[150px] rounded-full animate-pulse" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-400/10 blur-[150px] rounded-full animate-pulse delay-500" />
       </div>
 
-      <div className="relative h-full grid grid-cols-[42%_58%] gap-8 p-8 max-w-[1920px] mx-auto z-10">
-        {/* Left Pane: Calendar */}
+      {/* Top-Right Dynamic Status HUD */}
+      <AnimatePresence>
+        {hudVisible && (
+          <motion.div
+            key="hud"
+            initial={{ x: 400, scale: 0.3, opacity: 0, rotate: 180 }}
+            animate={{
+              x: [400, -30, 15, -8, 3, 0],
+              scale: [0.3, 1.3, 0.85, 1.05, 0.95, 1],
+              opacity: [0, 1, 1, 1, 1, 1],
+              rotate: [180, -15, 8, -4, 2, 0]
+            }}
+            exit={{
+              x: [0, -15, 400],
+              scale: [1, 1.1, 0.3],
+              opacity: [1, 1, 0],
+              rotate: [0, 10, 180],
+              transition: { 
+                duration: 0.7, 
+                ease: [0.68, -0.55, 0.265, 1.55],
+                times: [0, 0.3, 1]
+              }
+            }}
+            transition={{
+              duration: 1.8,
+              times: [0, 0.4, 0.6, 0.75, 0.88, 1],
+              ease: [0.68, -0.55, 0.265, 1.55]
+            }}
+            whileHover={{ 
+              scale: 1.08,
+              rotate: [0, -2, 2, 0],
+              transition: { duration: 0.3 }
+            }}
+            className="fixed top-6 right-8 z-[100] flex items-center gap-5 px-5 py-2.5 bg-white/70 backdrop-blur-2xl border border-white/50 shadow-[0_8px_30px_-5px_rgba(0,74,153,0.12)] rounded-full hover:bg-white/90 transition-colors duration-300 cursor-default"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 1.5, duration: 0.4 }}
+              className="flex items-center gap-5"
+            >
+              <motion.div 
+                className="flex items-center gap-2"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.6, type: 'spring', stiffness: 300, damping: 20 }}
+              >
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Screened</span>
+                <motion.span 
+                  key={globalPatients.length}
+                  initial={{ scale: 1.8, color: '#3b82f6', y: -5 }}
+                  animate={{ 
+                    scale: [1.8, 0.9, 1],
+                    color: ['#3b82f6', '#1e293b', '#1e293b'],
+                    y: [-5, 2, 0]
+                  }}
+                  transition={{ duration: 0.5, times: [0, 0.6, 1] }}
+                  className="text-sm font-black"
+                >
+                  {globalPatients.length.toLocaleString()}
+                </motion.span>
+              </motion.div>
+              <div className="w-px h-4 bg-slate-300/80"></div>
+              <motion.div 
+                className="flex items-center gap-2"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.7, type: 'spring', stiffness: 300, damping: 20 }}
+              >
+                <span className="text-[10px] font-bold text-rose-400 uppercase">Alerts</span>
+                <motion.span
+                  key={globalPatients.filter((p: any) => p.xray_result?.toLowerCase().includes('abnormal') && !p.att_start_date && !p.referral_date).length}
+                  initial={{ scale: 1.8, color: '#ef4444', y: -5 }}
+                  animate={{ 
+                    scale: [1.8, 0.9, 1],
+                    color: ['#ef4444', '#dc2626', '#dc2626'],
+                    y: [-5, 2, 0]
+                  }}
+                  transition={{ duration: 0.5, times: [0, 0.6, 1] }}
+                  className="text-sm font-black text-rose-600"
+                >
+                  {globalPatients.filter((p: any) => p.xray_result?.toLowerCase().includes('abnormal') && !p.att_start_date && !p.referral_date).length.toLocaleString()}
+                </motion.span>
+              </motion.div>
+              <div className="w-px h-4 bg-slate-300/80"></div>
+              <motion.div 
+                className="flex items-center gap-2"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.8, type: 'spring', stiffness: 300, damping: 20 }}
+              >
+                <span className="text-[10px] font-bold text-emerald-500 uppercase">ATT</span>
+                <motion.span
+                  key={globalPatients.filter((p: any) => p.att_start_date).length}
+                  initial={{ scale: 1.8, color: '#10b981', y: -5 }}
+                  animate={{ 
+                    scale: [1.8, 0.9, 1],
+                    color: ['#10b981', '#059669', '#059669'],
+                    y: [-5, 2, 0]
+                  }}
+                  transition={{ duration: 0.5, times: [0, 0.6, 1] }}
+                  className="text-sm font-black text-emerald-600"
+                >
+                  {globalPatients.filter((p: any) => p.att_start_date).length.toLocaleString()}
+                </motion.span>
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="relative flex flex-col lg:flex-row items-start w-full gap-8 p-8 max-w-[1920px] mx-auto z-10">
+        {/* Left Pane: Calendar - UNLOCKED HEIGHT */}
         <motion.div
            initial={{ opacity: 0, x: -40 }}
            animate={{ opacity: 1, x: 0 }}
            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-           className="h-full"
+           className="w-full lg:w-[45%] lg:sticky lg:top-6 h-auto pb-40"
         >
-          <Card className="bg-white border-slate-200 shadow-sm rounded-xl p-8 h-full flex flex-col overflow-hidden border relative">
+          <Card className="bg-white border-slate-200 shadow-sm rounded-xl p-8 flex flex-col border relative">
             <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-blue-500/[0.02] to-transparent pointer-events-none" />
+            
             <CalendarHeader 
               currentDate={currentDate}
               onPrevMonth={handlePrevMonth}
@@ -782,7 +955,7 @@ export default function Vertex({
               availableStates={availableStates}
               availableDistricts={availableDistricts}
             />
-            <div className="flex-1 overflow-y-auto hide-scrollbar">
+            <div className="">
               <CalendarGrid
                 heatmapData={heatmapData}
                 currentDate={currentDate}
@@ -848,14 +1021,15 @@ export default function Vertex({
           </Card>
         </motion.div>
 
-        {/* Right Pane: Daily Briefing */}
+        {/* Right Pane: Daily Briefing - NATURAL SCROLL */}
         <motion.div
            initial={{ opacity: 0, x: 40 }}
            animate={{ opacity: 1, x: 0 }}
            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
-           className="h-full"
+           className="w-full lg:w-[55%] h-[calc(100vh-4rem)] overflow-y-auto no-scrollbar pb-32"
+           id="right-scroll-container"
         >
-          <Card className="bg-white border-slate-200 shadow-sm rounded-xl overflow-hidden flex flex-col h-full border relative">
+          <Card className="bg-white border-slate-200 shadow-sm rounded-xl overflow-hidden flex flex-col border relative">
             <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-blue-500/[0.02] to-transparent pointer-events-none" />
             <AnimatePresence mode="wait">
               {selectedDate ? (
@@ -927,7 +1101,7 @@ export default function Vertex({
                             <MapPin className="w-5 h-5 text-white" />
                           </div>
                           <h4 className="text-[12px] font-black text-slate-950 uppercase tracking-[0.2em]">
-                            Sector Intelligence Breakdown
+                            Geographic Case Distribution
                           </h4>
                         </div>
                         <div className="bg-slate-50/50 rounded-[32px] p-2 border border-slate-200/50">
@@ -946,9 +1120,9 @@ export default function Vertex({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="flex flex-col items-center justify-center h-full p-12 text-center"
+                  className="flex flex-col items-center justify-center w-full h-[calc(100vh-8rem)] min-h-[600px] bg-white border border-slate-200 rounded-xl shadow-sm text-center p-10"
                 >
-                  <div className="w-32 h-32 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center mb-8 relative">
+                  <div className="w-32 h-32 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center mb-8 relative">
                     <CalendarIcon className="w-12 h-12 text-blue-500 opacity-40" />
                     <motion.div 
                       animate={{ rotate: 360 }}
@@ -956,9 +1130,21 @@ export default function Vertex({
                       className="absolute inset-0 border-t-2 border-blue-500 rounded-full"
                     />
                   </div>
-                  <h3 className="text-3xl font-black text-slate-950 tracking-tighter mb-4 uppercase">Timeline Interface Offline</h3>
-                  <p className="text-sm font-medium text-slate-400 max-w-sm mx-auto leading-relaxed">
-                    Select a timestamp from the temporal grid to initialize the neural briefing and synchronize sector intelligence.
+                  <h3 className="text-2xl font-black text-slate-800 tracking-widest mb-6 uppercase">Monthly Aggregate Overview</h3>
+                  <div className="text-base font-bold text-slate-700 leading-relaxed mb-4 max-w-md">
+                    In <span className="text-slate-900">{currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>, a total of{' '}
+                    <span className="text-blue-600 font-black text-xl">
+                      {globalPatients.filter((p: any) => {
+                        const dateValue = p.screening_date || p.submitted_on;
+                        if (!dateValue) return false;
+                        const date = new Date(dateValue);
+                        return date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
+                      }).length.toLocaleString()}
+                    </span>{' '}
+                    screenings have been conducted.
+                  </div>
+                  <p className="text-sm font-medium text-slate-400 max-w-md mx-auto leading-relaxed">
+                    Select a specific date on the temporal grid to initialize the daily intelligence feed.
                   </p>
                 </motion.div>
               )}

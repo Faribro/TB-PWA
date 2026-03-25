@@ -46,28 +46,47 @@ export default auth((req) => {
     return NextResponse.next();
   }
   
-  // Redirect root to dashboard if authenticated, login if not
+  // Redirect root to Command Hub if authenticated, login if not
   if (pathname === '/') {
     if (req.auth) {
-      return NextResponse.redirect(new URL('/dashboard', req.url));
+      return NextResponse.redirect(new URL('/dashboard/command-hub', req.url));
     } else {
       return NextResponse.redirect(new URL('/login', req.url));
     }
   }
   
-  // Protect dashboard routes
+  // Redirect /dashboard to Command Hub
+  if (pathname === '/dashboard') {
+    return NextResponse.redirect(new URL('/dashboard/command-hub', req.url));
+  }
+  
+  // Protect dashboard routes with session expiry check
   if (pathname.startsWith('/dashboard')) {
     if (!req.auth) {
-      return NextResponse.redirect(new URL('/login', req.url));
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('reason', 'expired');
+      return NextResponse.redirect(loginUrl);
+    }
+    
+    // Check session age (8 hours = 28800 seconds)
+    const sessionStart = req.auth.expires ? new Date(req.auth.expires).getTime() - 28800000 : 0;
+    const now = Date.now();
+    if (now - sessionStart > 28800000) {
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('reason', 'expired');
+      return NextResponse.redirect(loginUrl);
     }
   }
 
-  // Protect admin routes
+  // Protect admin routes with superuser gatekeeper
   if (pathname.startsWith('/admin')) {
     if (!req.auth) {
-      return NextResponse.redirect(new URL('/login', req.url));
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('reason', 'unauthorized');
+      return NextResponse.redirect(loginUrl);
     }
-    if (req.auth.user?.role !== 'admin') {
+    const role = req.auth.user?.role;
+    if (role !== 'admin' && role !== 'PM') {
       return NextResponse.redirect(new URL('/unauthorized', req.url));
     }
   }

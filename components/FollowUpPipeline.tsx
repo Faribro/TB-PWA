@@ -3,7 +3,7 @@
 import { useMemo, useState, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, X, ChevronLeft, ChevronRight, AlertCircle, ClockAlert } from 'lucide-react';
+import { Filter, X, ChevronLeft, ChevronRight, AlertCircle, ClockAlert, MapPin, List, Grid3x3 } from 'lucide-react';
 import { useTreeFilter } from '@/contexts/TreeFilterContext';
 import { useEntityStore } from '@/stores/useEntityStore';
 import { normalizeGeographicKey } from '@/lib/normalizeGeographicKey';
@@ -43,12 +43,91 @@ interface FollowUpPipelineProps {
   onPatientClick?: (patient: Patient) => void;
 }
 
+// Task 2: Explicit Inline PatientCard Component
+const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelect }: { 
+  patient: Patient; 
+  onClick: () => void;
+  canSelect: boolean;
+  triageIds: number[];
+  toggleTriageSelect: (id: number) => void;
+}) => {
+  const phase = calculatePatientPhase(patient);
+  const calculateDaysElapsed = (screeningDateStr: string | undefined) => {
+    if (!screeningDateStr) return 0;
+    const screeningDate = new Date(screeningDateStr);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - screeningDate.getTime());
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  };
+  const daysElapsed = calculateDaysElapsed(patient.screening_date);
+
+  return (
+    <motion.div
+      layout
+      variants={{
+        hidden: { opacity: 0, scale: 0.8, y: 30 },
+        show: { 
+          opacity: 1, 
+          scale: 1, 
+          y: 0,
+          transition: { type: "spring", stiffness: 280, damping: 22 }
+        }
+      }}
+      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+      onClick={onClick}
+      className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(0,74,153,0.12)] hover:-translate-y-1 transition-all duration-300 group cursor-pointer flex flex-col justify-between min-h-[160px]"
+    >
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+            {patient.inmate_name || 'Unknown Patient'}
+          </h3>
+          <span className="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded-md mt-1 inline-block">
+            {patient.kobo_uuid?.substring(0, 8) || patient.unique_id?.substring(0, 8)}
+          </span>
+        </div>
+        {canSelect && (
+          <input
+            type="checkbox"
+            checked={triageIds.includes(patient.id)}
+            onChange={(e) => { e.stopPropagation(); toggleTriageSelect(patient.id); }}
+            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          />
+        )}
+      </div>
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center">
+            <MapPin className="w-3.5 h-3.5" />
+          </div>
+          <span className="truncate">{patient.facility_name}, {patient.screening_district}</span>
+        </div>
+        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+          <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase shadow-sm ${
+            phase.phase === 'Sputum Test' ? 'bg-amber-50 text-amber-700 border border-amber-200/50' :
+            phase.phase === 'Diagnosis' ? 'bg-blue-50 text-blue-700 border border-blue-200/50' :
+            phase.phase === 'ATT Initiation' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/50' :
+            'bg-slate-50 text-slate-700 border border-slate-200/50'
+          }`}>
+            {phase.phase}
+          </span>
+          <span className="text-[10px] font-bold text-slate-500">
+            {daysElapsed}d Active
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 export function FollowUpPipeline({ patients, globalPatients, isLoading = false, onPatientClick }: FollowUpPipelineProps) {
   const { filter: treeFilter, clearFilter: clearTreeFilter } = useTreeFilter();
   const activeFilters = useEntityStore(s => s.activeFilters);
   const [triageIds, setTriageIds] = useState<number[]>([]);
   const [isTriaging, setIsTriaging] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const ITEMS_PER_PAGE = 50;
   
   const patientData = globalPatients ?? patients ?? [];
@@ -331,6 +410,22 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
             <div className="text-sm font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full">
               {filteredPatients.length.toLocaleString()} {hasActiveFilter ? 'filtered' : 'total'}
             </div>
+            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded transition-all duration-200 ${viewMode === 'list' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                aria-label="List view"
+              >
+                <List className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded transition-all duration-200 ${viewMode === 'grid' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                aria-label="Grid view"
+              >
+                <Grid3x3 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
         
@@ -341,7 +436,8 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 cyan-scrollbar">
         {paginatedPatients.length > 0 ? (
-          <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+          viewMode === 'list' ? (
+            <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
             {virtualizer.getVirtualItems().map((virtualRow) => {
               const patient = paginatedPatients[virtualRow.index];
               const phase = calculatePatientPhase(patient);
@@ -438,6 +534,34 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
               );
             })}
           </div>
+          ) : (
+            <motion.div 
+              layout 
+              initial="hidden"
+              animate="show"
+              variants={{
+                hidden: { opacity: 0 },
+                show: {
+                  opacity: 1,
+                  transition: { staggerChildren: 0.08, delayChildren: 0.1 }
+                }
+              }}
+              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pt-4"
+            >
+              <AnimatePresence mode="popLayout">
+                {paginatedPatients.map((patient) => (
+                  <PatientCard
+                    key={patient.id || patient.kobo_uuid}
+                    patient={patient}
+                    onClick={() => onPatientClick?.(patient)}
+                    canSelect={canSelectForTriage(patient)}
+                    triageIds={triageIds}
+                    toggleTriageSelect={toggleTriageSelect}
+                  />
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          )
         ) : null}
 
         {!isLoading && (!patientData || patientData.length === 0) && (

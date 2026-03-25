@@ -1,6 +1,62 @@
-# TB-PWA-Clean
+# SAMADHAAN Health OS
 
-A Progressive Web Application for TB patient tracking and management with AI-powered intelligence.
+**National Integrated Prison & OCS TB Surveillance System**
+
+A Progressive Web Application for TB patient tracking and management with AI-powered intelligence, specifically designed for correctional facilities and OCS interventions.
+
+## 🏛️ SAMADHAAN Architecture Evolution (2024)
+
+### Prestige-Level Infrastructure
+
+SAMADHAAN represents the institutional evolution of TB-PWA-Clean, implementing enterprise-grade route isolation, 8-hour session enforcement, and cinematic user experiences worthy of national health infrastructure.
+
+**Route Group Architecture:**
+- `(dashboard)` - Main application interface with SAMADHAAN branding
+- `(admin)` - Superuser-gated control panel (admin/PM roles only)
+- `(docs)` - Knowledge vault with institutional callouts and SOPs
+
+**Security Enhancements:**
+- ✅ 8-hour session enforcement (28,800 seconds)
+- ✅ Middleware-level role verification (admin/PM gatekeeper)
+- ✅ Expired session redirects with institutional messaging
+- ✅ Server-side authorization in admin layout
+
+**Prestige UI Features:**
+- ✅ Cinematic homepage with procedural backgrounds (dot grid → data mesh)
+- ✅ Spring physics navigation tiles (stiffness: 300, damping: 20)
+- ✅ Data Packet Chase animation (3D→2D sync visualization)
+- ✅ Web Audio API institutional feedback (no external files)
+- ✅ Glassmorphism modals with frosted backdrop
+- ✅ Typography: tracking-[0.4em] for "S A M A D H A A N" branding
+
+**New Components:**
+- `DataPacketChase.tsx` - Emerald data packet animation on sync events
+- `lib/audioFeedback.ts` - Web Audio synthesis (institutional ping, success chime, error buzz)
+- `(dashboard)/page.tsx` - Mission Control with live metrics and morphing canvas
+- `(admin)/users/page.tsx` - User management with TanStack-ready table
+- `(docs)/page.tsx` - Documentation with clinical urgency callouts
+
+**Loading States:**
+- All route groups have skeleton loaders matching exact layout geometry
+- Animate-pulse for consistent loading experience
+
+### Integration with Existing TB-PWA-Clean
+
+SAMADHAAN preserves all existing functionality:
+- ✅ Vertex Dashboard, Follow-up Pipeline, M&E Tools, GIS Map
+- ✅ Neural Nexus RIS with Cornerstone3D DICOM viewer
+- ✅ Sonic AI Assistant with edge patrol and voice commands
+- ✅ KoboToolbox webhook integration
+- ✅ Supabase/Google Sheets sync
+- ✅ PII Shield and Sentry monitoring
+
+**Migration Notes:**
+- Original `app/dashboard/layout.tsx` remains functional
+- New `app/(dashboard)/layout.tsx` adds SAMADHAAN branding
+- Both layouts coexist; choose based on deployment context
+- Root layout updated with SAMADHAAN metadata and DataPacketChase
+
+---
 
 ## 🚀 Features
 
@@ -1144,6 +1200,171 @@ done
 **Next Review**: 2024-02-01  
 **Optimization Status**: 40% Complete
 
+---
+
+## 🎬 SAMADHAAN Feature Summary
+
+### Cinematic Mission Control
+
+**Procedural Background System:**
+- Canvas-based morphing background (dot grid → living data mesh)
+- Scroll-driven opacity transitions (0-100% over 50vh)
+- Real-time wave animations with `Math.sin` displacement
+- 60fps RAF loop with automatic cleanup
+
+**Prestige Metrics Cards:**
+- Spring physics entrance animations (stiffness: 300, damping: 20)
+- Glassmorphism with gradient overlays on hover
+- Live data from `useSWRAllPatients` hook
+- Metrics: Total Screened, States Covered, High-Alert Cases, Sync Integrity
+
+**Navigation Tiles:**
+- Gradient backgrounds (blue-500 → indigo-600)
+- Scale 1.05 + translateY(-8px) on hover
+- Radial glow effects with blur-2xl
+- Direct links to Analytics, GIS, Pipeline
+
+### Data Packet Chase Animation
+
+**Visual System:**
+- Emerald glowing orbs (w-6 h-6) with shadow-[0_0_20px]
+- Pulsing halo animation (scale 1→1.5→1)
+- Flies from source element to `[data-sync-target="master"]`
+- 1-second cubic-bezier easing [0.22, 1, 0.36, 1]
+- Auto-cleanup after animation completes
+
+**Audio Feedback:**
+- `playDataPacketChase()` - Ascending sweep (400Hz → 1600Hz)
+- `playSuccessChime()` - Two-tone confirmation (800Hz + 1200Hz)
+- `playInstitutionalPing()` - Clean 1200Hz validation tone
+- `playErrorBuzz()` - Low sawtooth warning (200Hz)
+
+**Trigger System:**
+```typescript
+import { triggerDataPacketChase } from '@/components/DataPacketChase';
+
+// On save/sync action:
+const button = document.querySelector('button[type="submit"]');
+triggerDataPacketChase(button);
+```
+
+### Admin User Management
+
+**Glassmorphism Modal:**
+- Backdrop: `bg-black/50 backdrop-blur-sm`
+- Panel: `bg-white/90 backdrop-blur-2xl`
+- Scale 0.9→1 entrance animation
+- Click-outside-to-close with event propagation stop
+
+**Table Features:**
+- Staggered row animations (delay: idx * 0.05)
+- Hover state: `bg-blue-50/30`
+- Role badges with `bg-blue-100 text-blue-700`
+- Edit/Delete actions with icon buttons
+
+**Form Validation:**
+- Required fields: name, email, role, state, district
+- Role dropdown: admin, PM, M&E, Viewer
+- State dropdown: Delhi, Maharashtra, Karnataka, Tamil Nadu, West Bengal
+- District: free-text input (future: dynamic filtering)
+
+### Documentation System
+
+**Institutional Callouts:**
+- Info: Blue border-l-4 with Info icon
+- Warning: Amber border-l-4 with AlertTriangle icon
+- Success: Emerald border-l-4 with CheckCircle icon
+- Typography: `text-sm font-black uppercase tracking-wider`
+
+**Sidebar Navigation:**
+- Sticky positioning with `h-screen overflow-y-auto`
+- Quick Search input (Cmd+K placeholder)
+- Icon-based nav items with hover states
+- Sections: Overview, Security, Users, Data, SOPs
+
+**Content Styling:**
+- Prose typography with `prose-slate`
+- Code blocks with syntax highlighting
+- Auto-generated table of contents
+- Clinical urgency summaries at top of each doc
+
+### Session Management
+
+**8-Hour Enforcement:**
+- JWT maxAge: 28800 seconds (8 hours)
+- updateAge: 3600 seconds (refresh every hour)
+- Middleware checks session age on every request
+- Expired sessions redirect to `/login?reason=expired`
+
+**Login Page Updates:**
+- Animated session expiry banner (amber-50 background)
+- Message: "Your 8-hour shift has ended. Please authenticate again."
+- Framer Motion entrance: opacity 0→1, translateY -20→0
+- Auto-detects `reason` query param (expired, unauthorized)
+
+**Admin Gatekeeper:**
+- Server-side check in `(admin)/layout.tsx`
+- Requires role === 'admin' OR role === 'PM'
+- Redirects to `/unauthorized` if unauthorized
+- Redirects to `/login?reason=unauthorized` if not authenticated
+
+### Typography & Branding
+
+**SAMADHAAN Logo:**
+- Font: `font-black tracking-[0.4em]`
+- Size: `text-2xl` (sidebar), `text-6xl` (homepage)
+- Color: `text-slate-900`
+- Always uppercase with letter-spacing
+
+**Institutional Aesthetic:**
+- Headers: `text-[10px] font-black uppercase tracking-widest`
+- Metadata: `text-xs font-bold text-slate-700`
+- Status labels: `text-[9px] font-bold tracking-tighter uppercase`
+- Consistent use of Outfit font family
+
+### Performance Considerations
+
+**Canvas Optimization:**
+- Single RAF loop for procedural background
+- Cleanup on unmount prevents memory leaks
+- Resize listener debounced via RAF
+- Opacity-based visibility (no display: none flicker)
+
+**Audio Context:**
+- Lazy initialization (only when first sound plays)
+- Reuses single AudioContext instance
+- Oscillators destroyed after playback
+- No external audio files (pure synthesis)
+
+**Animation Budget:**
+- Spring physics limited to navigation tiles
+- Data packet chase: max 1 packet at a time
+- Loading skeletons: CSS-only animate-pulse
+- No Framer Motion on table rows (use CSS transitions)
+
+### Deployment Checklist
+
+**Environment Variables:**
+- All existing TB-PWA-Clean vars remain required
+- No new secrets needed for SAMADHAAN features
+- Verify `NEXTAUTH_SECRET` is set for session enforcement
+
+**Route Testing:**
+- [ ] `/dashboard` loads Mission Control
+- [ ] `/admin/users` requires admin/PM role
+- [ ] `/docs` renders with sidebar navigation
+- [ ] Session expires after 8 hours
+- [ ] Data packet animation triggers on save
+- [ ] Audio feedback plays on validation
+
+**Browser Compatibility:**
+- Web Audio API: Chrome 35+, Firefox 25+, Safari 14.1+
+- Canvas 2D: Universal support
+- Framer Motion: Requires JS enabled
+- Backdrop-filter: Chrome 76+, Safari 9+ (graceful degradation)
+
+---
+
 
 
 ### Vercel (Recommended)
@@ -1268,6 +1489,18 @@ For issues or questions:
 - Test with Postman/curl
 
 ## 🎯 Roadmap
+
+**SAMADHAAN Enhancements:**
+- [ ] Command palette (Cmd+K) for global search
+- [ ] Real-time collaboration indicators
+- [ ] Advanced admin analytics dashboard
+- [ ] Audit log viewer with filtering
+- [ ] Role-based dashboard customization
+- [ ] Multi-language documentation
+- [ ] Interactive onboarding tour
+- [ ] Keyboard shortcuts overlay
+
+**Core Platform:**
 
 - [ ] Mobile app (React Native)
 - [ ] Offline mode with service workers
@@ -1462,6 +1695,112 @@ app/globals.css                        ← Animations
 ---
 
 **Built with ❤️ for India's National TB Elimination Programme**
+
+---
+
+## 🎯 Quick Reference: SAMADHAAN Command Hub
+
+### Access Routes
+
+| Route | Description | Access Level |
+|-------|-------------|-------------|
+| `/` | Auto-redirects to Command Hub | All authenticated users |
+| `/dashboard` | Auto-redirects to Command Hub | All authenticated users |
+| `/dashboard/command-hub` | **Default Landing Page** - Unified Command Hub (5 tiles) | All authenticated users |
+| `/dashboard/vertex` | Analytics & Neural Network | All authenticated users |
+| `/dashboard/gis` | GIS Intelligence Mapping | All authenticated users |
+| `/dashboard/follow-up` | Patient Pipeline | All authenticated users |
+| `/admin/users` | Identity Bureau (User Management) | Admin, PM only |
+| `/docs` | Knowledge Vault (Documentation) | All authenticated users |
+
+### Command Hub Tiles
+
+**Five Pillar Architecture:**
+
+1. **Analytics** - Neural network visualization and insights
+2. **GIS Intelligence** - Spatial mapping and geographic analysis
+3. **Pipeline** - Patient tracking and triage management
+4. **Identity Bureau** - User roles, state assignments (Admin/PM only) ⚠️
+5. **Knowledge Vault** - SOPs, manuals, technical guides
+
+**Role-Based Visibility:**
+- Admin/PM users see all 5 tiles
+- M&E/Viewer users see 4 tiles (Identity Bureau hidden via conditional rendering)
+- Identity Bureau tile only renders when `session?.user?.role === 'admin' || 'PM'`
+
+**Landing Page Behavior:**
+- ✅ Root `/` redirects to `/dashboard/command-hub` (authenticated users)
+- ✅ `/dashboard` redirects to `/dashboard/command-hub`
+- ✅ Sidebar highlights "Command Hub" as active page
+- ✅ First-time login lands directly on Command Hub
+- ✅ Session expiry redirects to `/login?reason=expired`
+
+### Typography & Branding
+
+**Command Hub:**
+- Heading: "UNIFIED COMMAND HUB" (tracking-[0.4em])
+- Subtitle: "National Health Intelligence & Management System"
+- Font: `font-black` with `text-6xl`
+
+**Tile Styling:**
+- Default gradient: `from-blue-500 to-indigo-600`
+- Identity Bureau: `from-blue-600 to-indigo-700` with ShieldCheck icon
+- Knowledge Vault: `from-slate-700 to-slate-900` with BookOpen icon
+- Spring physics: stiffness 300, damping 20
+- Hover: scale 1.05, translateY -8px
+
+---
+
+| Feature | TB-PWA-Clean | SAMADHAAN |
+|---------|--------------|------------|
+| **Branding** | Alliance India | S A M A D H A A N |
+| **Route Groups** | Flat structure | `(dashboard)`, `(admin)`, `(docs)` |
+| **Session Duration** | Default NextAuth | 8-hour enforcement |
+| **Admin Access** | Role-based (loose) | Middleware + server-side gatekeeper |
+| **Homepage** | Settings dashboard | Cinematic Mission Control |
+| **Data Sync Visual** | Toast notifications | Data Packet Chase animation |
+| **Audio Feedback** | None | Web Audio API synthesis |
+| **Documentation** | README only | Dedicated `/docs` route |
+| **Loading States** | Component-level | Route-level skeletons |
+| **Typography** | Standard tracking | Institutional tracking-[0.4em] |
+
+**Migration Path:**
+- SAMADHAAN is additive (no breaking changes)
+- Both layouts coexist in `app/` directory
+- Choose deployment context:
+  - **Production (National):** Use SAMADHAAN branding
+  - **Development/Testing:** Use TB-PWA-Clean branding
+- Update `app/layout.tsx` metadata to switch context
+
+**File Locations:**
+```
+app/
+├── (dashboard)/          ← SAMADHAAN Mission Control
+│   ├── layout.tsx
+│   ├── page.tsx
+│   └── loading.tsx
+├── (admin)/              ← Admin Control Panel
+│   ├── layout.tsx
+│   ├── users/page.tsx
+│   └── loading.tsx
+├── (docs)/               ← Knowledge Vault
+│   ├── layout.tsx
+│   ├── page.tsx
+│   └── loading.tsx
+├── dashboard/            ← Original TB-PWA-Clean
+│   ├── layout.tsx
+│   └── page.tsx
+├── layout.tsx            ← Root (updated with SAMADHAAN)
+└── login/page.tsx        ← Updated with session messaging
+
+components/
+└── DataPacketChase.tsx   ← New animation component
+
+lib/
+└── audioFeedback.ts      ← New Web Audio utilities
+```
+
+---
 
 ---
 

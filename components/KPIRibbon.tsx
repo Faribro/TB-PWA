@@ -17,6 +17,7 @@ interface Patient {
 
 interface KPIRibbonProps {
   filteredPatients: Patient[];
+  compact?: boolean;
 }
 
 interface KPIMetric {
@@ -50,7 +51,7 @@ const calculateRiskScore = (breachRate: number, totalPatients: number): number =
   return Math.round(breachWeight + patientWeight);
 };
 
-export function KPIRibbon({ filteredPatients }: KPIRibbonProps) {
+export function KPIRibbon({ filteredPatients, compact = false }: KPIRibbonProps) {
   const { filter, setStatus } = useUniversalFilter();
 
   const metrics = useMemo((): KPIMetric[] => {
@@ -139,6 +140,55 @@ export function KPIRibbon({ filteredPatients }: KPIRibbonProps) {
       setStatus(filter.status === metric.filterStatus ? 'All' : metric.filterStatus);
     }
   };
+
+  // Compact mode: Render as vertical stack in sidebar
+  if (compact) {
+    return (
+      <div className="space-y-3">
+        {metrics.map((metric, index) => {
+          const isActive = metric.filterStatus && filter.status === metric.filterStatus;
+          const isClickable = !!metric.filterStatus;
+          
+          return (
+            <motion.button
+              key={metric.id}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+              onClick={() => handleMetricClick(metric)}
+              disabled={!isClickable}
+              className={`
+                w-full p-4 rounded-xl border transition-all duration-300
+                ${isActive 
+                  ? `${metric.borderColor} bg-white shadow-sm` 
+                  : 'border-slate-200/40 bg-white/50 hover:bg-white hover:border-slate-300'
+                }
+                ${isClickable ? 'cursor-pointer active:scale-95' : 'cursor-default'}
+                flex items-center justify-between group
+              `}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`${metric.color}`}>
+                  {metric.icon}
+                </div>
+                <div className="text-left">
+                  <div className="text-xs font-bold text-slate-700">
+                    {metric.label}
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {metric.context}
+                  </div>
+                </div>
+              </div>
+              <div className="text-xl font-black text-slate-900 tabular-nums">
+                {metric.value.toLocaleString()}
+              </div>
+            </motion.button>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <motion.div

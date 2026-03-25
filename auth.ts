@@ -17,6 +17,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   session: {
     strategy: "jwt",
+    maxAge: 28800,    // 8 hours
+    updateAge: 3600,  // refresh token every 1 hour of activity
   },
   callbacks: {
     async jwt({ token, user }) {

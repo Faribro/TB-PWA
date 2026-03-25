@@ -64,6 +64,12 @@ export interface TruthEngineResult {
  * Single-pass O(n) audit of the globalPatients array.
  * Returns violations array and calculated health score.
  *
+ * Health Score Formula (STRICT PENALTY):
+ *  - Start at 100
+ *  - Subtract 5 points for every HIGH severity violation
+ *  - Subtract 2 points for every MEDIUM severity violation
+ *  - Minimum score: 0
+ *
  * Violation categories:
  *  • TEMPORAL   – screening_date year < 2024  (DOB entered instead of screen date)
  *  • SHADOW     – critical fields contain garbage placeholders
@@ -223,15 +229,12 @@ export function useTruthEngine(globalPatients: Patient[]): TruthEngineResult {
     // Sort: highest impact first
     const sortedViolations = violations.sort((a, b) => b.impactScore - a.impactScore);
 
-    // Calculate health score
-    const totalPatients = globalPatients.length;
+    // Calculate health score with STRICT PENALTY FORMULA
     const highCount = violations.filter(v => v.severity === 'high').length;
     const mediumCount = violations.filter(v => v.severity === 'medium').length;
     
-    // Health score formula: penalize high severity more heavily
-    const highPenalty = (highCount / totalPatients) * 50; // High violations reduce score by up to 50%
-    const mediumPenalty = (mediumCount / totalPatients) * 30; // Medium violations reduce score by up to 30%
-    const healthScore = Math.max(0, Math.min(100, 100 - highPenalty - mediumPenalty));
+    // Flat penalty: 5 points off for every high severity error, 2 points off for every medium
+    const healthScore = Math.max(0, 100 - (highCount * 5) - (mediumCount * 2));
 
     return {
       violations: sortedViolations,
