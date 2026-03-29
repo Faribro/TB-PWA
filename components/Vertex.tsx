@@ -36,6 +36,7 @@ import { FollowUpPipeline } from '@/components/FollowUpPipeline';
 import { PatientDetailDrawer } from '@/components/PatientDetailDrawer';
 import { VertexChart } from '@/components/VertexChart';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
+import { useSWRConfig } from 'swr';
 
 // TypeScript Interfaces
 interface MonthlyHeatmapData {
@@ -228,14 +229,15 @@ const CalendarGrid = ({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-7 gap-3 mb-2">
+      <div className="grid grid-cols-7 gap-1.5 mb-2">
         {weekDays.map(day => (
           <div key={day} className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
             {day}
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-3">
+      {/* Magnetic scroll snap container */}
+      <div className="grid grid-cols-7 gap-1.5 scroll-snap-x">
         {days.map((day, idx) => {
           if (!day) return <div key={idx} className="aspect-square" />;
           
@@ -255,7 +257,7 @@ const CalendarGrid = ({
               whileHover={{ scale: shouldDim ? 1 : 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
               className={cn(
-                "aspect-square rounded-2xl border-2 transition-all duration-300 relative overflow-hidden group/day",
+                "min-h-[56px] rounded-2xl border-2 transition-all duration-300 relative overflow-hidden group/day scroll-snap-center",
                 "active:scale-95 shadow-sm",
                 isSelected 
                   ? "bg-slate-900 border-slate-900 shadow-2xl shadow-blue-500/20 ring-4 ring-blue-500/10" 
@@ -265,9 +267,12 @@ const CalendarGrid = ({
                 !isBreachMode && isHighVolume && !isSelected && "bg-blue-50 border-blue-200"
               )}
             >
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
+              {/* Glassmorphism depth layer on hover */}
+              <div className="absolute inset-0 glass-depth-1 opacity-0 group-hover/day:opacity-100 transition-opacity duration-300" />
+              
+              <div className="absolute inset-0 flex flex-col items-center justify-center relative z-10">
                 <span className={cn(
-                  "text-base font-black transition-colors duration-300",
+                  "text-sm font-semibold transition-colors duration-300",
                   isSelected ? "text-white" : 
                   shouldHighlight ? "text-rose-600" :
                   hasActivity ? "text-slate-900" : "text-slate-300 group-hover/day:text-slate-600"
@@ -287,7 +292,7 @@ const CalendarGrid = ({
               
               {hasActivity && (
                 <div className={cn(
-                  "absolute bottom-1.5 right-2 text-[10px] font-black tabular-nums opacity-60",
+                  "absolute bottom-1.5 right-2 text-[10px] font-black tabular-nums opacity-60 z-10",
                   isSelected ? "text-white/80" : shouldHighlight ? "text-rose-700" : "text-slate-500"
                 )}>
                   {isBreachMode && hasBreaches ? day.data.breachCount : day.data.screenedCount}
@@ -301,7 +306,7 @@ const CalendarGrid = ({
   );
 };
 
-// Spark Metric Card with BentoTilt and SmokeCard
+// Spark Metric Card with BentoTilt, SmokeCard, and Haptic Feedback
 const SparkCard = ({ 
   icon: Icon, 
   label, 
@@ -325,8 +330,11 @@ const SparkCard = ({
   return (
     <SmokeCard>
       <BentoTilt>
-        <Card className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 group transition-all duration-200 hover:shadow-md hover:border-blue-300">
-          <div className="flex items-start justify-between">
+        <Card className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 group transition-all duration-200 hover:shadow-md hover:border-blue-300 relative overflow-hidden">
+          {/* Glassmorphism overlay on hover */}
+          <div className="absolute inset-0 glass-depth-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          
+          <div className="flex items-start justify-between relative z-10">
             <div className="flex-1">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 opacity-80">
                 {label}
@@ -513,7 +521,27 @@ export default function Vertex({
   externalPatients?: any[];
   externalLoading?: boolean;
 } = {}) {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  // Use external data when provided (avoids duplicate fetch + 400 errors)
+  const { data: swrData = [], isLoading: swrLoading } = useSWRAllPatients();
+  const globalPatients: any[] = externalPatients ?? swrData;
+  const isLoading = externalLoading ?? swrLoading;
+
+  // Find the most recent month with data
+  const mostRecentDateWithData = useMemo(() => {
+    if (!globalPatients?.length) return new Date();
+    
+    let mostRecent = new Date(0); // Start with epoch
+    for (let i = 0; i < globalPatients.length; i++) {
+      const dateValue = globalPatients[i].screening_date || globalPatients[i].submitted_on;
+      if (!dateValue) continue;
+      const date = new Date(dateValue);
+      if (date > mostRecent) mostRecent = date;
+    }
+    
+    return mostRecent.getTime() === 0 ? new Date() : mostRecent;
+  }, [globalPatients]);
+
+  const [currentDate, setCurrentDate] = useState(mostRecentDateWithData);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [selectedFacility, setSelectedFacility] = useState<string | null>(null);
@@ -521,6 +549,14 @@ export default function Vertex({
   const [filterDistrict, setFilterDistrict] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'volume' | 'breaches'>('volume');
   const [hudVisible, setHudVisible] = useState(true);
+  const { mutate } = useSWRConfig();
+
+  // Update currentDate when data loads and most recent date changes
+  useEffect(() => {
+    if (!isLoading && mostRecentDateWithData) {
+      setCurrentDate(mostRecentDateWithData);
+    }
+  }, [mostRecentDateWithData, isLoading]);
 
   // HUD bounce animation cycle with realistic physics
   useEffect(() => {
@@ -533,11 +569,6 @@ export default function Vertex({
 
     return () => clearInterval(interval);
   }, []);
-
-  // Use external data when provided (avoids duplicate fetch + 400 errors)
-  const { data: swrData = [], isLoading: swrLoading } = useSWRAllPatients();
-  const globalPatients: any[] = externalPatients ?? swrData;
-  const isLoading = externalLoading ?? swrLoading;
 
   // Extract available states and districts (memoized with proper dependencies)
   const { availableStates, availableDistricts } = useMemo(() => {
@@ -941,7 +972,7 @@ export default function Vertex({
            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
            className="w-full lg:w-[45%] lg:sticky lg:top-6 h-auto pb-40"
         >
-          <Card className="bg-white border-slate-200 shadow-sm rounded-xl p-8 flex flex-col border relative">
+          <Card className="bg-white border-slate-200 shadow-sm rounded-xl p-4 flex flex-col border relative">
             <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-blue-500/[0.02] to-transparent pointer-events-none" />
             
             <CalendarHeader 
@@ -966,12 +997,12 @@ export default function Vertex({
             </div>
             
             {/* Monthly Pulse Console - Dynamic Metrics */}
-            <div className="mt-8 pt-8 border-t border-slate-200/60 flex items-center justify-between">
-              <div className="flex items-center gap-6">
+            <div className="mt-4 pt-4 border-t border-slate-200/60 flex items-center justify-between">
+              <div className="flex items-center gap-4">
                 <div className="group">
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-blue-500 transition-colors">Total</div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-slate-950 tracking-tighter">
+                    <span className="text-2xl font-black text-slate-950 tracking-tighter">
                       {globalPatients.length.toLocaleString()}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400 uppercase">Screened</span>
@@ -980,7 +1011,7 @@ export default function Vertex({
                 <div className="group">
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-rose-500 transition-colors">Pending</div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-rose-600 tracking-tighter">
+                    <span className="text-2xl font-black text-rose-600 tracking-tighter">
                       {globalPatients.filter((p: any) => {
                         const isAbnormal = p.xray_result?.toLowerCase().includes('abnormal');
                         const noTreatment = !p.att_start_date && !p.referral_date;
@@ -993,7 +1024,7 @@ export default function Vertex({
                 <div className="group">
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-emerald-500 transition-colors">This Month</div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-emerald-600 tracking-tighter">
+                    <span className="text-2xl font-black text-emerald-600 tracking-tighter">
                       {globalPatients.filter((p: any) => {
                         const dateValue = p.screening_date || p.submitted_on;
                         if (!dateValue) return false;
@@ -1021,15 +1052,15 @@ export default function Vertex({
           </Card>
         </motion.div>
 
-        {/* Right Pane: Daily Briefing - NATURAL SCROLL */}
+        {/* Right Pane: Daily Briefing - INTERNAL SCROLL */}
         <motion.div
            initial={{ opacity: 0, x: 40 }}
            animate={{ opacity: 1, x: 0 }}
            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
-           className="w-full lg:w-[55%] h-[calc(100vh-4rem)] overflow-y-auto no-scrollbar pb-32"
+           className="w-full lg:w-[55%] flex flex-col lg:sticky lg:top-6 h-[calc(100vh-3rem)]"
            id="right-scroll-container"
         >
-          <Card className="bg-white border-slate-200 shadow-sm rounded-xl overflow-hidden flex flex-col border relative">
+          <Card className="flex flex-col flex-1 min-h-0 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm relative">
             <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-blue-500/[0.02] to-transparent pointer-events-none" />
             <AnimatePresence mode="wait">
               {selectedDate ? (
@@ -1039,10 +1070,10 @@ export default function Vertex({
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 1.02 }}
                   transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                  className="h-full flex flex-col"
+                  className="flex flex-col flex-1 min-h-0"
                 >
                   {/* Header */}
-                  <div className="flex items-center justify-between px-8 py-6 border-b border-slate-200/50 bg-white/40 backdrop-blur-xl">
+                  <div className="flex-shrink-0 flex items-center justify-between px-8 py-6 border-b border-slate-200/50 bg-white/40 backdrop-blur-xl">
                     <div>
                       <h3 className="text-3xl font-black text-slate-950 tracking-tighter uppercase leading-none">{formattedDate}</h3>
                       <div className="flex items-center gap-2 mt-1">
@@ -1061,7 +1092,7 @@ export default function Vertex({
                     </Button>
                   </div>
 
-                  <ScrollArea className="flex-1 px-8 py-8 hide-scrollbar">
+                  <ScrollArea className="flex-1 px-8 py-8">
                     <div className="space-y-10">
                       {/* Interactive Metrics */}
                       <div className="grid grid-cols-2 gap-6">
@@ -1120,32 +1151,202 @@ export default function Vertex({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="flex flex-col items-center justify-center w-full h-[calc(100vh-8rem)] min-h-[600px] bg-white border border-slate-200 rounded-xl shadow-sm text-center p-10"
+                  className="flex flex-col flex-1 min-h-0"
                 >
-                  <div className="w-32 h-32 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center mb-8 relative">
-                    <CalendarIcon className="w-12 h-12 text-blue-500 opacity-40" />
-                    <motion.div 
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                      className="absolute inset-0 border-t-2 border-blue-500 rounded-full"
-                    />
-                  </div>
-                  <h3 className="text-2xl font-black text-slate-800 tracking-widest mb-6 uppercase">Monthly Aggregate Overview</h3>
-                  <div className="text-base font-bold text-slate-700 leading-relaxed mb-4 max-w-md">
-                    In <span className="text-slate-900">{currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>, a total of{' '}
-                    <span className="text-blue-600 font-black text-xl">
-                      {globalPatients.filter((p: any) => {
-                        const dateValue = p.screening_date || p.submitted_on;
-                        if (!dateValue) return false;
-                        const date = new Date(dateValue);
-                        return date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
-                      }).length.toLocaleString()}
-                    </span>{' '}
-                    screenings have been conducted.
-                  </div>
-                  <p className="text-sm font-medium text-slate-400 max-w-md mx-auto leading-relaxed">
-                    Select a specific date on the temporal grid to initialize the daily intelligence feed.
-                  </p>
+                  {(() => {
+                    const monthPatients = globalPatients.filter((p: any) => {
+                      const dateValue = p.screening_date || p.submitted_on;
+                      if (!dateValue) return false;
+                      const date = new Date(dateValue);
+                      return date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
+                    });
+
+                    const stats = {
+                      total: monthPatients.length,
+                      suspected: monthPatients.filter((p: any) => {
+                        const hasAbnormalXray = p.xray_result?.toLowerCase().includes('abnormal');
+                        const hasSymptoms = p.symptoms_10s === 'Yes' || p.symptoms_10s === 'Y';
+                        return hasAbnormalXray || hasSymptoms;
+                      }).length,
+                      notSuspected: monthPatients.filter((p: any) => {
+                        const hasAbnormalXray = p.xray_result?.toLowerCase().includes('abnormal');
+                        const hasSymptoms = p.symptoms_10s === 'Yes' || p.symptoms_10s === 'Y';
+                        return !hasAbnormalXray && !hasSymptoms;
+                      }).length,
+                      diagnosed: monthPatients.filter((p: any) => p.tb_diagnosed === 'Y').length,
+                      notDiagnosed: monthPatients.filter((p: any) => p.tb_diagnosed === 'N').length,
+                      attStarted: monthPatients.filter((p: any) => p.att_start_date != null).length,
+                      referralDone: monthPatients.filter((p: any) => p.referral_date != null).length,
+                    };
+
+                    const monthName = currentDate.toLocaleDateString('en-US', { month: 'long' });
+                    const year = currentDate.getFullYear();
+
+                    return (
+                      <div className="flex flex-col flex-1 min-h-0">
+                        {/* Clean Header - UPGRADED */}
+                        <div className="flex items-center justify-between bg-slate-900 text-white rounded-t-xl px-5 py-4">
+                          <h3 className="text-xs font-medium tracking-[0.15em] uppercase text-slate-400">Monthly Overview</h3>
+                          <Badge variant="outline" className="bg-slate-700 text-slate-200 text-xs px-2.5 py-0.5 rounded-full font-medium border-slate-600">
+                            {monthName} {year}
+                          </Badge>
+                        </div>
+
+                        <div className="flex flex-col">
+                          {/* Dominant Anchor Stat */}
+                          <div className="px-5 pt-5 pb-4 flex-shrink-0">
+                            <div className="text-[2.75rem] font-bold tracking-tight leading-none tabular-nums text-slate-900">
+                              {stats.total.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-slate-400 mt-1 uppercase tracking-wider">
+                              patients screened · {monthName} {year}
+                            </div>
+                          </div>
+
+                          {/* 2×2 Micro-Stat Grid with Accent Dots */}
+                          <div className="px-5 flex-shrink-0 mb-6">
+                            <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 border border-slate-100 rounded-lg overflow-hidden bg-slate-50/50">
+                              <div className="flex flex-col gap-0.5 p-4 border-t-2 border-amber-400">
+                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.suspected.toLocaleString()}</span>
+                                <span className="text-[10px] uppercase tracking-widest text-slate-400">Suspected</span>
+                              </div>
+                              <div className="flex flex-col gap-0.5 p-4 border-t-2 border-red-400">
+                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.diagnosed.toLocaleString()}</span>
+                                <span className="text-[10px] uppercase tracking-widest text-slate-400">Diagnosed</span>
+                              </div>
+                              <div className="flex flex-col gap-0.5 p-4 border-t-2 border-blue-500">
+                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.attStarted.toLocaleString()}</span>
+                                <span className="text-[10px] uppercase tracking-widest text-slate-400">ATT Started</span>
+                              </div>
+                              <div className="flex flex-col gap-0.5 p-4 border-t-2 border-emerald-500">
+                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.referralDone.toLocaleString()}</span>
+                                <span className="text-[10px] uppercase tracking-widest text-slate-400">Referred</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Linear Funnel with Proportional Bars */}
+                          <div className="flex-shrink-0 px-5 pb-5 pt-4 space-y-4">
+                            <h4 className="text-xs font-semibold text-slate-500 tracking-wide">Care Cascade</h4>
+                            
+                            <div className="flex items-start gap-2">
+
+                              {/* Screened */}
+                              <div className="flex flex-col items-center gap-1 flex-1">
+                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.total.toLocaleString()}</span>
+                                <span className="text-[10px] uppercase tracking-widest text-slate-400">Screened</span>
+                                <div className="w-full bg-slate-100 rounded-full h-0.5 mt-1.5">
+                                  <div 
+                                    className="bg-slate-400 h-0.5 rounded-full transition-all duration-700"
+                                    style={{ width: '100%' }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Connector */}
+                              <div className="flex flex-col items-center justify-center flex-1 pt-3">
+                                <span className="text-[9px] text-slate-300 mb-1">
+                                  {(() => {
+                                    const pct = stats.total > 0 ? Math.round((stats.suspected / stats.total) * 100) : 0;
+                                    return stats.suspected === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
+                                  })()}
+                                </span>
+                                <div className="h-px bg-slate-200 w-full" />
+                              </div>
+
+                              {/* Suspected */}
+                              <div className="flex flex-col items-center gap-1 flex-1">
+                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.suspected.toLocaleString()}</span>
+                                <span className="text-[10px] uppercase tracking-widest text-slate-400">Suspected</span>
+                                <div className="w-full bg-slate-100 rounded-full h-0.5 mt-1.5">
+                                  <div 
+                                    className="bg-slate-400 h-0.5 rounded-full transition-all duration-700"
+                                    style={{ width: `${stats.total > 0 ? Math.round((stats.suspected / stats.total) * 100) : 0}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Connector */}
+                              <div className="flex flex-col items-center justify-center flex-1 pt-3">
+                                <span className="text-[9px] text-slate-300 mb-1">
+                                  {(() => {
+                                    const pct = stats.suspected > 0 ? Math.round((stats.referralDone / stats.suspected) * 100) : 0;
+                                    return stats.referralDone === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
+                                  })()}
+                                </span>
+                                <div className="h-px bg-slate-200 w-full" />
+                              </div>
+
+                              {/* Referred */}
+                              <div className="flex flex-col items-center gap-1 flex-1">
+                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.referralDone.toLocaleString()}</span>
+                                <span className="text-[10px] uppercase tracking-widest text-slate-400">Referred</span>
+                                <div className="w-full bg-slate-100 rounded-full h-0.5 mt-1.5">
+                                  <div 
+                                    className="bg-slate-400 h-0.5 rounded-full transition-all duration-700"
+                                    style={{ width: `${stats.total > 0 ? Math.round((stats.referralDone / stats.total) * 100) : 0}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Connector */}
+                              <div className="flex flex-col items-center justify-center flex-1 pt-3">
+                                <span className="text-[9px] text-slate-300 mb-1">
+                                  {(() => {
+                                    const pct = stats.referralDone > 0 ? Math.round((stats.diagnosed / stats.referralDone) * 100) : 0;
+                                    return stats.diagnosed === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
+                                  })()}
+                                </span>
+                                <div className="h-px bg-slate-200 w-full" />
+                              </div>
+
+                              {/* Diagnosed */}
+                              <div className="flex flex-col items-center gap-1 flex-1">
+                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.diagnosed.toLocaleString()}</span>
+                                <span className="text-[10px] uppercase tracking-widest text-slate-400">Diagnosed</span>
+                                <div className="w-full bg-slate-100 rounded-full h-0.5 mt-1.5">
+                                  <div 
+                                    className="bg-slate-400 h-0.5 rounded-full transition-all duration-700"
+                                    style={{ width: `${stats.total > 0 ? Math.round((stats.diagnosed / stats.total) * 100) : 0}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Connector */}
+                              <div className="flex flex-col items-center justify-center flex-1 pt-3">
+                                <span className="text-[9px] text-slate-300 mb-1">
+                                  {(() => {
+                                    const pct = stats.diagnosed > 0 ? Math.round((stats.attStarted / stats.diagnosed) * 100) : 0;
+                                    return stats.attStarted === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
+                                  })()}
+                                </span>
+                                <div className="h-px bg-slate-200 w-full" />
+                              </div>
+
+                              {/* ATT Started */}
+                              <div className="flex flex-col items-center gap-1 flex-1">
+                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.attStarted.toLocaleString()}</span>
+                                <span className="text-[10px] uppercase tracking-widest text-slate-400">ATT Started</span>
+                                <div className="w-full bg-slate-100 rounded-full h-0.5 mt-1.5">
+                                  <div 
+                                    className="bg-slate-400 h-0.5 rounded-full transition-all duration-700"
+                                    style={{ width: `${stats.total > 0 ? Math.round((stats.attStarted / stats.total) * 100) : 0}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Bottom Hint */}
+                          <div className="mt-auto px-5 pb-5 pt-3 border-t border-slate-100">
+                            <p className="text-xs text-slate-400 leading-relaxed">
+                              Select a specific date on the calendar to view daily intelligence.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -1153,53 +1354,57 @@ export default function Vertex({
         </motion.div>
       </div>
 
-      {/* Task 3: The Mega-Drawer UI & Z-Index Override */}
+      {/* LEVEL 1: Master Drawer (Facility Patient List) - Elegant Sidebar Width */}
       <Sheet open={!!selectedFacility} onOpenChange={(open) => !open && setSelectedFacility(null)}>
-        {/* Task 1: OVERLAY FIX - Force z-index to 99998 to cover the left navigation menu */}
-        <SheetOverlay className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm !z-[99998]" />
+        <SheetOverlay className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm !z-[99998] data-[state=open]:duration-700 data-[state=closed]:duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         
-        {/* Task 2: GOLDILOCKS WIDTH - Professional fixed width with responsive mobile fallback */}
         <SheetContent 
-          className="!w-[90vw] sm:!max-w-[550px] md:!max-w-[600px] !z-[99999] bg-white/10 backdrop-blur-md border-l border-white/20 shadow-2xl p-0 flex flex-col"
+          onInteractOutside={(e) => {
+            // Prevent Master List from closing if the Detail Drawer is open!
+            if (selectedPatient) e.preventDefault();
+          }}
+          className="!w-[90vw] sm:!max-w-[500px] md:!max-w-[600px] !z-[99998] bg-slate-50/70 backdrop-blur-2xl border-l border-white/60 shadow-[-10px_0_40px_rgba(0,0,0,0.08)] p-0 flex flex-col data-[state=open]:duration-700 data-[state=closed]:duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] overflow-hidden"
         >
-          <SheetHeader className="px-6 py-5 border-b border-slate-200 bg-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <SheetTitle className="text-2xl font-black text-slate-900 mb-1">
-                  {selectedFacility}
-                </SheetTitle>
-                <p className="text-sm font-medium text-slate-500">
-                  {patientsForSelectedFacility.length} patients screened
-                </p>
+          {/* THE PARALLAX WRAPPER - Apple-Style Push-Back */}
+          <div className={cn(
+            "flex flex-col h-full w-full origin-right transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            selectedPatient && "scale-[0.94] opacity-50 blur-[2px] pointer-events-none bg-slate-100/50"
+          )}>
+            <SheetHeader className="px-6 py-5 border-b border-white/30 bg-white/20 backdrop-blur-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <SheetTitle className="text-2xl font-black text-slate-900 mb-1">
+                    {selectedFacility}
+                  </SheetTitle>
+                  <p className="text-sm font-medium text-slate-500">
+                    {patientsForSelectedFacility.length} patients screened
+                  </p>
+                </div>
+                <Badge variant="outline" className="text-slate-600 bg-slate-50 border-slate-200 text-sm font-bold px-3 py-1.5">
+                  {patientsForSelectedFacility.length} total
+                </Badge>
               </div>
-              <Badge variant="outline" className="text-slate-600 bg-slate-50 border-slate-200 text-sm font-bold px-3 py-1.5">
-                {patientsForSelectedFacility.length} total
-              </Badge>
+            </SheetHeader>
+            
+            {/* INTERNAL LAYOUT SAFETY - Prevent horizontal overflow */}
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 bg-white/10">
+              <FollowUpPipeline 
+                patients={sortedFacilityPatients}
+                isLoading={false}
+                onPatientClick={handleOpenPatientDrawer}
+              />
             </div>
-          </SheetHeader>
-          
-          {/* Task 3: INTERNAL LAYOUT SAFETY - Prevent horizontal overflow */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
-            <FollowUpPipeline 
-              patients={sortedFacilityPatients}
-              isLoading={false}
-              onPatientClick={handleOpenPatientDrawer}
-            />
           </div>
         </SheetContent>
       </Sheet>
 
-      {/* Patient Detail Drawer */}
-      <AnimatePresence>
-        {selectedPatient && (
-          <PatientDetailDrawer
-            patient={selectedPatient}
-            isOpen={!!selectedPatient}
-            onClose={handleClosePatientDrawer}
-            onUpdate={() => {}}
-          />
-        )}
-      </AnimatePresence>
+      {/* Patient Detail Drawer - ALWAYS MOUNTED, CONTROLLED BY ISOPEN */}
+      <PatientDetailDrawer
+        patient={selectedPatient || { id: null }} // Pass minimal object to prevent crashes
+        isOpen={!!selectedPatient && selectedPatient.id !== null}
+        onClose={handleClosePatientDrawer}
+        onUpdate={() => mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'))}
+      />
     </div>
   );
 }

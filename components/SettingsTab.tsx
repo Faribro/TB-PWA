@@ -226,7 +226,7 @@ function ProfilePanel({
       <div className="grid grid-cols-3 gap-5">
 
         {/* Identity — spans 2 cols */}
-        <TiltCard className="col-span-2 relative overflow-hidden rounded-3xl bg-white border border-slate-200/60 shadow-[0_8px_40px_rgb(0,0,0,0.06)] p-8">
+        <TiltCard className="col-span-2 relative overflow-hidden rounded-3xl bg-white border border-slate-200/60 shadow-[0_8px_40px_rgb(0,0,0,0.06)] p-4">
           {/* Noise texture overlay */}
           <div
             className="absolute inset-0 opacity-[0.025] pointer-events-none"
@@ -249,8 +249,8 @@ function ProfilePanel({
                   padding: '2px',
                 }}
               />
-              <div className="relative w-20 h-20 bg-gradient-to-br from-blue-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-xl m-[2px]">
-                <User className="w-9 h-9 text-white" />
+              <div className="relative w-16 h-16 bg-gradient-to-br from-blue-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-xl m-[2px]">
+                <User className="w-7 h-7 text-white" />
               </div>
             </div>
 
@@ -340,7 +340,7 @@ function ProfilePanel({
         </div>
 
         {/* Grid of notification cards */}
-        <div className="grid grid-cols-2 gap-px bg-slate-100">
+        <div className="grid grid-cols-2 gap-3 bg-slate-100">
           {notifications.map((notif, i) => {
             const Icon = notif.icon;
             return (
@@ -350,7 +350,7 @@ function ProfilePanel({
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.06 }}
-                className={`relative bg-white p-6 group cursor-pointer transition-colors hover:bg-slate-50/80 ${
+                className={`relative bg-white p-3 group cursor-pointer transition-colors hover:bg-slate-50/80 ${
                   !notif.enabled ? 'opacity-50' : ''
                 }`}
                 onClick={() => onToggle(notif.id)}
@@ -686,7 +686,7 @@ export default function SettingsTab() {
                   ref={(el) => { (tabRefs.current as Record<string, HTMLButtonElement | null>)[tab.id] = el; }}
                   onClick={() => setActiveSubTab(tab.id)}
                   aria-current={isActive ? 'page' : undefined}
-                  className={`relative flex items-center gap-3 px-4 py-2 rounded-xl text-left transition-all focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
+                  className={`relative flex items-center gap-3 px-3 py-2 rounded-xl text-left transition-all focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
                     isActive
                       ? 'bg-slate-900 text-white shadow-md'
                       : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'

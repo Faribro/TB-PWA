@@ -3,9 +3,11 @@
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Terminal, ShieldAlert, Cpu, Activity, Globe } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { MatrixRain } from "@/components/MatrixRain";
+import { verifyOverrideKey } from "@/app/actions/verify-override-key";
 
 function AshokaChakra({ className, style }: { className?: string, style?: React.CSSProperties }) {
   return (
@@ -157,6 +159,16 @@ function Masthead() {
 export default function LoginPage() {
   const [isHovering, setIsHovering] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [clickCount, setClickCount] = useState(0);
+  const [clickTimer, setClickTimer] = useState<NodeJS.Timeout | null>(null);
+  const [showOverrideModal, setShowOverrideModal] = useState(false);
+  const [logoFlash, setLogoFlash] = useState(false);
+  const [overrideRole, setOverrideRole] = useState<string>('PM');
+  const [overrideState, setOverrideState] = useState<string>('');
+  const [overrideDistrict, setOverrideDistrict] = useState<string>('');
+  const [masterKey, setMasterKey] = useState<string>('');
+  const [keyStatus, setKeyStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+  const [isUnlocked, setIsUnlocked] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -166,7 +178,59 @@ export default function LoginPage() {
     }
   }, []);
 
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowOverrideModal(false);
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, []);
+
+  useEffect(() => {
+    if (masterKey.length < 5) {
+      setKeyStatus('idle');
+      setIsUnlocked(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setKeyStatus('checking');
+      const valid = await verifyOverrideKey(masterKey);
+      setKeyStatus(valid ? 'valid' : 'invalid');
+      setIsUnlocked(valid);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [masterKey]);
+
+  const handleLogoClick = () => {
+    const newCount = clickCount + 1;
+    setClickCount(newCount);
+
+    if (clickTimer) clearTimeout(clickTimer);
+
+    if (newCount === 5) {
+      setLogoFlash(true);
+      setTimeout(() => {
+        setLogoFlash(false);
+        setShowOverrideModal(true);
+        setClickCount(0);
+      }, 600);
+    } else {
+      const timer = setTimeout(() => setClickCount(0), 3000);
+      setClickTimer(timer);
+    }
+  };
+
   const handleGoogleSignIn = () => {
+    signIn("google", { callbackUrl: "/dashboard" });
+  };
+
+  const handleOverrideSignIn = () => {
+    const override = {
+      role: overrideRole,
+      state: overrideState || null,
+      district: overrideDistrict || null,
+    };
+    document.cookie = `__samadhaan_override=${JSON.stringify(override)}; path=/; max-age=60; SameSite=Lax`;
     signIn("google", { callbackUrl: "/dashboard" });
   };
 
@@ -226,15 +290,37 @@ export default function LoginPage() {
               )}
             </AnimatePresence>
             
-            <div className="mb-6 w-full flex justify-center">
-              <Image 
-                src="/Images/Logo/AllianceIndia-Logo.png" 
-                alt="Alliance India" 
-                width={280} 
-                height={100} 
-                className="h-28 w-auto object-contain drop-shadow-sm" 
-                priority 
-              />
+            <div className="mb-6 w-full flex justify-center relative">
+              <motion.div
+                animate={logoFlash ? {
+                  filter: ['brightness(1)', 'brightness(2) hue-rotate(30deg)', 'brightness(1)', 'brightness(2) hue-rotate(30deg)', 'brightness(1)', 'brightness(2) hue-rotate(30deg)', 'brightness(1)']
+                } : {}}
+                transition={{ duration: 0.6, times: [0, 0.14, 0.28, 0.42, 0.56, 0.7, 1] }}
+                className="relative cursor-pointer"
+                onClick={handleLogoClick}
+              >
+                {/* Ripple effect on each click */}
+                <AnimatePresence>
+                  {clickCount > 0 && (
+                    <motion.div
+                      key={clickCount}
+                      initial={{ scale: 0.8, opacity: 0.6 }}
+                      animate={{ scale: 2, opacity: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.6 }}
+                      className="absolute inset-0 rounded-full border-2 border-amber-400"
+                    />
+                  )}
+                </AnimatePresence>
+                <Image 
+                  src="/Images/Logo/AllianceIndia-Logo.png" 
+                  alt="Alliance India" 
+                  width={280} 
+                  height={100} 
+                  className="h-28 w-auto object-contain drop-shadow-sm" 
+                  priority 
+                />
+              </motion.div>
             </div>
 
             <div className="text-center mb-10 w-full flex flex-col items-center">
@@ -278,6 +364,167 @@ export default function LoginPage() {
         </footer>
 
       </main>
+
+      {/* VANGUARD System Override Modal */}
+      <AnimatePresence>
+        {showOverrideModal && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowOverrideModal(false)}
+              className="fixed inset-0 bg-black/90 backdrop-blur-md z-[9998]"
+            />
+            
+            {/* VANGUARD Terminal Modal */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="fixed inset-0 z-[9999] flex items-center justify-center p-4 font-mono"
+            >
+              <div className="w-full max-w-5xl h-[80vh] border-2 border-[#33ff99]/30 bg-[#0a0f0a] shadow-[0_0_50px_rgba(51,255,153,0.2)] overflow-hidden flex flex-col relative crt-overlay">
+                
+                {/* Top Header Bar */}
+                <div className="flex items-center justify-between px-4 py-2 border-b border-[#33ff99]/30 bg-[#1a2e1a]/50 text-[#33ff99] text-xs font-bold tracking-widest relative z-10">
+                  <div className="flex items-center gap-3">
+                    <ShieldAlert className="w-4 h-4 animate-pulse" />
+                    <span className="animate-flicker">SAMADHAAN_CORE_V2.4 // ROOT_ACCESS</span>
+                  </div>
+                  <button 
+                    onClick={() => setShowOverrideModal(false)} 
+                    className="hover:bg-red-500 hover:text-black transition-colors px-2 py-1 rounded"
+                  >
+                    [X]
+                  </button>
+                </div>
+
+                {/* 4-Quadrant Grid Layout */}
+                <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-0.5 bg-[#33ff99]/10 relative z-10">
+                  
+                  {/* Quadrant 1: Neural Bypass (Matrix Rain) */}
+                  <div className="relative bg-[#0c130c] p-4 overflow-hidden border border-[#33ff99]/20">
+                    <MatrixRain />
+                    <div className="relative z-10">
+                      <h3 className="text-[#33ff99] terminal-glow mb-2 flex items-center gap-2 text-sm">
+                        <Cpu className="w-4 h-4" /> NEURAL_BYPASS_INITIALIZED
+                      </h3>
+                      <div className="text-[10px] text-[#33ff99]/60 leading-tight space-y-1">
+                        <div>&gt; BYPASSING_SUPABASE_AUTH_GATES... <span className="text-[#33ff99]">DONE</span></div>
+                        <div>&gt; INJECTING_OVERRIDE_COOKIE... <span className="text-[#33ff99]">ACTIVE</span></div>
+                        <div>&gt; TARGET_ROLE: <span className="text-white font-bold">[{overrideRole}]</span></div>
+                        {overrideState && <div>&gt; TARGET_STATE: <span className="text-white font-bold">[{overrideState}]</span></div>}
+                        {overrideDistrict && <div>&gt; TARGET_DISTRICT: <span className="text-white font-bold">[{overrideDistrict}]</span></div>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quadrant 2: Override Parameters */}
+                  <div className="bg-[#0c130c] p-6 border border-[#33ff99]/20">
+                    <h3 className="text-[#33ff99] text-sm mb-4 tracking-tighter terminal-glow">SELECT_OVERRIDE_PARAMETERS:</h3>
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                      {['PM', 'SPM', 'ME', 'PC'].map((role) => (
+                        <button
+                          key={role}
+                          onClick={() => setOverrideRole(role)}
+                          className={`py-2 text-xs border transition-all ${
+                            overrideRole === role 
+                              ? 'bg-[#33ff99] text-black border-[#33ff99] shadow-[0_0_10px_rgba(51,255,153,0.5)]' 
+                              : 'border-[#33ff99]/30 text-[#33ff99] hover:bg-[#33ff99]/10'
+                          }`}
+                        >
+                          :: {role}
+                        </button>
+                      ))}
+                    </div>
+                    <input 
+                      placeholder="[--override-state]" 
+                      className="w-full bg-black border-b border-[#33ff99]/30 text-[#33ff99] p-2 text-xs outline-none focus:border-[#33ff99] mb-2 placeholder:text-[#33ff99]/30"
+                      value={overrideState} 
+                      onChange={(e) => setOverrideState(e.target.value)}
+                    />
+                    <input 
+                      placeholder="[--override-district]" 
+                      className="w-full bg-black border-b border-[#33ff99]/30 text-[#33ff99] p-2 text-xs outline-none focus:border-[#33ff99] placeholder:text-[#33ff99]/30"
+                      value={overrideDistrict} 
+                      onChange={(e) => setOverrideDistrict(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Quadrant 3 & 4: System Log + Execute (Combined) */}
+                  <div className="bg-[#0c130c] p-6 border border-[#33ff99]/20 col-span-2 flex flex-col justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-[#33ff99] text-sm mb-4">
+                        <Terminal className="w-4 h-4" /> <span className="terminal-glow">CONSOLE_OUTPUT</span>
+                      </div>
+                      <p className="text-[#33ff99]/80 text-[11px]">SAMADHAAN OS [Version 10.0.2026]</p>
+                      <p className="text-[#33ff99]/80 text-[11px]">(c) 2026 Alliance India. All rights reserved.</p>
+                      <p className="text-[#33ff99]/60 text-[10px] mt-2">NextAuth v5 (Auth.js) | Supabase RLS | JWT Strategy</p>
+                      <p className="text-[#33ff99] text-[11px] mt-4 flex items-center gap-2">
+                        root@vanguard:~$ <span className="animate-pulse">_</span>
+                      </p>
+                      
+                      <div className="mt-4 space-y-2">
+                        <input
+                          type="password"
+                          value={masterKey}
+                          onChange={(e) => setMasterKey(e.target.value)}
+                          placeholder="[SYSTEM_AUTH_CHALLENGE]"
+                          className="w-full bg-black border border-[#33ff99]/30 text-[#33ff99] p-3 text-xs outline-none focus:border-[#33ff99] placeholder:text-[#33ff99]/30 terminal-glow"
+                        />
+                        {keyStatus === 'valid' && (
+                          <p className="text-green-400 text-[10px] terminal-glow">
+                            &gt; AUTH_SUCCESS: VANGUARD_MODE_ENGAGED
+                          </p>
+                        )}
+                        {keyStatus === 'invalid' && (
+                          <p className="text-red-400 text-[10px]">
+                            &gt; AUTH_FAILURE: INVALID_ACCESS_KEY
+                          </p>
+                        )}
+                        {keyStatus === 'checking' && (
+                          <p className="text-yellow-400 text-[10px] animate-pulse">
+                            &gt; VERIFYING_KEY...
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <motion.button
+                      onClick={handleOverrideSignIn}
+                      disabled={!isUnlocked}
+                      animate={{
+                        boxShadow: isUnlocked
+                          ? ['0 0 0px #33ff99', '0 0 30px #33ff99', '0 0 10px #33ff99']
+                          : '0 0 0px transparent'
+                      }}
+                      transition={{ duration: 0.6, repeat: isUnlocked ? 2 : 0 }}
+                      className={`w-full mt-6 py-4 font-black text-sm tracking-[0.3em] transition-all ${
+                        isUnlocked
+                          ? 'bg-[#33ff99] text-black hover:bg-white shadow-[0_0_20px_rgba(51,255,153,0.5)] hover:shadow-[0_0_30px_rgba(51,255,153,0.8)] cursor-pointer'
+                          : 'bg-[#33ff99]/20 text-[#33ff99]/20 cursor-not-allowed'
+                      }`}
+                    >
+                      {isUnlocked ? '[ EXECUTE_SYSTEM_BREACH_SIGN_IN ]' : '[ ACCESS_RESTRICTED_ENTER_KEY ]'}
+                    </motion.button>
+                  </div>
+                </div>
+
+                {/* Bottom Status Bar */}
+                <div className="bg-[#0d1f0d] border-t border-[#33ff99]/30 p-2 flex gap-6 text-[10px] text-[#33ff99]/80 font-bold uppercase overflow-hidden relative z-10">
+                  <span className="flex items-center gap-1"><Activity className="w-3 h-3" /> SYSTEM: UNSTABLE</span>
+                  <span>CPU: 89%</span>
+                  <span>NET: ENCRYPTED_TUNNEL</span>
+                  <span className="ml-auto flex items-center gap-1"><Globe className="w-3 h-3" /> LOCATION: {overrideState || 'NATIONAL'}</span>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

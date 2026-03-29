@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Stethoscope, Activity, AlertTriangle, Pill } from 'lucide-react';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { PatientDetailDrawer } from './PatientDetailDrawer';
+import { useSWRConfig } from 'swr';
 
 export default function ActionsHub() {
   const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
@@ -12,6 +13,7 @@ export default function ActionsHub() {
   const userRole = 'National Admin';
   const userState = undefined;
   const { data: allPatients = [] } = useSWRAllPatients(userState);
+  const { mutate } = useSWRConfig();
 
   const filteredData = useMemo(() => {
     const state = activeState || userState;
@@ -169,7 +171,7 @@ export default function ActionsHub() {
           patient={selectedPatient}
           isOpen={true}
           onClose={() => setSelectedPatient(null)}
-          onUpdate={() => {}}
+          onUpdate={() => mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'))}
         />
       )}
     </>

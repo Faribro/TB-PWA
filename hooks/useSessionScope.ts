@@ -8,7 +8,7 @@ export interface SessionScope {
   district: string | null;
 }
 
-export const SUPERUSER_ROLES = ['admin', 'Program Manager', 'PM'] as const;
+export const SUPERUSER_ROLES = ['PM'] as const;
 
 export function isSuperuser(scope: SessionScope | null): boolean {
   if (!scope) return false;

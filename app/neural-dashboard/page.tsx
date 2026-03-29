@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSWRConfig } from 'swr';
 import { TreeFilterProvider } from '@/contexts/TreeFilterContext';
 import MindMapDashboard from '@/components/MindMapDashboard';
 import { FollowUpPipeline } from '@/components/FollowUpPipeline';
@@ -10,6 +11,7 @@ import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 export default function NeuralDashboardPage() {
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const { data: patients = [], isLoading } = useSWRAllPatients();
+  const { mutate } = useSWRConfig();
 
   if (isLoading) {
     return (
@@ -39,7 +41,7 @@ export default function NeuralDashboardPage() {
           patient={selectedPatient}
           isOpen={!!selectedPatient}
           onClose={() => setSelectedPatient(null)}
-          onUpdate={() => {}}
+          onUpdate={() => mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'))}
         />
       )}
     </TreeFilterProvider>

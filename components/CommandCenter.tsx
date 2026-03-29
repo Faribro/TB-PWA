@@ -10,6 +10,7 @@ import { calculatePatientPhase } from '@/lib/phase-engine';
 import { Button } from './ui/button';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useSWRPatients, useSWRAllPatients, useSWRFilterMetadata } from '@/hooks/useSWRPatients';
+import { useSWRConfig } from 'swr';
 import { createClient } from '@supabase/supabase-js';
 import { LinesAndDotsLoader } from './LinesAndDotsLoader';
 import { Z_INDEX } from '@/lib/zIndex';
@@ -110,8 +111,8 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
   // Now using globalPatients prop directly from parent
   const { data: filterMetadata } = useSWRFilterMetadata(userState);
 
-  // Dummy mutate function for compatibility
-  const mutate = async () => {};
+  // SWR config for cache revalidation
+  const { mutate } = useSWRConfig();
   const totalCount = globalPatients.length;
 
   // Define isSLABreach before using it
@@ -184,7 +185,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
     });
 
     if (response.ok) {
-      mutate();
+      mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
       if (selectedPatient?.id === id) setSelectedPatient({ ...selectedPatient, ...updates });
     }
   };
@@ -192,7 +193,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
   const bulkUpdate = async (updates: Partial<Patient>) => {
     const ids = Array.from(selectedIds);
     await Promise.all(ids.map(id => supabase.from('patients').update(updates).eq('id', id)));
-    mutate();
+    mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
     setSelectedIds(new Set());
   };
 
@@ -273,7 +274,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
       ]);
       
       setTriageIds([]);
-      mutate();
+      mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
     } finally {
       setIsTriaging(false);
     }
@@ -498,7 +499,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Patient List */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 max-h-[calc(100vh-180px)]">
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredPatients.map((patient) => (
@@ -710,7 +711,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
             patient={selectedPatient}
             isOpen={!!selectedPatient}
             onClose={() => setSelectedPatient(null)}
-            onUpdate={mutate}
+            onUpdate={() => mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'))}
           />
         )}
       </div>

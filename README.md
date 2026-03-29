@@ -110,10 +110,10 @@ cp .env.example .env.local
 ### Environment Variables
 
 ```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+# Supabase (Production)
+NEXT_PUBLIC_SUPABASE_URL=https://wwcgybgvfulotflitogu.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2d5Ymd2ZnVsb3RmbGl0b2d1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjY4OTk0MSwiZXhwIjoyMDg4MjY1OTQxfQ.aJIg860fGCJf7bVVV93Pdcev2A81h9FRxcBCU49DE_M
 
 # NextAuth
 NEXTAUTH_URL=http://localhost:3000
@@ -142,6 +142,9 @@ KOBO_API_URL=your_kobo_api_url
 KOBO_ASSET_UID=your_asset_uid
 KOBO_API_TOKEN=your_kobo_token
 
+# Google Sheets Webhook (Production)
+GOOGLE_SCRIPT_WEBHOOK_URL=https://script.google.com/macros/s/AKfycbyBwLUKiFDY-eLdNOIzNZRsyem0rWiTA6IvelapBjHg8sGdtkTuhQs2hGbXrydeUZSu/exec
+
 # Azure Blob Storage (Neural Nexus - Optional)
 AZURE_STORAGE_ACCOUNT_NAME=your_storage_account_name
 AZURE_STORAGE_ACCOUNT_KEY=your_storage_account_key
@@ -160,6 +163,22 @@ bun run dev
 
 # Open browser
 http://localhost:3000
+```
+
+### Testing Data Pipeline
+
+```bash
+# Test Supabase connection and Service Role Key
+bun run test:supabase
+
+# Test triple-sync pipeline (Supabase + Google Sheets)
+bun run test:sync
+
+# Run full pipeline test (Supabase verification + sync test)
+bun run test:pipeline
+
+# Test KoboToolbox webhook
+bun run test:webhook
 ```
 
 ### Production Build
@@ -837,6 +856,200 @@ POST /api/etl/kobo-sync
     "schedule": "0 */6 * * *"
   }]
 }
+```
+
+## 🔧 Data Pipeline Testing
+
+### Production Credentials (2025-01-21)
+
+**Supabase Project:**
+- Project ID: `wwcgybgvfulotflitogu`
+- URL: `https://wwcgybgvfulotflitogu.supabase.co`
+- Service Role Key: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2d5Ymd2ZnVsb3RmbGl0b2d1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjY4OTk0MSwiZXhwIjoyMDg4MjY1OTQxfQ.aJIg860fGCJf7bVVV93Pdcev2A81h9FRxcBCU49DE_M`
+
+**Google Sheets Webhook:**
+- Production URL: `https://script.google.com/macros/s/AKfycbyBwLUKiFDY-eLdNOIzNZRsyem0rWiTA6IvelapBjHg8sGdtkTuhQs2hGbXrydeUZSu/exec`
+
+### Supabase CLI Commands
+
+```bash
+# Link to remote project
+supabase link --project-ref wwcgybgvfulotflitogu
+
+# Pull remote schema
+supabase db pull
+
+# Run migrations
+supabase db push
+
+# Generate TypeScript types
+supabase gen types typescript --project-id wwcgybgvfulotflitogu > types/supabase.ts
+
+# Reset local database (if needed)
+supabase db reset
+```
+
+### Testing Scripts
+
+**1. Supabase Connection Verification**
+
+Tests Service Role Key permissions and RLS bypass:
+
+```bash
+bun run test:supabase
+```
+
+This script:
+- ✅ Reads from `patients` table (bypassing RLS)
+- ✅ Writes test record to verify permissions
+- ✅ Updates existing record
+- ✅ Cleans up test data
+- ✅ Confirms Service Role Key bypasses RLS policies
+
+**2. Triple-Sync Pipeline Test**
+
+Tests end-to-end data sync (Supabase → Google Sheets):
+
+```bash
+# Ensure dev server is running first
+bun run dev
+
+# In another terminal
+bun run test:sync
+```
+
+This script tests:
+- ✅ Clinical updates (referral, diagnosis, treatment)
+- ✅ Demographics updates
+- ✅ Loop closure
+- ✅ Google Sheets webhook delivery
+- ✅ API response validation
+
+**3. Full Pipeline Test**
+
+Runs both Supabase verification and sync test:
+
+```bash
+bun run test:pipeline
+```
+
+### Test Scenarios
+
+The triple-sync test covers 5 scenarios:
+
+1. **Clinical Update (Referral)**
+   - Date of referral
+   - Facility name
+   - Verifies Supabase update + Google Sheets sync
+
+2. **Diagnosis Update**
+   - TB diagnosed (Y/N)
+   - Date of diagnosis
+   - Type of TB (P/EP)
+
+3. **Treatment Initiation**
+   - ATT start date
+   - HIV status
+   - NIKSHAY/ABHA ID
+
+4. **Demographics Update**
+   - Patient name
+   - Age, contact number
+   - Address
+
+5. **Loop Closure**
+   - TB diagnosed = 'N'
+   - Closure reason
+   - Remarks
+
+### Expected Output
+
+**Supabase Verification:**
+```
+═══════════════════════════════════════════════════════════════════════════
+🔐 SUPABASE SERVICE ROLE KEY VERIFICATION
+═══════════════════════════════════════════════════════════════════════════
+Project: wwcgybgvfulotflitogu
+URL: https://wwcgybgvfulotflitogu.supabase.co
+
+📊 TEST 1: Read from patients table (bypassing RLS)
+✅ Status: 200
+✅ Records fetched: 5
+✅ RLS BYPASS CONFIRMED - Service role can read all records
+
+✏️  TEST 2: Write to patients table (bypassing RLS)
+✅ Status: 201
+✅ Test record created
+✅ RLS BYPASS CONFIRMED - Service role can write records
+✅ Test record deleted
+
+🔍 TEST 3: Update existing record (bypassing RLS)
+✅ Status: 200
+✅ Record updated successfully
+✅ RLS BYPASS CONFIRMED - Service role can update records
+
+✅ VERIFICATION COMPLETE
+```
+
+**Triple-Sync Test:**
+```
+═══════════════════════════════════════════════════════════════════════════
+🚀 TRIPLE-SYNC PIPELINE TEST
+═══════════════════════════════════════════════════════════════════════════
+
+📋 TEST 1/5: Clinical Update (Referral)
+  🔄 Calling /api/patient-sync...
+  ✅ API call successful
+  ✅ Google Sheets sync confirmed in response
+  📊 Sheets status: success
+  💬 Sheets message: Row updated successfully
+  🔗 Testing direct Google Sheets webhook...
+  ✅ Google Sheets responded: 200
+
+📊 TEST SUMMARY
+Total Tests:  5
+✅ Passed:    5
+❌ Failed:    0
+Success Rate: 100.0%
+
+🎉 ALL TESTS PASSED - Triple-sync pipeline is working correctly!
+```
+
+### Troubleshooting
+
+**Supabase Connection Issues:**
+- Verify `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`
+- Check project ID matches: `wwcgybgvfulotflitogu`
+- Ensure Supabase project is not paused
+- Verify network connectivity
+
+**Google Sheets Sync Issues:**
+- Verify `GOOGLE_SCRIPT_WEBHOOK_URL` in `.env.local`
+- Check Google Apps Script deployment is active
+- Verify webhook URL is publicly accessible
+- Check Apps Script execution logs
+
+**API Route Issues:**
+- Ensure dev server is running (`bun run dev`)
+- Check port 3000 is not in use
+- Verify all environment variables are set
+- Check console for error messages
+
+### Manual Testing
+
+**Direct Supabase Query:**
+```bash
+# Using curl
+curl -X GET 'https://wwcgybgvfulotflitogu.supabase.co/rest/v1/patients?select=id,inmate_name&limit=5' \
+  -H "apikey: YOUR_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer YOUR_SERVICE_ROLE_KEY"
+```
+
+**Direct Google Sheets Webhook:**
+```bash
+curl -X POST 'https://script.google.com/macros/s/AKfycbyBwLUKiFDY-eLdNOIzNZRsyem0rWiTA6IvelapBjHg8sGdtkTuhQs2hGbXrydeUZSu/exec' \
+  -H "Content-Type: application/json" \
+  -d '{"Serial Number": 1, "KoboUUID": "test_uuid", "inmate_name": "Test Patient"}'
 ```
 
 ## 🔧 Performance & Scalability Optimizations

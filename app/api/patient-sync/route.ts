@@ -49,12 +49,26 @@ const GOOGLE_SHEET_HEADERS = [
 
 export async function POST(request: NextRequest) {
   try {
-    // Auth + ownership check
+    // Auth + ownership check with Service Role Key bypass for server-to-server calls
     let scope;
-    try {
-      scope = await getSessionScope();
-    } catch {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    let isServiceRoleAuth = false;
+    
+    // Check for Service Role Key in Authorization header (server-to-server bypass)
+    const authHeader = request.headers.get('authorization');
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (authHeader && serviceRoleKey && authHeader === `Bearer ${serviceRoleKey}`) {
+      // Service role authentication - bypass session check
+      isServiceRoleAuth = true;
+      scope = { state: null, district: null, role: 'service' }; // No ownership restrictions
+      console.log('[patient-sync] Service role authentication - bypassing session check');
+    } else {
+      // Regular user authentication
+      try {
+        scope = await getSessionScope();
+      } catch {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
     }
 
     const body = await request.json();
@@ -128,7 +142,10 @@ export async function POST(request: NextRequest) {
       .eq('id', patientId);
 
     // Ownership guard: non-admins can only update patients in their own state
-    if (scope.state) updateQuery = updateQuery.eq('screening_state', scope.state);
+    // Skip ownership check for service role authentication
+    if (!isServiceRoleAuth && scope.state) {
+      updateQuery = updateQuery.eq('screening_state', scope.state);
+    }
 
     const { data: supabaseData, error: supabaseError } = await updateQuery
       .select()
@@ -217,17 +234,30 @@ export async function POST(request: NextRequest) {
         if (webhookResponse.ok) {
           try {
             const webhookData = JSON.parse(responseText);
+            
+            // Extract actual row count from response
+            const rowsUpdated = webhookData.rowsUpdated || webhookData.updated || 0;
+            const actualSuccess = webhookData.success !== false && rowsUpdated >= 0;
+            
             googleSheetsResult = {
-              success: true,
-              message: webhookData.message || `Google Sheets updated: ${webhookData.rowsUpdated || 1} row(s)`,
-              data: webhookData
+              success: actualSuccess,
+              message: webhookData.message || `Google Sheets ${rowsUpdated > 0 ? 'updated' : 'processed'}: ${rowsUpdated} row(s)`,
+              data: {
+                ...webhookData,
+                rowsUpdated // Normalize the field name
+              }
             };
+            
+            // Log warning if no rows were updated
+            if (rowsUpdated === 0) {
+              console.warn('⚠️ Google Sheets returned 0 rows updated - UUID may not exist in sheet');
+            }
           } catch {
             // Non-JSON response (likely plain text success message)
             googleSheetsResult = {
               success: true,
               message: responseText || 'Google Sheets updated successfully',
-              data: { response: responseText }
+              data: { response: responseText, rowsUpdated: 1 }
             };
           }
         } else {
@@ -256,7 +286,10 @@ export async function POST(request: NextRequest) {
         success: true,
         data: supabaseData
       },
-      googleSheets: googleSheetsResult
+      googleSheets: googleSheetsResult,
+      warnings: googleSheetsResult.success
+        ? []
+        : ['Google Sheets sync failed — data saved to Supabase only. Re-sync manually.']
     });
 
   } catch (error: any) {

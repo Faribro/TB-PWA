@@ -86,7 +86,7 @@ export default auth((req) => {
       return NextResponse.redirect(loginUrl);
     }
     const role = req.auth.user?.role;
-    if (role !== 'admin' && role !== 'PM') {
+    if (role !== 'PM' && role !== 'SPM') {
       return NextResponse.redirect(new URL('/unauthorized', req.url));
     }
   }

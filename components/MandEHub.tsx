@@ -42,6 +42,7 @@ import { useTruthEngine } from '@/hooks/useTruthEngine';
 import { ViolationCard } from './ViolationCard';
 import { DataHealthGauge } from './DataHealthGauge';
 import ThreeBackground from './ThreeBackground';
+import { useSWRConfig } from 'swr';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -367,6 +368,7 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [integrityFilter, setIntegrityFilter] = useState<'all' | 'high' | 'medium'>('all');
   const [isDashboardHidden, setIsDashboardHidden] = useState(false);
+  const { mutate } = useSWRConfig();
 
   // ── Keyboard shortcut ──────────────────────────────────────────────────
 
@@ -518,11 +520,11 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
 
   return (
     <HubContext.Provider value={ctxValue}>
-      <div className="h-full overflow-y-auto relative p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto space-y-8 relative z-10">
+      <div className="h-full overflow-y-auto relative p-4 lg:p-6">
+        <div className="max-w-7xl mx-auto space-y-4 relative z-10">
 
           {/* ── Header ──────────────────────────────────────────────────── */}
-          <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-start justify-between gap-4 flex-wrap pb-3">
             <div>
               <h1 className="text-[32px] font-black text-slate-900 tracking-tighter uppercase leading-tight">
                 M&E Intelligence <span className="text-blue-600">Hub</span>
@@ -614,7 +616,7 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
                     <button
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
-                      className="relative z-10 w-full px-4 py-2.5 rounded-[14px] font-medium text-sm flex items-center justify-center gap-2 transition-colors duration-150"
+                      className="relative z-10 w-full px-4 py-2 rounded-[14px] font-medium text-sm flex items-center justify-center gap-2 transition-colors duration-150"
                       style={{ color: isActive ? '#ffffff' : '#64748b' }}
                     >
                       {/* @ts-ignore */}
@@ -636,6 +638,7 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.22 }}
+              className="max-h-[calc(100vh-220px)] overflow-y-auto"
             >
               {activeTab === 'duplicates' && (
                 <DuplicateAssassin pairs={duplicatePairs} onDismiss={handleDismiss} />
@@ -672,7 +675,7 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
           patient={selectedPatient}
           isOpen
           onClose={() => setSelectedPatient(null)}
-          onUpdate={() => {}}
+          onUpdate={() => mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'))}
         />
       )}
     </HubContext.Provider>

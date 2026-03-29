@@ -95,10 +95,10 @@ export default function AnalyticsOverview({ patients, totalCount, isSLABreach }:
         {chunks[currentChunk].map((kpi, i) => (
           <div
             key={i}
-            className="rounded-2xl p-5 bg-slate-900/95 border border-slate-700"
+            className="rounded-2xl p-4 bg-slate-900/95 border border-slate-700"
           >
             <div className="flex items-start justify-between mb-2">
-              <div className="text-5xl font-black text-white">
+              <div className="text-3xl font-black text-white">
                 {kpi.value.toLocaleString()}
               </div>
             </div>

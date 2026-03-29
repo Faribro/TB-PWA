@@ -10,7 +10,11 @@ import { useSessionScope } from '@/hooks/useSessionScope';
 
 function LivePulseIndicator() {
   const [time, setTime] = useState('');
-  const [latency] = useState(() => Math.floor(Math.random() * 11) + 20);
+  const [latency, setLatency] = useState(25);
+
+  useEffect(() => {
+    setLatency(Math.floor(Math.random() * 11) + 20);
+  }, []);
 
   useEffect(() => {
     const updateTime = () => {
@@ -138,7 +142,7 @@ export default function CommandHubPage() {
   const userRole = session?.user?.role || 'User';
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 relative overflow-y-auto">
+    <div className="min-h-screen w-full bg-slate-50 relative overflow-hidden">
       {/* Engineering Grid Background */}
       <div 
         className="fixed inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:4rem_4rem]"
@@ -150,36 +154,39 @@ export default function CommandHubPage() {
       
       <LivePulseIndicator />
       
-      <div className="relative z-10 max-w-7xl mx-auto px-8 py-16">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center mb-16">
-          <h1 className="text-5xl font-black tracking-[0.4em] text-slate-900 mb-3">SAMADHAAN</h1>
-          <p className="text-xl font-bold text-slate-600 tracking-tight">National Integrated Health OS</p>
-          <div className="flex items-center justify-center gap-3 mt-6">
-            <div className="w-1 h-12 bg-blue-600 rounded-full" />
-            <p className="text-base text-slate-700 font-medium tracking-tight">
-              Welcome, <span className="font-bold text-blue-600">{firstName}</span>. System status is secure. You are currently operating with <span className="font-bold text-blue-600">{userRole}</span> privileges.
-            </p>
+      {/* Scrollable content container */}
+      <div className="relative z-10 h-screen overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-8 py-16">
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center mb-16">
+            <h1 className="text-5xl font-black tracking-[0.4em] text-slate-900 mb-3">SAMADHAAN</h1>
+            <p className="text-xl font-bold text-slate-600 tracking-tight">National Integrated Health OS</p>
+            <div className="flex items-center justify-center gap-3 mt-6">
+              <div className="w-1 h-12 bg-blue-600 rounded-full" />
+              <p className="text-base text-slate-700 font-medium tracking-tight">
+                Welcome, <span className="font-bold text-blue-600">{firstName}</span>. System status is secure. You are currently operating with <span className="font-bold text-blue-600">{userRole}</span> privileges.
+              </p>
+            </div>
+          </motion.div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+            <MetricCard icon={Activity} label="Total Screened" value={totalScreened.toLocaleString()} trend="+12%" delay={0.1} />
+            <MetricCard icon={MapPin} label="States Covered" value={statesCovered} delay={0.2} />
+            <MetricCard icon={AlertTriangle} label="High-Alert Cases" value={highAlertCases} delay={0.3} />
+            <MetricCard icon={Database} label="Sync Integrity" value={`${syncIntegrity}%`} trend="Optimal" delay={0.4} />
           </div>
-        </motion.div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
-          <MetricCard icon={Activity} label="Total Screened" value={totalScreened.toLocaleString()} trend="+12%" delay={0.1} />
-          <MetricCard icon={MapPin} label="States Covered" value={statesCovered} delay={0.2} />
-          <MetricCard icon={AlertTriangle} label="High-Alert Cases" value={highAlertCases} delay={0.3} />
-          <MetricCard icon={Database} label="Sync Integrity" value={`${syncIntegrity}%`} trend="Optimal" delay={0.4} />
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
-          {tiles.map((tile) => (
-            <NavigationTile
-              key={tile.href}
-              href={tile.href}
-              title={tile.title}
-              description={tile.description}
-              delay={tile.delay}
-              icon={tile.icon}
-            />
-          ))}
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+            {tiles.map((tile) => (
+              <NavigationTile
+                key={tile.href}
+                href={tile.href}
+                title={tile.title}
+                description={tile.description}
+                delay={tile.delay}
+                icon={tile.icon}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>

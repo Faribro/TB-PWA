@@ -22,7 +22,7 @@ export async function getSessionScope(): Promise<SessionScope> {
   const rawState = (session.user.state    ?? 'All').trim();
   const rawDist  = ((session.user as any).district ?? 'All').trim();
 
-  const isSuperuser = role === 'admin' || role === 'Program Manager' || role === 'PM';
+  const isSuperuser = role === 'PM';
 
   return {
     role,

@@ -25,12 +25,49 @@ interface PatientDetailDrawerProps {
 export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: PatientDetailDrawerProps) {
   const scope = useSessionScope();
 
+  // Local state to hold patient data and allow updates after save
+  const [localPatient, setLocalPatient] = useState(patient);
+
+  // Sync localPatient, BUT preserve the last known data during the exit animation
+  useEffect(() => {
+    if (patient && Object.keys(patient).length > 0) {
+      setLocalPatient(patient);
+    }
+  }, [patient]);
+
+  // 💎 Awwwards Standard: Cinematic Stagger Physics
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08, // 80ms delay between each element popping in
+        delayChildren: 0.35,   // Wait 350ms for the main drawer to slide out first
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 24, filter: 'blur(4px)' },
+    show: {
+      opacity: 1,
+      y: 0,
+      filter: 'blur(0px)',
+      transition: {
+        type: "spring" as const,
+        stiffness: 300,
+        damping: 24,
+        mass: 1
+      }
+    }
+  };
+
   // Task 3: Ownership guard — prevent viewing patients outside user's scope
   const isAuthorized =
     !scope ||                        // scope not loaded yet — allow render
     isSuperuser(scope) ||            // admin / PM / Program Manager see all
     !scope.state ||                  // national user (state is null)
-    patient.screening_state === scope.state;
+    localPatient.screening_state === scope.state;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCloseLoop, setShowCloseLoop] = useState(false);
@@ -39,21 +76,32 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const [isSavingDemographics, setIsSavingDemographics] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const { mutate } = useSWRConfig();
+
+  // Reset save success indicator when drawer closes or patient changes
+  useEffect(() => {
+    if (!isOpen) {
+      setSaveSuccess(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    setSaveSuccess(false);
+  }, [patient]);
   
   // Demographic edit state
   const [editedDemographics, setEditedDemographics] = useState({
-    inmate_name: patient.inmate_name || '',
-    age: patient.age || '',
-    sex: patient.sex || '',
-    contact_number: patient.contact_number || '',
-    address: patient.address || '',
-    facility_name: patient.facility_name || '',
-    date_of_birth: patient.date_of_birth || '',
-    screening_date: patient.screening_date || ''
+    inmate_name: localPatient.inmate_name || '',
+    age: localPatient.age || '',
+    sex: localPatient.sex || '',
+    contact_number: localPatient.contact_number || '',
+    address: localPatient.address || '',
+    facility_name: localPatient.facility_name || '',
+    date_of_birth: localPatient.date_of_birth || '',
+    screening_date: localPatient.screening_date || ''
   });
 
-  const { phase, nextRequiredField } = calculatePatientPhase(patient);
-  const progressPercentage = calculateProgressPercentage(patient);
+  const { phase, nextRequiredField } = calculatePatientPhase(localPatient);
+  const progressPercentage = calculateProgressPercentage(localPatient);
   const isClosed = phase === 'Closed';
   
   // Auto-expand current phase section
@@ -69,19 +117,19 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   // Reset demographic edits when patient changes
   useEffect(() => {
     setEditedDemographics({
-      inmate_name: patient.inmate_name || '',
-      age: patient.age || '',
-      sex: patient.sex || '',
-      contact_number: patient.contact_number || '',
-      address: patient.address || '',
-      facility_name: patient.facility_name || '',
-      date_of_birth: patient.date_of_birth || '',
-      screening_date: patient.screening_date || ''
+      inmate_name: localPatient.inmate_name || '',
+      age: localPatient.age || '',
+      sex: localPatient.sex || '',
+      contact_number: localPatient.contact_number || '',
+      address: localPatient.address || '',
+      facility_name: localPatient.facility_name || '',
+      date_of_birth: localPatient.date_of_birth || '',
+      screening_date: localPatient.screening_date || ''
     });
     setIsEditingDemographics(false);
-  }, [patient]);
+  }, [localPatient]);
   
-  const { register, watch, getValues } = useForm<PatientFormData>({
+  const { register, watch, getValues, reset } = useForm<PatientFormData>({
     defaultValues: {
       'Date of referral for TB Examination (sputum) (dd/mm/yy)': patient.referral_date || '',
       'Name of facility where referred to (Give code/name of all facilities)': patient.referred_facility || '',
@@ -99,14 +147,33 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     }
   });
 
+  // Re-initialize form when patient prop changes (new patient opened)
+  useEffect(() => {
+    reset({
+      'Date of referral for TB Examination (sputum) (dd/mm/yy)': patient.referral_date || '',
+      'Name of facility where referred to (Give code/name of all facilities)': patient.referred_facility || '',
+      'TB diagnosed (Y/N)': patient.tb_diagnosed || '',
+      'Date of TB Diagnosed (dd/mm/yy)': patient.tb_diagnosis_date || '',
+      'Type of TB Diagnosed (P/EP)': patient.tb_type || '',
+      'Date of starting ATT (dd/mm/yyyy)': patient.att_start_date || '',
+      'Date of Treatment Completion (dd/mm/yyyy)': patient.att_completion_date || '',
+      'HIV Status (Positive/Negative/Unknown)': patient.hiv_status || '',
+      'Status at the time of referral (Pre ART/On ART) [If on ART at time of referral]': patient.art_status || '',
+      'ART Number (if on ART at the time of referral)': patient.art_number || '',
+      'NIKSHAY/ABHA ID': patient.nikshay_abha_id || '',
+      'Date of registration (dd/mm/yyyy)': patient.registration_date || '',
+      'Remarks': patient.remarks || ''
+    });
+  }, [patient, reset]);
+
   const hivStatus = watch('HIV Status (Positive/Negative/Unknown)');
   const artStatus = watch('Status at the time of referral (Pre ART/On ART) [If on ART at time of referral]');
 
   const handleSaveClinical = async () => {
     const data = getValues();
     console.log('[PatientDrawer] onSubmit called with data:', data);
-    console.log('[PatientDrawer] Patient ID:', patient.id);
-    console.log('[PatientDrawer] Kobo UUID:', patient.kobo_uuid);
+    console.log('[PatientDrawer] Patient ID:', localPatient.id);
+    console.log('[PatientDrawer] Kobo UUID:', localPatient.kobo_uuid);
     
     setIsSubmitting(true);
     setSaveSuccess(false);
@@ -116,8 +183,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       // CRITICAL: Add identifier keys for Google Sheets row matching
       const updatesWithIdentifiers = {
         ...data,
-        'Serial Number': patient.serial_number || patient.id,
-        'KoboUUID': patient.kobo_uuid
+        'Serial Number': localPatient.serial_number || localPatient.id,
+        'KoboUUID': localPatient.kobo_uuid
       };
       
       // Optimistic update
@@ -129,13 +196,13 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
             return {
               ...currentData,
               data: currentData.data.map((p: any) => 
-                p.id === patient.id ? { ...p, ...data } : p
+                p.id === localPatient.id ? { ...p, ...data } : p
               )
             };
           }
           if (Array.isArray(currentData)) {
             return currentData.map((p: any) => 
-              p.id === patient.id ? { ...p, ...data } : p
+              p.id === localPatient.id ? { ...p, ...data } : p
             );
           }
           return currentData;
@@ -148,8 +215,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       // CRITICAL DEBUG: Log exact payload being sent to Google Sheets
       console.log('═══════════════════════════════════════════════════════════');
       console.log('🚀 SENDING TO SHEETS (Clinical):');
-      console.log('Patient ID:', patient.id);
-      console.log('Kobo UUID:', patient.kobo_uuid);
+      console.log('Patient ID:', localPatient.id);
+      console.log('Kobo UUID:', localPatient.kobo_uuid);
       console.log('Update Keys:', Object.keys(updatesWithIdentifiers));
       console.log('\n📋 PAYLOAD TABLE (Verify against Sheet headers):');
       console.table(updatesWithIdentifiers);
@@ -161,8 +228,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patientId: patient.id,
-          koboUuid: patient.kobo_uuid,
+          patientId: localPatient.id,
+          koboUuid: localPatient.kobo_uuid,
           updates: updatesWithIdentifiers
         })
       });
@@ -188,21 +255,25 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       // Revalidate caches
       mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
       
-      // Show detailed success message from Google Sheets
-      const sheetsMessage = result.googleSheets?.message || 'Synced to all systems';
-      toast.success(`✅ ${sheetsMessage}`, { id: 'clinical-save', duration: 4000 });
-      
-      setSaveSuccess(true);
-      if (patient.kobo_uuid) {
-        window.dispatchEvent(new CustomEvent('sync-confirmed', { detail: { koboUuid: patient.kobo_uuid } }));
+      // Show warning if Google Sheets sync failed, otherwise success
+      if (result.warnings && result.warnings.length > 0) {
+        toast.warning(`⚠️ Saved to database. Google Sheets sync failed — check connection.`, 
+          { id: 'clinical-save', duration: 6000 });
+      } else {
+        const sheetsMessage = result.googleSheets?.message || 'Synced to all systems';
+        toast.success(`✅ ${sheetsMessage}`, { id: 'clinical-save', duration: 4000 });
       }
       
-      // Small delay before closing to show success message
-      setTimeout(() => {
-        onUpdate();
-        onClose();
-        setSaveSuccess(false);
-      }, 1500);
+      // Update local patient state with saved data
+      setLocalPatient(prev => ({ ...prev, ...data }));
+      
+      setSaveSuccess(true);
+      if (localPatient.kobo_uuid) {
+        window.dispatchEvent(new CustomEvent('sync-confirmed', { detail: { koboUuid: localPatient.kobo_uuid } }));
+      }
+      
+      // Trigger parent cache refresh (non-blocking)
+      onUpdate();
     } catch (error: any) {
       console.error('[PatientDrawer] Save error:', error);
       mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
@@ -224,8 +295,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         'TB diagnosed (Y/N)': 'N',
         'closure_reason': reason,
         'Remarks': `Loop closed: ${reason}`,
-        'Serial Number': patient.serial_number || patient.id,
-        'KoboUUID': patient.kobo_uuid
+        'Serial Number': localPatient.serial_number || localPatient.id,
+        'KoboUUID': localPatient.kobo_uuid
       };
 
       // Optimistic update
@@ -237,13 +308,13 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
             return {
               ...currentData,
               data: currentData.data.map((p: any) => 
-                p.id === patient.id ? { ...p, ...updates } : p
+                p.id === localPatient.id ? { ...p, ...updates } : p
               )
             };
           }
           if (Array.isArray(currentData)) {
             return currentData.map((p: any) => 
-              p.id === patient.id ? { ...p, ...updates } : p
+              p.id === localPatient.id ? { ...p, ...updates } : p
             );
           }
           return currentData;
@@ -254,8 +325,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       // CRITICAL DEBUG: Log exact payload being sent to Google Sheets
       console.log('═══════════════════════════════════════════════════════════');
       console.log('🚀 SENDING TO SHEETS (Close Loop):');
-      console.log('Patient ID:', patient.id);
-      console.log('Kobo UUID:', patient.kobo_uuid);
+      console.log('Patient ID:', localPatient.id);
+      console.log('Kobo UUID:', localPatient.kobo_uuid);
       console.log('Update Keys:', Object.keys(updates));
       console.log('\n📋 PAYLOAD TABLE (Verify against Sheet headers):');
       console.table(updates);
@@ -267,8 +338,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patientId: patient.id,
-          koboUuid: patient.kobo_uuid,
+          patientId: localPatient.id,
+          koboUuid: localPatient.kobo_uuid,
           updates
         })
       });
@@ -279,6 +350,9 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       // Revalidate caches
       mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+      
+      // Update local patient state with closure data
+      setLocalPatient(prev => ({ ...prev, ...updates }));
       
       onUpdate();
       onClose();
@@ -302,8 +376,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       // CRITICAL: Add identifier keys for Google Sheets row matching
       const updatesWithIdentifiers = {
         ...editedDemographics,
-        'Serial Number': patient.serial_number || patient.id,
-        'KoboUUID': patient.kobo_uuid
+        'Serial Number': localPatient.serial_number || localPatient.id,
+        'KoboUUID': localPatient.kobo_uuid
       };
       
       // Optimistic update - update all SWR caches immediately
@@ -317,7 +391,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
             return {
               ...currentData,
               data: currentData.data.map((p: any) => 
-                p.id === patient.id ? { ...p, ...editedDemographics } : p
+                p.id === localPatient.id ? { ...p, ...editedDemographics } : p
               )
             };
           }
@@ -325,7 +399,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
           // Handle array data structure (allPatients)
           if (Array.isArray(currentData)) {
             return currentData.map((p: any) => 
-              p.id === patient.id ? { ...p, ...editedDemographics } : p
+              p.id === localPatient.id ? { ...p, ...editedDemographics } : p
             );
           }
           
@@ -337,8 +411,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       // CRITICAL DEBUG: Log exact payload being sent to Google Sheets
       console.log('═══════════════════════════════════════════════════════════');
       console.log('🚀 SENDING TO SHEETS (Demographics):');
-      console.log('Patient ID:', patient.id);
-      console.log('Kobo UUID:', patient.kobo_uuid);
+      console.log('Patient ID:', localPatient.id);
+      console.log('Kobo UUID:', localPatient.kobo_uuid);
       console.log('Update Keys:', Object.keys(updatesWithIdentifiers));
       console.log('\n📋 PAYLOAD TABLE (Verify against Sheet headers):');
       console.table(updatesWithIdentifiers);
@@ -350,8 +424,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patientId: patient.id,
-          koboUuid: patient.kobo_uuid,
+          patientId: localPatient.id,
+          koboUuid: localPatient.kobo_uuid,
           updates: updatesWithIdentifiers
         })
       });
@@ -365,12 +439,20 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       // Revalidate all patient caches after successful sync
       mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
       
+      // Update local patient state with saved demographics
+      setLocalPatient(prev => ({ ...prev, ...editedDemographics }));
+      
       setIsEditingDemographics(false);
       onUpdate();
       
-      // Show detailed success message from Google Sheets
-      const sheetsMessage = result.googleSheets?.message || 'Demographics synced successfully';
-      toast.success(`✅ ${sheetsMessage}`, { id: 'demo-save', duration: 4000 });
+      // Show warning if Google Sheets sync failed, otherwise success
+      if (result.warnings && result.warnings.length > 0) {
+        toast.warning(`⚠️ Saved to database. Google Sheets sync failed — check connection.`, 
+          { id: 'demo-save', duration: 6000 });
+      } else {
+        const sheetsMessage = result.googleSheets?.message || 'Demographics synced successfully';
+        toast.success(`✅ ${sheetsMessage}`, { id: 'demo-save', duration: 4000 });
+      }
     } catch (error) {
       console.error('Failed to save demographics:', error);
       // Revert optimistic update on error
@@ -442,8 +524,13 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-blue-300"
-      />
+        className="h-10 text-sm font-medium bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/60 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] rounded-xl transition-all duration-300 relative overflow-hidden group"
+      >
+        {/* Shimmer effect on focus */}
+        <div className="absolute inset-0 -translate-x-full group-focus-within:animate-[shimmer_1.5s_ease-in-out] pointer-events-none">
+          <div className="h-full w-full bg-gradient-to-r from-transparent via-blue-500/10 to-transparent" />
+        </div>
+      </Input>
     </div>
   );
 
@@ -453,8 +540,12 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="flex h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-blue-300"
+        className="flex h-10 w-full rounded-xl border border-slate-200/60 bg-slate-50/50 hover:bg-white focus:bg-white px-3 py-2 text-sm font-medium ring-offset-white outline-none focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] transition-all duration-300 relative overflow-hidden group"
       >
+        {/* Shimmer effect on focus */}
+        <div className="absolute inset-0 -translate-x-full group-focus-within:animate-[shimmer_1.5s_ease-in-out] pointer-events-none">
+          <div className="h-full w-full bg-gradient-to-r from-transparent via-blue-500/10 to-transparent" />
+        </div>
         {options.map(opt => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
@@ -479,15 +570,15 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   );
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Sheet open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }} modal={true}>
       <SheetPortal>
+        {/* LEVEL 2: Detail Drawer Overlay - Dims Master Drawer beneath */}
         <SheetOverlay 
-          className="fixed inset-0 bg-slate-900/10 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" 
-          style={{ zIndex: Z_INDEX.overlay }} 
+          className="fixed inset-0 bg-slate-900/30 backdrop-blur-[4px] !z-[99999] transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" 
         />
+        {/* LEVEL 2: Detail Drawer - Restrained Premium Width */}
         <SheetContent 
-          className="!w-[95vw] sm:!max-w-[500px] bg-white/10 backdrop-blur-md border-l border-white/20 shadow-2xl p-0 flex flex-col h-full" 
-          style={{ zIndex: Z_INDEX.drawer }}
+          className="!w-[95vw] sm:!max-w-[650px] md:!max-w-[750px] lg:!max-w-[850px] !z-[100000] bg-white/95 backdrop-blur-3xl border-l border-white shadow-[-40px_0_80px_rgba(15,23,42,0.12)] p-0 flex flex-col h-full data-[state=open]:duration-700 data-[state=closed]:duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" 
         >
         {!isAuthorized ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
@@ -496,34 +587,42 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
             </div>
             <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Access Denied</h3>
             <p className="text-sm text-slate-500">
-              This patient belongs to <span className="font-bold text-slate-700">{patient.screening_state}</span>.
+              This patient belongs to <span className="font-bold text-slate-700">{localPatient.screening_state}</span>.
               Your account is scoped to <span className="font-bold text-slate-700">{scope?.state}</span>.
             </p>
             <button onClick={onClose} className="mt-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold">
               Close
             </button>
           </div>
-        ) : (<>
+        ) : (
+        <motion.div 
+          variants={containerVariants} 
+          initial="hidden" 
+          animate="show" 
+          className="flex flex-col h-full"
+        >
         {/* Header with Patient Info */}
-        <SheetHeader className="px-6 py-6 border-b border-white/20 bg-white/10 backdrop-blur-md">
-          <div className="flex items-start justify-between">
+        <SheetHeader className="px-6 py-6 border-b border-white/30 bg-white/40 backdrop-blur-xl">
+          <motion.div variants={itemVariants} className="flex items-start justify-between">
             <div className="flex-1">
               <SheetTitle className="text-2xl font-black text-slate-900 tracking-tighter uppercase">
-                {patient.inmate_name}
+                {localPatient.inmate_name}
               </SheetTitle>
-              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mt-1 opacity-80">{patient.unique_id}</p>
+              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mt-1 opacity-80">{localPatient.unique_id}</p>
               
               {/* Task 4: Patient Vitals - Contextual Metadata */}
               <div className="mt-2 flex items-center gap-2 text-xs text-slate-500 font-medium">
-                <span>{patient.facility_name || 'Unknown Facility'}</span>
+                <span>{localPatient.facility_name || 'Unknown Facility'}</span>
                 <span>•</span>
-                <span>{patient.sex || 'N/A'}/{patient.age || 'N/A'}</span>
+                <span>{localPatient.sex || 'N/A'}/{localPatient.age || 'N/A'}</span>
                 <span>•</span>
-                <span>{patient.screening_date ? new Date(patient.screening_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}</span>
+                <span>{localPatient.screening_date ? new Date(localPatient.screening_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}</span>
               </div>
+            </div>
+          </motion.div>
               
-              {/* Task 3: Clinical Stepper - Stepped Progress Indicator */}
-              <div className="mt-4">
+          {/* Task 3: Clinical Stepper - Stepped Progress Indicator */}
+          <motion.div variants={itemVariants} className="mt-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold text-slate-700">{phase}</span>
                   <span className="text-xs text-slate-500">{isClosed ? 'Journey Complete' : 'In Progress'}</span>
@@ -572,16 +671,15 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                     label="Treatment" 
                   />
                 </div>
-              </div>
-            </div>
-          </div>
+          </motion.div>
         </SheetHeader>
 
-        {/* Task 1: Scrollable Content Area */}
-        <ScrollArea className="flex-1 overflow-y-auto px-6 py-4">
+        {/* Scrollable Content Area */}
+        <ScrollArea className="flex-1 px-6 py-4">
           <div className="space-y-4">
 
         {/* Read-Only: KoboCollect Data */}
+        <motion.div variants={itemVariants}>
         <Section id="demographics" title="Demographics" icon={User}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -683,54 +781,58 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
             ) : (
               <>
                 <div className="col-span-2">
-                  <ReadOnlyField label="Inmate Name" value={patient.inmate_name} />
+                  <ReadOnlyField label="Inmate Name" value={localPatient.inmate_name} />
                 </div>
-                <ReadOnlyField label="Age" value={patient.age} />
-                <ReadOnlyField label="Sex" value={patient.sex} />
-                <ReadOnlyField label="Date of Birth" value={patient.date_of_birth} />
-                <ReadOnlyField label="Screening Date" value={patient.screening_date} />
+                <ReadOnlyField label="Age" value={localPatient.age} />
+                <ReadOnlyField label="Sex" value={localPatient.sex} />
+                <ReadOnlyField label="Date of Birth" value={localPatient.date_of_birth} />
+                <ReadOnlyField label="Screening Date" value={localPatient.screening_date} />
                 <div className="col-span-2">
-                  <ReadOnlyField label="Contact Number" value={patient.contact_number} />
-                </div>
-                <div className="col-span-2">
-                  <ReadOnlyField label="Address" value={patient.address} />
+                  <ReadOnlyField label="Contact Number" value={localPatient.contact_number} />
                 </div>
                 <div className="col-span-2">
-                  <ReadOnlyField label="Facility Name" value={patient.facility_name} />
+                  <ReadOnlyField label="Address" value={localPatient.address} />
+                </div>
+                <div className="col-span-2">
+                  <ReadOnlyField label="Facility Name" value={localPatient.facility_name} />
                 </div>
               </>
             )}
 
             {/* Non-editable fields */}
-            <ReadOnlyField label="Staff Name" value={patient.staff_name} />
-            <ReadOnlyField label="Submitted On" value={patient.submitted_on} />
-            <ReadOnlyField label="State" value={patient.screening_state} />
-            <ReadOnlyField label="District" value={patient.screening_district} />
-            <ReadOnlyField label="Facility Type" value={patient.facility_type} />
-            <ReadOnlyField label="Inmate Type" value={patient.inmate_type} />
-            <ReadOnlyField label="Father/Husband Name" value={patient.father_name} />
+            <ReadOnlyField label="Staff Name" value={localPatient.staff_name} />
+            <ReadOnlyField label="Submitted On" value={localPatient.submitted_on} />
+            <ReadOnlyField label="State" value={localPatient.screening_state} />
+            <ReadOnlyField label="District" value={localPatient.screening_district} />
+            <ReadOnlyField label="Facility Type" value={localPatient.facility_type} />
+            <ReadOnlyField label="Inmate Type" value={localPatient.inmate_type} />
+            <ReadOnlyField label="Father/Husband Name" value={localPatient.father_name} />
             <div className="col-span-2">
-              <ReadOnlyField label="Chest X-ray Result" value={patient.xray_result} />
+              <ReadOnlyField label="Chest X-ray Result" value={localPatient.xray_result} />
             </div>
             <div className="col-span-2">
-              <ReadOnlyField label="10s Symptoms Present" value={patient.symptoms_10s} />
+              <ReadOnlyField label="10s Symptoms Present" value={localPatient.symptoms_10s} />
             </div>
-            <ReadOnlyField label="Past TB History" value={patient.tb_past_history} />
+            <ReadOnlyField label="Past TB History" value={localPatient.tb_past_history} />
           </div>
 
         </Section>
+        </motion.div>
 
         {/* Journey Overview Tab - Separate Section */}
         {!isClosed && (
+          <motion.div variants={itemVariants}>
           <Section id="journey" title="Journey Overview" icon={Calendar}>
-            <PatientTimeline patient={patient} />
+            <PatientTimeline patient={localPatient} />
           </Section>
+          </motion.div>
         )}
 
         {/* Phase-Aware Quick Actions - All Sections Visible */}
         {!isClosed ? (
           <div className="space-y-4">
             {/* Group A: Sputum & Referral - Always visible */}
+            <motion.div variants={itemVariants}>
             <Section id="referral" title="Sputum & Referral" icon={FileText} isCurrent={phase === 'Sputum Test'}>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -762,8 +864,10 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 </select>
               </div>
             </Section>
+            </motion.div>
 
             {/* Group B: Diagnosis - Always visible */}
+            <motion.div variants={itemVariants}>
             <Section id="diagnosis" title="Diagnosis" icon={Activity} isCurrent={phase === 'Diagnosis'}>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -802,8 +906,10 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 </select>
               </div>
             </Section>
+            </motion.div>
 
             {/* Group C: Treatment & Comorbidities - Always visible */}
+            <motion.div variants={itemVariants}>
             <Section id="treatment" title="Treatment & Comorbidities" icon={Pill} isCurrent={phase === 'ATT Initiation'}>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -871,8 +977,10 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 </>
               )}
             </Section>
+            </motion.div>
 
             {/* Group D: Administration - Always visible */}
+            <motion.div variants={itemVariants}>
             <Section id="admin" title="Administration" icon={Shield}>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -905,18 +1013,23 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 />
               </div>
             </Section>
+            </motion.div>
           </div>
         ) : (
           <div className="space-y-6">
-            <PatientTimeline patient={patient} />
+            <PatientTimeline patient={localPatient} />
           </div>
         )}
           </div>
         </ScrollArea>
 
-        {/* Unified Action Footer */}
+        {/* Unified Action Footer - FLOATING PILL */}
         {!isClosed && (
-          <div className="sticky bottom-0 w-full p-4 border-t border-slate-200 bg-white/80 backdrop-blur-md flex flex-col gap-3 mt-auto">
+          <motion.div variants={itemVariants} className="sticky bottom-6 z-20 mx-6 mb-6 p-2 bg-white/80 backdrop-blur-3xl border border-white/80 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,30,80,0.15)] flex flex-col gap-2 mt-auto relative overflow-hidden">
+            {/* Glassmorphism depth layer */}
+            <div className="absolute inset-0 glass-depth-3 opacity-50 pointer-events-none" />
+            
+            <div className="relative z-10">
             {/* Primary Save Button - handles both demographics and clinical updates */}
             {isEditingDemographics ? (
               <button
@@ -924,8 +1037,12 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 onClick={handleSaveDemographics}
                 disabled={isSavingDemographics}
                 aria-label="Save demographic changes"
-                className="w-full px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 transition-all duration-200 hover:-translate-y-0.5 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                className="w-full px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 transition-all duration-200 hover:-translate-y-0.5 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 relative overflow-hidden group"
               >
+                {/* Shimmer on hover */}
+                <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1s_ease-in-out] pointer-events-none">
+                  <div className="h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                </div>
                 {isSavingDemographics ? (
                   <>
                     <motion.div
@@ -949,10 +1066,14 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 onClick={handleSaveClinical}
                 disabled={isSubmitting || saveSuccess}
                 aria-label="Save clinical updates"
-                className={`w-full text-white font-medium shadow-sm transition-all duration-200 py-3 rounded-lg disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center gap-2 ${
+                className={`w-full text-white font-medium shadow-sm transition-all duration-200 py-3 rounded-xl disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center gap-2 relative overflow-hidden group ${
                   saveSuccess ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-blue-600 hover:bg-blue-700 hover:-translate-y-0.5 disabled:opacity-50'
                 }`}
               >
+                {/* Shimmer on hover */}
+                <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1s_ease-in-out] pointer-events-none">
+                  <div className="h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                </div>
                 {saveSuccess ? (
                   <>
                     <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
@@ -981,17 +1102,21 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 type="button"
                 onClick={() => setShowCloseLoop(true)}
                 aria-label="Close patient loop as not TB"
-                className="w-full bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-medium transition-all duration-200 hover:-translate-y-0.5 py-3 rounded-lg flex items-center justify-center gap-2 focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                className="w-full bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-medium transition-all duration-200 hover:-translate-y-0.5 py-3 rounded-xl flex items-center justify-center gap-2 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 relative overflow-hidden group"
               >
+                {/* Shimmer on hover */}
+                <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1s_ease-in-out] pointer-events-none">
+                  <div className="h-full w-full bg-gradient-to-r from-transparent via-red-500/10 to-transparent" />
+                </div>
                 <AlertCircle className="w-4 h-4" />
                 Close Loop (Not TB)
               </button>
             ) : (
-              <div className="space-y-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="space-y-2 p-3 bg-red-50 border border-red-200 rounded-xl">
                 <p className="text-sm font-medium text-red-900">Confirm Loop Closure</p>
                 <select
                   onChange={(e) => e.target.value && handleCloseLoop(e.target.value)}
-                  className="w-full px-3 py-2 border border-red-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-red-300 rounded-xl text-sm"
                   disabled={isSubmitting}
                 >
                   <option value="">Select reason...</option>
@@ -1010,9 +1135,11 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                 </button>
               </div>
             )}
-          </div>
+            </div>
+          </motion.div>
         )}
-        </>)}
+        </motion.div>
+        )}
       </SheetContent>
       </SheetPortal>
     </Sheet>

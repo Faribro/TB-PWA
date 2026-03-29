@@ -24,5 +24,7 @@ declare module "next-auth/jwt" {
     role: string
     state: string
     district: string
+    isImpersonating?: boolean
+    realRole?: string
   }
 }
