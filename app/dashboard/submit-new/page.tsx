@@ -21,8 +21,8 @@ const tbScreeningSchema = z.object({
   // Step 1 — Patient Identity
   serial_no: z.string().min(1, 'Serial number is required'),
   patient_name: z.string().min(2, 'Full name required').max(100),
-  age: z.number({ invalid_type_error: 'Age must be a number' }).int().min(0).max(120),
-  sex: z.enum(['Male', 'Female', 'Other'], { required_error: 'Please select sex' }),
+  age: z.number({ message: 'Age must be a number' }).int().min(0).max(120),
+  sex: z.enum(['Male', 'Female', 'Other'], { message: 'Please select sex' }),
   submission_date: z.string().min(1, 'Date is required'),
   contact_number: z.string().optional(),
 
@@ -307,7 +307,7 @@ function ConditionalReveal({ show, children }: ConditionalRevealProps) {
 }
 
 // STEP COMPONENTS
-function Step1PatientIdentity({ form }: { form: ReturnType<typeof useForm<TBScreeningFormData>> }) {
+function Step1PatientIdentity({ form }: { form: any }) {
   return (
     <div className="space-y-6">
       <FormField 
@@ -408,7 +408,7 @@ function Step1PatientIdentity({ form }: { form: ReturnType<typeof useForm<TBScre
   )
 }
 
-function Step2Location({ form }: { form: ReturnType<typeof useForm<TBScreeningFormData>> }) {
+function Step2Location({ form }: { form: any }) {
   return (
     <div className="space-y-6">
       <FormField 
@@ -501,7 +501,7 @@ function Step2Location({ form }: { form: ReturnType<typeof useForm<TBScreeningFo
   )
 }
 
-function Step3Symptoms({ form }: { form: ReturnType<typeof useForm<TBScreeningFormData>> }) {
+function Step3Symptoms({ form }: { form: any }) {
   const selectedSymptoms = SYMPTOMS.filter(s => form.watch(s.key as keyof TBScreeningFormData) as boolean)
   
   return (
@@ -634,7 +634,7 @@ function Step3Symptoms({ form }: { form: ReturnType<typeof useForm<TBScreeningFo
   )
 }
 
-function Step4Referral({ form }: { form: ReturnType<typeof useForm<TBScreeningFormData>> }) {
+function Step4Referral({ form }: { form: any }) {
   return (
     <div className="space-y-6">
       <div>
@@ -740,8 +740,9 @@ function Step4Referral({ form }: { form: ReturnType<typeof useForm<TBScreeningFo
   )
 }
 
-function Step5Treatment({ form }: { form: ReturnType<typeof useForm<TBScreeningFormData>> }) {
+function Step5Treatment({ form }: { form: any }) {
   const formData = form.watch()
+  const selectedSymptoms = SYMPTOMS.filter(s => form.watch(s.key as keyof TBScreeningFormData) as boolean)
   
   return (
     <div className="space-y-6">
@@ -940,7 +941,7 @@ export default function SubmitNewPage() {
   const supabase = createClient()
 
   const form = useForm<TBScreeningFormData>({
-    resolver: zodResolver(tbScreeningSchema),
+    resolver: zodResolver(tbScreeningSchema) as any,
     defaultValues: {
       screening_state: sessionScope?.state ?? '',
       screening_district: sessionScope?.district ?? '',
@@ -1085,7 +1086,7 @@ export default function SubmitNewPage() {
 
       {/* Animated step content */}
       <main id="step-content" className="max-w-2xl mx-auto px-4 py-8">
-        <form onSubmit={form.handleSubmit(onSubmit)}>
+        <form onSubmit={form.handleSubmit(onSubmit as any)}>
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={currentStep}
@@ -1178,7 +1179,7 @@ export default function SubmitNewPage() {
           ) : (
             <button
               type="button"
-              onClick={() => form.handleSubmit(onSubmit)()}
+              onClick={() => form.handleSubmit(onSubmit as any)()}
               disabled={isSubmitting}
               className="btn-primary flex-1 py-3 px-6 bg-[#01696f] text-white rounded-lg font-medium text-sm tracking-wide hover:bg-[#0c4e54] active:bg-[#0f3638] transition-all duration-180 disabled:opacity-50 disabled:cursor-not-allowed"
             >

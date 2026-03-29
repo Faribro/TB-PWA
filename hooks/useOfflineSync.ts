@@ -1,28 +1,22 @@
 'use client'
 
-import { openDB, DBSchema } from 'idb'
+import { openDB, IDBPDatabase } from 'idb'
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase-client'
 
-interface SamaadhaamDB extends DBSchema {
-  'pending-submissions': {
-    key: number
-    value: {
-      id?: number
-      data: Record<string, unknown>
-      staff_name: string
-      synced: boolean
-      savedAt: string
-      retries: number
-    }
-    indexes: { 'by-synced': boolean }
-  }
+interface PendingSubmission {
+  id?: number
+  data: Record<string, unknown>
+  staff_name: string
+  synced: boolean
+  savedAt: string
+  retries: number
 }
 
 const DB_NAME = 'samadhaan-offline-v1'
 
 async function getDB() {
-  return openDB<SamaadhaamDB>(DB_NAME, 1, {
+  return openDB(DB_NAME, 1, {
     upgrade(db) {
       const store = db.createObjectStore('pending-submissions', {
         keyPath: 'id',
@@ -53,7 +47,9 @@ export function useOfflineSync() {
 
   const refreshCount = useCallback(async () => {
     const db = await getDB()
-    const pending = await db.getAllFromIndex('pending-submissions', 'by-synced', false)
+    const tx = db.transaction('pending-submissions', 'readonly')
+    const index = tx.store.index('by-synced')
+    const pending = await index.getAll(IDBKeyRange.only(false))
     setPendingCount(pending.length)
   }, [])
 
@@ -79,26 +75,34 @@ export function useOfflineSync() {
     setIsSyncing(true)
     try {
       const db = await getDB()
-      const pending = await db.getAllFromIndex('pending-submissions', 'by-synced', false)
+      const tx = db.transaction('pending-submissions', 'readonly')
+      const index = tx.store.index('by-synced')
+      const pending = await index.getAll(IDBKeyRange.only(false))
+      
       for (const record of pending) {
         try {
           const { error } = await supabase.from('patients').insert({
             ...record.data,
             staff_name: record.staff_name,
           })
-          if (!error) {
-            await db.put('pending-submissions', { ...record, synced: true })
-          } else {
-            await db.put('pending-submissions', {
+          if (!error && record.id) {
+            const writeTx = db.transaction('pending-submissions', 'readwrite')
+            await writeTx.store.put({ ...record, synced: true })
+          } else if (record.id) {
+            const writeTx = db.transaction('pending-submissions', 'readwrite')
+            await writeTx.store.put({
               ...record,
               retries: record.retries + 1,
             })
           }
         } catch {
-          await db.put('pending-submissions', {
-            ...record,
-            retries: record.retries + 1,
-          })
+          if (record.id) {
+            const writeTx = db.transaction('pending-submissions', 'readwrite')
+            await writeTx.store.put({
+              ...record,
+              retries: record.retries + 1,
+            })
+          }
         }
       }
     } finally {
