@@ -34,8 +34,10 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { FollowUpPipeline } from '@/components/FollowUpPipeline';
 import { PatientDetailDrawer } from '@/components/PatientDetailDrawer';
+import { PatientDetailPanel } from '@/components/PatientDetailPanel';
 import { VertexChart } from '@/components/VertexChart';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
+import { useSessionScope } from '@/hooks/useSessionScope';
 import { useSWRConfig } from 'swr';
 
 // TypeScript Interfaces
@@ -545,6 +547,9 @@ export default function Vertex({
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [selectedFacility, setSelectedFacility] = useState<string | null>(null);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const sessionScope = useSessionScope();
+  const canEdit = ['PM', 'admin', 'SPM'].includes(sessionScope?.role ?? '');
   const [filterState, setFilterState] = useState<string>('All');
   const [filterDistrict, setFilterDistrict] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'volume' | 'breaches'>('volume');
@@ -796,11 +801,11 @@ export default function Vertex({
   };
 
   const handleOpenPatientDrawer = (patient: any) => {
-    setSelectedPatient(patient);
+    setSelectedPatientId(patient.id);
   };
 
   const handleClosePatientDrawer = () => {
-    setSelectedPatient(null);
+    setSelectedPatientId(null);
   };
 
   const formattedDate = selectedDate 
@@ -1398,12 +1403,11 @@ export default function Vertex({
         </SheetContent>
       </Sheet>
 
-      {/* Patient Detail Drawer - ALWAYS MOUNTED, CONTROLLED BY ISOPEN */}
-      <PatientDetailDrawer
-        patient={selectedPatient || { id: null }} // Pass minimal object to prevent crashes
-        isOpen={!!selectedPatient && selectedPatient.id !== null}
+      {/* Patient Detail Panel - Slide-over from right */}
+      <PatientDetailPanel
+        patientId={selectedPatientId}
         onClose={handleClosePatientDrawer}
-        onUpdate={() => mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'))}
+        canEdit={canEdit}
       />
     </div>
   );
