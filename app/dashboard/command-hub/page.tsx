@@ -127,7 +127,8 @@ export default function CommandHubPage() {
   const syncIntegrity = 100;
 
   const sessionRole = session?.user?.role;
-  const isSuperuser = sessionRole === 'admin' || sessionRole === 'PM';
+  const SUPERUSER_ROLES = ['PM', 'admin'];
+  const isSuperuser = SUPERUSER_ROLES.includes(sessionRole || '');
 
   const tiles = [
     { href: '/dashboard/vertex', title: 'Analytics', description: 'Neural network visualization and insights', delay: 0.5, show: true, icon: Activity },

@@ -6,7 +6,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Settings, GitBranch, Copy,
-  LogOut, Network, ChevronLeft, LayoutDashboard
+  LogOut, Network, ChevronLeft, LayoutDashboard, FileText, User
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -27,12 +27,17 @@ import { useSonicIntelligence } from '@/hooks/useSonicIntelligence';
 import { useEntityStore } from '@/stores/useEntityStore';
 
 const TAB_CONFIG = [
-  { id: 'command-hub', path: '/dashboard/command-hub', icon: LayoutDashboard, label: 'Command Hub', description: 'Unified Hub', sonicId: 'nav-command' },
-  { id: 'vertex', path: '/dashboard/vertex', icon: Network, label: 'Vertex', description: 'Neural overview', sonicId: 'nav-vertex' },
-  { id: 'follow-up', path: '/dashboard/follow-up', icon: GitBranch, label: 'Follow-up Pipeline', description: 'Patient pipeline', sonicId: 'nav-followup' },
-  { id: 'mande', path: '/dashboard/mande', icon: Copy, label: 'M&E Tools', description: 'Monitoring & eval', sonicId: 'nav-mande' },
-  { id: 'gis', path: '/dashboard/gis', icon: Network, label: 'GIS Map', description: 'Spatial intelligence', sonicId: 'nav-gis' },
-  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account & sync', sonicId: 'nav-settings' },
+  { id: 'command-hub', path: '/dashboard/command-hub', icon: LayoutDashboard, label: 'Command Hub', description: 'Unified Hub', sonicId: 'nav-command', roles: ['PM', 'admin', 'SPM'] },
+  { id: 'vertex', path: '/dashboard/vertex', icon: Network, label: 'Vertex', description: 'Neural overview', sonicId: 'nav-vertex', roles: ['PM', 'admin', 'SPM', 'ME'] },
+  { id: 'follow-up', path: '/dashboard/follow-up', icon: GitBranch, label: 'Follow-up Pipeline', description: 'Patient pipeline', sonicId: 'nav-followup', roles: ['PM', 'admin', 'SPM', 'ME'] },
+  { id: 'mande', path: '/dashboard/mande', icon: Copy, label: 'M&E Tools', description: 'Monitoring & eval', sonicId: 'nav-mande', roles: ['PM', 'admin', 'SPM', 'ME'] },
+  { id: 'gis', path: '/dashboard/gis', icon: Network, label: 'GIS Map', description: 'Spatial intelligence', sonicId: 'nav-gis', roles: ['PM', 'admin', 'SPM', 'ME'] },
+  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account & sync', sonicId: 'nav-settings', roles: ['PM', 'admin', 'SPM', 'ME'] },
+];
+
+const PC_TAB_CONFIG = [
+  { id: 'my-submissions', path: '/dashboard/my-submissions', icon: FileText, label: 'My Work', description: 'Submissions', sonicId: 'nav-mywork', roles: ['PC'] },
+  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account', sonicId: 'nav-settings', roles: ['PC'] },
 ];
 
 function NavItem({ tab, isActive, isCollapsed, delay }: {
@@ -168,6 +173,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const handleSidebarToggle = useCallback(() => setSidebarOpen((v) => !v), []);
   const handleSignOut = useCallback(() => signOut({ callbackUrl: '/login' }), []);
 
+  // Get user role and filter tabs
+  const userRole = session?.user?.role || 'ME';
+  const visibleTabs = userRole === 'PC' 
+    ? PC_TAB_CONFIG 
+    : TAB_CONFIG.filter(t => t.roles.includes(userRole));
+
   return (
     <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden selection:bg-blue-500/30">
       <ClientFloatingEntity />
@@ -221,7 +232,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         <nav aria-label="Main navigation" className="flex-1 px-4 py-8 space-y-2 overflow-y-auto hide-scrollbar">
-          {TAB_CONFIG.map((tab, idx) => {
+          {visibleTabs.map((tab, idx) => {
             const isActive = pathname === tab.path;
             
             return (

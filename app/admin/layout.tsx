@@ -118,7 +118,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
     
     const role = session?.user?.role;
-    if (role !== 'admin' && role !== 'PM') {
+    const SUPERUSER_ROLES = ['PM', 'admin'];
+    if (!SUPERUSER_ROLES.includes(role || '')) {
       redirect('/unauthorized');
     }
   }, [session, status]);

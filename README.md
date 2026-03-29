@@ -2168,6 +2168,707 @@ vercel env add KOBO_WEBHOOK_SECRET production
 
 ---
 
+## 📝 TB Patient Screening Form - PC Dashboard
+
+### Overview
+
+**Route:** `/dashboard/submit-new`  
+**Access:** PC (Program Coordinator) role only  
+**Purpose:** Field worker data entry for TB patient screening records  
+**Mode:** **Offline-first** with IndexedDB + auto-sync
+
+### Design Philosophy
+
+**Awwwards-Level Healthcare UX:**
+- **Effortless & Warm**: Not clinical, not bureaucratic - designed for field workers
+- **Linear.app Interaction Quality**: Smooth transitions, spring physics, precise animations
+- **Stripe-Level Polish**: Every component earns its place
+- **Nexus Design System**: Teal `#01696f` accent, warm beige `#f7f6f2` surfaces
+- **Offline-First**: Works in low-connectivity clinics with automatic sync
+
+### Offline-First Architecture
+
+**Problem**: PC users work in low-connectivity clinics and need to save records even without internet.
+
+**Solution**: IndexedDB + Service Worker + Auto-Sync
+
+```
+PC screens patient offline
+  ↓
+onSubmit detects !navigator.onLine
+  ↓
+saves to IndexedDB (idb library)
+  ↓
+shows "Saved locally" overlay
+  ↓
+PC returns to connectivity
+  ↓
+window 'online' event fires
+  ↓
+useOfflineSync auto-calls syncPending()
+  ↓
+inserts all pending records to Supabase
+  ↓
+marks records synced: true in IDB
+  ↓
+pendingCount resets to 0
+  ↓
+banner disappears from my-submissions
+```
+
+**Key Features:**
+- ✅ Automatic offline detection
+- ✅ IndexedDB storage with `idb` library
+- ✅ Auto-sync when connection restored
+- ✅ Pending count badge in header
+- ✅ Manual sync button when online
+- ✅ Service Worker for route caching
+- ✅ Retry logic with exponential backoff
+
+**Technical Implementation:**
+
+**1. useOfflineSync Hook** (`hooks/useOfflineSync.ts`):
+```typescript
+interface SamaadhaamDB extends DBSchema {
+  'pending-submissions': {
+    key: number
+    value: {
+      id?: number
+      data: Record<string, unknown>
+      staff_name: string
+      synced: boolean
+      savedAt: string
+      retries: number
+    }
+    indexes: { 'by-synced': boolean }
+  }
+}
+
+export function useOfflineSync() {
+  const [isOnline, setIsOnline] = useState(true)
+  const [pendingCount, setPendingCount] = useState(0)
+  const [isSyncing, setIsSyncing] = useState(false)
+  
+  // Auto-sync when back online
+  useEffect(() => {
+    if (isOnline) syncPending()
+  }, [isOnline])
+  
+  return { isOnline, pendingCount, isSyncing, saveOffline, syncPending }
+}
+```
+
+**2. Offline Detection in Form**:
+```typescript
+const onSubmit = async (data: TBScreeningFormData) => {
+  const payload = {
+    ...data,
+    staff_name: sessionScope?.staffName,
+    created_at: new Date().toISOString(),
+  }
+
+  if (!navigator.onLine) {
+    await saveOffline(payload, sessionScope?.staffName ?? '')
+    setSavedOffline(true)
+    setSubmitSuccess(true)
+    return
+  }
+
+  // Normal online submission
+  const { error } = await supabase.from('patients').insert(payload)
+  // ...
+}
+```
+
+**3. Offline Indicator in Header**:
+```typescript
+{!isOnline && (
+  <motion.span className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full
+                         bg-[#964219]/10 text-[#964219] font-medium">
+    <span className="w-1.5 h-1.5 rounded-full bg-[#964219] animate-pulse" />
+    Offline — saves locally
+  </motion.span>
+)}
+```
+
+**4. Sync Banner in My Submissions**:
+```typescript
+{pendingCount > 0 && (
+  <div className="mb-4 px-4 py-3 rounded-lg bg-[#964219]/8 border border-[#964219]/15">
+    <p className="text-sm text-[#964219]">
+      <span className="font-medium">{pendingCount} record{pendingCount > 1 ? 's' : ''}</span>
+      {' '}
+      saved offline · {isOnline ? 'Ready to sync' : 'Waiting for connection'}
+    </p>
+    {isOnline && (
+      <button onClick={syncPending} disabled={isSyncing}>
+        {isSyncing ? 'Syncing…' : 'Sync now'}
+      </button>
+    )}
+  </div>
+)}
+```
+
+**5. Service Worker** (`public/sw.js`):
+```javascript
+const CACHE = 'samadhaan-v1'
+const PRECACHE = [
+  '/dashboard/submit-new',
+  '/dashboard/my-submissions',
+]
+
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)))
+  self.skipWaiting()
+})
+
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return
+  e.respondWith(
+    caches.match(e.request).then(cached => cached ?? fetch(e.request))
+  )
+})
+```
+
+**Dependencies:**
+```json
+{
+  "idb": "^8.0.3",
+  "canvas-confetti": "^1.9.4"
+}
+```
+
+### User Experience
+
+**Online Mode:**
+1. PC fills out form
+2. Clicks "Submit Record"
+3. Data saves to Supabase immediately
+4. Confetti burst animation
+5. Success message: "Record submitted"
+6. Auto-redirect to My Submissions
+
+**Offline Mode:**
+1. PC fills out form (sees "Offline — saves locally" badge)
+2. Clicks "Submit Record"
+3. Data saves to IndexedDB
+4. Success message: "Saved locally"
+5. Message: "No internet detected. This record will auto-sync when you're back online."
+6. Auto-redirect to My Submissions
+7. Banner shows: "1 record saved offline · Waiting for connection"
+
+**Auto-Sync:**
+1. PC's device reconnects to internet
+2. `window.addEventListener('online')` fires
+3. `useOfflineSync` automatically calls `syncPending()`
+4. All pending records upload to Supabase
+5. Records marked as `synced: true` in IndexedDB
+6. Banner updates: "1 record saved offline · Ready to sync"
+7. Click "Sync now" or wait for auto-sync
+8. Banner disappears when `pendingCount === 0`
+
+**Manual Sync:**
+- PC can click "Sync now" button in header or My Submissions banner
+- Button shows "Syncing…" during upload
+- Button disabled during sync to prevent duplicate submissions
+
+### Testing Offline Mode
+
+**Chrome DevTools:**
+1. Open DevTools (F12)
+2. Go to Network tab
+3. Change "No throttling" to "Offline"
+4. Fill out form and submit
+5. Check Application → IndexedDB → samadhaan-offline-v1
+6. See pending submission stored
+7. Change back to "Online"
+8. Watch auto-sync trigger
+9. Check Supabase for new record
+
+**Real Device:**
+1. Enable Airplane Mode
+2. Fill out form and submit
+3. See "Saved locally" message
+4. Disable Airplane Mode
+5. Watch auto-sync trigger
+6. Verify record in Supabase
+
+### Error Handling
+
+**Sync Failures:**
+- Retry counter increments on each failed sync attempt
+- Records remain in IndexedDB until successfully synced
+- Manual sync button always available
+- Error messages shown in form if sync fails
+
+**Data Integrity:**
+- All form data stored as-is in IndexedDB
+- No data loss during offline period
+- Duplicate prevention via `synced: true` flag
+- Staff name auto-populated from session
+
+### Performance
+
+**IndexedDB:**
+- Async operations (non-blocking)
+- Indexed by `synced` flag for fast queries
+- Auto-increment primary key
+- No size limits (unlike localStorage)
+
+**Service Worker:**
+- Cache-first strategy for form routes
+- Automatic cache invalidation on version change
+- No network requests for cached routes
+- Instant page loads when offline
+
+**Bundle Impact:**
+- `idb`: ~5KB gzipped
+- Service Worker: ~1KB
+- Total overhead: ~6KB
+
+### Security
+
+**Data Storage:**
+- IndexedDB is origin-isolated (same-origin policy)
+- Data encrypted at rest by browser
+- No sensitive data in service worker cache
+- Staff name from authenticated session only
+
+**Sync Authorization:**
+- Supabase Service Role Key used server-side
+- No credentials stored in IndexedDB
+- Session validation on every sync
+- RLS policies enforced on insert
+
+### Future Enhancements
+
+**Phase 2:**
+- [ ] Background sync API for automatic retry
+- [ ] Push notifications when sync completes
+- [ ] Conflict resolution for duplicate submissions
+- [ ] Offline photo upload queue
+- [ ] Partial sync (batch uploads)
+
+**Phase 3:**
+- [ ] Differential sync (only changed fields)
+- [ ] Compression for large payloads
+- [ ] Sync progress indicator
+- [ ] Offline analytics tracking
+- [ ] Multi-device sync coordination
+
+--- Architecture
+
+**Single-Page Multi-Step Form:**
+- 5 steps with animated transitions (Framer Motion)
+- Per-step validation before proceeding
+- React Hook Form + Zod schema validation
+- Session-aware (pre-fills state, district, staff name)
+- Canvas-confetti success celebration
+
+### Step Breakdown
+
+#### Step 1: Patient Identity
+- Serial number (auto-incremented hint)
+- Patient name (full width)
+- Age (number input) | Sex (segmented control)
+- Submission date (pre-filled today) | Contact number (optional)
+
+**UI Components:**
+- Custom segmented control with sliding pill animation
+- Inline validation with animated error messages
+- 44px minimum touch targets (mobile-friendly)
+
+#### Step 2: Facility & Location
+- Screening state (locked, pre-filled from session)
+- Screening district (locked, pre-filled from session)
+- Facility type (6-option chip selector grid)
+- Facility name (text input)
+- Microplan block (optional)
+
+**UI Components:**
+- Lock icon on readonly fields
+- Chip selector with active state animations
+- Locked field note: "Pre-filled from your profile · Contact admin to change"
+
+#### Step 3: Symptom Screening (10S)
+- 10 symptom cards with Lucide icons
+- Interactive tappable rows (not plain checkboxes)
+- Symptom count badge
+- X-ray toggle → reveals result dropdown
+- CBNAAT toggle → reveals result dropdown
+
+**Symptoms:**
+1. Cough ≥ 2 weeks (Wind icon)
+2. Fever (Thermometer icon)
+3. Night sweats (Moon icon)
+4. Weight loss (TrendingDown icon)
+5. Haemoptysis/blood (Droplets icon)
+6. Chest pain (Heart icon)
+7. Breathlessness (Waves icon)
+8. Swollen lymph nodes (Circle icon)
+9. Loss of appetite (Utensils icon)
+10. Other symptom (Plus icon)
+
+**UI Components:**
+- SymptomRow with icon, label, checkbox
+- Checked state: `bg-[#cedcd8]/30 border-[#01696f]/30`
+- Scale 0.98 on press animation
+- Conditional reveal for X-ray/CBNAAT results
+
+#### Step 4: Referral & Diagnosis
+- Referred for diagnosis (toggle switch)
+- Referral date + facility (conditional reveal)
+- TB diagnosis status (3-chip selector: Yes/No/Pending)
+- TB type (conditional reveal when diagnosed)
+- Drug-resistant TB toggle (conditional reveal)
+
+**UI Components:**
+- Custom animated toggle switch (spring physics)
+- ConditionalReveal wrapper with smooth height animation
+- Chip selector for diagnosis status
+
+#### Step 5: Treatment
+- ATT started (toggle switch)
+- ATT start date + regimen + DOTS provider (conditional reveal)
+- Treatment status (5-chip selector)
+- Remarks (textarea with character counter, max 500)
+- Summary card (review before submitting)
+
+**Summary Card:**
+- Patient: name, age, sex
+- Facility: name, district
+- TB Diagnosed: status
+- Symptoms: count reported
+- Uses `bg-[#f3f0ec]` surface with subtle border
+
+### Technical Implementation
+
+**Form Validation:**
+```typescript
+const tbScreeningSchema = z.object({
+  // Step 1 - Required fields
+  serial_no: z.string().min(1),
+  patient_name: z.string().min(2).max(100),
+  age: z.number().int().min(0).max(120),
+  sex: z.enum(['Male', 'Female', 'Other']),
+  submission_date: z.string().min(1),
+  
+  // Step 2 - Required fields
+  screening_state: z.string().min(1),
+  screening_district: z.string().min(1),
+  facility_type: z.enum(['CHC', 'PHC', 'DH', 'Private', 'DRTB Centre', 'Other']),
+  facility_name: z.string().min(1),
+  
+  // Steps 3-5 - All optional
+  // ... (symptoms, referral, treatment)
+})
+```
+
+**Per-Step Validation:**
+```typescript
+const STEP_FIELDS: Record<number, (keyof TBScreeningFormData)[]> = {
+  1: ['serial_no', 'patient_name', 'age', 'sex', 'submission_date'],
+  2: ['screening_state', 'screening_district', 'facility_type', 'facility_name'],
+  3: [], // symptoms are optional
+  4: [], // referral is optional
+  5: [], // treatment is optional
+}
+
+const goNext = async () => {
+  const fields = STEP_FIELDS[currentStep]
+  const valid = fields.length ? await form.trigger(fields) : true
+  if (!valid) return
+  setDirection('forward')
+  setCurrentStep(s => Math.min(s + 1, 5))
+}
+```
+
+**Supabase Integration:**
+```typescript
+const onSubmit = async (data: TBScreeningFormData) => {
+  const { error } = await supabase.from('patients').insert({
+    ...data,
+    staff_name: sessionScope?.staffName, // Auto-populated
+    created_at: new Date().toISOString(),
+  })
+  
+  if (!error) {
+    setSubmitSuccess(true)
+    confetti({ /* brand colors */ })
+    setTimeout(() => router.push('/dashboard/my-submissions'), 2800)
+  }
+}
+```
+
+### Reusable Components
+
+**1. FormField** - Label + input + error wrapper
+```typescript
+interface FormFieldProps {
+  label: string
+  required?: boolean
+  hint?: string
+  error?: string
+  children: React.ReactNode
+}
+```
+
+**2. SegmentedControl** - Animated sliding pill selector
+- Uses Framer Motion layoutId for smooth background slide
+- Active: `bg-[#01696f] text-white`
+- Inactive: `text-[#7a7974]`
+
+**3. ChipSelector** - Multi-option chip grid
+- Active: `border-[#01696f] bg-[#cedcd8]/40`
+- Inactive: `border-black/[0.08] bg-white`
+
+**4. SymptomRow** - Tappable symptom card
+- Icon + label + checkbox
+- Scale 0.98 on tap
+- Checked state with background color change
+
+**5. ToggleSwitch** - Custom animated toggle
+- Spring animation: stiffness 500, damping 30
+- Knob slides left/right with smooth transition
+
+**6. ConditionalReveal** - AnimatePresence wrapper
+- Smooth height animation (0 → auto)
+- Opacity fade (0 → 1)
+- Duration: 0.22s with custom easing
+
+**7. SuccessOverlay** - Full-screen success modal
+- Animated checkmark with spring physics
+- Confetti burst with brand colors
+- Auto-redirect after 2.8s
+
+### Styling Standards
+
+**Input Base:**
+```css
+.form-input {
+  width: 100%;
+  padding: 11px 14px;
+  background: white;
+  border: 1px solid oklch(from #28251d l c h / 0.14);
+  border-radius: 0.5rem;
+  font-family: 'Satoshi', sans-serif;
+  font-size: 1rem;
+  transition: border-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.form-input:focus {
+  border-color: #01696f;
+  box-shadow: 0 0 0 3px #cedcd8;
+}
+```
+
+**Button Styles:**
+```typescript
+// Primary CTA
+className="py-3 px-6 bg-[#01696f] text-white rounded-lg font-medium
+           hover:bg-[#0c4e54] active:bg-[#0f3638]
+           transition-all duration-180"
+
+// Ghost/Back button
+className="py-3 px-6 bg-transparent text-[#7a7974] rounded-lg
+           border border-black/[0.1] hover:bg-[#f3f0ec]
+           transition-all duration-180"
+```
+
+### Animations
+
+**Step Transitions:**
+```typescript
+<motion.div
+  key={currentStep}
+  initial={{ opacity: 0, x: direction === 'forward' ? 40 : -40 }}
+  animate={{ opacity: 1, x: 0 }}
+  exit={{ opacity: 0, x: direction === 'forward' ? -40 : 40 }}
+  transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+>
+```
+
+**Success Overlay:**
+```typescript
+// Checkmark circle
+initial={{ scale: 0, rotate: -180 }}
+animate={{ scale: 1, rotate: 0 }}
+transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+
+// Text stagger
+initial={{ opacity: 0, y: 12 }}
+animate={{ opacity: 1, y: 0 }}
+transition={{ delay: 0.35 }}
+```
+
+**Confetti Burst:**
+```typescript
+confetti({ 
+  particleCount: 120, 
+  spread: 80, 
+  origin: { y: 0.6 },
+  colors: ['#01696f', '#0c4e54', '#cedcd8', '#f7f6f2'] 
+})
+```
+
+### Accessibility
+
+**ARIA Attributes:**
+```typescript
+<input
+  id={id}
+  aria-required={required}
+  aria-invalid={!!error}
+  aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
+/>
+```
+
+**Keyboard Navigation:**
+- All interactive elements Tab-reachable
+- Skip link: "Skip to form" (sr-only, focus:not-sr-only)
+- Touch targets: 44px minimum height
+- Focus rings: visible with teal color
+
+**Screen Reader Support:**
+- Proper label associations
+- Error messages with role="alert"
+- Step progress announced
+- Success overlay with descriptive text
+
+### Mobile Optimization
+
+**Responsive Layout:**
+- 375px: Single column, full-width inputs
+- 768px+: Centered max-width 640px
+- Input font-size: 16px minimum (prevents iOS zoom)
+- Symptom rows: 56px tall (comfortable tap target)
+
+**Sticky Navigation:**
+```css
+/* Mobile sticky footer */
+.mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 16px env(safe-area-inset-bottom, 12px);
+  background: rgba(249,248,245,0.95);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(0,0,0,0.06);
+}
+```
+
+### Typography
+
+**Fonts:**
+- Display: General Sans 600 weight
+- Body/inputs: Satoshi 400/500
+- Load via: `https://api.fontshare.com/v2/css?f[]=general-sans@600&f[]=satoshi@400,500,700&display=swap`
+
+**Hierarchy:**
+- Step headings: `text-[--text-lg] font-semibold`
+- Labels: `text-[--text-xs] font-medium`
+- Hints: `text-xs text-[#7a7974]`
+- Errors: `text-sm text-[#a12c7b]`
+
+### Performance
+
+**Optimizations:**
+- Dynamic imports for heavy components
+- Memoized form values
+- Debounced validation
+- Conditional rendering for revealed fields
+- No localStorage/sessionStorage usage
+
+**Bundle Impact:**
+- canvas-confetti: ~15KB gzipped
+- Framer Motion: Already in project
+- React Hook Form: Already in project
+- Zod: Already in project
+
+### Testing Checklist
+
+**Functionality:**
+- [ ] Step 1 validation blocks progress if incomplete
+- [ ] Step 2 validation blocks progress if incomplete
+- [ ] Steps 3-5 allow progression (all optional)
+- [ ] State/district pre-filled from session
+- [ ] Submission date defaults to today
+- [ ] Conditional fields reveal smoothly
+- [ ] Success overlay shows after submit
+- [ ] Confetti burst triggers
+- [ ] Auto-redirect to /dashboard/my-submissions
+- [ ] Back button works on all steps
+- [ ] Progress pills clickable for completed steps
+
+**Accessibility:**
+- [ ] All inputs have labels
+- [ ] Error messages have role="alert"
+- [ ] Skip link works
+- [ ] Keyboard navigation complete
+- [ ] Focus rings visible
+- [ ] Touch targets 44px minimum
+- [ ] Screen reader announces steps
+
+**Mobile:**
+- [ ] Single column layout on 375px
+- [ ] Sticky footer navigation
+- [ ] No iOS zoom on input focus
+- [ ] Symptom rows tappable (56px)
+- [ ] Safe area insets respected
+
+### Integration with PC Dashboard
+
+**Navigation:**
+- PC users see "Submit New Record" button in `/dashboard/my-submissions`
+- Button routes to `/dashboard/submit-new`
+- After submission, redirects back to `/dashboard/my-submissions`
+
+**Data Flow:**
+```
+PC User → Submit New Record Button
+         ↓
+    /dashboard/submit-new (5-step form)
+         ↓
+    Supabase patients table insert
+         ↓
+    Success overlay + confetti
+         ↓
+    Auto-redirect to /dashboard/my-submissions
+```
+
+**Session Integration:**
+```typescript
+const sessionScope = useSessionScope()
+
+form.defaultValues = {
+  screening_state: sessionScope?.state ?? '',
+  screening_district: sessionScope?.district ?? '',
+  submission_date: new Date().toISOString().split('T')[0],
+}
+
+// On submit
+staff_name: sessionScope?.staffName
+```
+
+### Future Enhancements
+
+**Phase 2:**
+- [ ] Offline mode with service worker
+- [ ] Draft auto-save to localStorage
+- [ ] Photo upload for X-rays
+- [ ] GPS coordinates capture
+- [ ] Signature pad for consent
+
+**Phase 3:**
+- [ ] Multi-language support (Hindi, Tamil, etc.)
+- [ ] Voice input for patient name
+- [ ] Barcode scanner for serial number
+- [ ] SMS confirmation to patient
+- [ ] Print receipt functionality
+
+---
+
 ## 🔎 Code Review Findings (2026-03-19)
 
 This section documents **new** findings from a repo-wide review (beyond the existing Performance/Tech Debt notes above). Items are prioritized to help you harden security and stabilize production behavior.

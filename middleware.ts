@@ -86,8 +86,17 @@ export default auth((req) => {
       return NextResponse.redirect(loginUrl);
     }
     const role = req.auth.user?.role;
-    if (role !== 'PM' && role !== 'SPM') {
+    const SUPERUSER_ROLES = ['PM', 'admin'];
+    if (!SUPERUSER_ROLES.includes(role || '')) {
       return NextResponse.redirect(new URL('/unauthorized', req.url));
+    }
+  }
+
+  // PC redirect: redirect PC users from command-hub to my-submissions
+  if (pathname.startsWith('/dashboard')) {
+    const role = req.auth?.user?.role;
+    if (role === 'PC' && (pathname === '/dashboard' || pathname === '/dashboard/command-hub')) {
+      return NextResponse.redirect(new URL('/dashboard/my-submissions', req.url));
     }
   }
 

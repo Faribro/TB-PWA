@@ -386,7 +386,7 @@ export default function LoginPage() {
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="fixed inset-0 z-[9999] flex items-center justify-center p-4 font-mono"
             >
-              <div className="w-full max-w-5xl h-[80vh] border-2 border-[#33ff99]/30 bg-[#0a0f0a] shadow-[0_0_50px_rgba(51,255,153,0.2)] overflow-hidden flex flex-col relative crt-overlay">
+              <div className="w-full max-w-5xl max-h-[90vh] border-2 border-[#33ff99]/30 bg-[#0a0f0a] shadow-[0_0_50px_rgba(51,255,153,0.2)] overflow-y-auto flex flex-col relative crt-overlay">
                 
                 {/* Top Header Bar */}
                 <div className="flex items-center justify-between px-4 py-2 border-b border-[#33ff99]/30 bg-[#1a2e1a]/50 text-[#33ff99] text-xs font-bold tracking-widest relative z-10">
@@ -455,8 +455,9 @@ export default function LoginPage() {
                   </div>
 
                   {/* Quadrant 3 & 4: System Log + Execute (Combined) */}
-                  <div className="bg-[#0c130c] p-6 border border-[#33ff99]/20 col-span-2 flex flex-col justify-between">
-                    <div className="space-y-1">
+                  <div className="bg-[#0c130c] p-6 border border-[#33ff99]/20 col-span-2 flex flex-col h-full">
+                    {/* Console output - scrollable, takes remaining space */}
+                    <div className="flex-1 overflow-y-auto min-h-0 mb-3">
                       <div className="flex items-center gap-2 text-[#33ff99] text-sm mb-4">
                         <Terminal className="w-4 h-4" /> <span className="terminal-glow">CONSOLE_OUTPUT</span>
                       </div>
@@ -466,50 +467,54 @@ export default function LoginPage() {
                       <p className="text-[#33ff99] text-[11px] mt-4 flex items-center gap-2">
                         root@vanguard:~$ <span className="animate-pulse">_</span>
                       </p>
-                      
-                      <div className="mt-4 space-y-2">
-                        <input
-                          type="password"
-                          value={masterKey}
-                          onChange={(e) => setMasterKey(e.target.value)}
-                          placeholder="[SYSTEM_AUTH_CHALLENGE]"
-                          className="w-full bg-black border border-[#33ff99]/30 text-[#33ff99] p-3 text-xs outline-none focus:border-[#33ff99] placeholder:text-[#33ff99]/30 terminal-glow"
-                        />
-                        {keyStatus === 'valid' && (
-                          <p className="text-green-400 text-[10px] terminal-glow">
-                            &gt; AUTH_SUCCESS: VANGUARD_MODE_ENGAGED
-                          </p>
-                        )}
-                        {keyStatus === 'invalid' && (
-                          <p className="text-red-400 text-[10px]">
-                            &gt; AUTH_FAILURE: INVALID_ACCESS_KEY
-                          </p>
-                        )}
-                        {keyStatus === 'checking' && (
-                          <p className="text-yellow-400 text-[10px] animate-pulse">
-                            &gt; VERIFYING_KEY...
-                          </p>
-                        )}
-                      </div>
+                    </div>
+                    
+                    {/* Password input - always visible, fixed at bottom */}
+                    <div className="flex-shrink-0 space-y-2">
+                      <input
+                        type="password"
+                        value={masterKey}
+                        onChange={(e) => setMasterKey(e.target.value)}
+                        placeholder="[SYSTEM_AUTH_CHALLENGE]"
+                        className="w-full bg-black border border-[#33ff99]/30 text-[#33ff99] p-3 text-xs outline-none focus:border-[#33ff99] placeholder:text-[#33ff99]/30 terminal-glow"
+                      />
+                      {keyStatus === 'valid' && (
+                        <p className="text-green-400 text-[10px] terminal-glow">
+                          &gt; AUTH_SUCCESS: VANGUARD_MODE_ENGAGED
+                        </p>
+                      )}
+                      {keyStatus === 'invalid' && (
+                        <p className="text-red-400 text-[10px]">
+                          &gt; AUTH_FAILURE: INVALID_ACCESS_KEY
+                        </p>
+                      )}
+                      {keyStatus === 'checking' && (
+                        <p className="text-yellow-400 text-[10px] animate-pulse">
+                          &gt; VERIFYING_KEY...
+                        </p>
+                      )}
                     </div>
 
-                    <motion.button
-                      onClick={handleOverrideSignIn}
-                      disabled={!isUnlocked}
-                      animate={{
-                        boxShadow: isUnlocked
-                          ? ['0 0 0px #33ff99', '0 0 30px #33ff99', '0 0 10px #33ff99']
-                          : '0 0 0px transparent'
-                      }}
-                      transition={{ duration: 0.6, repeat: isUnlocked ? 2 : 0 }}
-                      className={`w-full mt-6 py-4 font-black text-sm tracking-[0.3em] transition-all ${
-                        isUnlocked
-                          ? 'bg-[#33ff99] text-black hover:bg-white shadow-[0_0_20px_rgba(51,255,153,0.5)] hover:shadow-[0_0_30px_rgba(51,255,153,0.8)] cursor-pointer'
-                          : 'bg-[#33ff99]/20 text-[#33ff99]/20 cursor-not-allowed'
-                      }`}
-                    >
-                      {isUnlocked ? '[ EXECUTE_SYSTEM_BREACH_SIGN_IN ]' : '[ ACCESS_RESTRICTED_ENTER_KEY ]'}
-                    </motion.button>
+                    {/* Execute button - always visible */}
+                    <div className="flex-shrink-0 mt-3">
+                      <motion.button
+                        onClick={handleOverrideSignIn}
+                        disabled={!isUnlocked}
+                        animate={{
+                          boxShadow: isUnlocked
+                            ? ['0 0 0px #33ff99', '0 0 30px #33ff99', '0 0 10px #33ff99']
+                            : '0 0 0px transparent'
+                        }}
+                        transition={{ duration: 0.6, repeat: isUnlocked ? 2 : 0 }}
+                        className={`w-full py-4 font-black text-sm tracking-[0.3em] transition-all ${
+                          isUnlocked
+                            ? 'bg-[#33ff99] text-black hover:bg-white shadow-[0_0_20px_rgba(51,255,153,0.5)] hover:shadow-[0_0_30px_rgba(51,255,153,0.8)] cursor-pointer'
+                            : 'bg-[#33ff99]/20 text-[#33ff99]/20 cursor-not-allowed'
+                        }`}
+                      >
+                        {isUnlocked ? '[ EXECUTE_SYSTEM_BREACH_SIGN_IN ]' : '[ ACCESS_RESTRICTED_ENTER_KEY ]'}
+                      </motion.button>
+                    </div>
                   </div>
                 </div>
 

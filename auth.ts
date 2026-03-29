@@ -51,8 +51,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.state = data?.state ?? 'All'
         token.district = data?.district ?? 'All'
 
-        // System Override: Only allow if real user is PM
-        if (data?.role === 'PM') {
+        // System Override: Only allow if real user is PM or admin
+        const SUPERUSER_ROLES = ['PM', 'admin'];
+        if (SUPERUSER_ROLES.includes(data?.role || '')) {
           const cookieStore = await cookies();
           const overrideCookie = cookieStore.get('__samadhaan_override');
           
@@ -63,9 +64,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               token.state = override.state ?? data.state;
               token.district = override.district ?? data.district;
               token.isImpersonating = true;
-              token.realRole = 'PM';
+              token.realRole = data.role;
               
-              console.log(`[OVERRIDE] PM ${user.email} impersonating as ${override.role}`);
+              console.log(`[OVERRIDE] ${data.role} ${user.email} impersonating as ${override.role}`);
               
               // Clear the cookie immediately
               cookieStore.delete('__samadhaan_override');

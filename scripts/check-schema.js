@@ -1,32 +1,36 @@
-const { createClient } = require('@supabase/supabase-js');
+#!/usr/bin/env node
 
-const supabase = createClient(
-  'https://wwcgybgvfulotflitogu.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2d5Ymd2ZnVsb3RmbGl0b2d1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjY4OTk0MSwiZXhwIjoyMDg4MjY1OTQxfQ.aJIg860fGCJf7bVVV93Pdcev2A81h9FRxcBCU49DE_M'
-);
+const SUPABASE_URL = 'https://wwcgybgvfulotflitogu.supabase.co';
+const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2d5Ymd2ZnVsb3RmbGl0b2d1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjY4OTk0MSwiZXhwIjoyMDg4MjY1OTQxfQ.aJIg860fGCJf7bVVV93Pdcev2A81h9FRxcBCU49DE_M';
 
 async function checkSchema() {
-  console.log('🔍 Checking Supabase patients table schema...\n');
+  console.log('Fetching patients table schema...\n');
   
-  // Try to get one row to see actual columns
-  const { data, error } = await supabase
-    .from('patients')
-    .select('*')
-    .limit(1);
+  const url = `${SUPABASE_URL}/rest/v1/patients?limit=1`;
   
-  if (error) {
-    console.error('❌ Error:', error.message);
-    return;
+  const response = await fetch(url, {
+    headers: {
+      'apikey': SERVICE_ROLE_KEY,
+      'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+      'Prefer': 'return=representation'
+    }
+  });
+
+  if (!response.ok) {
+    console.error('Error:', await response.text());
+    process.exit(1);
   }
+
+  const data = await response.json();
   
-  if (data && data.length > 0) {
-    console.log('✅ Available columns in patients table:');
-    console.log('─'.repeat(80));
-    Object.keys(data[0]).sort().forEach((col, i) => {
-      console.log(`${(i + 1).toString().padStart(3)}. ${col}`);
+  if (data.length > 0) {
+    console.log('Available columns in patients table:');
+    console.log('═══════════════════════════════════════\n');
+    Object.keys(data[0]).sort().forEach(col => {
+      console.log(`  - ${col}`);
     });
   } else {
-    console.log('⚠️ No data in patients table');
+    console.log('No data in patients table');
   }
 }
 
