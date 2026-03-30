@@ -43,13 +43,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // Look up user role/state from Supabase users table
         const { data } = await supabase
           .from('profiles')
-          .select('role, state, district')
+          .select('role, state, district, name')
           .eq('email', user.email)
           .single()
 
         token.role = data?.role ?? 'M&E'
         token.state = data?.state ?? 'All'
         token.district = data?.district ?? 'All'
+        token.staffName = data?.name ?? user.name // Use name from profiles, fallback to OAuth name
 
         // System Override: Only allow if real user is PM or admin
         const SUPERUSER_ROLES = ['PM', 'admin'];
@@ -83,6 +84,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.role = token.role as string
         session.user.state = token.state as string
         session.user.district = token.district as string
+        session.user.staffName = token.staffName as string
       }
       return session
     },

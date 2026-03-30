@@ -12,6 +12,8 @@ import { useSession } from 'next-auth/react';
 import dynamic from 'next/dynamic';
 import { CharacterSelector } from './CharacterSelector';
 import { SyncIntelligenceCard } from './settings/SyncIntelligenceCard';
+import { sounds, setSoundEnabled, isSoundEnabled } from '@/lib/sound';
+import { cn } from '@/lib/utils';
 
 const PDFLibrary = dynamic(() => import('./pdf/PDFLibrary'), { ssr: false });
 
@@ -605,6 +607,7 @@ export default function SettingsTab() {
   const [notifications, setNotifications] = useState(NOTIFICATIONS);
   const [selectedDocId, setSelectedDocId] = useState<string | undefined>();
   const [selectedDocTitle, setSelectedDocTitle] = useState<string | undefined>();
+  const [soundOn, setSoundOn] = useState(isSoundEnabled());
 
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -650,6 +653,13 @@ export default function SettingsTab() {
       prev.map((n) => (n.id === id ? { ...n, enabled: !n.enabled } : n))
     );
   }, []);
+
+  const toggleSound = useCallback(() => {
+    const next = !soundOn;
+    setSoundOn(next);
+    setSoundEnabled(next);
+    if (next) sounds.toggle();
+  }, [soundOn]);
 
   const handleSelectDoc = useCallback((docId: string, title: string) => {
     setSelectedDocId(docId);
@@ -736,6 +746,33 @@ export default function SettingsTab() {
                   notifications={notifications}
                   onToggle={toggleNotification}
                 />
+              )}
+              {activeSubTab === 'profile' && (
+                <div className="mt-5 rounded-3xl bg-white border border-slate-200/60 shadow-[0_8px_40px_rgb(0,0,0,0.06)] p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">Sound effects</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Subtle audio feedback for interactions
+                      </p>
+                    </div>
+                    <button
+                      onClick={toggleSound}
+                      role="switch"
+                      aria-checked={soundOn}
+                      className={cn(
+                        'w-10 h-6 rounded-full transition-colors duration-200 relative',
+                        soundOn ? 'bg-[#01696f]' : 'bg-slate-200'
+                      )}
+                    >
+                      <span className={cn(
+                        'absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm',
+                        'transition-transform duration-200',
+                        soundOn ? 'translate-x-5' : 'translate-x-1'
+                      )} />
+                    </button>
+                  </div>
+                </div>
               )}
               {activeSubTab === 'character' && (
                 <div className="rounded-3xl bg-white border border-slate-200/60 shadow-[0_8px_40px_rgb(0,0,0,0.06)] p-8">

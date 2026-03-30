@@ -17,6 +17,16 @@ export interface PhaseResult {
 }
 
 export function calculatePatientPhase(patient: any): PhaseResult {
+  // Guard against null/undefined patient
+  if (!patient) {
+    return {
+      phase: 'Screening',
+      phaseIndex: 0,
+      isCompleted: false,
+      nextRequiredField: 'screening_date'
+    };
+  }
+
   // Only mark as Closed if there's explicit completion or TB ruled out
   if (patient.att_completion_date || patient.tb_diagnosed === 'N') {
     return {
@@ -67,6 +77,8 @@ export function calculatePatientPhase(patient: any): PhaseResult {
 }
 
 export function getCompletedPhases(patient: any): number[] {
+  if (!patient) return [];
+  
   const completed: number[] = [];
   
   if (patient.screening_date) completed.push(0);
@@ -83,6 +95,8 @@ export function getCompletedPhases(patient: any): number[] {
  * Screening = 20%, Sputum = 40%, Diagnosis = 60%, ATT = 80%, Closed = 100%
  */
 export function calculateProgressPercentage(patient: any): number {
+  if (!patient) return 0;
+  
   const { phaseIndex } = calculatePatientPhase(patient);
   const percentages = [20, 40, 60, 80, 100];
   return percentages[phaseIndex];

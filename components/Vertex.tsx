@@ -32,9 +32,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { sounds } from '@/lib/sound';
 import { FollowUpPipeline } from '@/components/FollowUpPipeline';
 import { PatientDetailDrawer } from '@/components/PatientDetailDrawer';
-import { PatientDetailPanel } from '@/components/PatientDetailPanel';
 import { VertexChart } from '@/components/VertexChart';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope } from '@/hooks/useSessionScope';
@@ -547,7 +547,6 @@ export default function Vertex({
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [selectedFacility, setSelectedFacility] = useState<string | null>(null);
-  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const sessionScope = useSessionScope();
   const canEdit = ['PM', 'admin', 'SPM'].includes(sessionScope?.role ?? '');
   const [filterState, setFilterState] = useState<string>('All');
@@ -789,6 +788,7 @@ export default function Vertex({
   };
 
   const handleDateSelect = (date: string) => {
+    sounds.calendarClick();
     setSelectedDate(date);
   };
 
@@ -801,11 +801,15 @@ export default function Vertex({
   };
 
   const handleOpenPatientDrawer = (patient: any) => {
-    setSelectedPatientId(patient.id);
+    setSelectedPatient(patient);
   };
 
   const handleClosePatientDrawer = () => {
-    setSelectedPatientId(null);
+    setSelectedPatient(null);
+  };
+
+  const handlePatientUpdate = () => {
+    mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
   };
 
   const formattedDate = selectedDate 
@@ -1403,11 +1407,12 @@ export default function Vertex({
         </SheetContent>
       </Sheet>
 
-      {/* Patient Detail Panel - Slide-over from right */}
-      <PatientDetailPanel
-        patientId={selectedPatientId}
+      {/* Patient Detail Drawer - Full clinical drawer */}
+      <PatientDetailDrawer
+        patient={selectedPatient}
+        isOpen={!!selectedPatient}
         onClose={handleClosePatientDrawer}
-        canEdit={canEdit}
+        onUpdate={handlePatientUpdate}
       />
     </div>
   );

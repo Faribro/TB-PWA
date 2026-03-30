@@ -60,25 +60,16 @@ export default auth((req) => {
     return NextResponse.redirect(new URL('/dashboard/command-hub', req.url));
   }
   
-  // Protect dashboard routes with session expiry check
+  // Protect dashboard routes
   if (pathname.startsWith('/dashboard')) {
     if (!req.auth) {
       const loginUrl = new URL('/login', req.url);
       loginUrl.searchParams.set('reason', 'expired');
       return NextResponse.redirect(loginUrl);
     }
-    
-    // Check session age (8 hours = 28800 seconds)
-    const sessionStart = req.auth.expires ? new Date(req.auth.expires).getTime() - 28800000 : 0;
-    const now = Date.now();
-    if (now - sessionStart > 28800000) {
-      const loginUrl = new URL('/login', req.url);
-      loginUrl.searchParams.set('reason', 'expired');
-      return NextResponse.redirect(loginUrl);
-    }
   }
 
-  // Protect admin routes with superuser gatekeeper
+  // Protect admin routes
   if (pathname.startsWith('/admin')) {
     if (!req.auth) {
       const loginUrl = new URL('/login', req.url);

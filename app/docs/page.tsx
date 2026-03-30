@@ -42,12 +42,17 @@ function canSeeArticle(article: Article, role: string): boolean {
 }
 
 function canCreate(role: string) {
+  // Only PM, admin, and SPM can create articles
+  // ME and PC are read-only
   return ['PM', 'admin', 'SPM'].includes(role)
 }
 
 function canEdit(article: Article, role: string, staffName: string | null) {
+  // PM and admin can edit everything
   if (['PM', 'admin'].includes(role)) return true
+  // SPM can only edit their own guides
   return role === 'SPM' && article.created_by_name === staffName && article.article_type === 'guide'
+  // ME and PC cannot edit (returns false)
 }
 
 const TYPE_CONFIG: Record<ArticleType, { label: string; badge: string }> = {
@@ -372,7 +377,7 @@ export default function DocsPage() {
             <span className="text-xs font-semibold uppercase tracking-widest text-[#7a7974]">
               Navigation
             </span>
-            {canCreate(role ?? '') && (
+            {canCreate(role ?? '') && role && (
               <button
                 onClick={() => {
                   setEditDraft({ article_type: 'guide', visible_to: 'all', is_published: true, is_pinned: false })

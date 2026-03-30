@@ -22,6 +22,7 @@ export async function getSessionScope(): Promise<SessionScope> {
   const role     = session.user.role     ?? 'M&E';
   const rawState = (session.user.state    ?? 'All').trim();
   const rawDist  = ((session.user as any).district ?? 'All').trim();
+  const staffName = (session.user as any).staffName ?? session.user.name;
 
   const SUPERUSER_ROLES = ['PM', 'admin'];
   const isSuperuser = SUPERUSER_ROLES.includes(role);
@@ -31,7 +32,7 @@ export async function getSessionScope(): Promise<SessionScope> {
     role,
     state:    (isSuperuser || rawState === 'All') ? null : rawState,
     district: (isSuperuser || isStateLevel || rawDist === 'All') ? null : rawDist,
-    staffName: role === 'PC' ? session.user.name : null,
+    staffName: role === 'PC' ? staffName : null,
   };
 }
 

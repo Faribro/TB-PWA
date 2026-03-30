@@ -1,9 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope, isSuperuser } from '@/hooks/useSessionScope';
 import { useEntityStore } from '@/stores/useEntityStore';
+import { DEFAULT_FILTERS } from '@/components/VertexFilterBar';
+import type { VertexFilters } from '@/components/VertexFilterBar';
+import { ScreeningCalendar } from '@/components/ScreeningCalendar';
+import { exportPatientsToXLSX } from '@/lib/export-xlsx';
+import { cn } from '@/lib/utils';
+import { sounds } from '@/lib/sound';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Filter, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { LinesAndDotsLoader } from '@/components/LinesAndDotsLoader';
 import { createClient } from '@supabase/supabase-js';
@@ -56,8 +64,82 @@ export default function VertexPage() {
 function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSessionScope>> }) {
   const { data: globalPatients = [], isLoading } = useSWRAllPatients(scope);
   const [metrics, setMetrics] = useState({ total: 0, pending: 0, thisMonth: 0, onATT: 0 });
+  const [view, setView] = useState<'table' | 'calendar'>('table');
+  const [filters, setFilters] = useState<VertexFilters>(DEFAULT_FILTERS);
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const national = isSuperuser(scope);
   const setFilter = useEntityStore(s => s.setGlobalFilter);
+
+  const canExport = ['PM', 'admin', 'SPM'].includes(scope.role ?? '');
+  
+  const activeFilterCount = [
+    filters.search,
+    filters.dateFrom,
+    filters.dateTo,
+    filters.state,
+    filters.district,
+    filters.facilityType,
+    filters.tbDiagnosed !== 'all' ? '1' : '',
+    filters.treatmentStatus !== 'all' ? '1' : '',
+  ].filter(Boolean).length;
+
+  const clearFilters = () => setFilters(DEFAULT_FILTERS);
+
+  const filteredPatients = useMemo(() => {
+    return globalPatients.filter(p => {
+      if (filters.search) {
+        const q = filters.search.toLowerCase();
+        const match = [
+          p.inmate_name,
+          p.serial_no,
+          p.facility_name,
+          p.staff_name
+        ].some(v => v?.toLowerCase().includes(q));
+        if (!match) return false;
+      }
+      if (filters.dateFrom && p.screening_date && p.screening_date < filters.dateFrom) return false;
+      if (filters.dateTo && p.screening_date && p.screening_date > filters.dateTo) return false;
+      if (filters.state && p.screening_state !== filters.state) return false;
+      if (filters.district && p.screening_district !== filters.district) return false;
+      if (filters.facilityType && p.facility_type !== filters.facilityType) return false;
+      if (filters.tbDiagnosed !== 'all' && p.tb_diagnosed !== filters.tbDiagnosed) return false;
+      if (filters.treatmentStatus !== 'all' && p.treatment_status !== filters.treatmentStatus) return false;
+      if (selectedCalendarDate && p.screening_date !== selectedCalendarDate) return false;
+      return true;
+    });
+  }, [globalPatients, filters, selectedCalendarDate]);
+
+  const calendarData = useMemo(() => {
+    const map: Record<string, { count: number; tbPositive: number }> = {};
+    globalPatients.forEach(p => {
+      if (!p.screening_date) return;
+      if (!map[p.screening_date]) map[p.screening_date] = { count: 0, tbPositive: 0 };
+      map[p.screening_date].count++;
+      if (p.tb_diagnosed === 'Yes') map[p.screening_date].tbPositive++;
+    });
+    return Object.entries(map).map(([date, v]) => ({ date, ...v }));
+  }, [globalPatients]);
+
+  const handleExport = useCallback(async () => {
+    setIsExporting(true);
+    sounds.download();
+    try {
+      exportPatientsToXLSX(
+        filteredPatients as unknown as Record<string, unknown>[],
+        `samadhaan-vertex-${filters.state || 'all'}`
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  }, [filteredPatients, filters.state]);
+
+  const handleDayClick = useCallback((date: string) => {
+    sounds.calendarClick();
+    setSelectedCalendarDate(prev => prev === date ? null : date);
+    setView('table');
+  }, []);
 
   useEffect(() => {
     async function fetchMetrics() {
@@ -103,14 +185,242 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
   }, [scope]);
 
   return (
-    <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
-      <div className="flex-1 relative min-h-0">
-        <NeuralDashboard
-          globalPatients={globalPatients}
-          isLoading={isLoading}
-          filter={null}
-          onSetFilter={() => {}}
-        />
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Single compact header */}
+      <div className="flex-shrink-0 sticky top-0 z-20 bg-[#f9f8f5]/95
+                      backdrop-blur-sm border-b border-black/[0.06]">
+        <div className="flex items-center gap-2 px-4 h-12">
+          
+          {/* Search */}
+          <div className="relative w-52">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2
+                                         text-[#bab9b4] pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search patient, serial, facility..."
+              value={filters.search}
+              onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+              className="w-full pl-7 pr-2 py-1.5 bg-white border border-black/[0.08]
+                         rounded-md text-xs text-[#28251d] placeholder:text-[#bab9b4]
+                         focus:outline-none focus:border-[#01696f] focus:ring-1
+                         focus:ring-[#cedcd8] transition-all"
+            />
+          </div>
+
+          {/* Date range */}
+          <input type="date" value={filters.dateFrom}
+            onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
+            className="px-2 py-1.5 bg-white border border-black/[0.08] rounded-md
+                       text-xs text-[#28251d] focus:outline-none focus:border-[#01696f]
+                       focus:ring-1 focus:ring-[#cedcd8] transition-all w-32" />
+          <span className="text-xs text-[#bab9b4]">—</span>
+          <input type="date" value={filters.dateTo}
+            onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))}
+            className="px-2 py-1.5 bg-white border border-black/[0.08] rounded-md
+                       text-xs text-[#28251d] focus:outline-none focus:border-[#01696f]
+                       focus:ring-1 focus:ring-[#cedcd8] transition-all w-32" />
+
+          {/* Quick date shortcuts */}
+          <div className="flex gap-1">
+            {[{ l: '7D', d: 7 }, { l: '30D', d: 30 }, { l: '90D', d: 90 }].map(
+              ({ l, d }) => {
+                const to = new Date().toISOString().split('T')[0]
+                const from = new Date(Date.now() - d * 86400000).toISOString().split('T')[0]
+                const active = filters.dateFrom === from && filters.dateTo === to
+                return (
+                  <button key={l}
+                    onClick={() => setFilters(f => ({ ...f, dateFrom: from, dateTo: to }))}
+                    className={cn(
+                      'px-2 py-1 rounded text-xs font-medium transition-colors',
+                      active
+                        ? 'bg-[#01696f] text-white'
+                        : 'bg-[#f3f0ec] text-[#7a7974] hover:bg-[#e6e4df]'
+                    )}
+                  >
+                    {l}
+                  </button>
+                )
+              }
+            )}
+          </div>
+
+          {/* Filters toggle */}
+          <button
+            onClick={() => setFiltersExpanded(e => !e)}
+            className={cn(
+              'flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium',
+              'transition-colors border',
+              filtersExpanded
+                ? 'bg-[#cedcd8]/60 text-[#01696f] border-[#01696f]/20'
+                : 'bg-white text-[#7a7974] border-black/[0.08] hover:bg-[#f3f0ec]'
+            )}
+          >
+            <Filter size={11} />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="w-3.5 h-3.5 rounded-full bg-[#01696f] text-white
+                              text-[9px] flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+
+          {/* Clear filters */}
+          {activeFilterCount > 0 && (
+            <button onClick={clearFilters}
+              className="text-xs text-[#7a7974] hover:text-[#28251d] transition-colors
+                         flex items-center gap-0.5">
+              <X size={10} />
+              Clear
+            </button>
+          )}
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Record count */}
+          <span className="text-xs text-[#7a7974] tabular-nums whitespace-nowrap">
+            <span className="font-semibold text-[#28251d]">
+              {filteredPatients.length.toLocaleString()}
+            </span>
+            {' / '}
+            {globalPatients.length.toLocaleString()}
+          </span>
+
+          {/* Thin divider */}
+          <div className="w-px h-5 bg-black/[0.08]" />
+
+          {/* View toggle */}
+          <div className="flex rounded-md border border-black/[0.08] overflow-hidden">
+            <button
+              onClick={() => { sounds.toggle(); setView('table'); }}
+              className={cn(
+                'px-2.5 py-1.5 text-xs font-medium transition-colors flex items-center gap-1',
+                view === 'table'
+                  ? 'bg-[#01696f] text-white'
+                  : 'bg-white text-[#7a7974] hover:bg-[#f3f0ec]'
+              )}
+            >
+              ⊞ Table
+            </button>
+            <button
+              onClick={() => { sounds.toggle(); setView('calendar'); }}
+              className={cn(
+                'px-2.5 py-1.5 text-xs font-medium transition-colors flex items-center gap-1',
+                view === 'calendar'
+                  ? 'bg-[#01696f] text-white'
+                  : 'bg-white text-[#7a7974] hover:bg-[#f3f0ec]'
+              )}
+            >
+              📅 Calendar
+            </button>
+          </div>
+
+          {/* Export XLSX */}
+          {canExport && (
+            <button
+              onClick={handleExport}
+              disabled={isExporting || filteredPatients.length === 0}
+              className="flex items-center gap-1 px-3 py-1.5 bg-[#437a22] text-white
+                         rounded-md text-xs font-medium hover:bg-[#2e5c10]
+                         transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isExporting ? (
+                <span className="w-3 h-3 border border-white/30 border-t-white
+                                rounded-full animate-spin" />
+              ) : (
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              )}
+              Export XLSX
+            </button>
+          )}
+
+        </div>
+
+        {/* Expandable secondary filters */}
+        <AnimatePresence>
+          {filtersExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              style={{ overflow: 'hidden' }}
+            >
+              <div className="px-4 pb-3 pt-1 grid grid-cols-5 gap-2
+                             border-t border-black/[0.04]">
+                {[
+                  { label: 'State', key: 'state' as const, options: ['', 'Maharashtra', 'Madhya Pradesh', 'Rajasthan', 'Uttar Pradesh', 'Gujarat'] },
+                  { label: 'District', key: 'district' as const, options: ['', 'Mumbai', 'Dewas', 'Jaipur', 'Lucknow'] },
+                  { label: 'Facility', key: 'facilityType' as const, options: ['', 'CHC', 'PHC', 'Prison', 'DH', 'DRTB Centre'] },
+                  { label: 'TB Status', key: 'tbDiagnosed' as const, options: ['all', 'Yes', 'No', 'Pending'] },
+                  { label: 'Treatment', key: 'treatmentStatus' as const, options: ['all', 'Ongoing', 'Completed', 'Defaulted', 'Died', 'Not Started'] },
+                ].map(({ label, key, options }) => (
+                  <div key={key}>
+                    <label className="block text-[10px] font-medium text-[#7a7974] mb-1">
+                      {label}
+                    </label>
+                    <select
+                      value={filters[key]}
+                      onChange={e => setFilters(f => ({ ...f, [key]: e.target.value }))}
+                      className="w-full px-2 py-1.5 bg-white border border-black/[0.08]
+                                 rounded-md text-xs text-[#28251d] focus:outline-none
+                                 focus:border-[#01696f] transition-all"
+                    >
+                      {options.map(o => (
+                        <option key={o} value={o}>{o || `All ${label}s`}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Selected day banner */}
+      {selectedCalendarDate && (
+        <div className="flex-shrink-0 flex items-center justify-between
+                        px-6 py-2 bg-[#cedcd8]/40 border-b border-[#01696f]/10">
+          <span className="text-sm text-[#01696f]">
+            Showing records for{' '}
+            <strong>{new Date(selectedCalendarDate + 'T00:00:00')
+              .toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+            }</strong>
+          </span>
+          <button
+            onClick={() => setSelectedCalendarDate(null)}
+            className="text-xs text-[#01696f] underline"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
+      {/* Main content */}
+      <div className="flex-1 overflow-y-auto">
+        {view === 'calendar' ? (
+          <ScreeningCalendar
+            data={calendarData}
+            onDayClick={handleDayClick}
+            selectedDate={selectedCalendarDate}
+          />
+        ) : (
+          <div className="h-full">
+            <NeuralDashboard
+              globalPatients={filteredPatients}
+              isLoading={isLoading}
+              filter={null}
+              onSetFilter={() => {}}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

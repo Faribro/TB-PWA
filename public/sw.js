@@ -1,4 +1,4 @@
-const CACHE = 'samadhaan-v1'
+const CACHE = 'samadhaan-v2'
 const PRECACHE = [
   '/dashboard/submit-new',
   '/dashboard/my-submissions',
@@ -23,7 +23,14 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return
   if (e.request.url.includes('/api/auth')) return
+  
+  // Skip service worker for navigation requests to allow middleware redirects
+  if (e.request.mode === 'navigate') return
+  
   e.respondWith(
-    caches.match(e.request).then(cached => cached ?? fetch(e.request))
+    caches.match(e.request).then(cached => {
+      if (cached) return cached
+      return fetch(e.request, { redirect: 'follow' })
+    })
   )
 })

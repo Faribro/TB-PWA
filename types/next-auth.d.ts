@@ -7,6 +7,7 @@ declare module "next-auth" {
       role: string
       state: string
       district: string
+      staffName?: string
     } & DefaultSession["user"]
   }
   
@@ -24,6 +25,7 @@ declare module "next-auth/jwt" {
     role: string
     state: string
     district: string
+    staffName?: string
     isImpersonating?: boolean
     realRole?: string
   }

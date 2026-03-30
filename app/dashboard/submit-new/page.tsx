@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase-client'
 import { useSessionScope } from '@/hooks/useSessionScope'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
 import confetti from 'canvas-confetti'
+import { sounds } from '@/lib/sound'
 import { 
   ChevronLeft, Lock, User, MapPin, Activity, ClipboardList, Pill,
   Wind, Thermometer, Moon, TrendingDown, Droplets, Heart, Waves, Circle, Utensils, Plus,
@@ -123,8 +124,9 @@ function FormField({ label, required, hint, error, children }: FormFieldProps) {
         <motion.p 
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          className="form-error"
+          className="form-error text-[#a12c7b] text-sm font-medium mt-1 flex items-center gap-1"
         >
+          <X size={14} />
           {error}
         </motion.p>
       )}
@@ -409,6 +411,9 @@ function Step1PatientIdentity({ form }: { form: any }) {
 }
 
 function Step2Location({ form }: { form: any }) {
+  const stateValue = form.watch('screening_state') || ''
+  const districtValue = form.watch('screening_district') || ''
+  
   return (
     <div className="space-y-6">
       <FormField 
@@ -420,7 +425,8 @@ function Step2Location({ form }: { form: any }) {
           <TextInput
             id="screening-state"
             readOnly
-            {...form.register('screening_state')}
+            value={stateValue || 'Loading...'}
+            onChange={() => {}} // Controlled input needs onChange
             className="bg-[#f3f0ec] cursor-not-allowed"
             aria-invalid={!!form.formState.errors.screening_state}
           />
@@ -440,7 +446,8 @@ function Step2Location({ form }: { form: any }) {
           <TextInput
             id="screening-district"
             readOnly
-            {...form.register('screening_district')}
+            value={districtValue || 'Loading...'}
+            onChange={() => {}} // Controlled input needs onChange
             className="bg-[#f3f0ec] cursor-not-allowed"
             aria-invalid={!!form.formState.errors.screening_district}
           />
@@ -943,13 +950,23 @@ export default function SubmitNewPage() {
   const form = useForm<TBScreeningFormData>({
     resolver: zodResolver(tbScreeningSchema) as any,
     defaultValues: {
-      screening_state: sessionScope?.state ?? '',
-      screening_district: sessionScope?.district ?? '',
+      screening_state: '',
+      screening_district: '',
       submission_date: new Date().toISOString().split('T')[0],
       // all booleans default false via schema
     },
     mode: 'onChange',
   })
+
+  // Pre-fill state and district when sessionScope loads
+  useEffect(() => {
+    if (sessionScope?.state) {
+      form.setValue('screening_state', sessionScope.state, { shouldValidate: true })
+    }
+    if (sessionScope?.district) {
+      form.setValue('screening_district', sessionScope.district, { shouldValidate: true })
+    }
+  }, [sessionScope, form])
 
   // Step field groups for per-step validation
   const STEP_FIELDS: Record<number, (keyof TBScreeningFormData)[]> = {
@@ -964,8 +981,17 @@ export default function SubmitNewPage() {
 
   const goNext = async () => {
     const fields = STEP_FIELDS[currentStep]
-    const valid = fields.length ? await form.trigger(fields) : true
-    if (!valid) return
+    if (fields.length > 0) {
+      const valid = await form.trigger(fields)
+      if (!valid) {
+        // Scroll to first error
+        const firstError = Object.keys(form.formState.errors)[0]
+        const element = document.getElementById(firstError.toLowerCase().replace(/_/g, '-'))
+        element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        return
+      }
+    }
+    sounds.buttonClick()
     setDirection('forward')
     setCurrentStep(s => Math.min(s + 1, 5))
   }
@@ -988,6 +1014,7 @@ export default function SubmitNewPage() {
         await saveOffline(payload as Record<string, unknown>, sessionScope?.staffName ?? '')
         setSavedOffline(true)
         setSubmitSuccess(true)
+        sounds.success()
         setTimeout(() => router.push('/dashboard/my-submissions'), 2800)
         return
       }
@@ -996,6 +1023,7 @@ export default function SubmitNewPage() {
       if (error) throw error
 
       setSubmitSuccess(true)
+      sounds.formSubmit()
       confetti({
         particleCount: 120,
         spread: 80,
@@ -1132,7 +1160,7 @@ export default function SubmitNewPage() {
                 onClick={goNext} 
                 className="btn-primary flex-1 py-3 px-6 bg-[#01696f] text-white rounded-lg font-medium text-sm tracking-wide hover:bg-[#0c4e54] active:bg-[#0f3638] transition-all duration-180 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Continue
+                Continue →
               </button>
             ) : (
               <button
@@ -1174,7 +1202,7 @@ export default function SubmitNewPage() {
               onClick={goNext} 
               className="btn-primary flex-1 py-3 px-6 bg-[#01696f] text-white rounded-lg font-medium text-sm tracking-wide hover:bg-[#0c4e54] active:bg-[#0f3638] transition-all duration-180"
             >
-              Continue
+              Continue →
             </button>
           ) : (
             <button

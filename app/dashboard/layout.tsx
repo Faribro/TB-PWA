@@ -6,7 +6,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Settings, GitBranch, Copy,
-  LogOut, Network, ChevronLeft, LayoutDashboard, FileText, User
+  LogOut, Network, ChevronLeft, LayoutDashboard, FileText, User, BookOpen
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -25,6 +25,7 @@ import { EntityDataSync } from '@/components/EntityDataSync';
 import { SyncStatusFeed } from '@/components/SyncStatusFeed';
 import { useSonicIntelligence } from '@/hooks/useSonicIntelligence';
 import { useEntityStore } from '@/stores/useEntityStore';
+import { sounds } from '@/lib/sound';
 
 const TAB_CONFIG = [
   { id: 'command-hub', path: '/dashboard/command-hub', icon: LayoutDashboard, label: 'Command Hub', description: 'Unified Hub', sonicId: 'nav-command', roles: ['PM', 'admin', 'SPM'] },
@@ -32,11 +33,13 @@ const TAB_CONFIG = [
   { id: 'follow-up', path: '/dashboard/follow-up', icon: GitBranch, label: 'Follow-up Pipeline', description: 'Patient pipeline', sonicId: 'nav-followup', roles: ['PM', 'admin', 'SPM', 'ME'] },
   { id: 'mande', path: '/dashboard/mande', icon: Copy, label: 'M&E Tools', description: 'Monitoring & eval', sonicId: 'nav-mande', roles: ['PM', 'admin', 'SPM', 'ME'] },
   { id: 'gis', path: '/dashboard/gis', icon: Network, label: 'GIS Map', description: 'Spatial intelligence', sonicId: 'nav-gis', roles: ['PM', 'admin', 'SPM', 'ME'] },
+  { id: 'knowledge', path: '/docs', icon: BookOpen, label: 'Knowledge', description: 'Docs & guides', sonicId: 'nav-knowledge', roles: ['PM', 'admin', 'SPM', 'ME'] },
   { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account & sync', sonicId: 'nav-settings', roles: ['PM', 'admin', 'SPM', 'ME'] },
 ];
 
 const PC_TAB_CONFIG = [
   { id: 'my-submissions', path: '/dashboard/my-submissions', icon: FileText, label: 'My Work', description: 'Submissions', sonicId: 'nav-mywork', roles: ['PC'] },
+  { id: 'knowledge', path: '/docs', icon: BookOpen, label: 'Knowledge', description: 'Docs & guides', sonicId: 'nav-knowledge', roles: ['PC'] },
   { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account', sonicId: 'nav-settings', roles: ['PC'] },
 ];
 
@@ -51,6 +54,7 @@ function NavItem({ tab, isActive, isCollapsed, delay }: {
     <MotionLink
       href={tab.path}
       data-sonic={tab.sonicId}
+      onClick={() => sounds.navTab()}
       initial={{ opacity: 0, x: -16 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay, ease: [0.22, 1, 0.36, 1], duration: 0.35 }}
@@ -175,9 +179,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Get user role and filter tabs
   const userRole = session?.user?.role || 'ME';
-  const visibleTabs = userRole === 'PC' 
-    ? PC_TAB_CONFIG 
-    : TAB_CONFIG.filter(t => t.roles.includes(userRole));
+  
+  // Use useMemo to prevent recalculation on every render
+  const visibleTabs = useMemo(() => {
+    if (userRole === 'PC') return PC_TAB_CONFIG
+    // Filter tabs based on role
+    return TAB_CONFIG.filter(t => t.roles.includes(userRole))
+  }, [userRole]);
 
   return (
     <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden selection:bg-blue-500/30">
@@ -210,6 +218,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   className="object-contain flex-shrink-0"
                   priority
                   unoptimized
+                  suppressHydrationWarning
                 />
               </motion.div>
             )}

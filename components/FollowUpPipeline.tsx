@@ -12,6 +12,7 @@ import { calculatePatientPhase } from '@/lib/phase-engine';
 import { Button } from './ui/button';
 import { createClient } from '@supabase/supabase-js';
 import { Z_INDEX } from '@/lib/zIndex';
+import { sounds } from '@/lib/sound';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -286,6 +287,7 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
 
   const handleBulkTriage = async () => {
     setIsTriaging(true);
+    sounds.primaryAction();
     const selectedPatients = paginatedPatients.filter(p => triageIds.includes(p.id));
     const uuidsToSync = selectedPatients.map(p => p.kobo_uuid).filter(Boolean);
     
@@ -310,7 +312,10 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
         })
       ]);
       
+      sounds.success();
       setTriageIds([]);
+    } catch (error) {
+      sounds.error();
     } finally {
       setIsTriaging(false);
     }
@@ -412,14 +417,14 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
             </div>
             <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1">
               <button
-                onClick={() => setViewMode('list')}
+                onClick={() => { sounds.toggle(); setViewMode('list'); }}
                 className={`p-2 rounded transition-all duration-200 ${viewMode === 'list' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 aria-label="List view"
               >
                 <List className="w-4 h-4" />
               </button>
               <button
-                onClick={() => setViewMode('grid')}
+                onClick={() => { sounds.toggle(); setViewMode('grid'); }}
                 className={`p-2 rounded transition-all duration-200 ${viewMode === 'grid' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 aria-label="Grid view"
               >
@@ -591,7 +596,7 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
           </div>
           <div className="flex items-center gap-2">
             <Button
-              onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+              onClick={() => { sounds.buttonClick(); setCurrentPage(p => Math.max(0, p - 1)); }}
               disabled={currentPage === 0}
               variant="outline"
               size="sm"
@@ -601,7 +606,7 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
               Previous
             </Button>
             <Button
-              onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+              onClick={() => { sounds.buttonClick(); setCurrentPage(p => Math.min(totalPages - 1, p + 1)); }}
               disabled={currentPage === totalPages - 1}
               variant="outline"
               size="sm"

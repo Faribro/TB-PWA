@@ -47,9 +47,8 @@ export function useOfflineSync() {
 
   const refreshCount = useCallback(async () => {
     const db = await getDB()
-    const tx = db.transaction('pending-submissions', 'readonly')
-    const index = tx.store.index('by-synced')
-    const pending = await index.getAll(IDBKeyRange.only(false))
+    const all = await db.getAll('pending-submissions')
+    const pending = all.filter(r => !r.synced)
     setPendingCount(pending.length)
   }, [])
 
@@ -75,9 +74,8 @@ export function useOfflineSync() {
     setIsSyncing(true)
     try {
       const db = await getDB()
-      const tx = db.transaction('pending-submissions', 'readonly')
-      const index = tx.store.index('by-synced')
-      const pending = await index.getAll(IDBKeyRange.only(false))
+      const all = await db.getAll('pending-submissions')
+      const pending = all.filter(r => !r.synced)
       
       for (const record of pending) {
         try {

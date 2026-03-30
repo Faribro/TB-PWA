@@ -83,27 +83,6 @@ function Masthead() {
 
   return (
     <div className="w-full flex flex-col z-50">
-      {/* Top Strip */}
-      <div className="h-8 bg-slate-100/80 backdrop-blur-sm border-b border-slate-200 flex items-center justify-between px-4 sm:px-8 shadow-xs">
-        <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest truncate max-w-[40%] sm:max-w-none">
-          Government of India | Ministry of Health &amp; Family Welfare
-        </span>
-        <div className="flex items-center gap-4">
-          <div className="hidden sm:flex items-center gap-2 text-[9px] font-mono opacity-50 text-slate-600 font-bold uppercase tracking-tight">
-             Status: <span className="text-emerald-500">🟢 Secure</span> | Server: National Hub | Latency: 24ms
-          </div>
-          <div className="flex items-center gap-2 border-l border-slate-200 pl-4">
-            <div className="relative flex items-center justify-center w-1.5 h-1.5 sm:w-2 sm:h-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 sm:h-2 sm:w-2 bg-emerald-500"></span>
-            </div>
-            <span className="text-[9px] sm:text-[10px] font-mono text-slate-600 font-bold tracking-tight">
-              IST: {time || '--:--:--'}
-            </span>
-          </div>
-        </div>
-      </div>
-
       {/* Main Header */}
       <div className="h-24 bg-white/90 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-6 sm:px-12 shadow-sm">
         

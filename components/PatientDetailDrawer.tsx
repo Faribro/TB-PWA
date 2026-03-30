@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, FileText, Activity, Pill, Shield, ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Calendar, Sparkles, Lock, Unlock, Save } from 'lucide-react';
+import { SyncIndicator } from './PatientDetailDrawer/components/SyncIndicator';
 import { type PatientFormData } from '@/lib/schemas';
 import { calculatePatientPhase, calculateProgressPercentage } from '@/lib/phase-engine';
 import { PatientTimeline } from './PatientTimeline';
@@ -77,6 +78,44 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const [saveSuccess, setSaveSuccess] = useState(false);
   const { mutate } = useSWRConfig();
 
+  // Granular sync state for multi-system indicator (DB + Sheets only - Kobo is ingestion-only)
+  const [syncState, setSyncState] = useState<{ db: 'idle' | 'syncing' | 'success' | 'error'; sheets: 'idle' | 'syncing' | 'success' | 'error' }>({
+    db: 'idle',
+    sheets: 'idle'
+  });
+
+  // Store last successful data for rollback on error
+  const [lastKnownData, setLastKnownData] = useState<any>(null);
+
+  // Keyboard shortcuts for power users
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl+S to save
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        if (!isSubmitting && !isSavingDemographics) {
+          if (isEditingDemographics) {
+            handleSaveDemographics();
+          } else {
+            handleSaveClinical();
+          }
+        }
+      }
+      // Escape to close drawer
+      if (e.key === 'Escape' && !isSubmitting) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, isEditingDemographics, isSubmitting, isSavingDemographics]);
+
   // Reset save success indicator when drawer closes or patient changes
   useEffect(() => {
     if (!isOpen) {
@@ -90,14 +129,14 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   
   // Demographic edit state
   const [editedDemographics, setEditedDemographics] = useState({
-    inmate_name: localPatient.inmate_name || '',
-    age: localPatient.age || '',
-    sex: localPatient.sex || '',
-    contact_number: localPatient.contact_number || '',
-    address: localPatient.address || '',
-    facility_name: localPatient.facility_name || '',
-    date_of_birth: localPatient.date_of_birth || '',
-    screening_date: localPatient.screening_date || ''
+    inmate_name: localPatient?.inmate_name || '',
+    age: localPatient?.age || '',
+    sex: localPatient?.sex || '',
+    contact_number: localPatient?.contact_number || '',
+    address: localPatient?.address || '',
+    facility_name: localPatient?.facility_name || '',
+    date_of_birth: localPatient?.date_of_birth || '',
+    screening_date: localPatient?.screening_date || ''
   });
 
   const { phase, nextRequiredField } = calculatePatientPhase(localPatient);
@@ -116,54 +155,58 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   
   // Reset demographic edits when patient changes
   useEffect(() => {
-    setEditedDemographics({
-      inmate_name: localPatient.inmate_name || '',
-      age: localPatient.age || '',
-      sex: localPatient.sex || '',
-      contact_number: localPatient.contact_number || '',
-      address: localPatient.address || '',
-      facility_name: localPatient.facility_name || '',
-      date_of_birth: localPatient.date_of_birth || '',
-      screening_date: localPatient.screening_date || ''
-    });
-    setIsEditingDemographics(false);
+    if (localPatient) {
+      setEditedDemographics({
+        inmate_name: localPatient.inmate_name || '',
+        age: localPatient.age || '',
+        sex: localPatient.sex || '',
+        contact_number: localPatient.contact_number || '',
+        address: localPatient.address || '',
+        facility_name: localPatient.facility_name || '',
+        date_of_birth: localPatient.date_of_birth || '',
+        screening_date: localPatient.screening_date || ''
+      });
+      setIsEditingDemographics(false);
+    }
   }, [localPatient]);
   
   const { register, watch, getValues, reset } = useForm<PatientFormData>({
     defaultValues: {
-      'Date of referral for TB Examination (sputum) (dd/mm/yy)': patient.referral_date || '',
-      'Name of facility where referred to (Give code/name of all facilities)': patient.referred_facility || '',
-      'TB diagnosed (Y/N)': patient.tb_diagnosed || '',
-      'Date of TB Diagnosed (dd/mm/yy)': patient.tb_diagnosis_date || '',
-      'Type of TB Diagnosed (P/EP)': patient.tb_type || '',
-      'Date of starting ATT (dd/mm/yyyy)': patient.att_start_date || '',
-      'Date of Treatment Completion (dd/mm/yyyy)': patient.att_completion_date || '',
-      'HIV Status (Positive/Negative/Unknown)': patient.hiv_status || '',
-      'Status at the time of referral (Pre ART/On ART) [If on ART at time of referral]': patient.art_status || '',
-      'ART Number (if on ART at the time of referral)': patient.art_number || '',
-      'NIKSHAY/ABHA ID': patient.nikshay_abha_id || '',
-      'Date of registration (dd/mm/yyyy)': patient.registration_date || '',
-      'Remarks': patient.remarks || ''
+      'Date of referral for TB Examination (sputum) (dd/mm/yy)': patient?.referral_date || '',
+      'Name of facility where referred to (Give code/name of all facilities)': patient?.referred_facility || '',
+      'TB diagnosed (Y/N)': patient?.tb_diagnosed || '',
+      'Date of TB Diagnosed (dd/mm/yy)': patient?.tb_diagnosis_date || '',
+      'Type of TB Diagnosed (P/EP)': patient?.tb_type || '',
+      'Date of starting ATT (dd/mm/yyyy)': patient?.att_start_date || '',
+      'Date of Treatment Completion (dd/mm/yyyy)': patient?.att_completion_date || '',
+      'HIV Status (Positive/Negative/Unknown)': patient?.hiv_status || '',
+      'Status at the time of referral (Pre ART/On ART) [If on ART at time of referral]': patient?.art_status || '',
+      'ART Number (if on ART at the time of referral)': patient?.art_number || '',
+      'NIKSHAY/ABHA ID': patient?.nikshay_abha_id || '',
+      'Date of registration (dd/mm/yyyy)': patient?.registration_date || '',
+      'Remarks': patient?.remarks || ''
     }
   });
 
   // Re-initialize form when patient prop changes (new patient opened)
   useEffect(() => {
-    reset({
-      'Date of referral for TB Examination (sputum) (dd/mm/yy)': patient.referral_date || '',
-      'Name of facility where referred to (Give code/name of all facilities)': patient.referred_facility || '',
-      'TB diagnosed (Y/N)': patient.tb_diagnosed || '',
-      'Date of TB Diagnosed (dd/mm/yy)': patient.tb_diagnosis_date || '',
-      'Type of TB Diagnosed (P/EP)': patient.tb_type || '',
-      'Date of starting ATT (dd/mm/yyyy)': patient.att_start_date || '',
-      'Date of Treatment Completion (dd/mm/yyyy)': patient.att_completion_date || '',
-      'HIV Status (Positive/Negative/Unknown)': patient.hiv_status || '',
-      'Status at the time of referral (Pre ART/On ART) [If on ART at time of referral]': patient.art_status || '',
-      'ART Number (if on ART at the time of referral)': patient.art_number || '',
-      'NIKSHAY/ABHA ID': patient.nikshay_abha_id || '',
-      'Date of registration (dd/mm/yyyy)': patient.registration_date || '',
-      'Remarks': patient.remarks || ''
-    });
+    if (patient) {
+      reset({
+        'Date of referral for TB Examination (sputum) (dd/mm/yy)': patient.referral_date || '',
+        'Name of facility where referred to (Give code/name of all facilities)': patient.referred_facility || '',
+        'TB diagnosed (Y/N)': patient.tb_diagnosed || '',
+        'Date of TB Diagnosed (dd/mm/yy)': patient.tb_diagnosis_date || '',
+        'Type of TB Diagnosed (P/EP)': patient.tb_type || '',
+        'Date of starting ATT (dd/mm/yyyy)': patient.att_start_date || '',
+        'Date of Treatment Completion (dd/mm/yyyy)': patient.att_completion_date || '',
+        'HIV Status (Positive/Negative/Unknown)': patient.hiv_status || '',
+        'Status at the time of referral (Pre ART/On ART) [If on ART at time of referral]': patient.art_status || '',
+        'ART Number (if on ART at the time of referral)': patient.art_number || '',
+        'NIKSHAY/ABHA ID': patient.nikshay_abha_id || '',
+        'Date of registration (dd/mm/yyyy)': patient.registration_date || '',
+        'Remarks': patient.remarks || ''
+      });
+    }
   }, [patient, reset]);
 
   const hivStatus = watch('HIV Status (Positive/Negative/Unknown)');
@@ -177,6 +220,10 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     
     setIsSubmitting(true);
     setSaveSuccess(false);
+    // Store current data for potential rollback
+    setLastKnownData({ ...localPatient });
+    setSyncState({ db: 'syncing', sheets: 'syncing' });
+    
     try {
       toast.loading('Syncing clinical updates across all systems...', { id: 'clinical-save' });
       
@@ -252,14 +299,19 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       const result = await response.json();
       console.log('[PatientDrawer] API success:', result);
 
+      // Update sync states based on result
+      setSyncState(prev => ({ ...prev, db: 'success' }));
+      
       // Revalidate caches
       mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
       
       // Show warning if Google Sheets sync failed, otherwise success
       if (result.warnings && result.warnings.length > 0) {
+        setSyncState(prev => ({ ...prev, sheets: 'error' }));
         toast.warning(`⚠️ Saved to database. Google Sheets sync failed — check connection.`, 
           { id: 'clinical-save', duration: 6000 });
       } else {
+        setSyncState(prev => ({ ...prev, sheets: 'success' }));
         const sheetsMessage = result.googleSheets?.message || 'Synced to all systems';
         toast.success(`✅ ${sheetsMessage}`, { id: 'clinical-save', duration: 4000 });
       }
@@ -274,10 +326,35 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       
       // Trigger parent cache refresh (non-blocking)
       onUpdate();
+      
+      // Reset sync state after delay
+      setTimeout(() => setSyncState({ db: 'idle', sheets: 'idle' }), 3000);
     } catch (error: any) {
       console.error('[PatientDrawer] Save error:', error);
-      mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
-      toast.error(`Error: ${error.message}`, { id: 'clinical-save' });
+      setSyncState({ db: 'error', sheets: 'error' });
+      
+      // Rollback to last known data on error
+      if (lastKnownData) {
+        setLocalPatient(lastKnownData);
+        mutate(
+          (key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'),
+          async (currentData: any) => {
+            if (!currentData) return currentData;
+            if (currentData.data && Array.isArray(currentData.data)) {
+              return { ...currentData, data: currentData.data.map((p: any) => p.id === localPatient.id ? lastKnownData : p) };
+            }
+            if (Array.isArray(currentData)) {
+              return currentData.map((p: any) => p.id === localPatient.id ? lastKnownData : p);
+            }
+            return currentData;
+          },
+          { revalidate: true }
+        );
+        toast.error(`Sync failed. Changes rolled back.`, { id: 'clinical-save', duration: 5000 });
+      } else {
+        toast.error(`Error: ${error.message}`, { id: 'clinical-save' });
+      }
+      setTimeout(() => setSyncState({ db: 'idle', sheets: 'idle' }), 3000);
     } finally {
       setIsSubmitting(false);
     }
@@ -370,6 +447,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
   const handleSaveDemographics = async () => {
     setIsSavingDemographics(true);
+    setSyncState({ db: 'syncing', sheets: 'syncing' });
+    
     try {
       toast.loading('Syncing demographics across all systems...', { id: 'demo-save' });
       
@@ -436,6 +515,9 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       const result = await response.json();
       
+      // Update sync states based on result
+      setSyncState(prev => ({ ...prev, db: 'success', kobo: 'success' }));
+      
       // Revalidate all patient caches after successful sync
       mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
       
@@ -447,17 +529,24 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       
       // Show warning if Google Sheets sync failed, otherwise success
       if (result.warnings && result.warnings.length > 0) {
+        setSyncState(prev => ({ ...prev, sheets: 'error' }));
         toast.warning(`⚠️ Saved to database. Google Sheets sync failed — check connection.`, 
           { id: 'demo-save', duration: 6000 });
       } else {
+        setSyncState(prev => ({ ...prev, sheets: 'success' }));
         const sheetsMessage = result.googleSheets?.message || 'Demographics synced successfully';
         toast.success(`✅ ${sheetsMessage}`, { id: 'demo-save', duration: 4000 });
       }
+      
+      // Reset sync state after delay
+      setTimeout(() => setSyncState({ db: 'idle', sheets: 'idle' }), 3000);
     } catch (error) {
       console.error('Failed to save demographics:', error);
+      setSyncState({ db: 'error', sheets: 'error' });
       // Revert optimistic update on error
       mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
       toast.error('Failed to save demographics. Please try again.', { id: 'demo-save' });
+      setTimeout(() => setSyncState({ db: 'idle', sheets: 'idle' }), 3000);
     } finally {
       setIsSavingDemographics(false);
     }
@@ -606,17 +695,17 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
           <motion.div variants={itemVariants} className="flex items-start justify-between">
             <div className="flex-1">
               <SheetTitle className="text-2xl font-black text-slate-900 tracking-tighter uppercase">
-                {localPatient.inmate_name}
+                {localPatient?.inmate_name || 'Loading...'}
               </SheetTitle>
-              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mt-1 opacity-80">{localPatient.unique_id}</p>
+              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mt-1 opacity-80">{localPatient?.unique_id || ''}</p>
               
               {/* Task 4: Patient Vitals - Contextual Metadata */}
               <div className="mt-2 flex items-center gap-2 text-xs text-slate-500 font-medium">
-                <span>{localPatient.facility_name || 'Unknown Facility'}</span>
+                <span>{localPatient?.facility_name || 'Unknown Facility'}</span>
                 <span>•</span>
-                <span>{localPatient.sex || 'N/A'}/{localPatient.age || 'N/A'}</span>
+                <span>{localPatient?.sex || 'N/A'}/{localPatient?.age || 'N/A'}</span>
                 <span>•</span>
-                <span>{localPatient.screening_date ? new Date(localPatient.screening_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}</span>
+                <span>{localPatient?.screening_date ? new Date(localPatient.screening_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}</span>
               </div>
             </div>
           </motion.div>
@@ -781,39 +870,39 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
             ) : (
               <>
                 <div className="col-span-2">
-                  <ReadOnlyField label="Inmate Name" value={localPatient.inmate_name} />
+                  <ReadOnlyField label="Inmate Name" value={localPatient?.inmate_name} />
                 </div>
-                <ReadOnlyField label="Age" value={localPatient.age} />
-                <ReadOnlyField label="Sex" value={localPatient.sex} />
-                <ReadOnlyField label="Date of Birth" value={localPatient.date_of_birth} />
-                <ReadOnlyField label="Screening Date" value={localPatient.screening_date} />
+                <ReadOnlyField label="Age" value={localPatient?.age} />
+                <ReadOnlyField label="Sex" value={localPatient?.sex} />
+                <ReadOnlyField label="Date of Birth" value={localPatient?.date_of_birth} />
+                <ReadOnlyField label="Screening Date" value={localPatient?.screening_date} />
                 <div className="col-span-2">
-                  <ReadOnlyField label="Contact Number" value={localPatient.contact_number} />
-                </div>
-                <div className="col-span-2">
-                  <ReadOnlyField label="Address" value={localPatient.address} />
+                  <ReadOnlyField label="Contact Number" value={localPatient?.contact_number} />
                 </div>
                 <div className="col-span-2">
-                  <ReadOnlyField label="Facility Name" value={localPatient.facility_name} />
+                  <ReadOnlyField label="Address" value={localPatient?.address} />
+                </div>
+                <div className="col-span-2">
+                  <ReadOnlyField label="Facility Name" value={localPatient?.facility_name} />
                 </div>
               </>
             )}
 
             {/* Non-editable fields */}
-            <ReadOnlyField label="Staff Name" value={localPatient.staff_name} />
-            <ReadOnlyField label="Submitted On" value={localPatient.submitted_on} />
-            <ReadOnlyField label="State" value={localPatient.screening_state} />
-            <ReadOnlyField label="District" value={localPatient.screening_district} />
-            <ReadOnlyField label="Facility Type" value={localPatient.facility_type} />
-            <ReadOnlyField label="Inmate Type" value={localPatient.inmate_type} />
-            <ReadOnlyField label="Father/Husband Name" value={localPatient.father_name} />
+            <ReadOnlyField label="Staff Name" value={localPatient?.staff_name} />
+            <ReadOnlyField label="Submitted On" value={localPatient?.submitted_on} />
+            <ReadOnlyField label="State" value={localPatient?.screening_state} />
+            <ReadOnlyField label="District" value={localPatient?.screening_district} />
+            <ReadOnlyField label="Facility Type" value={localPatient?.facility_type} />
+            <ReadOnlyField label="Inmate Type" value={localPatient?.inmate_type} />
+            <ReadOnlyField label="Father/Husband Name" value={localPatient?.father_name} />
             <div className="col-span-2">
-              <ReadOnlyField label="Chest X-ray Result" value={localPatient.xray_result} />
+              <ReadOnlyField label="Chest X-ray Result" value={localPatient?.xray_result} />
             </div>
             <div className="col-span-2">
-              <ReadOnlyField label="10s Symptoms Present" value={localPatient.symptoms_10s} />
+              <ReadOnlyField label="10s Symptoms Present" value={localPatient?.symptoms_10s} />
             </div>
-            <ReadOnlyField label="Past TB History" value={localPatient.tb_past_history} />
+            <ReadOnlyField label="Past TB History" value={localPatient?.tb_past_history} />
           </div>
 
         </Section>
@@ -1023,13 +1112,24 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
           </div>
         </ScrollArea>
 
-        {/* Unified Action Footer - FLOATING PILL */}
+        {/* Unified Action Footer - FLOATING PILL with Glassmorphism */}
         {!isClosed && (
-          <motion.div variants={itemVariants} className="sticky bottom-6 z-20 mx-6 mb-6 p-2 bg-white/80 backdrop-blur-3xl border border-white/80 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,30,80,0.15)] flex flex-col gap-2 mt-auto relative overflow-hidden">
+          <motion.div 
+            variants={itemVariants} 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.5 }}
+            className="sticky bottom-6 z-20 mx-6 mb-6 p-2 bg-white/60 backdrop-blur-2xl border border-white/40 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,30,80,0.15)] flex flex-col gap-2 mt-auto relative overflow-hidden"
+          >
             {/* Glassmorphism depth layer */}
-            <div className="absolute inset-0 glass-depth-3 opacity-50 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
             
             <div className="relative z-10">
+            {/* Sync Indicator - Shows granular sync status */}
+            <AnimatePresence>
+              <SyncIndicator statusDB={syncState.db} statusSheets={syncState.sheets} statusKobo="idle" />
+            </AnimatePresence>
+            
             {/* Primary Save Button - handles both demographics and clinical updates */}
             {isEditingDemographics ? (
               <button

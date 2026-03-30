@@ -1,13 +1,17 @@
 'use client';
 
-import { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { FileText, Calendar, TrendingUp, Plus, Inbox } from 'lucide-react';
+import { useMemo, useEffect, useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FileText, Calendar as CalendarIcon, TrendingUp, Plus, Inbox, AlertCircle, List } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope } from '@/hooks/useSessionScope';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { calculatePatientPhase } from '@/lib/phase-engine';
+import { createClient } from '@/lib/supabase-client';
+import { fuzzyStaffLookup } from '@/lib/fuzzy-staff-lookup';
+import { ScreeningCalendar } from '@/components/ScreeningCalendar';
+import { cn } from '@/lib/utils';
+import { sounds } from '@/lib/sound';
 import Link from 'next/link';
 
 function StatCard({ icon: Icon, label, value, delay }: {
@@ -37,11 +41,48 @@ function StatCard({ icon: Icon, label, value, delay }: {
 export default function MySubmissionsPage() {
   const { data: session } = useSession();
   const scope = useSessionScope();
-  const { data: patients = [], isLoading } = useSWRAllPatients(scope);
   const { pendingCount, isSyncing, syncPending, isOnline } = useOfflineSync();
+  const supabase = createClient();
 
+  const [patients, setPatients] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [matchStrategy, setMatchStrategy] = useState<string>('');
+  const [view, setView] = useState<'list' | 'calendar'>('list');
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
+
+  const staffName = scope?.staffName || session?.user?.staffName || session?.user?.name;
   const userName = session?.user?.name || 'Officer';
   const userFacility = session?.user?.district || 'Your Facility';
+
+  // Fetch submissions with fuzzy lookup
+  useEffect(() => {
+    if (!staffName) {
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchSubmissions = async () => {
+      setIsLoading(true);
+      try {
+        const result = await fuzzyStaffLookup(
+          supabase,
+          staffName,
+          'id, kobo_uuid, unique_id, inmate_name, screening_date, screening_district, created_at, tb_diagnosed',
+          100
+        );
+        
+        setPatients(result.data);
+        setMatchStrategy(result.strategy);
+      } catch (error) {
+        console.error('[my-submissions] Fetch error:', error);
+        setPatients([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSubmissions();
+  }, [staffName, supabase]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -67,14 +108,43 @@ export default function MySubmissionsPage() {
     };
   }, [patients]);
 
+  // Build calendar data
+  const calendarData = useMemo(() => {
+    const map: Record<string, { count: number; tbPositive: number }> = {};
+    patients.forEach(p => {
+      const date = p.screening_date || p.created_at?.split('T')[0];
+      if (!date) return;
+      if (!map[date]) map[date] = { count: 0, tbPositive: 0 };
+      map[date].count++;
+      if (p.tb_diagnosed === 'Yes') map[date].tbPositive++;
+    });
+    return Object.entries(map).map(([date, v]) => ({ date, ...v }));
+  }, [patients]);
+
+  // Handle calendar day click
+  const handleDayClick = useCallback((date: string) => {
+    sounds.calendarClick();
+    setSelectedCalendarDate(prev => prev === date ? null : date);
+    setView('list');
+  }, []);
+
+  // Filter patients by selected date
+  const displayedPatients = useMemo(() => {
+    if (!selectedCalendarDate) return patients;
+    return patients.filter(p => {
+      const date = p.screening_date || p.created_at?.split('T')[0];
+      return date === selectedCalendarDate;
+    });
+  }, [patients, selectedCalendarDate]);
+
   // Sort patients by submission date (newest first)
   const sortedPatients = useMemo(() => {
-    return [...patients].sort((a, b) => {
+    return [...displayedPatients].sort((a, b) => {
       const dateA = new Date(a.screening_date || a.created_at).getTime();
       const dateB = new Date(b.screening_date || b.created_at).getTime();
       return dateB - dateA;
     });
-  }, [patients]);
+  }, [displayedPatients]);
 
   if (isLoading) {
     return (
@@ -112,7 +182,36 @@ export default function MySubmissionsPage() {
             <p className="text-lg text-slate-600 font-medium">
               Here are your screening submissions from <span className="font-bold text-emerald-600">{userFacility}</span>
             </p>
+            {process.env.NODE_ENV === 'development' && staffName && (
+              <p className="text-xs text-slate-500 mt-2 font-mono">
+                Searching as: <strong className="text-emerald-600">{staffName}</strong>
+                {matchStrategy && (
+                  <span className="ml-2 px-2 py-0.5 bg-slate-100 rounded text-[10px]">
+                    match: {matchStrategy}
+                  </span>
+                )}
+              </p>
+            )}
           </motion.div>
+
+          {/* No Staff Name Warning */}
+          {!staffName && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-3"
+            >
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-amber-900">
+                  Staff name not configured
+                </p>
+                <p className="text-xs text-amber-700 mt-1">
+                  Contact your administrator to set up your profile name for submission tracking.
+                </p>
+              </div>
+            </motion.div>
+          )}
 
           {/* Offline Sync Banner */}
           {pendingCount > 0 && (
@@ -137,11 +236,96 @@ export default function MySubmissionsPage() {
           )}
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <StatCard icon={Calendar} label="Today" value={stats.today} delay={0.1} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <StatCard icon={CalendarIcon} label="Today" value={stats.today} delay={0.1} />
             <StatCard icon={TrendingUp} label="This Week" value={stats.week} delay={0.2} />
             <StatCard icon={FileText} label="Total Submitted" value={stats.total} delay={0.3} />
           </div>
+
+          {/* View Toggle */}
+          {patients.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+              className="flex items-center justify-between mb-6"
+            >
+              <div className="flex rounded-lg border border-slate-200 overflow-hidden bg-white shadow-sm">
+                {(['list', 'calendar'] as const).map(v => (
+                  <button
+                    key={v}
+                    onClick={() => setView(v)}
+                    className={cn(
+                      'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all',
+                      view === v
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-white text-slate-600 hover:bg-slate-50'
+                    )}
+                  >
+                    {v === 'list' ? (
+                      <>
+                        <List size={16} />
+                        List View
+                      </>
+                    ) : (
+                      <>
+                        <CalendarIcon size={16} />
+                        Calendar View
+                      </>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {selectedCalendarDate && (
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg"
+                >
+                  <span className="text-sm text-emerald-700">
+                    Showing: <strong>{new Date(selectedCalendarDate + 'T00:00:00')
+                      .toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                    }</strong>
+                  </span>
+                  <button
+                    onClick={() => setSelectedCalendarDate(null)}
+                    className="text-xs text-emerald-600 hover:text-emerald-800 underline"
+                  >
+                    Clear
+                  </button>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Calendar View */}
+          <AnimatePresence mode="wait">
+            {view === 'calendar' && patients.length > 0 && (
+              <motion.div
+                key="calendar"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="mb-8 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden"
+              >
+                <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                  <h2 className="text-lg font-black text-slate-900 uppercase tracking-wider">
+                    Your Screening Activity
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Click any day to see that day's submissions
+                  </p>
+                </div>
+                <ScreeningCalendar
+                  data={calendarData}
+                  onDayClick={handleDayClick}
+                  selectedDate={selectedCalendarDate}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Submit New Button */}
           <motion.div
@@ -151,8 +335,8 @@ export default function MySubmissionsPage() {
             className="mb-8"
           >
             <Link 
-              href="https://kf.kobotoolbox.org" 
-              target="_blank"
+              href="/dashboard/submit-new"
+              onClick={() => sounds.primaryAction()}
               className="inline-flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
             >
               <Plus className="w-5 h-5" />
@@ -161,7 +345,7 @@ export default function MySubmissionsPage() {
           </motion.div>
 
           {/* Patient List */}
-          {sortedPatients.length === 0 ? (
+          {view === 'list' && sortedPatients.length === 0 && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -170,21 +354,28 @@ export default function MySubmissionsPage() {
             >
               <Inbox className="w-16 h-16 text-slate-300 mx-auto mb-4" />
               <h3 className="text-xl font-bold text-slate-900 mb-2">
-                You haven't submitted any records yet
+                {selectedCalendarDate ? 'No screenings on this day' : "You haven't submitted any records yet"}
               </h3>
               <p className="text-slate-600 mb-6">
-                Start screening patients and your submissions will appear here
+                {selectedCalendarDate 
+                  ? 'Try selecting a different day from the calendar'
+                  : 'Start screening patients and your submissions will appear here'
+                }
               </p>
-              <Link 
-                href="https://kf.kobotoolbox.org" 
-                target="_blank"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-                Start Screening →
-              </Link>
+              {!selectedCalendarDate && (
+                <Link 
+                  href="/dashboard/submit-new"
+                  onClick={() => sounds.primaryAction()}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors"
+                >
+                  <Plus className="w-5 h-5" />
+                  Start Screening →
+                </Link>
+              )}
             </motion.div>
-          ) : (
+          )}
+
+          {view === 'list' && sortedPatients.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
