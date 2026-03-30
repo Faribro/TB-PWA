@@ -38,7 +38,7 @@ export async function fuzzyStaffLookup<T = any>(
     .limit(limit);
 
   if (exactMatch?.length) {
-    return { data: exactMatch, strategy: 'exact' };
+    return { data: exactMatch as T[], strategy: 'exact' };
   }
 
   // STRATEGY 2: Contains match (first word)
@@ -54,7 +54,7 @@ export async function fuzzyStaffLookup<T = any>(
       .limit(limit);
 
     if (containsMatch?.length) {
-      return { data: containsMatch, strategy: 'contains' };
+      return { data: containsMatch as T[], strategy: 'contains' };
     }
   }
 
@@ -70,7 +70,7 @@ export async function fuzzyStaffLookup<T = any>(
       .limit(limit);
 
     if (wordMatch?.length) {
-      return { data: wordMatch, strategy: 'word-match' };
+      return { data: wordMatch as T[], strategy: 'word-match' };
     }
   }
 
