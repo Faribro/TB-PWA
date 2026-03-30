@@ -286,7 +286,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       </motion.aside>
 
-      <main className="flex-1 h-full overflow-hidden relative z-10 flex flex-col">
+      <main className="flex-1 h-full overflow-y-auto relative z-10 flex flex-col">
         <motion.div
           key={pathname}
           initial={{ opacity: 0 }}

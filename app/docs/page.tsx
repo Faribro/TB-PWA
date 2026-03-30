@@ -1,449 +1,566 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  BookOpen, FileText, Shield, Database, Users, AlertTriangle, 
-  CheckCircle, Info, ChevronDown, ChevronRight, Network, 
-  Map, GitBranch, Search, Home
-} from 'lucide-react';
-import Link from 'next/link';
+import { useState, useEffect, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import Link from 'next/link'
+import type { LucideIcon } from 'lucide-react'
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
+  ChevronLeft, Plus, Edit2, Trash2, Check, X,
+  Pin, Search, BookOpen, Home, Network, CheckCircle, Database,
+  Shield, Users, BarChart3
+} from 'lucide-react'
+import { createClient } from '@/lib/supabase-client'
+import { useSessionScope } from '@/hooks/useSessionScope'
+import { cn } from '@/lib/utils'
 
-function Callout({ type, title, children }: { type: 'info' | 'warning' | 'success'; title: string; children: React.ReactNode }) {
-  const config = {
-    info: { icon: Info, bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-900', iconColor: 'text-blue-600' },
-    warning: { icon: AlertTriangle, bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-900', iconColor: 'text-amber-600' },
-    success: { icon: CheckCircle, bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-900', iconColor: 'text-emerald-600' },
-  };
+type ArticleType = 'manual' | 'guide' | 'announcement'
+type VisibleTo = 'all' | 'PC' | 'SPM' | 'ME' | 'PM'
 
-  const { icon: Icon, bg, border, text, iconColor } = config[type];
-
-  return (
-    <div className={`${bg} ${border} border-l-4 p-6 rounded-xl mb-6`}>
-      <div className="flex items-start gap-4">
-        <Icon className={`w-6 h-6 ${iconColor} flex-shrink-0 mt-1`} />
-        <div>
-          <h4 className={`text-sm font-black uppercase tracking-wider ${text} mb-2`}>{title}</h4>
-          <div className={`text-sm ${text} opacity-90`}>{children}</div>
-        </div>
-      </div>
-    </div>
-  );
+interface Article {
+  id: string
+  title: string
+  slug: string
+  content: string
+  excerpt: string | null
+  article_type: ArticleType
+  visible_to: VisibleTo
+  created_by_role: string
+  created_by_name: string
+  is_published: boolean
+  is_pinned: boolean
+  display_order: number
+  created_at: string
+  updated_at: string
 }
 
-function Sidebar({ activeSection, onSectionChange }: { activeSection: string; onSectionChange: (section: string) => void }) {
-  const sections = [
-    { id: 'overview', label: 'System Overview', icon: Home },
-    { id: 'architecture', label: 'Architecture & Workflow', icon: Network },
-    { id: 'protocol', label: '7-Step M&E Protocol', icon: CheckCircle },
-    { id: 'vertex', label: 'Vertex Operations', icon: Network },
-    { id: 'gis', label: 'GIS Spatial Mapping', icon: Map },
-    { id: 'pipeline', label: 'Pipeline Protocol', icon: GitBranch },
-    { id: 'security', label: 'Security Protocols', icon: Shield },
-    { id: 'users', label: 'User Management', icon: Users },
-    { id: 'data', label: 'Data Integrity', icon: Database },
-  ];
+function canSeeArticle(article: Article, role: string): boolean {
+  if (article.visible_to === 'all' || article.visible_to === 'PC') return true
+  if (article.visible_to === 'SPM') return ['SPM', 'ME', 'PM', 'admin'].includes(role)
+  if (article.visible_to === 'ME') return ['ME', 'PM', 'admin'].includes(role)
+  if (article.visible_to === 'PM') return ['PM', 'admin'].includes(role)
+  return false
+}
+
+function canCreate(role: string) {
+  return ['PM', 'admin', 'SPM'].includes(role)
+}
+
+function canEdit(article: Article, role: string, staffName: string | null) {
+  if (['PM', 'admin'].includes(role)) return true
+  return role === 'SPM' && article.created_by_name === staffName && article.article_type === 'guide'
+}
+
+const TYPE_CONFIG: Record<ArticleType, { label: string; badge: string }> = {
+  manual:       { label: 'Manual',       badge: 'bg-[#c6d8e4]/60 text-[#006494]' },
+  guide:        { label: 'Guide',        badge: 'bg-[#cedcd8]/60 text-[#01696f]' },
+  announcement: { label: 'Announcement', badge: 'bg-[#ddcfc6]/60 text-[#964219]' },
+}
+
+const SLUG_ICON: Record<string, LucideIcon> = {
+  'system-overview':       Home,
+  'architecture-workflow': Network,
+  'me-protocol':           CheckCircle,
+  'vertex-operations':     Database,
+  'pc-screening-guide':    Users,
+  'security-protocols':    Shield,
+  'data-integrity':        BarChart3,
+}
+
+function MarkdownContent({ content }: { content: string }) {
+  const lines = content.split('\n')
+  return (
+    <div>
+      {lines.map((line, i) => {
+        if (line.startsWith('## ')) return (
+          <h2 key={i} className="text-base font-semibold text-[#28251d] mt-8 mb-3 first:mt-0 pb-2 border-b border-black/[0.06]">
+            {line.slice(3)}
+          </h2>
+        )
+        if (line.startsWith('### ')) return (
+          <h3 key={i} className="text-sm font-semibold text-[#28251d] mt-5 mb-2">
+            {line.slice(4)}
+          </h3>
+        )
+        if (line.startsWith('- ') || /^\d+\.\s/.test(line)) {
+          const text = line.replace(/^- /, '').replace(/^\d+\.\s/, '')
+          return (
+            <li key={i}
+              className="text-sm text-[#28251d] leading-relaxed ml-5 list-disc marker:text-[#bab9b4] mb-1.5"
+              dangerouslySetInnerHTML={{
+                __html: text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/`(.*?)`/g, '<code class="px-1 py-0.5 bg-[#f3f0ec] rounded text-xs font-mono">$1</code>')
+              }}
+            />
+          )
+        }
+        if (line.trim() === '') return <div key={i} className="h-2" />
+        return (
+          <p key={i} className="text-sm text-[#28251d] leading-relaxed mb-2"
+            dangerouslySetInnerHTML={{
+              __html: line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                          .replace(/`(.*?)`/g, '<code class="px-1 py-0.5 bg-[#f3f0ec] rounded text-xs font-mono">$1</code>')
+            }}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+function PageSkeleton() {
+  return (
+    <div className="animate-pulse p-10 space-y-4">
+      <div className="h-5 w-2/5 bg-[#e6e4df] rounded" />
+      <div className="h-3 w-32 bg-[#e6e4df] rounded" />
+      <div className="mt-6 space-y-3">
+        {[100, 90, 85, 70, 95, 60].map((w, i) => (
+          <div key={i} className="h-3 bg-[#e6e4df] rounded" style={{ width: `${w}%` }} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ArticleEditor({
+  article, role, onChange, onSave, onClose, saving
+}: {
+  article: Partial<Article>
+  role: string
+  onChange: (a: Partial<Article>) => void
+  onSave: () => void
+  onClose: () => void
+  saving: boolean
+}) {
+  const allowedTypes: ArticleType[] = role === 'SPM' ? ['guide'] : ['manual', 'guide', 'announcement']
+  const visibilityOpts = role === 'SPM'
+    ? [
+        { v: 'PC'  as VisibleTo, l: 'All roles (including PC)' },
+        { v: 'SPM' as VisibleTo, l: 'SPM, ME & above' },
+      ]
+    : [
+        { v: 'all' as VisibleTo, l: 'All roles' },
+        { v: 'PC'  as VisibleTo, l: 'All including PC' },
+        { v: 'SPM' as VisibleTo, l: 'SPM, ME & above' },
+        { v: 'ME'  as VisibleTo, l: 'ME, PM & admin only' },
+        { v: 'PM'  as VisibleTo, l: 'PM & admin only' },
+      ]
 
   return (
-    <aside className="w-64 flex-shrink-0 sticky top-0 h-screen overflow-y-auto border-r border-slate-200 bg-white p-6">
-      <div className="mb-8">
-        <h2 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Navigation</h2>
-        <nav className="space-y-1">
-          {sections.map((section) => {
-            const Icon = section.icon;
-            const isActive = activeSection === section.id;
-            return (
-              <button
-                key={section.id}
-                onClick={() => onSectionChange(section.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  isActive 
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200' 
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {section.label}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-      
-      <div className="pt-6 border-t border-slate-200">
-        <Link href="/dashboard/command-hub">
-          <button className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors">
-            <ChevronRight className="w-3 h-3" />
-            Back to Command Hub
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/25 backdrop-blur-[2px] flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 20, opacity: 0 }}
+        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+        onClick={e => e.stopPropagation()}
+        className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-black/[0.06]">
+          <h3 className="font-semibold text-[#28251d] text-sm">
+            {article.id ? 'Edit Article' : 'New Article'}
+          </h3>
+          <button onClick={onClose} className="p-1.5 rounded-md text-[#7a7974] hover:bg-[#f3f0ec] transition-colors" aria-label="Close editor">
+            <X size={14} />
           </button>
-        </Link>
-      </div>
-    </aside>
-  );
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[#28251d] mb-1.5">
+              Title <span className="text-[#a12c7b]">*</span>
+            </label>
+            <input type="text" value={article.title ?? ''} placeholder="Article title…"
+              onChange={e => onChange({ ...article, title: e.target.value })}
+              className="w-full px-3 py-2.5 border border-black/[0.1] rounded-lg text-sm focus:outline-none focus:border-[#01696f] focus:ring-2 focus:ring-[#cedcd8] transition-all"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-[#28251d] mb-1.5">Type</label>
+              <select value={article.article_type ?? 'guide'}
+                onChange={e => onChange({ ...article, article_type: e.target.value as ArticleType })}
+                className="w-full px-3 py-2.5 bg-white border border-black/[0.1] rounded-lg text-sm focus:outline-none focus:border-[#01696f] focus:ring-2 focus:ring-[#cedcd8] transition-all">
+                {allowedTypes.map(t => (
+                  <option key={t} value={t}>{TYPE_CONFIG[t].label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#28251d] mb-1.5">Visible to</label>
+              <select value={article.visible_to ?? 'all'}
+                onChange={e => onChange({ ...article, visible_to: e.target.value as VisibleTo })}
+                className="w-full px-3 py-2.5 bg-white border border-black/[0.1] rounded-lg text-sm focus:outline-none focus:border-[#01696f] focus:ring-2 focus:ring-[#cedcd8] transition-all">
+                {visibilityOpts.map(o => (
+                  <option key={o.v} value={o.v}>{o.l}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-[#28251d] mb-1.5">
+              Content <span className="text-[#a12c7b]">*</span>
+              <span className="ml-1 font-normal text-[#7a7974]">— Markdown: ## headings, **bold**, - lists</span>
+            </label>
+            <textarea value={article.content ?? ''} rows={12}
+              placeholder={"## Section heading\n\nBody text here. **Bold** is supported.\n\n- List item\n- List item"}
+              onChange={e => onChange({ ...article, content: e.target.value })}
+              className="w-full px-3 py-2.5 border border-black/[0.1] rounded-lg text-sm font-mono resize-none focus:outline-none focus:border-[#01696f] focus:ring-2 focus:ring-[#cedcd8] transition-all"
+            />
+          </div>
+
+          <div className="flex gap-5">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" checked={article.is_published ?? true}
+                onChange={e => onChange({ ...article, is_published: e.target.checked })}
+                className="w-4 h-4 rounded border-black/20 accent-[#01696f]" />
+              <span className="text-sm text-[#28251d]">Published</span>
+            </label>
+            {['PM', 'admin'].includes(role) && (
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" checked={article.is_pinned ?? false}
+                  onChange={e => onChange({ ...article, is_pinned: e.target.checked })}
+                  className="w-4 h-4 rounded border-black/20 accent-[#01696f]" />
+                <span className="text-sm text-[#28251d]">Pin to top</span>
+              </label>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-3 px-6 py-4 border-t border-black/[0.06]">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 border border-black/[0.1] rounded-lg text-sm text-[#7a7974] hover:bg-[#f3f0ec] transition-colors">
+            Cancel
+          </button>
+          <button onClick={onSave}
+            disabled={saving || !article.title?.trim() || !article.content?.trim()}
+            className="flex-1 py-2.5 bg-[#01696f] text-white rounded-lg text-sm font-medium hover:bg-[#0c4e54] active:bg-[#0f3638] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            {saving
+              ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              : <><Check size={14} />{article.id ? 'Save changes' : 'Publish'}</>
+            }
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
 }
 
 export default function DocsPage() {
-  const [activeSection, setActiveSection] = useState('overview');
+  const sessionScope = useSessionScope()
+  const role = sessionScope?.role ?? null
+  const staffName = sessionScope?.staffName ?? null
+  const supabase = createClient()
+
+  const [articles, setArticles] = useState<Article[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [activeSlug, setActiveSlug] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [showEditor, setShowEditor] = useState(false)
+  const [editDraft, setEditDraft] = useState<Partial<Article> | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+
+  const fetchArticles = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('knowledge_articles')
+        .select('*')
+        .eq('is_published', true)
+        .order('is_pinned', { ascending: false })
+        .order('display_order', { ascending: true })
+        .order('created_at', { ascending: true })
+
+      if (fetchError) {
+        console.error('[docs] fetch error:', fetchError)
+        setError(fetchError.message)
+        setLoading(false)
+        return
+      }
+
+      const visible = (data ?? []).filter(a => canSeeArticle(a, role ?? 'PC'))
+      setArticles(visible)
+
+      if (visible.length > 0) {
+        setActiveSlug(prev => prev ?? visible[0].slug)
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      console.error('[docs] unexpected error:', msg)
+      setError(msg)
+    } finally {
+      setLoading(false)
+    }
+  }, [role, supabase])
+
+  useEffect(() => { fetchArticles() }, [fetchArticles])
+
+  const activeArticle = articles.find(a => a.slug === activeSlug) ?? null
+
+  const filteredSidebar = search
+    ? articles.filter(a =>
+        a.title.toLowerCase().includes(search.toLowerCase()) ||
+        (a.excerpt ?? '').toLowerCase().includes(search.toLowerCase())
+      )
+    : articles
+
+  const saveArticle = async () => {
+    if (!editDraft?.title?.trim() || !editDraft?.content?.trim()) return
+    setSaving(true)
+    try {
+      const slug = editDraft.slug || editDraft.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+      const payload = {
+        title: editDraft.title.trim(),
+        slug,
+        content: editDraft.content.trim(),
+        excerpt: editDraft.content.trim().slice(0, 150).replace(/[#\n*`]/g, ' ').trim(),
+        article_type: editDraft.article_type ?? 'guide',
+        visible_to: editDraft.visible_to ?? 'all',
+        created_by_role: role ?? 'PM',
+        created_by_name: staffName ?? '',
+        is_published: editDraft.is_published ?? true,
+        is_pinned: editDraft.is_pinned ?? false,
+        display_order: editDraft.display_order ?? 999,
+      }
+
+      if (editDraft.id) {
+        const { error } = await supabase.from('knowledge_articles').update(payload).eq('id', editDraft.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('knowledge_articles').insert(payload)
+        if (error) throw error
+      }
+
+      setShowEditor(false)
+      setEditDraft(null)
+      await fetchArticles()
+      if (!editDraft.id) setActiveSlug(slug)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Save failed'
+      console.error('[docs] save error:', msg)
+      alert(msg)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const deleteArticle = async (id: string) => {
+    const { error } = await supabase.from('knowledge_articles').delete().eq('id', id)
+    if (error) { console.error('[docs] delete error:', error); return }
+    setDeleteId(null)
+    if (activeArticle?.id === id) {
+      setActiveSlug(articles.find(a => a.id !== id)?.slug ?? null)
+    }
+    await fetchArticles()
+  }
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar activeSection={activeSection} onSectionChange={setActiveSection} />
-      
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto p-12">
-          <div className="mb-12 border-b border-slate-200 pb-8">
-            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-              <h1 className="text-5xl font-black tracking-[0.4em] text-slate-900 mb-4">KNOWLEDGE VAULT</h1>
-              <p className="text-lg text-slate-600">National Health Intelligence Documentation & SOPs</p>
-            </motion.div>
-          </div>
+    <div className="flex h-screen overflow-hidden bg-white">
 
-          <div className="prose prose-slate max-w-none">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeSection}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3 }}
+      <aside className="w-[240px] flex-shrink-0 flex flex-col h-full border-r border-black/[0.06] bg-[#f9f8f5]">
+
+        <div className="px-5 pt-6 pb-3 flex-shrink-0">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold uppercase tracking-widest text-[#7a7974]">
+              Navigation
+            </span>
+            {canCreate(role ?? '') && (
+              <button
+                onClick={() => {
+                  setEditDraft({ article_type: 'guide', visible_to: 'all', is_published: true, is_pinned: false })
+                  setShowEditor(true)
+                }}
+                aria-label="New article"
+                className="p-1 rounded-md text-[#7a7974] hover:bg-[#e6e4df] hover:text-[#01696f] transition-colors"
               >
-                {activeSection === 'overview' && (
-                  <div>
-                    <Callout type="info" title="Clinical Urgency Summary">
-                      SAMADHAAN is a mission-critical health surveillance platform designed for TB patient tracking
-                      in correctional facilities. All personnel must adhere to strict data integrity protocols.
-                    </Callout>
-
-                    <h2 className="text-3xl font-black text-slate-900 mb-6">System Architecture</h2>
-                    <p className="text-slate-700 leading-relaxed mb-6">
-                      SAMADHAAN integrates real-time patient data from multiple sources including KoboToolbox,
-                      Google Sheets, and Supabase. The system provides:
-                    </p>
-                    <ul className="space-y-3 mb-8">
-                      <li className="flex items-start gap-3">
-                        <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                        <span className="text-slate-700">Neural network visualization of patient flow</span>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                        <span className="text-slate-700">Geographic intelligence mapping with 3D choropleth</span>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                        <span className="text-slate-700">Automated SLA breach detection and triage</span>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                        <span className="text-slate-700">AI-powered voice assistant (Sonic)</span>
-                      </li>
-                    </ul>
-
-                    <Callout type="warning" title="Security Protocol">
-                      All sessions expire after 8 hours (28,800 seconds). Users must re-authenticate to continue.
-                      Admin access requires role verification at the middleware level.
-                    </Callout>
-                  </div>
-                )}
-
-                {activeSection === 'architecture' && (
-                  <div>
-                    <h2 className="text-3xl font-black text-slate-900 mb-6">Introduction to SAMADHAAN Engine</h2>
-                    <p className="text-slate-700 leading-relaxed mb-6">
-                      SAMADHAAN transforms raw screening data into actionable intelligence through a multi-stage pipeline.
-                      The system operates on the principle of <strong>continuous data refinement</strong>, where each stage
-                      adds layers of validation, enrichment, and intelligence.
-                    </p>
-
-                    <h3 className="text-2xl font-bold text-slate-900 mb-4">Data Flow Architecture</h3>
-                    <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm mb-8">
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center text-white font-black">1</div>
-                          <div>
-                            <h4 className="font-bold text-slate-900">Data Ingestion</h4>
-                            <p className="text-sm text-slate-600">KoboToolbox webhook → Supabase patients table</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-indigo-500 flex items-center justify-center text-white font-black">2</div>
-                          <div>
-                            <h4 className="font-bold text-slate-900">Normalization</h4>
-                            <p className="text-sm text-slate-600">Geographic key normalization, date parsing, PII sanitization</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-purple-500 flex items-center justify-center text-white font-black">3</div>
-                          <div>
-                            <h4 className="font-bold text-slate-900">Enrichment</h4>
-                            <p className="text-sm text-slate-600">Phase calculation, SLA breach detection, duplicate flagging</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center text-white font-black">4</div>
-                          <div>
-                            <h4 className="font-bold text-slate-900">Visualization</h4>
-                            <p className="text-sm text-slate-600">Real-time dashboards, 3D maps, neural network graphs</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Callout type="info" title="Pro-Tip for State Program Managers">
-                      The system automatically calculates patient phases based on screening date, referral date, and ATT start date.
-                      You don't need to manually update phase fields—focus on ensuring accurate date entry.
-                    </Callout>
-                  </div>
-                )}
-
-                {activeSection === 'protocol' && (
-                  <div>
-                    <h2 className="text-3xl font-black text-slate-900 mb-6">The 7-Step M&E Protocol</h2>
-                    <p className="text-slate-700 leading-relaxed mb-8">
-                      This protocol defines the operational workflow for Monitoring & Evaluation teams to maintain
-                      data integrity and drive programmatic improvements.
-                    </p>
-
-                    <div className="space-y-8">
-                      <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm">
-                        <div className="flex items-start gap-4 mb-4">
-                          <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center text-white font-black flex-shrink-0">1</div>
-                          <div>
-                            <h3 className="text-xl font-black text-slate-900 mb-2">Research & Identify</h3>
-                            <p className="text-slate-700 leading-relaxed">
-                              Begin by understanding the current state of your data. Use the <strong>Vertex Dashboard</strong> to
-                              identify temporal patterns and the <strong>GIS Map</strong> to spot geographic anomalies. Look for
-                              districts with unusually high breach rates or facilities with zero activity.
-                            </p>
-                          </div>
-                        </div>
-                        <Callout type="info" title="Pro-Tip">
-                          Use the Magic Lens feature (Alt + Hover) on the GIS map for instant district-level insights without
-                          navigating away from the map view.
-                        </Callout>
-                      </div>
-
-                      <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm">
-                        <div className="flex items-start gap-4 mb-4">
-                          <div className="w-12 h-12 rounded-xl bg-indigo-500 flex items-center justify-center text-white font-black flex-shrink-0">2</div>
-                          <div>
-                            <h3 className="text-xl font-black text-slate-900 mb-2">Define Goals</h3>
-                            <p className="text-slate-700 leading-relaxed">
-                              Set measurable targets for your intervention. Examples: "Reduce SLA breach rate in District X from
-                              45% to 20% within 30 days" or "Achieve 95% ATT initiation rate for diagnosed cases."
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm">
-                        <div className="flex items-start gap-4 mb-4">
-                          <div className="w-12 h-12 rounded-xl bg-purple-500 flex items-center justify-center text-white font-black flex-shrink-0">3</div>
-                          <div>
-                            <h3 className="text-xl font-black text-slate-900 mb-2">The Master Sync</h3>
-                            <p className="text-slate-700 leading-relaxed">
-                              Navigate to <strong>Settings → Data & Sync</strong> and trigger a manual sync to pull the latest
-                              data from KoboToolbox. This ensures you're working with the most current dataset. The system will
-                              automatically revalidate all records and recalculate metrics.
-                            </p>
-                          </div>
-                        </div>
-                        <Callout type="warning" title="Important">
-                          Master Sync can take 30-60 seconds for large datasets (10,000+ records). Do not navigate away during
-                          the sync process.
-                        </Callout>
-                      </div>
-
-                      <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm">
-                        <div className="flex items-start gap-4 mb-4">
-                          <div className="w-12 h-12 rounded-xl bg-pink-500 flex items-center justify-center text-white font-black flex-shrink-0">4</div>
-                          <div>
-                            <h3 className="text-xl font-black text-slate-900 mb-2">Iterate Surgically</h3>
-                            <p className="text-slate-700 leading-relaxed">
-                              Use the <strong>M&E Hub → Duplicate Assassin</strong> to systematically review and merge duplicate
-                              records. Process 10-20 duplicates per session to maintain focus. Use the confidence score to
-                              prioritize high-probability matches.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm">
-                        <div className="flex items-start gap-4 mb-4">
-                          <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center text-white font-black flex-shrink-0">5</div>
-                          <div>
-                            <h3 className="text-xl font-black text-slate-900 mb-2">Isolate Problems</h3>
-                            <p className="text-slate-700 leading-relaxed">
-                              Use the <strong>Integrity Scanner</strong> to identify data quality issues. Filter by severity
-                              (High/Medium) and resolve critical violations first. Common issues include missing referral dates,
-                              illogical date sequences, and incomplete facility information.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm">
-                        <div className="flex items-start gap-4 mb-4">
-                          <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center text-white font-black flex-shrink-0">6</div>
-                          <div>
-                            <h3 className="text-xl font-black text-slate-900 mb-2">Understand the Pipeline</h3>
-                            <p className="text-slate-700 leading-relaxed">
-                              Analyze the <strong>Care Cascade</strong> to identify drop-off points. If the "Diagnosed → ATT
-                              Initiated" conversion rate is below 95%, investigate facility-level barriers. Use the
-                              <strong>SLA Kanban</strong> to track aging cases and prioritize interventions.
-                            </p>
-                          </div>
-                        </div>
-                        <Callout type="success" title="Success Metric">
-                          A healthy cascade shows &gt;90% conversion at each stage. If any stage drops below 70%, immediate
-                          programmatic intervention is required.
-                        </Callout>
-                      </div>
-
-                      <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm">
-                        <div className="flex items-start gap-4 mb-4">
-                          <div className="w-12 h-12 rounded-xl bg-red-500 flex items-center justify-center text-white font-black flex-shrink-0">7</div>
-                          <div>
-                            <h3 className="text-xl font-black text-slate-900 mb-2">Build in Public</h3>
-                            <p className="text-slate-700 leading-relaxed">
-                              Document your findings and share insights with stakeholders. Use the <strong>Export to Excel</strong>
-                              feature in the M&E Hub to generate reports with verified Client IDs. Schedule weekly review meetings
-                              to discuss trends and adjust strategies.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Callout type="info" title="Pro-Tip for State Program Managers">
-                      Run the 7-Step Protocol weekly for the first month, then bi-weekly once data quality stabilizes above 85%.
-                      Track your Data Health Score in the M&E Hub—aim for 90+ consistently.
-                    </Callout>
-                  </div>
-                )}
-
-                {activeSection === 'vertex' && (
-                  <div>
-                    <h2 className="text-3xl font-black text-slate-900 mb-6">Vertex Operations Manual</h2>
-                    <p className="text-slate-700 leading-relaxed mb-6">
-                      The Vertex Dashboard provides a neural network visualization of patient data with an interactive
-                      calendar-based timeline. This module is designed for temporal analysis and facility-level drill-down.
-                    </p>
-
-                    <Accordion type="single" collapsible className="mb-8">
-                      <AccordionItem value="calendar" className="border border-slate-200 rounded-xl px-6 mb-4">
-                        <AccordionTrigger className="text-lg font-bold text-slate-900 hover:no-underline">
-                          Calendar Navigation
-                        </AccordionTrigger>
-                        <AccordionContent className="text-slate-700 pt-4">
-                          <ol className="list-decimal list-inside space-y-2">
-                            <li>Select a date from the calendar grid to view patients screened on that day</li>
-                            <li>Use state/district filters to narrow down geographic scope</li>
-                            <li>Toggle between "Volume" and "Alerts" view modes using the tab selector</li>
-                            <li>Click on facility cards to open the patient pipeline drawer</li>
-                          </ol>
-                        </AccordionContent>
-                      </AccordionItem>
-
-                      <AccordionItem value="metrics" className="border border-slate-200 rounded-xl px-6 mb-4">
-                        <AccordionTrigger className="text-lg font-bold text-slate-900 hover:no-underline">
-                          Spark Metrics Interpretation
-                        </AccordionTrigger>
-                        <AccordionContent className="text-slate-700 pt-4">
-                          <ul className="space-y-3">
-                            <li><strong>Total Screened:</strong> Count of patients screened on selected date</li>
-                            <li><strong>On Track:</strong> Patients with referral dates (no SLA breach)</li>
-                            <li><strong>Follow-ups:</strong> Patients awaiting sputum test results</li>
-                            <li><strong>Positive Diagnosed:</strong> Confirmed TB cases (tb_diagnosed = 'Y')</li>
-                          </ul>
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
-                  </div>
-                )}
-
-                {activeSection === 'gis' && (
-                  <div>
-                    <h2 className="text-3xl font-black text-slate-900 mb-6">GIS Spatial Mapping Protocol</h2>
-                    <p className="text-slate-700 leading-relaxed mb-6">
-                      The GIS module provides 3D choropleth visualization using Deck.GL and MapLibre GL.
-                    </p>
-                  </div>
-                )}
-
-                {activeSection === 'pipeline' && (
-                  <div>
-                    <h2 className="text-3xl font-black text-slate-900 mb-6">Pipeline Protocol</h2>
-                    <p className="text-slate-700 leading-relaxed mb-6">
-                      The Follow-up Pipeline is a Kanban-style triage board for patient tracking.
-                    </p>
-                  </div>
-                )}
-
-                {activeSection === 'security' && (
-                  <div>
-                    <h2 className="text-3xl font-black text-slate-900 mb-6">Security Protocols</h2>
-                    <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm mb-8">
-                      <h3 className="text-lg font-bold text-slate-900 mb-3">Session Management</h3>
-                      <p className="text-slate-700 mb-4">
-                        Sessions are enforced at 8 hours (28,800 seconds) with automatic token refresh.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {activeSection === 'users' && (
-                  <div>
-                    <h2 className="text-3xl font-black text-slate-900 mb-6">User Management</h2>
-                    <p className="text-slate-700 leading-relaxed mb-6">
-                      User management is restricted to Admin and PM roles.
-                    </p>
-                  </div>
-                )}
-
-                {activeSection === 'data' && (
-                  <div>
-                    <h2 className="text-3xl font-black text-slate-900 mb-6">Data Integrity</h2>
-                    <p className="text-slate-700 leading-relaxed mb-6">
-                      SAMADHAAN implements multiple layers of data validation.
-                    </p>
-                  </div>
-                )}
-              </motion.div>
-            </AnimatePresence>
-
-            <Accordion type="single" collapsible className="mt-12">
-              <AccordionItem value="faq" className="border border-slate-200 rounded-xl px-6">
-                <AccordionTrigger className="text-lg font-bold text-slate-900 hover:no-underline">
-                  Frequently Asked Questions
-                </AccordionTrigger>
-                <AccordionContent className="text-slate-700 pt-4">
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-bold text-slate-900 mb-2">How often should I run the Master Sync?</h4>
-                      <p>Run Master Sync daily during active screening periods, or whenever you notice data discrepancies.</p>
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-slate-900 mb-2">What is the Data Health Score threshold?</h4>
-                      <p>Aim for 85+ for operational readiness, 90+ for optimal performance.</p>
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+                <Plus size={14} />
+              </button>
+            )}
           </div>
-
-          <div className="bg-slate-900 text-white p-8 rounded-2xl mt-12">
-            <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">System Status</p>
-            <p className="text-sm">SAMADHAAN v2.0 | Production Ready | Last Updated: 2024</p>
+          <div className="relative">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#bab9b4] pointer-events-none" />
+            <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"
+              className="w-full pl-7 pr-2.5 py-1.5 bg-white border border-black/[0.08] rounded-md text-xs text-[#28251d] placeholder:text-[#bab9b4] focus:outline-none focus:border-[#01696f] transition-all"
+            />
           </div>
         </div>
+
+        <nav className="flex-1 overflow-y-auto px-2 pb-2">
+          {loading ? (
+            <div className="space-y-1 px-2 mt-1 animate-pulse">
+              {[...Array(7)].map((_, i) => (
+                <div key={i} className="h-8 bg-[#e6e4df] rounded-md" />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="px-3 py-4">
+              <p className="text-xs text-[#a12c7b] font-medium mb-1">Failed to load</p>
+              <p className="text-xs text-[#7a7974] mb-3">{error}</p>
+              <button onClick={fetchArticles} className="text-xs text-[#01696f] underline">Retry</button>
+            </div>
+          ) : filteredSidebar.length === 0 ? (
+            <p className="px-3 py-4 text-xs text-[#bab9b4]">
+              {search ? 'No matches.' : 'No articles yet.'}
+            </p>
+          ) : (
+            filteredSidebar.map(article => {
+              const IconComponent = SLUG_ICON[article.slug] ?? BookOpen
+              const isActive = article.slug === activeSlug
+              return (
+                <button key={article.slug}
+                  onClick={() => setActiveSlug(article.slug)}
+                  className={cn(
+                    'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-sm transition-colors duration-150',
+                    isActive ? 'bg-[#cedcd8]/70 text-[#01696f] font-medium' : 'text-[#7a7974] hover:bg-[#f3f0ec] hover:text-[#28251d]'
+                  )}
+                >
+                  <IconComponent size={14} className="flex-shrink-0" />
+                  <span className="truncate">{article.title}</span>
+                  {article.is_pinned && <Pin size={9} className="ml-auto flex-shrink-0 text-[#01696f]/50" />}
+                </button>
+              )
+            })
+          )}
+        </nav>
+
+        <div className="flex-shrink-0 px-3 pb-5 pt-2 border-t border-black/[0.06]">
+          <Link href="/dashboard/command-hub"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[#7a7974] hover:bg-[#f3f0ec] hover:text-[#28251d] transition-colors group"
+          >
+            <ChevronLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+            Back to Command Hub
+          </Link>
+        </div>
+      </aside>
+
+      <main className="flex-1 h-full overflow-y-auto">
+
+        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-black/[0.06]">
+          <div className="px-10 py-5 flex items-start justify-between">
+            <div>
+              <h1 className="text-xs font-bold tracking-[0.2em] uppercase text-[#28251d]">Knowledge Vault</h1>
+              <p className="text-xs text-[#7a7974] mt-0.5">National Health Intelligence Documentation & SOPs</p>
+            </div>
+
+            {activeArticle && canEdit(activeArticle, role ?? '', staffName) && (
+              <div className="flex items-center gap-1.5">
+                <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', TYPE_CONFIG[activeArticle.article_type].badge)}>
+                  {TYPE_CONFIG[activeArticle.article_type].label}
+                </span>
+                <button
+                  onClick={() => { setEditDraft({ ...activeArticle }); setShowEditor(true) }}
+                  aria-label="Edit article"
+                  className="p-1.5 rounded-md text-[#7a7974] hover:bg-[#f3f0ec] hover:text-[#28251d] transition-colors"
+                >
+                  <Edit2 size={13} />
+                </button>
+                <button
+                  onClick={() => setDeleteId(activeArticle.id)}
+                  aria-label="Delete article"
+                  className="p-1.5 rounded-md text-[#7a7974] hover:bg-[#e0ced7]/40 hover:text-[#a12c7b] transition-colors"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="px-10 py-8 max-w-3xl">
+          {loading ? (
+            <PageSkeleton />
+          ) : error ? (
+            <div className="py-20 text-center">
+              <p className="text-sm font-medium text-[#a12c7b] mb-2">Failed to load articles</p>
+              <p className="text-xs text-[#7a7974] mb-4">{error}</p>
+              <button onClick={fetchArticles} className="text-sm text-[#01696f] underline">Try again</button>
+            </div>
+          ) : !activeArticle ? (
+            <div className="flex flex-col items-center justify-center py-28 text-center">
+              <BookOpen size={36} className="text-[#bab9b4] mb-4" />
+              <p className="text-sm font-medium text-[#28251d] mb-1.5">No articles available</p>
+              <p className="text-xs text-[#7a7974] max-w-[28ch]">
+                {canCreate(role ?? '') ? 'Use the + button in the sidebar to create the first article.' : 'Articles will appear here once published by your program manager.'}
+              </p>
+            </div>
+          ) : (
+            <AnimatePresence mode="wait">
+              <motion.article
+                key={activeArticle.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <h2 className="text-lg font-bold text-[#28251d] mb-1.5">{activeArticle.title}</h2>
+                <div className="flex items-center gap-3 mb-8">
+                  <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', TYPE_CONFIG[activeArticle.article_type].badge)}>
+                    {TYPE_CONFIG[activeArticle.article_type].label}
+                  </span>
+                  <span className="text-xs text-[#7a7974]">
+                    Last updated {new Date(activeArticle.updated_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </span>
+                  <span className="text-xs text-[#bab9b4]">{activeArticle.created_by_role}</span>
+                </div>
+                <MarkdownContent content={activeArticle.content} />
+              </motion.article>
+            </AnimatePresence>
+          )}
+        </div>
       </main>
+
+      <AnimatePresence>
+        {showEditor && editDraft && (
+          <ArticleEditor
+            article={editDraft}
+            role={role ?? 'PM'}
+            onChange={setEditDraft}
+            onSave={saveArticle}
+            onClose={() => { setShowEditor(false); setEditDraft(null) }}
+            saving={saving}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {deleteId && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/20 backdrop-blur-[2px] flex items-center justify-center px-4"
+            onClick={() => setDeleteId(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full"
+            >
+              <h3 className="font-semibold text-[#28251d] text-sm mb-2">Delete article?</h3>
+              <p className="text-xs text-[#7a7974] mb-5">This permanently removes the article and cannot be undone.</p>
+              <div className="flex gap-3">
+                <button onClick={() => setDeleteId(null)}
+                  className="flex-1 py-2.5 border border-black/[0.1] rounded-lg text-sm text-[#7a7974] hover:bg-[#f3f0ec] transition-colors">
+                  Cancel
+                </button>
+                <button onClick={() => deleteArticle(deleteId)}
+                  className="flex-1 py-2.5 bg-[#a12c7b] text-white rounded-lg text-sm font-medium hover:bg-[#7d1e5e] transition-colors">
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
-  );
+  )
 }

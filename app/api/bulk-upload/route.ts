@@ -205,7 +205,7 @@ export async function POST(req: NextRequest) {
     
     // Process and validate rows
     const processedRows: Record<string, unknown>[] = []
-    const errors: { row: number; reason: string } = []
+    const errors: { row: number; reason: string }[] = []
     
     for (let i = 0; i < rows.length; i++) {
       try {
