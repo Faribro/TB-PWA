@@ -552,7 +552,6 @@ export default function Vertex({
   const [filterState, setFilterState] = useState<string>('All');
   const [filterDistrict, setFilterDistrict] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'volume' | 'breaches'>('volume');
-  const [hudVisible, setHudVisible] = useState(true);
   const { mutate } = useSWRConfig();
 
   // Update currentDate when data loads and most recent date changes
@@ -561,18 +560,6 @@ export default function Vertex({
       setCurrentDate(mostRecentDateWithData);
     }
   }, [mostRecentDateWithData, isLoading]);
-
-  // HUD bounce animation cycle with realistic physics
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setHudVisible(false);
-      setTimeout(() => {
-        setHudVisible(true);
-      }, 800);
-    }, 8000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   // Extract available states and districts (memoized with proper dependencies)
   const { availableStates, availableDistricts } = useMemo(() => {
@@ -861,117 +848,6 @@ export default function Vertex({
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-400/10 blur-[150px] rounded-full animate-pulse" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-400/10 blur-[150px] rounded-full animate-pulse delay-500" />
       </div>
-
-      {/* Top-Right Dynamic Status HUD */}
-      <AnimatePresence>
-        {hudVisible && (
-          <motion.div
-            key="hud"
-            initial={{ x: 400, scale: 0.3, opacity: 0, rotate: 180 }}
-            animate={{
-              x: [400, -30, 15, -8, 3, 0],
-              scale: [0.3, 1.3, 0.85, 1.05, 0.95, 1],
-              opacity: [0, 1, 1, 1, 1, 1],
-              rotate: [180, -15, 8, -4, 2, 0]
-            }}
-            exit={{
-              x: [0, -15, 400],
-              scale: [1, 1.1, 0.3],
-              opacity: [1, 1, 0],
-              rotate: [0, 10, 180],
-              transition: { 
-                duration: 0.7, 
-                ease: [0.68, -0.55, 0.265, 1.55],
-                times: [0, 0.3, 1]
-              }
-            }}
-            transition={{
-              duration: 1.8,
-              times: [0, 0.4, 0.6, 0.75, 0.88, 1],
-              ease: [0.68, -0.55, 0.265, 1.55]
-            }}
-            whileHover={{ 
-              scale: 1.08,
-              rotate: [0, -2, 2, 0],
-              transition: { duration: 0.3 }
-            }}
-            className="fixed top-6 right-8 z-[100] flex items-center gap-5 px-5 py-2.5 bg-white/70 backdrop-blur-2xl border border-white/50 shadow-[0_8px_30px_-5px_rgba(0,74,153,0.12)] rounded-full hover:bg-white/90 transition-colors duration-300 cursor-default"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 1.5, duration: 0.4 }}
-              className="flex items-center gap-5"
-            >
-              <motion.div 
-                className="flex items-center gap-2"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.6, type: 'spring', stiffness: 300, damping: 20 }}
-              >
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Screened</span>
-                <motion.span 
-                  key={globalPatients.length}
-                  initial={{ scale: 1.8, color: '#3b82f6', y: -5 }}
-                  animate={{ 
-                    scale: [1.8, 0.9, 1],
-                    color: ['#3b82f6', '#1e293b', '#1e293b'],
-                    y: [-5, 2, 0]
-                  }}
-                  transition={{ duration: 0.5, times: [0, 0.6, 1] }}
-                  className="text-sm font-black"
-                >
-                  {globalPatients.length.toLocaleString()}
-                </motion.span>
-              </motion.div>
-              <div className="w-px h-4 bg-slate-300/80"></div>
-              <motion.div 
-                className="flex items-center gap-2"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.7, type: 'spring', stiffness: 300, damping: 20 }}
-              >
-                <span className="text-[10px] font-bold text-rose-400 uppercase">Alerts</span>
-                <motion.span
-                  key={globalPatients.filter((p: any) => p.xray_result?.toLowerCase().includes('abnormal') && !p.att_start_date && !p.referral_date).length}
-                  initial={{ scale: 1.8, color: '#ef4444', y: -5 }}
-                  animate={{ 
-                    scale: [1.8, 0.9, 1],
-                    color: ['#ef4444', '#dc2626', '#dc2626'],
-                    y: [-5, 2, 0]
-                  }}
-                  transition={{ duration: 0.5, times: [0, 0.6, 1] }}
-                  className="text-sm font-black text-rose-600"
-                >
-                  {globalPatients.filter((p: any) => p.xray_result?.toLowerCase().includes('abnormal') && !p.att_start_date && !p.referral_date).length.toLocaleString()}
-                </motion.span>
-              </motion.div>
-              <div className="w-px h-4 bg-slate-300/80"></div>
-              <motion.div 
-                className="flex items-center gap-2"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.8, type: 'spring', stiffness: 300, damping: 20 }}
-              >
-                <span className="text-[10px] font-bold text-emerald-500 uppercase">ATT</span>
-                <motion.span
-                  key={globalPatients.filter((p: any) => p.att_start_date).length}
-                  initial={{ scale: 1.8, color: '#10b981', y: -5 }}
-                  animate={{ 
-                    scale: [1.8, 0.9, 1],
-                    color: ['#10b981', '#059669', '#059669'],
-                    y: [-5, 2, 0]
-                  }}
-                  transition={{ duration: 0.5, times: [0, 0.6, 1] }}
-                  className="text-sm font-black text-emerald-600"
-                >
-                  {globalPatients.filter((p: any) => p.att_start_date).length.toLocaleString()}
-                </motion.span>
-              </motion.div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <div className="relative flex flex-col lg:flex-row items-start w-full gap-8 p-8 max-w-[1920px] mx-auto z-10">
         {/* Left Pane: Calendar - UNLOCKED HEIGHT */}
