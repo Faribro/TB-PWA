@@ -14,12 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Filter, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { LinesAndDotsLoader } from '@/components/LinesAndDotsLoader';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createClient } from '@/lib/supabase-client';
 
 const NeuralDashboard = dynamic(() => import('@/app/dashboard/neural-dashboard-view'), {
   ssr: false,
@@ -62,7 +57,8 @@ export default function VertexPage() {
 
 // Separated so the scope is guaranteed non-null inside this component
 function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSessionScope>> }) {
-  const { data: globalPatients = [], isLoading } = useSWRAllPatients(scope);
+  const { data: globalPatients = [], isLoading, error } = useSWRAllPatients(scope);
+  
   const [metrics, setMetrics] = useState({ total: 0, pending: 0, thisMonth: 0, onATT: 0 });
   const [view, setView] = useState<'table' | 'calendar'>('table');
   const [filters, setFilters] = useState<VertexFilters>(DEFAULT_FILTERS);
@@ -143,10 +139,10 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
 
   useEffect(() => {
     async function fetchMetrics() {
+      const supabase = createClient();
       let totalQ = supabase.from('patients').select('*', { count: 'exact', head: true });
       let pendingQ = supabase.from('patients').select('*', { count: 'exact', head: true })
-        .eq('xray_result', 'ABNORMAL')
-        .is('treatment_start_date', null)
+        .eq('xray_result', 'Abnormal - Suspected')
         .is('att_start_date', null)
         .is('referral_date', null);
 
@@ -154,12 +150,11 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
       let monthQ = supabase.from('patients').select('*', { count: 'exact', head: true })
-        .gte('submitted_on', startOfMonth.toISOString());
+        .gte('screening_date', startOfMonth.toISOString());
         
       let attQ = supabase.from('patients').select('*', { count: 'exact', head: true })
         .not('att_start_date', 'is', null);
 
-      // scope.state is null for superusers → no filter applied → All India
       if (scope.state) {
         totalQ   = totalQ.eq('screening_state', scope.state);
         pendingQ = pendingQ.eq('screening_state', scope.state);

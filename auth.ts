@@ -40,7 +40,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     async jwt({ token, user }) {
       if (user?.email) {
-        // Look up user role/state from Supabase users table
         const { data } = await supabase
           .from('profiles')
           .select('role, state, district, name')
@@ -50,32 +49,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.role = data?.role ?? 'M&E'
         token.state = data?.state ?? 'All'
         token.district = data?.district ?? 'All'
-        token.staffName = data?.name ?? user.name // Use name from profiles, fallback to OAuth name
-
-        // System Override: Only allow if real user is PM or admin
-        const SUPERUSER_ROLES = ['PM', 'admin'];
-        if (SUPERUSER_ROLES.includes(data?.role || '')) {
-          const cookieStore = await cookies();
-          const overrideCookie = cookieStore.get('__samadhaan_override');
-          
-          if (overrideCookie?.value) {
-            try {
-              const override = JSON.parse(overrideCookie.value);
-              token.role = override.role ?? data.role;
-              token.state = override.state ?? data.state;
-              token.district = override.district ?? data.district;
-              token.isImpersonating = true;
-              token.realRole = data.role;
-              
-              console.log(`[OVERRIDE] ${data.role} ${user.email} impersonating as ${override.role}`);
-              
-              // Clear the cookie immediately
-              cookieStore.delete('__samadhaan_override');
-            } catch (err) {
-              console.error('[OVERRIDE] Failed to parse override cookie:', err);
-            }
-          }
-        }
+        token.staffName = data?.name ?? user.name
       }
       return token
     },

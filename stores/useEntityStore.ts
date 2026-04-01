@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { SonicLanguage } from '@/utils/sonicLanguages';
+import type { SessionScope } from '@/lib/session-scope';
 
 export type EntityMode = 'nano' | 'micro' | 'normal' | 'macro' | 'grounded';
 export type EntityState = 'idle' | 'patrolling' | 'investigating' | 'alerting' | 'reporting' | 'idle_ground' | 'greeting' | 'excited';
@@ -54,6 +55,7 @@ interface EntityStore {
     phase: string | null;
     status: 'All' | 'High Alert' | 'On Track';
   };
+  _lockedScope: SessionScope | null;
   sonicLanguage: SonicLanguage;
   sonicDeepScanTarget: string | null;
   sonicDeepScanData: { district: string; screened: number; breaches: number; breachRate: number } | null;
@@ -85,6 +87,7 @@ interface EntityStore {
   setShowGISLeaderboard: (v: boolean) => void;
   setShowGISCascade: (v: boolean) => void;
   setGlobalFilter: (f: Partial<EntityStore['activeFilters']>) => void;
+  initializeScope: (scope: SessionScope) => void;
   setSonicLanguage: (lang: SonicLanguage) => void;
   setSonicDeepScanTarget: (district: string | null) => void;
   setSonicDeepScanData: (data: { district: string; screened: number; breaches: number; breachRate: number } | null) => void;
@@ -139,6 +142,7 @@ export const useEntityStore = create<EntityStore>()(
       showGISLeaderboard: false,
       showGISCascade: false,
       activeFilters: { state: null, district: null, coordinator: null, phase: null, status: 'All' },
+      _lockedScope: null,
       sonicLanguage: 'en' as SonicLanguage,
       sonicDeepScanTarget: null,
       sonicDeepScanData: null,
@@ -227,7 +231,33 @@ export const useEntityStore = create<EntityStore>()(
       setActiveGISMetric: (m) => set({ activeGISMetric: m }),
       setShowGISLeaderboard: (v) => set({ showGISLeaderboard: v }),
       setShowGISCascade: (v) => set({ showGISCascade: v }),
-      setGlobalFilter: (f) => set(state => ({ activeFilters: { ...state.activeFilters, ...f } })),
+      setGlobalFilter: (f) => set(state => {
+        const { _lockedScope } = state;
+        if (_lockedScope && _lockedScope.role !== 'PM') {
+          if (f.state && f.state !== _lockedScope.state) {
+            f = { ...f, state: _lockedScope.state };
+          }
+          if ((_lockedScope.role === 'ME' || _lockedScope.role === 'PC') &&
+              f.district && f.district !== _lockedScope.district) {
+            f = { ...f, district: _lockedScope.district };
+          }
+        }
+        return { activeFilters: { ...state.activeFilters, ...f } };
+      }),
+      initializeScope: (scope) => set((state) => {
+        const current = state.activeFilters;
+        const newState = scope.role !== 'PM' ? scope.state : current.state;
+        const newDistrict = (scope.role === 'ME' || scope.role === 'PC') ? scope.district : current.district;
+        if (current.state === newState && current.district === newDistrict) return state;
+        return {
+          _lockedScope: scope,
+          activeFilters: {
+            ...current,
+            state: newState,
+            district: newDistrict,
+          }
+        };
+      }),
       setSonicLanguage: (lang) => {
         if (typeof localStorage !== 'undefined') localStorage.setItem('sonic-lang', lang);
         set({ sonicLanguage: lang });
@@ -250,6 +280,7 @@ export const useEntityStore = create<EntityStore>()(
         mode: state.mode,
         characterType: state.characterType,
         sonicLanguage: state.sonicLanguage,
+        activeFilters: state.activeFilters,
       }),
       version: 1,
     }

@@ -25,8 +25,20 @@ const NeuralDashboardView = memo(function NeuralDashboardView({
   globalPatients = [],
   isLoading = false,
 }: NeuralDashboardViewProps) {
-  // Don't show empty state while data is still loading
-  if (!isLoading && !globalPatients.length) {
+  // Show loading state while fetching
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-slate-300 border-t-slate-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-600 text-sm">Loading patient data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show empty state only after loading completes with no data
+  if (!globalPatients.length) {
     return <EmptyState />;
   }
 

@@ -6,7 +6,7 @@ export interface SessionScope {
   role: string;
   state: string | null;
   district: string | null;
-  staffName?: string | null;
+  staffName: string | null;
 }
 
 export const SUPERUSER_ROLES = ['PM', 'admin'] as const;

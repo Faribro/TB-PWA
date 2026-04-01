@@ -1,14 +1,10 @@
 import useSWR from 'swr';
-import { createClient } from '@supabase/supabase-js';
+import { useSession } from 'next-auth/react';
+import { createClient } from '@/lib/supabase-client';
 import { withRetry } from '@/lib/retryMechanism';
 import { cachePatients, getCachedPatients } from '@/lib/cacheManager';
 import { swrPaginatedConfig, swrAllPatientsConfig } from '@/lib/swrConfig';
 import type { SessionScope } from '@/hooks/useSessionScope';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
 
 interface FetchPatientsParams {
   page: number;
@@ -19,13 +15,16 @@ interface FetchPatientsParams {
   userState?: string;
 }
 
-const fetcher = async (key: string, params: FetchPatientsParams) => {
+const fetcher = async (key: string, params: FetchPatientsParams, userEmail?: string) => {
   const { page, pageSize, filters, searchTerm, sortBy, userState } = params;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
   
   return withRetry(async () => {
-    let query = supabase.from('patients').select('*', { count: 'exact' });
+    const supabase = createClient(userEmail);
+    let query = supabase
+      .from('patients')
+      .select('*', { count: 'exact' });
     
     if (userState) {
       query = query.eq('screening_state', userState);
@@ -49,30 +48,27 @@ const fetcher = async (key: string, params: FetchPatientsParams) => {
     
     if (error) throw error;
     
-    // Filter out Unknown values client-side
-    const filtered = (data || []).filter(p => 
-      p.facility_name !== 'Unknown' && p.facility_type !== 'Unknown'
-    );
-    
-    return { data: filtered, count: count || 0 };
+    return { data: data || [], count: count || 0 };
   }, {
     maxRetries: 3,
     onRetry: (attempt) => console.log(`[SWR] Retry attempt ${attempt} for paginated fetch`)
   });
 };
 
-const allPatientsFetcher = async (scope: SessionScope | null) => {
+const allPatientsFetcher = async (scope: SessionScope | null, userEmail?: string) => {
   try {
     const cacheKey = `${scope?.state ?? 'all'}::${scope?.district ?? 'all'}`;
     const cached = await getCachedPatients(cacheKey);
     if (cached.length > 0) return cached;
 
+    const supabase = createClient(userEmail);
+    
     // Step 1: get total count
     let countQuery = supabase
       .from('patients')
       .select('*', { count: 'exact', head: true });
-    if (scope?.state)    countQuery = countQuery.ilike('screening_state',    scope.state);
-    if (scope?.district) countQuery = countQuery.ilike('screening_district', scope.district);
+    if (scope?.state)    countQuery = countQuery.eq('screening_state',    scope.state);
+    if (scope?.district) countQuery = countQuery.eq('screening_district', scope.district);
 
     const { count, error: countError } = await countQuery;
     if (countError || !count) return [];
@@ -81,12 +77,13 @@ const allPatientsFetcher = async (scope: SessionScope | null) => {
     const batchSize = 1000;
     const pages = Math.ceil(count / batchSize);
     const fetches = Array.from({ length: pages }, (_, i) => {
+      const supabase = createClient(userEmail);
       let q = supabase
         .from('patients')
         .select('*')
         .range(i * batchSize, (i + 1) * batchSize - 1);
-      if (scope?.state)    q = q.ilike('screening_state',    scope.state);
-      if (scope?.district) q = q.ilike('screening_district', scope.district);
+      if (scope?.state)    q = q.eq('screening_state',    scope.state);
+      if (scope?.district) q = q.eq('screening_district', scope.district);
       return q;
     });
 
@@ -94,9 +91,7 @@ const allPatientsFetcher = async (scope: SessionScope | null) => {
     const allData: any[] = [];
     for (const { data, error } of results) {
       if (error || !data) continue;
-      allData.push(...data.filter(
-        (p: any) => p.facility_name !== 'Unknown' && p.facility_type !== 'Unknown'
-      ));
+      allData.push(...data);
     }
 
     await cachePatients(allData, cacheKey);
@@ -108,28 +103,34 @@ const allPatientsFetcher = async (scope: SessionScope | null) => {
 };
 
 export function useSWRPatients(params: FetchPatientsParams) {
-  const key = ['patients', params.page, params.pageSize, params.filters, params.searchTerm, params.sortBy, params.userState];
+  const { data: session } = useSession();
+  const key = session ? ['patients', params.page, params.pageSize, params.filters, params.searchTerm, params.sortBy, params.userState] : null;
   
   return useSWR(
     key,
-    () => fetcher(key[0], params),
+    () => fetcher(key![0], params, session?.user?.email),
     swrPaginatedConfig
   );
 }
 
-export function useSWRAllPatients(scope?: SessionScope | null) {
+export function useSWRAllPatients(scope: SessionScope | null) {
+  const { data: session } = useSession();
+  const key = session && scope ? ['allPatients', scope.state ?? 'all', scope.district ?? 'all'] : null;
+  
   return useSWR(
-    // Key includes scope so different users never share cache entries
-    ['allPatients', scope?.state ?? 'all', scope?.district ?? 'all'],
-    () => allPatientsFetcher(scope ?? null),
+    key,
+    () => scope ? allPatientsFetcher(scope, session?.user?.email) : Promise.resolve([]),
     swrAllPatientsConfig
   );
 }
 
 export function useSWRFilterMetadata(userState?: string) {
-  return useSWR(['filterMetadata', userState], async () => {
+  const { data: session } = useSession();
+  const key = session ? ['filterMetadata', userState] : null;
+  
+  return useSWR(key, async () => {
     return withRetry(async () => {
-      // Paginated fetch for filter metadata — lightweight columns only
+      const supabase = createClient(session?.user?.email);
       const batchSize = 5000;
       const allData: { screening_state: string; screening_district: string; facility_type: string }[] = [];
       let offset = 0;
