@@ -1,0 +1,15 @@
+═══════════════════════════════════════════════════════════════════════════
+📊 GOOGLE SHEETS UUID EXTRACTOR
+═══════════════════════════════════════════════════════════════════════════
+
+🔐 Authenticating with Google Sheets API...
+📄 Sheet ID: 1fxIkpJokvzUR9_IPEzyGbivEXpNgS5JbzWopLhCYaTs 
+
+📥 Fetching data from Google Sheets...
+❌ Error: Requested entity was not found.
+Error: Requested entity was not found.
+    at Gaxios._request (c:\Users\farid\Desktop\TB-PWA-Clean\node_modules\gaxios\build\cjs\src\gaxios.js:155:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async JWT.requestAsync (c:\Users\farid\Desktop\TB-PWA-Clean\node_modules\google-auth-library\build\src\auth\oauth2client.js:463:20)
+    at async createAPIRequestAsync (c:\Users\farid\Desktop\TB-PWA-Clean\node_modules\googleapis-common\build\src\apirequest.js:308:25)
+    at async extractUUIDs (c:\Users\farid\Desktop\TB-PWA-Clean\scripts\extract-sheet-uuids.js:59:28)

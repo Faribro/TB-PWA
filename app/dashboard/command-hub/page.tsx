@@ -205,12 +205,12 @@ const Header = memo<HeaderProps>(({ firstName, userRole }) => {
     setMounted(true);
   }, []);
   
-  // Return a static placeholder during SSR that matches the animated version's layout
+  // Simplified SSR version - no animations
   if (!mounted) {
     return (
-      <header className="text-center mb-16 relative rounded-3xl border border-white/40 bg-gradient-to-br from-white/60 to-slate-50/40 p-12 backdrop-blur-xl shadow-sm">
+      <div className="text-center mb-16 relative rounded-3xl border border-white/40 bg-gradient-to-br from-white/60 to-slate-50/40 p-12 backdrop-blur-xl shadow-sm">
         <div className="absolute -top-12 -right-2 z-50">
-          <div className="relative bg-white/95 backdrop-blur-md border border-slate-200/60 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] px-5 py-2.5 flex items-center gap-2.5">
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200/60 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] px-5 py-2.5 flex items-center gap-2.5">
             <div className="flex items-center gap-2">
               <span className="text-[13px] font-medium text-slate-500 tracking-tight">Welcome,</span>
               <span className="text-[13px] font-semibold text-slate-900 tracking-tight">{firstName}</span>
@@ -218,30 +218,20 @@ const Header = memo<HeaderProps>(({ firstName, userRole }) => {
             <div className="h-3.5 w-[0.5px] bg-gradient-to-b from-transparent via-slate-300 to-transparent" />
             <div className="flex items-center gap-2.5">
               <span className="text-[12px] font-medium text-slate-500 tracking-tight">you&apos;re Logged in as an </span>
-              <div className="relative">
-                <div className="absolute inset-0 bg-slate-900 rounded-md blur-[2px] opacity-20" />
-                <div className="relative px-2.5 py-0.5 rounded-md bg-slate-900 text-white text-[11px] font-semibold uppercase tracking-[0.1em]">{userRole}</div>
-              </div>
+              <div className="px-2.5 py-0.5 rounded-md bg-slate-900 text-white text-[11px] font-semibold uppercase tracking-[0.1em]">{userRole}</div>
             </div>
           </div>
         </div>
         
-        <div className="relative w-32 h-[3px] mx-auto mb-10 overflow-hidden rounded-full">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
-        </div>
+        <div className="w-32 h-[3px] mx-auto mb-10 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
         
-        <div className="relative inline-block mb-6">
-          <h1 className="relative text-6xl md:text-7xl lg:text-8xl font-black tracking-[0.4em] bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 bg-clip-text text-transparent font-mono">
+        <div className="mb-6">
+          <h1 className="text-6xl md:text-7xl lg:text-8xl font-black tracking-[0.4em] bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 bg-clip-text text-transparent font-mono">
             SAMADHAAN
           </h1>
-          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-3/4 h-[2px] overflow-hidden rounded-full">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500 to-transparent" />
-          </div>
         </div>
         
-        <div className="mb-2">
-          <p className="text-lg md:text-xl font-semibold text-slate-600 tracking-tight">National Integrated Health OS</p>
-        </div>
+        <p className="text-lg md:text-xl font-semibold text-slate-600 tracking-tight mb-2">National Integrated Health OS</p>
         
         <div className="flex items-center justify-center gap-6 text-xs font-medium text-slate-500">
           <div className="flex items-center gap-2">
@@ -259,13 +249,7 @@ const Header = memo<HeaderProps>(({ firstName, userRole }) => {
             <span>Enterprise Grade</span>
           </div>
         </div>
-        
-        <div className="absolute left-1/2 -translate-x-1/2 -bottom-8 flex items-center gap-3">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-blue-400 to-purple-400 opacity-30" />
-          ))}
-        </div>
-      </header>
+      </div>
     );
   }
 
