@@ -208,7 +208,7 @@ const Header = memo<HeaderProps>(({ firstName, userRole }) => {
   // Simplified SSR version - no animations
   if (!mounted) {
     return (
-      <div className="text-center mb-16 relative rounded-3xl border border-white/40 bg-gradient-to-br from-white/60 to-slate-50/40 p-12 backdrop-blur-xl shadow-sm">
+      <div className="text-center mb-16 relative rounded-3xl border border-white/40 bg-gradient-to-br from-white/60 to-slate-50/40 p-12 backdrop-blur-xl shadow-sm" suppressHydrationWarning>
         <div className="absolute -top-12 -right-2 z-50">
           <div className="bg-white/95 backdrop-blur-md border border-slate-200/60 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] px-5 py-2.5 flex items-center gap-2.5">
             <div className="flex items-center gap-2">
