@@ -41,7 +41,7 @@ export default auth((req) => {
   }
   
   // Allow public routes
-  const publicRoutes = ['/login', '/unauthorized', '/api/auth'];
+  const publicRoutes = ['/login', '/unauthorized', '/api/auth', '/auth-test'];
   if (publicRoutes.some(route => pathname.startsWith(route))) {
     return NextResponse.next();
   }
