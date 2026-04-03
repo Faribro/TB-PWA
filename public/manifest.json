@@ -1,0 +1,24 @@
+{
+  "name": "SAMADHAAN Health OS",
+  "short_name": "SAMADHAAN",
+  "description": "National Integrated Prison & OCS TB Surveillance System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/Images/Logo/AllianceIndia-Logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/Images/Logo/AllianceIndia-Logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -46,18 +46,32 @@ export default auth((req) => {
     return NextResponse.next();
   }
   
-  // Redirect root to Command Hub if authenticated, login if not
+  // Redirect root to appropriate dashboard based on role
   if (pathname === '/') {
     if (req.auth) {
-      return NextResponse.redirect(new URL('/dashboard/command-hub', req.url));
+      const role = req.auth.user?.role;
+      if (role === 'PC') {
+        return NextResponse.redirect(new URL('/dashboard/my-submissions', req.url));
+      } else if (role === 'ME') {
+        return NextResponse.redirect(new URL('/dashboard/vertex', req.url));
+      } else {
+        return NextResponse.redirect(new URL('/dashboard/command-hub', req.url));
+      }
     } else {
       return NextResponse.redirect(new URL('/login', req.url));
     }
   }
   
-  // Redirect /dashboard to Command Hub
+  // Redirect /dashboard to appropriate default based on role
   if (pathname === '/dashboard') {
-    return NextResponse.redirect(new URL('/dashboard/command-hub', req.url));
+    const role = req.auth?.user?.role;
+    if (role === 'PC') {
+      return NextResponse.redirect(new URL('/dashboard/my-submissions', req.url));
+    } else if (role === 'ME') {
+      return NextResponse.redirect(new URL('/dashboard/vertex', req.url));
+    } else {
+      return NextResponse.redirect(new URL('/dashboard/command-hub', req.url));
+    }
   }
   
   // Protect dashboard routes
@@ -83,11 +97,18 @@ export default auth((req) => {
     }
   }
 
-  // PC redirect: redirect PC users from command-hub to my-submissions
+  // Role-based access control for dashboard routes
   if (pathname.startsWith('/dashboard')) {
     const role = req.auth?.user?.role;
-    if (role === 'PC' && (pathname === '/dashboard' || pathname === '/dashboard/command-hub')) {
+    
+    // PC users: only access my-submissions, settings, and docs
+    if (role === 'PC' && pathname === '/dashboard/command-hub') {
       return NextResponse.redirect(new URL('/dashboard/my-submissions', req.url));
+    }
+    
+    // ME users: cannot access command-hub (PM/admin/SPM only)
+    if (role === 'ME' && pathname === '/dashboard/command-hub') {
+      return NextResponse.redirect(new URL('/dashboard/vertex', req.url));
     }
   }
 
