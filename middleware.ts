@@ -50,9 +50,9 @@ export default auth((req) => {
   if (pathname === '/') {
     if (req.auth) {
       const role = req.auth.user?.role;
-      if (role === 'PC') {
+      if (role === 'PC' || role === 'Prison Coordinator') {
         return NextResponse.redirect(new URL('/dashboard/my-submissions', req.url));
-      } else if (role === 'ME') {
+      } else if (role === 'ME' || role === 'M&E Officer') {
         return NextResponse.redirect(new URL('/dashboard/vertex', req.url));
       } else {
         return NextResponse.redirect(new URL('/dashboard/command-hub', req.url));
@@ -65,9 +65,9 @@ export default auth((req) => {
   // Redirect /dashboard to appropriate default based on role
   if (pathname === '/dashboard') {
     const role = req.auth?.user?.role;
-    if (role === 'PC') {
+    if (role === 'PC' || role === 'Prison Coordinator') {
       return NextResponse.redirect(new URL('/dashboard/my-submissions', req.url));
-    } else if (role === 'ME') {
+    } else if (role === 'ME' || role === 'M&E Officer') {
       return NextResponse.redirect(new URL('/dashboard/vertex', req.url));
     } else {
       return NextResponse.redirect(new URL('/dashboard/command-hub', req.url));
@@ -91,7 +91,7 @@ export default auth((req) => {
       return NextResponse.redirect(loginUrl);
     }
     const role = req.auth.user?.role;
-    const SUPERUSER_ROLES = ['PM', 'admin'];
+    const SUPERUSER_ROLES = ['PM', 'admin', 'Program Manager'];
     if (!SUPERUSER_ROLES.includes(role || '')) {
       return NextResponse.redirect(new URL('/unauthorized', req.url));
     }
@@ -102,12 +102,12 @@ export default auth((req) => {
     const role = req.auth?.user?.role;
     
     // PC users: only access my-submissions, settings, and docs
-    if (role === 'PC' && pathname === '/dashboard/command-hub') {
+    if ((role === 'PC' || role === 'Prison Coordinator') && pathname === '/dashboard/command-hub') {
       return NextResponse.redirect(new URL('/dashboard/my-submissions', req.url));
     }
     
     // ME users: cannot access command-hub (PM/admin/SPM only)
-    if (role === 'ME' && pathname === '/dashboard/command-hub') {
+    if ((role === 'ME' || role === 'M&E Officer') && pathname === '/dashboard/command-hub') {
       return NextResponse.redirect(new URL('/dashboard/vertex', req.url));
     }
   }

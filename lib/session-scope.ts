@@ -16,23 +16,23 @@ export interface SessionScope {
 export async function getSessionScope(): Promise<SessionScope> {
   const session = await auth();
   if (!session?.user) {
-    throw new Response('Unauthorized', { status: 401 });
+    throw new Error('Unauthorized');
   }
 
-  const role     = session.user.role     ?? 'M&E';
+  const role     = session.user.role     ?? 'ME';
   const rawState = (session.user.state    ?? 'All').trim();
   const rawDist  = ((session.user as any).district ?? 'All').trim();
   const staffName = (session.user as any).staffName ?? session.user.name;
 
-  const SUPERUSER_ROLES = ['PM', 'admin'];
+  const SUPERUSER_ROLES = ['PM', 'admin', 'Program Manager'];
   const isSuperuser = SUPERUSER_ROLES.includes(role);
-  const isStateLevel = role === 'SPM' || role === 'ME';
+  const isStateLevel = ['SPM', 'ME', 'M&E Officer', 'State Program Manager'].includes(role);
 
   return {
     role,
     state:    (isSuperuser || rawState === 'All') ? null : rawState,
     district: (isSuperuser || isStateLevel || rawDist === 'All') ? null : rawDist,
-    staffName: role === 'PC' ? staffName : null,
+    staffName: (role === 'PC' || role === 'Prison Coordinator') ? staffName : null,
   };
 }
 
@@ -42,8 +42,8 @@ export async function getSessionScope(): Promise<SessionScope> {
  */
 export function applyScope<T>(query: T, scope: SessionScope): T {
   let q = query as any;
-  if (scope.state)    q = q.ilike('screening_state',    scope.state);
-  if (scope.district) q = q.ilike('screening_district', scope.district);
+  if (scope.state)    q = q.eq('screening_state',    scope.state);
+  if (scope.district) q = q.eq('screening_district', scope.district);
   if (scope.staffName) q = q.ilike('staff_name', `%${scope.staffName}%`);
   return q as T;
 }

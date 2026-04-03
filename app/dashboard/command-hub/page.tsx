@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { FeatureShowcase } from '@/components/FeatureShowcase';
 
-const SUPERUSER_ROLES = ['PM', 'admin'] as const;
+const SUPERUSER_ROLES = ['PM', 'admin', 'Program Manager'] as const;
 
 type CardOrientation = 'top' | 'right' | 'bottom' | 'left';
 

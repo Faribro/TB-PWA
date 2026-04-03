@@ -30,19 +30,19 @@ import { sounds } from '@/lib/sound';
 import { DashboardErrorBoundary } from '@/components/DashboardErrorBoundary';
 
 const TAB_CONFIG = [
-  { id: 'command-hub', path: '/dashboard/command-hub', icon: LayoutDashboard, label: 'Command Hub', description: 'Unified Hub', sonicId: 'nav-command', roles: ['PM', 'admin', 'SPM'] },
-  { id: 'vertex', path: '/dashboard/vertex', icon: Network, label: 'Vertex', description: 'Neural overview', sonicId: 'nav-vertex', roles: ['PM', 'admin', 'SPM', 'ME'] },
-  { id: 'follow-up', path: '/dashboard/follow-up', icon: GitBranch, label: 'Follow-up Pipeline', description: 'Patient pipeline', sonicId: 'nav-followup', roles: ['PM', 'admin', 'SPM', 'ME'] },
-  { id: 'mande', path: '/dashboard/mande', icon: Copy, label: 'M&E Tools', description: 'Monitoring & eval', sonicId: 'nav-mande', roles: ['PM', 'admin', 'SPM', 'ME'] },
-  { id: 'gis', path: '/dashboard/gis', icon: Network, label: 'GIS Map', description: 'Spatial intelligence', sonicId: 'nav-gis', roles: ['PM', 'admin', 'SPM', 'ME'] },
-  { id: 'knowledge', path: '/docs', icon: BookOpen, label: 'Knowledge', description: 'Docs & guides', sonicId: 'nav-knowledge', roles: ['PM', 'admin', 'SPM', 'ME'] },
-  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account & sync', sonicId: 'nav-settings', roles: ['PM', 'admin', 'SPM', 'ME'] },
+  { id: 'command-hub', path: '/dashboard/command-hub', icon: LayoutDashboard, label: 'Command Hub', description: 'Unified Hub', sonicId: 'nav-command', roles: ['PM', 'admin', 'SPM', 'State Program Manager'] },
+  { id: 'vertex', path: '/dashboard/vertex', icon: Network, label: 'Vertex', description: 'Neural overview', sonicId: 'nav-vertex', roles: ['PM', 'admin', 'SPM', 'ME', 'State Program Manager', 'M&E Officer'] },
+  { id: 'follow-up', path: '/dashboard/follow-up', icon: GitBranch, label: 'Follow-up Pipeline', description: 'Patient pipeline', sonicId: 'nav-followup', roles: ['PM', 'admin', 'SPM', 'ME', 'State Program Manager', 'M&E Officer'] },
+  { id: 'mande', path: '/dashboard/mande', icon: Copy, label: 'M&E Tools', description: 'Monitoring & eval', sonicId: 'nav-mande', roles: ['PM', 'admin', 'SPM', 'ME', 'State Program Manager', 'M&E Officer'] },
+  { id: 'gis', path: '/dashboard/gis', icon: Network, label: 'GIS Map', description: 'Spatial intelligence', sonicId: 'nav-gis', roles: ['PM', 'admin', 'SPM', 'ME', 'State Program Manager', 'M&E Officer'] },
+  { id: 'knowledge', path: '/docs', icon: BookOpen, label: 'Knowledge', description: 'Docs & guides', sonicId: 'nav-knowledge', roles: ['PM', 'admin', 'SPM', 'ME', 'State Program Manager', 'M&E Officer'] },
+  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account & sync', sonicId: 'nav-settings', roles: ['PM', 'admin', 'SPM', 'ME', 'State Program Manager', 'M&E Officer'] },
 ];
 
 const PC_TAB_CONFIG = [
-  { id: 'my-submissions', path: '/dashboard/my-submissions', icon: FileText, label: 'My Work', description: 'Submissions', sonicId: 'nav-mywork', roles: ['PC'] },
-  { id: 'knowledge', path: '/docs', icon: BookOpen, label: 'Knowledge', description: 'Docs & guides', sonicId: 'nav-knowledge', roles: ['PC'] },
-  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account', sonicId: 'nav-settings', roles: ['PC'] },
+  { id: 'my-submissions', path: '/dashboard/my-submissions', icon: FileText, label: 'My Work', description: 'Submissions', sonicId: 'nav-mywork', roles: ['PC', 'Prison Coordinator'] },
+  { id: 'knowledge', path: '/docs', icon: BookOpen, label: 'Knowledge', description: 'Docs & guides', sonicId: 'nav-knowledge', roles: ['PC', 'Prison Coordinator'] },
+  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account', sonicId: 'nav-settings', roles: ['PC', 'Prison Coordinator'] },
 ];
 
 function NavItem({ tab, isActive, isCollapsed, delay }: {
@@ -184,7 +184,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   
   // Use useMemo to prevent recalculation on every render
   const visibleTabs = useMemo(() => {
-    if (userRole === 'PC') return PC_TAB_CONFIG
+    if (userRole === 'PC' || userRole === 'Prison Coordinator') return PC_TAB_CONFIG
     // Filter tabs based on role
     return TAB_CONFIG.filter(t => t.roles.includes(userRole))
   }, [userRole]);

@@ -9,7 +9,7 @@ export interface SessionScope {
   staffName: string | null;
 }
 
-export const SUPERUSER_ROLES = ['PM', 'admin'] as const;
+export const SUPERUSER_ROLES = ['PM', 'admin', 'Program Manager'] as const;
 
 export function isSuperuser(scope: SessionScope | null): boolean {
   if (!scope) return false;
