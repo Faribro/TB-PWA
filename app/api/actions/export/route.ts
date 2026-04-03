@@ -2,15 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Create Supabase client lazily to avoid build-time errors
+function getSupabaseClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 // ── Annexure 1: Presumptive TB Register ─────────────────────────────────────
 // Columns: Client ID, Name, Age, Sex, Facility, District, Screening Date,
 //          Symptoms, X-Ray Result, Referred For Sputum
 async function buildAnnexure1(state?: string, district?: string) {
+  const supabase = getSupabaseClient();
   let query = supabase
     .from('patients')
     .select(
@@ -50,6 +54,7 @@ async function buildAnnexure1(state?: string, district?: string) {
 // Columns: Client ID, Name, TB Type, ATT Start Date, Treatment Outcome,
 //          SLA Status, District, Facility
 async function buildAnnexure2(state?: string, district?: string) {
+  const supabase = getSupabaseClient();
   let query = supabase
     .from('patients')
     .select(

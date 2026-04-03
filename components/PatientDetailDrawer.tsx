@@ -66,6 +66,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   // Task 3: Ownership guard — prevent viewing patients outside user's scope
   const isAuthorized =
     !scope ||                        // scope not loaded yet — allow render
+    !localPatient ||                 // patient not loaded yet — allow render
     isSuperuser(scope) ||            // admin / PM / Program Manager see all
     !scope.state ||                  // national user (state is null)
     localPatient.screening_state === scope.state;
