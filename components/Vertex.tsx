@@ -524,7 +524,7 @@ export default function Vertex({
   externalLoading?: boolean;
 } = {}) {
   // Use external data when provided (avoids duplicate fetch + 400 errors)
-  const { data: swrData = [], isLoading: swrLoading } = useSWRAllPatients();
+  const { data: swrData = [], isLoading: swrLoading } = useSWRAllPatients(null);
   const globalPatients: any[] = externalPatients ?? swrData;
   const isLoading = externalLoading ?? swrLoading;
 
@@ -570,6 +570,8 @@ export default function Vertex({
     
     for (let i = 0; i < globalPatients.length; i++) {
       const patient = globalPatients[i];
+      // ✅ NULL SAFETY: Guard against null/undefined patients
+      if (!patient) continue;
       if (patient.screening_state) states.add(patient.screening_state);
       if (patient.screening_district) districts.add(patient.screening_district);
     }
@@ -588,6 +590,8 @@ export default function Vertex({
     
     for (let i = 0; i < globalPatients.length; i++) {
       const patient = globalPatients[i];
+      // ✅ NULL SAFETY: Guard against null/undefined patients
+      if (!patient) continue;
       
       // Apply geographic filters early
       if (filterState !== 'All' && patient.screening_state !== filterState) continue;
@@ -614,6 +618,8 @@ export default function Vertex({
     const result = [];
     for (let i = 0; i < globalPatients.length; i++) {
       const patient = globalPatients[i];
+      // ✅ NULL SAFETY: Guard against null/undefined patients
+      if (!patient) continue;
       
       const dateValue = patient.screening_date || patient.submitted_on;
       const normalizedDate = getLocalYMD(dateValue);
@@ -648,6 +654,9 @@ export default function Vertex({
 
     for (let i = 0; i < patientsForSelectedDate.length; i++) {
       const patient = patientsForSelectedDate[i];
+      // ✅ NULL SAFETY: Guard against null/undefined patients
+      if (!patient) continue;
+      
       const state = patient.screening_state || 'Unknown State';
       const district = patient.screening_district || 'Unknown District';
       const facility = patient.facility_name || 'Unknown Facility';

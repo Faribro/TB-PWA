@@ -27,6 +27,8 @@ import { useSonicIntelligence } from '@/hooks/useSonicIntelligence';
 import { useEntityStore } from '@/stores/useEntityStore';
 import { sounds } from '@/lib/sound';
 
+import { DashboardErrorBoundary } from '@/components/DashboardErrorBoundary';
+
 const TAB_CONFIG = [
   { id: 'command-hub', path: '/dashboard/command-hub', icon: LayoutDashboard, label: 'Command Hub', description: 'Unified Hub', sonicId: 'nav-command', roles: ['PM', 'admin', 'SPM'] },
   { id: 'vertex', path: '/dashboard/vertex', icon: Network, label: 'Vertex', description: 'Neural overview', sonicId: 'nav-vertex', roles: ['PM', 'admin', 'SPM', 'ME'] },
@@ -296,15 +298,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </motion.aside>
 
       <main className="flex-1 h-full overflow-y-auto relative z-10 flex flex-col">
-        <motion.div
-          key={pathname}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.15, ease: 'easeOut' }}
-          className="flex-1 h-full w-full relative"
-        >
-          {children}
-        </motion.div>
+        <DashboardErrorBoundary>
+          <motion.div
+            key={pathname}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className="flex-1 h-full w-full relative"
+          >
+            {children}
+          </motion.div>
+        </DashboardErrorBoundary>
       </main>
     </div>
   );
