@@ -4,6 +4,7 @@
  * Every API route and server action imports from here.
  */
 import { auth } from '@/auth';
+import { Role, ROLE_DATA_ACCESS, DataAccessTier, normalizeRole } from '@/lib/constants/roles';
 
 export interface SessionScope {
   role: string;
@@ -21,20 +22,20 @@ export async function getSessionScope(): Promise<SessionScope> {
       throw new Error('Unauthorized');
     }
 
-    const role     = session.user.role     ?? 'ME';
-    const rawState = (session.user.state    ?? 'All').trim();
-    const rawDist  = ((session.user as any).district ?? 'All').trim();
+    const rawRole = session.user.role ?? 'ME';
+    const role = normalizeRole(rawRole) || Role.ME_OFFICER;
+    const rawState = (session.user.state ?? 'All').trim();
+    const rawDist = ((session.user as any).district ?? 'All').trim();
     const staffName = (session.user as any).staffName ?? session.user.name;
 
-    const SUPERUSER_ROLES = ['PM', 'admin', 'Program Manager'];
-    const isSuperuser = SUPERUSER_ROLES.includes(role);
-    const isStateLevel = ['SPM', 'ME', 'M&E Officer', 'State Program Manager'].includes(role);
+    // Determine data access tier
+    const accessTier = ROLE_DATA_ACCESS[role];
 
     return {
       role,
-      state:    (isSuperuser || rawState === 'All') ? null : rawState,
-      district: (isSuperuser || isStateLevel || rawDist === 'All') ? null : rawDist,
-      staffName: (role === 'PC' || role === 'Prison Coordinator') ? staffName : null,
+      state: accessTier === DataAccessTier.NATIONAL || rawState === 'All' ? null : rawState,
+      district: accessTier === DataAccessTier.NATIONAL || accessTier === DataAccessTier.STATE || rawDist === 'All' ? null : rawDist,
+      staffName: accessTier === DataAccessTier.FACILITY ? staffName : null,
     };
   } catch (error) {
     console.error('[getSessionScope] Error:', error);

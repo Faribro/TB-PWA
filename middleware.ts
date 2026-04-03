@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/auth"
+import { normalizeRole, hasRoutePermission, getDefaultRoute, Role } from "@/lib/constants/roles"
 
 // Rate limiting store
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -46,17 +47,14 @@ export default auth((req) => {
     return NextResponse.next();
   }
   
+  // Get user role and normalize it
+  const rawRole = req.auth?.user?.role;
+  const userRole = normalizeRole(rawRole);
+  
   // Redirect root to appropriate dashboard based on role
   if (pathname === '/') {
-    if (req.auth) {
-      const role = req.auth.user?.role;
-      if (role === 'PC' || role === 'Prison Coordinator') {
-        return NextResponse.redirect(new URL('/dashboard/my-submissions', req.url));
-      } else if (role === 'ME' || role === 'M&E Officer') {
-        return NextResponse.redirect(new URL('/dashboard/vertex', req.url));
-      } else {
-        return NextResponse.redirect(new URL('/dashboard/command-hub', req.url));
-      }
+    if (req.auth && userRole) {
+      return NextResponse.redirect(new URL(getDefaultRoute(userRole), req.url));
     } else {
       return NextResponse.redirect(new URL('/login', req.url));
     }
@@ -64,51 +62,41 @@ export default auth((req) => {
   
   // Redirect /dashboard to appropriate default based on role
   if (pathname === '/dashboard') {
-    const role = req.auth?.user?.role;
-    if (role === 'PC' || role === 'Prison Coordinator') {
-      return NextResponse.redirect(new URL('/dashboard/my-submissions', req.url));
-    } else if (role === 'ME' || role === 'M&E Officer') {
-      return NextResponse.redirect(new URL('/dashboard/vertex', req.url));
+    if (userRole) {
+      return NextResponse.redirect(new URL(getDefaultRoute(userRole), req.url));
     } else {
-      return NextResponse.redirect(new URL('/dashboard/command-hub', req.url));
+      return NextResponse.redirect(new URL('/login', req.url));
     }
   }
   
-  // Protect dashboard routes
+  // Protect dashboard routes - require authentication
   if (pathname.startsWith('/dashboard')) {
     if (!req.auth) {
       const loginUrl = new URL('/login', req.url);
       loginUrl.searchParams.set('reason', 'expired');
       return NextResponse.redirect(loginUrl);
     }
+    
+    // Edge-level RBAC: Check route permissions
+    if (userRole && !hasRoutePermission(userRole, pathname)) {
+      console.warn(`[Middleware] Access denied: ${userRole} attempted to access ${pathname}`);
+      const defaultRoute = getDefaultRoute(userRole);
+      return NextResponse.redirect(new URL(defaultRoute, req.url));
+    }
   }
 
-  // Protect admin routes
+  // Protect admin routes - superuser only
   if (pathname.startsWith('/admin')) {
     if (!req.auth) {
       const loginUrl = new URL('/login', req.url);
       loginUrl.searchParams.set('reason', 'unauthorized');
       return NextResponse.redirect(loginUrl);
     }
-    const role = req.auth.user?.role;
-    const SUPERUSER_ROLES = ['PM', 'admin', 'Program Manager'];
-    if (!SUPERUSER_ROLES.includes(role || '')) {
+    
+    const SUPERUSER_ROLES = [Role.ADMIN, Role.PROGRAM_MANAGER];
+    if (!userRole || !SUPERUSER_ROLES.includes(userRole)) {
+      console.warn(`[Middleware] Admin access denied: ${userRole} attempted to access ${pathname}`);
       return NextResponse.redirect(new URL('/unauthorized', req.url));
-    }
-  }
-
-  // Role-based access control for dashboard routes
-  if (pathname.startsWith('/dashboard')) {
-    const role = req.auth?.user?.role;
-    
-    // PC users: only access my-submissions, settings, and docs
-    if ((role === 'PC' || role === 'Prison Coordinator') && pathname === '/dashboard/command-hub') {
-      return NextResponse.redirect(new URL('/dashboard/my-submissions', req.url));
-    }
-    
-    // ME users: cannot access command-hub (PM/admin/SPM only)
-    if ((role === 'ME' || role === 'M&E Officer') && pathname === '/dashboard/command-hub') {
-      return NextResponse.redirect(new URL('/dashboard/vertex', req.url));
     }
   }
 
@@ -118,6 +106,7 @@ export default auth((req) => {
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  response.headers.set('X-Content-Security-Policy', "default-src 'self'");
   
   return response;
 })

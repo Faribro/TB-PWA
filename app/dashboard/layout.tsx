@@ -29,20 +29,22 @@ import { sounds } from '@/lib/sound';
 
 import { DashboardErrorBoundary } from '@/components/DashboardErrorBoundary';
 
+import { Role } from '@/lib/constants/roles';
+
 const TAB_CONFIG = [
-  { id: 'home', path: '/dashboard/command-hub', icon: LayoutDashboard, label: 'Home', description: 'Unified Hub', sonicId: 'nav-home', roles: ['PM', 'admin', 'SPM', 'ME', 'State Program Manager', 'M&E Officer', 'Program Manager'] },
-  { id: 'vertex', path: '/dashboard/vertex', icon: Network, label: 'Vertex', description: 'Neural overview', sonicId: 'nav-vertex', roles: ['PM', 'admin', 'SPM', 'ME', 'State Program Manager', 'M&E Officer', 'Program Manager'] },
-  { id: 'follow-up', path: '/dashboard/follow-up', icon: GitBranch, label: 'Follow-up Pipeline', description: 'Patient pipeline', sonicId: 'nav-followup', roles: ['PM', 'admin', 'SPM', 'ME', 'State Program Manager', 'M&E Officer', 'Program Manager'] },
-  { id: 'mande', path: '/dashboard/mande', icon: Copy, label: 'M&E Tools', description: 'Monitoring & eval', sonicId: 'nav-mande', roles: ['PM', 'admin', 'SPM', 'ME', 'State Program Manager', 'M&E Officer', 'Program Manager'] },
-  { id: 'gis', path: '/dashboard/gis', icon: Network, label: 'GIS Map', description: 'Spatial intelligence', sonicId: 'nav-gis', roles: ['PM', 'admin', 'SPM', 'ME', 'State Program Manager', 'M&E Officer', 'Program Manager'] },
-  { id: 'knowledge', path: '/docs', icon: BookOpen, label: 'Knowledge', description: 'Docs & guides', sonicId: 'nav-knowledge', roles: ['PM', 'admin', 'SPM', 'ME', 'State Program Manager', 'M&E Officer', 'Program Manager', 'PC', 'Prison Coordinator'] },
-  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account & sync', sonicId: 'nav-settings', roles: ['PM', 'admin', 'SPM', 'ME', 'State Program Manager', 'M&E Officer', 'Program Manager', 'PC', 'Prison Coordinator'] },
+  { id: 'home', path: '/dashboard/command-hub', icon: LayoutDashboard, label: 'Home', description: 'Unified Hub', sonicId: 'nav-home', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER, Role.PRISON_COORDINATOR] },
+  { id: 'vertex', path: '/dashboard/vertex', icon: Network, label: 'Vertex', description: 'Neural overview', sonicId: 'nav-vertex', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER] },
+  { id: 'follow-up', path: '/dashboard/follow-up', icon: GitBranch, label: 'Follow-up Pipeline', description: 'Patient pipeline', sonicId: 'nav-followup', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER] },
+  { id: 'mande', path: '/dashboard/mande', icon: Copy, label: 'M&E Tools', description: 'Monitoring & eval', sonicId: 'nav-mande', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER] },
+  { id: 'gis', path: '/dashboard/gis', icon: Network, label: 'GIS Map', description: 'Spatial intelligence', sonicId: 'nav-gis', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER] },
+  { id: 'knowledge', path: '/docs', icon: BookOpen, label: 'Knowledge', description: 'Docs & guides', sonicId: 'nav-knowledge', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER, Role.PRISON_COORDINATOR] },
+  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account & sync', sonicId: 'nav-settings', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER, Role.PRISON_COORDINATOR] },
 ];
 
 const PC_TAB_CONFIG = [
-  { id: 'my-submissions', path: '/dashboard/my-submissions', icon: FileText, label: 'My Work', description: 'Submissions', sonicId: 'nav-mywork', roles: ['PC', 'Prison Coordinator'] },
-  { id: 'knowledge', path: '/docs', icon: BookOpen, label: 'Knowledge', description: 'Docs & guides', sonicId: 'nav-knowledge', roles: ['PC', 'Prison Coordinator'] },
-  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account', sonicId: 'nav-settings', roles: ['PC', 'Prison Coordinator'] },
+  { id: 'my-submissions', path: '/dashboard/my-submissions', icon: FileText, label: 'My Work', description: 'Submissions', sonicId: 'nav-mywork', roles: [Role.PRISON_COORDINATOR] },
+  { id: 'knowledge', path: '/docs', icon: BookOpen, label: 'Knowledge', description: 'Docs & guides', sonicId: 'nav-knowledge', roles: [Role.PRISON_COORDINATOR] },
+  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account', sonicId: 'nav-settings', roles: [Role.PRISON_COORDINATOR] },
 ];
 
 function NavItem({ tab, isActive, isCollapsed, delay }: {
@@ -184,7 +186,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   
   // Use useMemo to prevent recalculation on every render
   const visibleTabs = useMemo(() => {
-    if (userRole === 'PC' || userRole === 'Prison Coordinator') return PC_TAB_CONFIG
+    if (userRole === Role.PRISON_COORDINATOR || userRole === 'PC') return PC_TAB_CONFIG
     // Filter tabs based on role
     return TAB_CONFIG.filter(t => t.roles.includes(userRole))
   }, [userRole]);
