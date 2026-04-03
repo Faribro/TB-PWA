@@ -198,21 +198,21 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
     // Apply tree filter district
     if (treeFilter?.district) {
       filtered = filtered.filter(p => 
-        normalizeGeographicKey(p.screening_district) === normalizeGeographicKey(treeFilter.district)
+        p && normalizeGeographicKey(p.screening_district) === normalizeGeographicKey(treeFilter.district)
       );
     }
     
     // Apply universal filter state (state-wide filtering)
     if (filter.state) {
       filtered = filtered.filter(p => 
-        normalizeGeographicKey(p.screening_state) === normalizeGeographicKey(filter.state)
+        p && normalizeGeographicKey(p.screening_state) === normalizeGeographicKey(filter.state)
       );
     }
     
     // Apply universal filter district (district-level filtering)
     if (filter.district) {
       filtered = filtered.filter(p => 
-        normalizeGeographicKey(p.screening_district) === normalizeGeographicKey(filter.district)
+        p && normalizeGeographicKey(p.screening_district) === normalizeGeographicKey(filter.district)
       );
     }
     
@@ -227,6 +227,7 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
     // Apply temporal filtering if actively playing or in historical mode
     if (isTemporalMode) {
       basePatients = basePatients.filter(p => {
+        if (!p) return false;
         const dateValue = p.screening_date;
         if (!dateValue) return false;
         const pDate = new Date(dateValue).getTime();
@@ -237,7 +238,7 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
     // If state filter is active, show all patients in that state
     if (filter.state) {
       return basePatients.filter(p => 
-        normalizeGeographicKey(p.screening_state) === normalizeGeographicKey(filter.state!)
+        p && normalizeGeographicKey(p.screening_state) === normalizeGeographicKey(filter.state!)
       );
     }
     
