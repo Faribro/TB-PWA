@@ -57,6 +57,7 @@
     "@types/canvas-confetti": "^1.9.0",
     "@types/d3": "^7.4.3",
     "@vapi-ai/web": "^2.5.2",
+    "@vercel/analytics": "^2.0.1",
     "@vitalets/google-translate-api": "^9.2.1",
     "ai": "^6.0.116",
     "canvas-confetti": "^1.9.4",

@@ -7,6 +7,7 @@ import { DataPacketChase } from "@/components/DataPacketChase";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { AudioContextInitializer } from "@/components/AudioContextInitializer";
 import { ScopeInitializer } from "@/components/ScopeInitializer";
+import { Analytics } from "@vercel/analytics/next";
 
 const outfit = Outfit({ subsets: ["latin"], weight: ['400', '700'], variable: '--font-outfit' });
 const shareTechMono = Share_Tech_Mono({ subsets: ["latin"], weight: ['400'], variable: '--font-share-tech-mono' });
@@ -55,6 +56,7 @@ export default function RootLayout({
           <AudioContextInitializer />
           <DataPacketChase />
           {children}
+          <Analytics />
         </Providers>
       </body>
     </html>
