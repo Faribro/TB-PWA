@@ -16,10 +16,19 @@ const syncopate = Syncopate({ subsets: ["latin"], weight: ['700'], variable: '--
 export const metadata: Metadata = {
   title: "SAMADHAAN | Health OS",
   description: "National Integrated Prison & OCS TB Surveillance System",
+  manifest: '/manifest.json',
   icons: {
-    icon: '/Images/Logo/AllianceIndia-Logo.png',
+    icon: [
+      { url: '/Images/Logo/AllianceIndia-Logo.png', sizes: 'any' },
+      { url: '/Images/Logo/AllianceIndia-Logo.png', sizes: '32x32', type: 'image/png' },
+      { url: '/Images/Logo/AllianceIndia-Logo.png', sizes: '16x16', type: 'image/png' },
+    ],
     shortcut: '/Images/Logo/AllianceIndia-Logo.png',
     apple: '/Images/Logo/AllianceIndia-Logo.png',
+  },
+  robots: {
+    index: false,
+    follow: false,
   },
 };
 
