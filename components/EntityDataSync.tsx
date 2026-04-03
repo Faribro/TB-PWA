@@ -39,6 +39,7 @@ export function EntityDataSync({ patients }: EntityDataSyncProps) {
     
     for (let i = 0; i < patients.length; i++) {
       const patient = patients[i];
+      if (!patient) continue; // Guard against null patients
       const district = patient.screening_district;
       if (!district) continue;
       
