@@ -57,23 +57,39 @@ const fetcher = async (key: string, params: FetchPatientsParams, userEmail?: str
 
 const allPatientsFetcher = async (scope: SessionScope | null, userEmail?: string) => {
   try {
-    const cacheKey = `${scope?.state ?? 'all'}::${scope?.district ?? 'all'}`;
+    // Build cache key based on scope tier
+    const cacheKey = scope?.staffName 
+      ? `staff::${scope.staffName}` 
+      : `${scope?.state ?? 'all'}::${scope?.district ?? 'all'}`;
+    
     const cached = await getCachedPatients(cacheKey);
     if (cached.length > 0) return cached;
 
     const supabase = createClient(userEmail);
     
-    // Step 1: get total count
+    // Step 1: Build count query with 3-tier RBAC
     let countQuery = supabase
       .from('patients')
       .select('*', { count: 'exact', head: true });
-    if (scope?.state)    countQuery = countQuery.eq('screening_state',    scope.state);
-    if (scope?.district) countQuery = countQuery.eq('screening_district', scope.district);
+    
+    // Apply 3-tier data isolation
+    if (scope?.staffName) {
+      // Tier 3: Prison Coordinator - filter by staff name (case-insensitive, trimmed)
+      countQuery = countQuery.ilike('staff_name', scope.staffName.trim());
+    } else if (scope?.district) {
+      // Tier 2b: District level - filter by state AND district
+      countQuery = countQuery.eq('screening_state', scope.state!);
+      countQuery = countQuery.eq('screening_district', scope.district);
+    } else if (scope?.state) {
+      // Tier 2a: State level - filter by state only
+      countQuery = countQuery.eq('screening_state', scope.state);
+    }
+    // Tier 1: National level - no filters (admin, PM)
 
     const { count, error: countError } = await countQuery;
     if (countError || !count) return [];
 
-    // Step 2: fire all pages in parallel
+    // Step 2: Fire all pages in parallel with same filters
     const batchSize = 1000;
     const pages = Math.ceil(count / batchSize);
     const fetches = Array.from({ length: pages }, (_, i) => {
@@ -82,8 +98,17 @@ const allPatientsFetcher = async (scope: SessionScope | null, userEmail?: string
         .from('patients')
         .select('*')
         .range(i * batchSize, (i + 1) * batchSize - 1);
-      if (scope?.state)    q = q.eq('screening_state',    scope.state);
-      if (scope?.district) q = q.eq('screening_district', scope.district);
+      
+      // Apply same 3-tier filters
+      if (scope?.staffName) {
+        q = q.ilike('staff_name', scope.staffName.trim());
+      } else if (scope?.district) {
+        q = q.eq('screening_state', scope.state!);
+        q = q.eq('screening_district', scope.district);
+      } else if (scope?.state) {
+        q = q.eq('screening_state', scope.state);
+      }
+      
       return q;
     });
 
@@ -115,7 +140,9 @@ export function useSWRPatients(params: FetchPatientsParams) {
 
 export function useSWRAllPatients(scope: SessionScope | null) {
   const { data: session } = useSession();
-  const key = session && scope ? ['allPatients', scope.state ?? 'all', scope.district ?? 'all'] : null;
+  const key = session && scope 
+    ? ['allPatients', scope.state ?? 'all', scope.district ?? 'all', scope.staffName ?? 'all'] 
+    : null;
   
   return useSWR(
     key,
