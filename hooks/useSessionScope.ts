@@ -19,10 +19,18 @@ export function isSuperuser(scope: SessionScope | null): boolean {
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 export function useSessionScope(): SessionScope | null {
-  const { data } = useSWR<SessionScope>('/api/me', fetcher, {
+  const { data, error } = useSWR<SessionScope>('/api/me', fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
     dedupingInterval: 60 * 60 * 1000,
+    onError: (err) => {
+      console.error('[useSessionScope] SWR error:', err);
+    },
   });
+  
+  if (error) {
+    console.error('[useSessionScope] Failed to fetch session scope:', error);
+  }
+  
   return data ?? null;
 }

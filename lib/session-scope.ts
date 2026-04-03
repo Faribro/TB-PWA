@@ -14,26 +14,32 @@ export interface SessionScope {
 
 /** Returns the scope for the current request. Throws 401 if unauthenticated. */
 export async function getSessionScope(): Promise<SessionScope> {
-  const session = await auth();
-  if (!session?.user) {
-    throw new Error('Unauthorized');
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      console.error('[getSessionScope] No session or user found');
+      throw new Error('Unauthorized');
+    }
+
+    const role     = session.user.role     ?? 'ME';
+    const rawState = (session.user.state    ?? 'All').trim();
+    const rawDist  = ((session.user as any).district ?? 'All').trim();
+    const staffName = (session.user as any).staffName ?? session.user.name;
+
+    const SUPERUSER_ROLES = ['PM', 'admin', 'Program Manager'];
+    const isSuperuser = SUPERUSER_ROLES.includes(role);
+    const isStateLevel = ['SPM', 'ME', 'M&E Officer', 'State Program Manager'].includes(role);
+
+    return {
+      role,
+      state:    (isSuperuser || rawState === 'All') ? null : rawState,
+      district: (isSuperuser || isStateLevel || rawDist === 'All') ? null : rawDist,
+      staffName: (role === 'PC' || role === 'Prison Coordinator') ? staffName : null,
+    };
+  } catch (error) {
+    console.error('[getSessionScope] Error:', error);
+    throw error;
   }
-
-  const role     = session.user.role     ?? 'ME';
-  const rawState = (session.user.state    ?? 'All').trim();
-  const rawDist  = ((session.user as any).district ?? 'All').trim();
-  const staffName = (session.user as any).staffName ?? session.user.name;
-
-  const SUPERUSER_ROLES = ['PM', 'admin', 'Program Manager'];
-  const isSuperuser = SUPERUSER_ROLES.includes(role);
-  const isStateLevel = ['SPM', 'ME', 'M&E Officer', 'State Program Manager'].includes(role);
-
-  return {
-    role,
-    state:    (isSuperuser || rawState === 'All') ? null : rawState,
-    district: (isSuperuser || isStateLevel || rawDist === 'All') ? null : rawDist,
-    staffName: (role === 'PC' || role === 'Prison Coordinator') ? staffName : null,
-  };
 }
 
 /**
