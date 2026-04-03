@@ -205,52 +205,9 @@ const Header = memo<HeaderProps>(({ firstName, userRole }) => {
     setMounted(true);
   }, []);
   
-  // Simplified SSR version - no animations
+  // Don't render anything until mounted (client-side only)
   if (!mounted) {
-    return (
-      <div className="text-center mb-16 relative rounded-3xl border border-white/40 bg-gradient-to-br from-white/60 to-slate-50/40 p-12 backdrop-blur-xl shadow-sm" suppressHydrationWarning>
-        <div className="absolute -top-12 -right-2 z-50">
-          <div className="bg-white/95 backdrop-blur-md border border-slate-200/60 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] px-5 py-2.5 flex items-center gap-2.5">
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] font-medium text-slate-500 tracking-tight">Welcome,</span>
-              <span className="text-[13px] font-semibold text-slate-900 tracking-tight">{firstName}</span>
-            </div>
-            <div className="h-3.5 w-[0.5px] bg-gradient-to-b from-transparent via-slate-300 to-transparent" />
-            <div className="flex items-center gap-2.5">
-              <span className="text-[12px] font-medium text-slate-500 tracking-tight">you&apos;re Logged in as an </span>
-              <div className="px-2.5 py-0.5 rounded-md bg-slate-900 text-white text-[11px] font-semibold uppercase tracking-[0.1em]">{userRole}</div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="w-32 h-[3px] mx-auto mb-10 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
-        
-        <div className="mb-6">
-          <h1 className="text-6xl md:text-7xl lg:text-8xl font-black tracking-[0.4em] bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 bg-clip-text text-transparent font-mono">
-            SAMADHAAN
-          </h1>
-        </div>
-        
-        <p className="text-lg md:text-xl font-semibold text-slate-600 tracking-tight mb-2">National Integrated Health OS</p>
-        
-        <div className="flex items-center justify-center gap-6 text-xs font-medium text-slate-500">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span>Uptime 99.9%</span>
-          </div>
-          <div className="w-px h-3 bg-slate-300" />
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-blue-500" />
-            <span>24/7 Monitoring</span>
-          </div>
-          <div className="w-px h-3 bg-slate-300" />
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-purple-500" />
-            <span>Enterprise Grade</span>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -389,7 +346,7 @@ const Header = memo<HeaderProps>(({ firstName, userRole }) => {
 Header.displayName = 'Header';
 
 export default function CommandHubPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
 
   const isSuperuser = useMemo(
     () => SUPERUSER_ROLES.includes(session?.user?.role as typeof SUPERUSER_ROLES[number]),
@@ -407,6 +364,18 @@ export default function CommandHubPage() {
   );
   
   const userRole = session?.user?.role || 'User';
+
+  // Show loading state while session is loading
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-slate-300 border-t-slate-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-600 text-sm">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full bg-slate-50 relative overflow-hidden">
