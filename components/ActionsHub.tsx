@@ -17,10 +17,11 @@ export default function ActionsHub() {
 
   const filteredData = useMemo(() => {
     const state = activeState || userState;
-    return state ? allPatients.filter((p: any) => p.screening_state === state) : allPatients;
+    return state ? allPatients.filter((p: any) => p && p.screening_state === state) : allPatients;
   }, [allPatients, userState, activeState]);
 
   const getDaysPending = (patient: any): number => {
+    if (!patient) return 0;
     const date = patient.submitted_on || patient.screening_date;
     if (!date) return 0;
     return Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24));
@@ -31,21 +32,25 @@ export default function ActionsHub() {
     const fortyEightHoursAgo = now - 48 * 60 * 60 * 1000;
 
     const newScreenings = filteredData.filter((p: any) => {
+      if (!p) return false;
       const screeningDate = new Date(p.screening_date || p.submitted_on).getTime();
       return screeningDate >= fortyEightHoursAgo && !p.sputum_date && !p.referral_date;
     });
 
     const awaitingDiagnosis = filteredData.filter((p: any) => {
+      if (!p) return false;
       return p.sputum_date && !p.tb_diagnosed;
     });
 
     const criticalDelays = filteredData.filter((p: any) => {
+      if (!p) return false;
       const days = getDaysPending(p);
       const phase = (p.current_phase || '').toLowerCase();
       return days > 7 && !phase.includes('treatment') && !phase.includes('closed');
     });
 
     const readyForTreatment = filteredData.filter((p: any) => {
+      if (!p) return false;
       return p.tb_diagnosed === 'Yes' && !p.att_start_date;
     });
 
@@ -53,7 +58,7 @@ export default function ActionsHub() {
   }, [filteredData]);
 
   const states = useMemo(() => {
-    const unique = new Set<string>(allPatients.map((p: any) => p.screening_state).filter(Boolean));
+    const unique = new Set<string>(allPatients.filter((p: any) => p).map((p: any) => p.screening_state).filter(Boolean));
     return Array.from(unique).sort();
   }, [allPatients]);
 
