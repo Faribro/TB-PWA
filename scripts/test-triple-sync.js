@@ -30,7 +30,7 @@ if (fs.existsSync(envPath)) {
 const http = require('http');
 
 const API_URL = 'http://localhost:3000/api/patient-sync';
-const GOOGLE_SHEETS_WEBHOOK = 'https://script.google.com/macros/s/AKfycbyBwLUKiFDY-eLdNOIzNZRsyem0rWiTA6IvelapBjHg8sGdtkTuhQs2hGbXrydeUZSu/exec';
+const GOOGLE_SHEETS_WEBHOOK = 'https://script.google.com/macros/s/AKfycbwi6Rh-1I7yo1arWlwr4e59Ra3AhIqE7FlQByU0TD7tbcB_sPD6MdonjukX8go4oi13/exec';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 console.log('═══════════════════════════════════════════════════════════════════════════');

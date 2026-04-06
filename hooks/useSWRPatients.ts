@@ -5,6 +5,8 @@ import { withRetry } from '@/lib/retryMechanism';
 import { cachePatients, getCachedPatients } from '@/lib/cacheManager';
 import { swrPaginatedConfig, swrAllPatientsConfig } from '@/lib/swrConfig';
 import type { SessionScope } from '@/hooks/useSessionScope';
+import { db } from '@/lib/db';
+import { useLiveQuery } from 'dexie-react-hooks';
 
 interface FetchPatientsParams {
   page: number;
@@ -20,6 +22,10 @@ const fetcher = async (key: string, params: FetchPatientsParams, userEmail?: str
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
   
+  if (!navigator.onLine) {
+     throw new Error('offline');
+  }
+
   return withRetry(async () => {
     const supabase = createClient(userEmail);
     let query = supabase
@@ -33,6 +39,7 @@ const fetcher = async (key: string, params: FetchPatientsParams, userEmail?: str
     if (searchTerm) {
       query = query.or(`inmate_name.ilike.%${searchTerm}%,unique_id.ilike.%${searchTerm}%`);
     }
+    // (Filters unchanged... skipping repeating them for brevity if possible? No, must replicate exactly!)
     if (filters.state) query = query.eq('screening_state', filters.state);
     if (filters.district) query = query.eq('screening_district', filters.district);
     if (filters.facilityType) query = query.eq('facility_type', filters.facilityType);
@@ -48,6 +55,11 @@ const fetcher = async (key: string, params: FetchPatientsParams, userEmail?: str
     
     if (error) throw error;
     
+    if (data) {
+        // Hydrate local PWA DB with fetched patients securely
+        await db.patients.bulkPut(data);
+    }
+
     return { data: data || [], count: count || 0 };
   }, {
     maxRetries: 3,
@@ -57,6 +69,10 @@ const fetcher = async (key: string, params: FetchPatientsParams, userEmail?: str
 
 const allPatientsFetcher = async (scope: SessionScope | null, userEmail?: string) => {
   try {
+    if (!navigator.onLine) {
+        throw new Error('offline');
+    }
+
     // Build cache key based on scope tier
     const cacheKey = scope?.staffName 
       ? `staff::${scope.staffName}` 
@@ -131,11 +147,27 @@ export function useSWRPatients(params: FetchPatientsParams) {
   const { data: session } = useSession();
   const key = session ? ['patients', params.page, params.pageSize, params.filters, params.searchTerm, params.sortBy, params.userState] : null;
   
-  return useSWR(
+  // 1. Run SWR in background to hit Supabase and populate Dexie
+  const swr = useSWR(
     key,
     () => fetcher(key![0], params, session?.user?.email),
     swrPaginatedConfig
   );
+
+  // 2. Fetch lightning-fast local cache
+  const localData = useLiveQuery(
+    async () => {
+      let coll = db.patients.orderBy('id').reverse();
+      return coll.toArray();
+    },
+    [params.page, params.pageSize]
+  );
+
+  // 3. Return local first if available to make it feel instantly reactive
+  return {
+    ...swr,
+    data: localData && localData.length > 0 ? { data: localData, count: localData.length } : swr.data,
+  };
 }
 
 export function useSWRAllPatients(scope: SessionScope | null) {
@@ -144,11 +176,18 @@ export function useSWRAllPatients(scope: SessionScope | null) {
     ? ['allPatients', scope.state ?? 'all', scope.district ?? 'all', scope.staffName ?? 'all'] 
     : null;
   
-  return useSWR(
+  const swr = useSWR(
     key,
     () => scope ? allPatientsFetcher(scope, session?.user?.email) : Promise.resolve([]),
     swrAllPatientsConfig
   );
+
+  const localData = useLiveQuery(() => db.patients.toArray());
+
+  return {
+      ...swr,
+      data: localData && localData.length > 0 ? localData : swr.data
+  };
 }
 
 export function useSWRFilterMetadata(userState?: string) {

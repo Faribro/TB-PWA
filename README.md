@@ -925,7 +925,28 @@ This script tests:
 - ✅ Google Sheets webhook delivery
 - ✅ API response validation
 
-**3. Full Pipeline Test**
+**3. E2E Triple-Sync Test**
+
+Advanced end-to-end test with production-grade telemetry:
+
+```bash
+# Ensure dev server is running first
+bun run dev
+
+# In another terminal
+bun run test:e2e
+```
+
+This script:
+- ✅ Tests complete data flow (Next.js → Supabase → Google Sheets)
+- ✅ Measures exact execution time and latency
+- ✅ Verifies both Supabase and Google Sheets success
+- ✅ Uses Service Role authentication (bypasses RLS)
+- ✅ Generates dynamic test payloads with timestamps
+- ✅ Provides detailed telemetry (status, duration, response size)
+- ✅ Color-coded output for easy debugging
+
+**4. Full Pipeline Test**
 
 Runs both Supabase verification and sync test:
 

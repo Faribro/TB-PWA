@@ -27,7 +27,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetOverlay } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
@@ -1248,16 +1248,21 @@ export default function Vertex({
         </motion.div>
       </div>
 
-      {/* LEVEL 1: Master Drawer (Facility Patient List) - Elegant Sidebar Width */}
-      <Sheet open={!!selectedFacility} onOpenChange={(open) => !open && setSelectedFacility(null)}>
-        <SheetOverlay className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm !z-[99998] data-[state=open]:duration-700 data-[state=closed]:duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-        
+      {/* LEVEL 1: Facility Patient List — modal={false} so it does NOT trap focus or block the Detail Drawer */}
+      {!!selectedFacility && (
+        <div 
+          className="fixed inset-0 z-[200] bg-slate-900/20 backdrop-blur-sm transition-opacity duration-500"
+          onClick={() => { if (!selectedPatient) setSelectedFacility(null); }}
+        />
+      )}
+      <Sheet open={!!selectedFacility} onOpenChange={(open) => !open && setSelectedFacility(null)} modal={false}>
         <SheetContent 
+          hideOverlay
           onInteractOutside={(e) => {
-            // Prevent Master List from closing if the Detail Drawer is open!
+            // Prevent Facility List from closing if the Detail Drawer is open
             if (selectedPatient) e.preventDefault();
           }}
-          className="!w-[90vw] sm:!max-w-[500px] md:!max-w-[600px] !z-[99998] bg-slate-50/70 backdrop-blur-2xl border-l border-white/60 shadow-[-10px_0_40px_rgba(0,0,0,0.08)] p-0 flex flex-col data-[state=open]:duration-700 data-[state=closed]:duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] overflow-hidden"
+          className="!w-[90vw] sm:!max-w-[500px] md:!max-w-[600px] !z-[300] bg-slate-50/70 backdrop-blur-2xl border-l border-white/60 shadow-[-10px_0_40px_rgba(0,0,0,0.08)] p-0 flex flex-col data-[state=open]:duration-700 data-[state=closed]:duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] overflow-hidden"
         >
           {/* THE PARALLAX WRAPPER - Apple-Style Push-Back */}
           <div className={cn(
@@ -1292,7 +1297,7 @@ export default function Vertex({
         </SheetContent>
       </Sheet>
 
-      {/* Patient Detail Drawer - Full clinical drawer */}
+      {/* LEVEL 2: Patient Detail Drawer — renders above the Facility sheet via higher z-index */}
       <PatientDetailDrawer
         patient={selectedPatient}
         isOpen={!!selectedPatient}

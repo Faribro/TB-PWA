@@ -6,7 +6,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Settings, GitBranch, Copy,
-  LogOut, Network, ChevronLeft, LayoutDashboard, FileText, User, BookOpen
+  LogOut, Network, ChevronLeft, LayoutDashboard, FileText, User, BookOpen, Calendar, FilePlus
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -29,7 +29,7 @@ import { sounds } from '@/lib/sound';
 
 import { DashboardErrorBoundary } from '@/components/DashboardErrorBoundary';
 
-import { Role } from '@/lib/constants/roles';
+import { Role, normalizeRole } from '@/lib/constants/roles';
 
 const TAB_CONFIG = [
   { id: 'home', path: '/dashboard/command-hub', icon: LayoutDashboard, label: 'Home', description: 'Unified Hub', sonicId: 'nav-home', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER, Role.PRISON_COORDINATOR] },
@@ -42,7 +42,8 @@ const TAB_CONFIG = [
 ];
 
 const PC_TAB_CONFIG = [
-  { id: 'my-submissions', path: '/dashboard/my-submissions', icon: FileText, label: 'My Work', description: 'Submissions', sonicId: 'nav-mywork', roles: [Role.PRISON_COORDINATOR] },
+  { id: 'my-submissions', path: '/dashboard/my-submissions', icon: Calendar, label: 'My Calendar', description: 'View submissions', sonicId: 'nav-calendar', roles: [Role.PRISON_COORDINATOR] },
+  { id: 'submit-new', path: '/dashboard/submit-new', icon: FilePlus, label: 'New Screening', description: 'Submit record', sonicId: 'nav-submit', roles: [Role.PRISON_COORDINATOR] },
   { id: 'knowledge', path: '/docs', icon: BookOpen, label: 'Knowledge', description: 'Docs & guides', sonicId: 'nav-knowledge', roles: [Role.PRISON_COORDINATOR] },
   { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account', sonicId: 'nav-settings', roles: [Role.PRISON_COORDINATOR] },
 ];
@@ -181,15 +182,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const handleSidebarToggle = useCallback(() => setSidebarOpen((v) => !v), []);
   const handleSignOut = useCallback(() => signOut({ callbackUrl: '/login' }), []);
 
-  // Get user role and filter tabs
-  const userRole = session?.user?.role || 'ME';
+  // Get user role and normalize it (handles both 'PC' and 'Prison Coordinator')
+  const rawRole = session?.user?.role || 'ME';
+  const userRole = normalizeRole(rawRole) || Role.ME_OFFICER;
   
   // Use useMemo to prevent recalculation on every render
   const visibleTabs = useMemo(() => {
-    if (userRole === Role.PRISON_COORDINATOR || userRole === 'PC') return PC_TAB_CONFIG
-    // Filter tabs based on role
-    return TAB_CONFIG.filter(t => t.roles.includes(userRole))
+    console.log('[Sidebar] Computing visibleTabs for role:', userRole);
+    if (userRole === Role.PRISON_COORDINATOR) {
+      console.log('[Sidebar] Returning PC_TAB_CONFIG');
+      return PC_TAB_CONFIG;
+    }
+    // Filter tabs based on normalized role
+    const filtered = TAB_CONFIG.filter(t => t.roles.includes(userRole));
+    console.log('[Sidebar] Filtered tabs:', filtered.map(t => t.label));
+    return filtered;
   }, [userRole]);
+  
+  // Debug logging - runs AFTER visibleTabs is computed
+  useEffect(() => {
+    console.log('[Sidebar Debug] ===================================');
+    console.log('[Sidebar Debug] Session:', session);
+    console.log('[Sidebar Debug] Raw Role:', rawRole);
+    console.log('[Sidebar Debug] Normalized Role:', userRole);
+    console.log('[Sidebar Debug] Is Prison Coordinator?:', userRole === Role.PRISON_COORDINATOR);
+    console.log('[Sidebar Debug] Role.PRISON_COORDINATOR value:', Role.PRISON_COORDINATOR);
+    console.log('[Sidebar Debug] Visible Tabs Count:', visibleTabs.length);
+    console.log('[Sidebar Debug] Tab Names:', visibleTabs.map(t => t.label));
+    console.log('[Sidebar Debug] PC_TAB_CONFIG:', PC_TAB_CONFIG);
+    console.log('[Sidebar Debug] ===================================');
+  }, [rawRole, userRole, session, visibleTabs]);
 
   return (
     <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden selection:bg-blue-500/30">

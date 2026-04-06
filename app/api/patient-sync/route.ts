@@ -148,8 +148,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: supabaseData, error: supabaseError } = await updateQuery
-      .select()
-      .single();
+      .select();
 
     if (supabaseError) {
       console.error('[patient-sync] Supabase error:', supabaseError);
@@ -159,7 +158,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[patient-sync] Supabase success, updated patient:', supabaseData?.id);
+    // Check if any rows were updated
+    if (!supabaseData || supabaseData.length === 0) {
+      console.error('[patient-sync] No rows updated - patient not found or access denied');
+      return NextResponse.json(
+        { error: 'Patient not found or access denied', details: 'No matching patient record' },
+        { status: 404 }
+      );
+    }
+
+    const updatedPatient = supabaseData[0];
+
+    console.log('[patient-sync] Supabase success, updated patient:', updatedPatient?.id);
 
     // Step B: Forward to Google Apps Script (with timeout handling)
     let googleSheetsResult: { success: boolean; message: string; data?: any } = { 
@@ -225,7 +235,7 @@ export async function POST(request: NextRequest) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(webhookPayload),
-          signal: AbortSignal.timeout(10000) // 10 second timeout
+          signal: AbortSignal.timeout(30000) // 30 second timeout
         });
 
         const responseText = await webhookResponse.text();
@@ -284,7 +294,7 @@ export async function POST(request: NextRequest) {
       message: 'Patient data updated',
       supabase: {
         success: true,
-        data: supabaseData
+        data: updatedPatient
       },
       googleSheets: googleSheetsResult,
       warnings: googleSheetsResult.success

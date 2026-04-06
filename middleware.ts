@@ -93,7 +93,7 @@ export default auth((req) => {
       return NextResponse.redirect(loginUrl);
     }
     
-    const SUPERUSER_ROLES = [Role.ADMIN, Role.PROGRAM_MANAGER];
+    const SUPERUSER_ROLES: readonly string[] = [Role.ADMIN, Role.PROGRAM_MANAGER];
     if (!userRole || !SUPERUSER_ROLES.includes(userRole)) {
       console.warn(`[Middleware] Admin access denied: ${userRole} attempted to access ${pathname}`);
       return NextResponse.redirect(new URL('/unauthorized', req.url));

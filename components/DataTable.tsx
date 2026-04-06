@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { motion } from 'framer-motion';
 import { Button } from './ui/button';
@@ -8,6 +8,8 @@ import { RefreshCw, Search, AlertCircle, Filter, X, LayoutGrid, List, Zap, Edit3
 import { PhaseCell } from './PhaseCell';
 import { FilterBar, type FilterState } from './FilterBar';
 import { calculatePatientPhase } from '@/lib/phase-engine';
+import { calculatePatientRisk } from '@/lib/risk-engine';
+import { useHotkeys } from '@/hooks/useHotkeys';
 import { PatientDetailDrawer } from './PatientDetailDrawer';
 import { LinesAndDotsLoader } from './LinesAndDotsLoader';
 import * as XLSX from 'xlsx';
@@ -45,6 +47,13 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const pageSize = 500; // Increased for better performance with filters
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useHotkeys({
+    'meta+k': (e) => {
+      searchInputRef.current?.focus();
+    }
+  });
 
   // Quick update handler
   const handleQuickUpdate = async (patientId: number, field: string, value: any) => {
@@ -213,6 +222,7 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
             <input
+              ref={searchInputRef}
               type="text"
               placeholder={showDuplicates ? "Search duplicates..." : "🔍 Instant search: name, ID, facility, district..."}
               value={search}
@@ -471,10 +481,11 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
               return (
                 <motion.div
                   key={patient.id}
+                  layoutId={`patient-card-${patient.id}`}
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: Math.min(index * 0.01, 0.3) }}
-                  className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-all cursor-pointer group"
+                  className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-all cursor-pointer group relative"
                   onClick={() => !quickEditMode && setSelectedPatient(patient)}
                 >
                   <div className="flex items-start justify-between mb-3">
@@ -482,14 +493,22 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
                       <h3 className="font-semibold text-gray-900 truncate text-sm">{patient.inmate_name}</h3>
                       <p className="text-xs text-gray-500 font-mono mt-0.5">{patient.unique_id}</p>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      phase.phase === 'Screening' ? 'bg-amber-100 text-amber-700' :
-                      phase.phase === 'Diagnosis' ? 'bg-blue-100 text-blue-700' :
-                      phase.phase === 'ATT Initiation' ? 'bg-emerald-100 text-emerald-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {phase.phase}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {calculatePatientRisk(patient).riskLevel === 'high' && (
+                        <div className="relative flex h-2.5 w-2.5" title="High Risk: Stale Record">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                        </div>
+                      )}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        phase.phase === 'Screening' ? 'bg-amber-100 text-amber-700' :
+                        phase.phase === 'Diagnosis' ? 'bg-blue-100 text-blue-700' :
+                        phase.phase === 'ATT Initiation' ? 'bg-emerald-100 text-emerald-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {phase.phase}
+                      </span>
+                    </div>
                   </div>
                   
                   <div className="space-y-2 text-xs text-gray-600">
@@ -564,14 +583,25 @@ export function DataTable({ showDuplicates = false }: DataTableProps) {
             {filtered.map((patient, index) => (
               <motion.tr 
                 key={patient.id}
+                layoutId={`patient-card-${patient.id}`}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.02 }}
-                className="hover:bg-gray-50/50 transition-colors cursor-pointer"
+                className="hover:bg-gray-50/50 transition-colors cursor-pointer relative"
                 onClick={() => setSelectedPatient(patient)}
               >
                 <td className="px-3 py-1.5 text-gray-700 font-mono text-[11px]">{patient.unique_id}</td>
-                <td className="px-3 py-1.5 text-gray-900 font-medium">{patient.inmate_name}</td>
+                <td className="px-3 py-1.5 text-gray-900 font-medium">
+                  <div className="flex items-center gap-2">
+                    {calculatePatientRisk(patient).riskLevel === 'high' && (
+                      <div className="relative flex h-2 w-2 shrink-0" title="High Risk: Stale Record">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                      </div>
+                    )}
+                    {patient.inmate_name}
+                  </div>
+                </td>
                 <td className="px-3 py-1.5 text-gray-600">{patient.screening_state}</td>
                 <td className="px-3 py-1.5 text-gray-600">{patient.facility_name}</td>
                 <td className="px-3 py-1.5">

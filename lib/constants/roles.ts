@@ -33,11 +33,10 @@ export const ROLE_MAPPING: Record<string, UserRole> = {
   'ME': Role.ME_OFFICER,
   'PC': Role.PRISON_COORDINATOR,
   // Full names map to themselves
-  [Role.ADMIN]: Role.ADMIN,
-  [Role.PROGRAM_MANAGER]: Role.PROGRAM_MANAGER,
-  [Role.STATE_PROGRAM_MANAGER]: Role.STATE_PROGRAM_MANAGER,
-  [Role.ME_OFFICER]: Role.ME_OFFICER,
-  [Role.PRISON_COORDINATOR]: Role.PRISON_COORDINATOR,
+  'Program Manager': Role.PROGRAM_MANAGER,
+  'State Program Manager': Role.STATE_PROGRAM_MANAGER,
+  'M&E Officer': Role.ME_OFFICER,
+  'Prison Coordinator': Role.PRISON_COORDINATOR,
 };
 
 // Normalize role to canonical form
@@ -64,12 +63,17 @@ export const ROLE_DATA_ACCESS: Record<UserRole, DataAccessTier> = {
 };
 
 // Route permissions - defines which roles can access which routes
-export const RoutePermissions = {
+export const RoutePermissions: Record<string, readonly UserRole[]> = {
   '/dashboard/command-hub': [
     Role.ADMIN,
     Role.PROGRAM_MANAGER,
     Role.STATE_PROGRAM_MANAGER,
     Role.ME_OFFICER,
+  ],
+  '/dashboard/my-submissions': [
+    Role.PRISON_COORDINATOR,
+  ],
+  '/dashboard/submit-new': [
     Role.PRISON_COORDINATOR,
   ],
   '/dashboard/vertex': [
@@ -96,9 +100,6 @@ export const RoutePermissions = {
     Role.STATE_PROGRAM_MANAGER,
     Role.ME_OFFICER,
   ],
-  '/dashboard/my-submissions': [
-    Role.PRISON_COORDINATOR,
-  ],
   '/dashboard/settings': [
     Role.ADMIN,
     Role.PROGRAM_MANAGER,
@@ -120,7 +121,7 @@ export const RoutePermissions = {
 } as const;
 
 // Feature permissions - granular control over UI features
-export const FeaturePermissions = {
+export const FeaturePermissions: Record<string, readonly UserRole[]> = {
   EXPORT_DATA: [
     Role.ADMIN,
     Role.PROGRAM_MANAGER,
