@@ -19,6 +19,9 @@ export function isSuperuser(scope: SessionScope | null): boolean {
 const fetcher = async (url: string) => {
   const res = await fetch(url);
   if (!res.ok) {
+    if (res.status === 401) {
+      return null;
+    }
     const error = new Error('Failed to fetch session scope');
     console.error('[fetcher] HTTP error:', res.status, res.statusText);
     throw error;
@@ -34,13 +37,11 @@ export function useSessionScope(): SessionScope | null {
     dedupingInterval: 60 * 60 * 1000,
     shouldRetryOnError: false,
     onError: (err) => {
-      console.error('[useSessionScope] SWR error:', err);
+      if (err?.message !== 'Failed to fetch session scope') {
+        console.error('[useSessionScope] SWR error:', err);
+      }
     },
   });
-  
-  if (error) {
-    console.error('[useSessionScope] Failed to fetch session scope, returning null');
-  }
   
   return data ?? null;
 }
