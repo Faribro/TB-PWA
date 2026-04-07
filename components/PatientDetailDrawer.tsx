@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { User, FileText, Activity, Pill, Shield, ChevronDown, AlertCircle, CheckCircle2, Calendar, Sparkles, Lock, Unlock, Save } from 'lucide-react';
 import { type PatientFormData } from '@/lib/schemas';
 import { calculatePatientPhase } from '@/lib/phase-engine';
-import { PatientTimeline } from './PatientTimeline';
+import PatientHistory from './PatientHistory';
 import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { VoiceInput } from './VoiceInput';
@@ -388,7 +388,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
                   <TabsContent value="admin" className="mt-0 space-y-6">
                     <Section title="Patient Timeline" icon={Calendar}>
-                      <PatientTimeline patient={localPatient} />
+                      <PatientHistory patient={localPatient} />
                     </Section>
                     <Section title="Administration" icon={Shield}>
                       <EditableField label="NIKSHAY/ABHA ID" value={watch('NIKSHAY/ABHA ID')} onChange={(val) => reset({ ...getValues(), 'NIKSHAY/ABHA ID': val })} />

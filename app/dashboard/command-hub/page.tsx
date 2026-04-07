@@ -14,10 +14,12 @@
 import { memo, useMemo, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { FeatureShowcase } from '@/components/FeatureShowcase';
 import ProgramMission from '@/components/ProgramMission';
 import InmateJourney from '@/components/InmateJourney';
+import PatientTimeline from '@/components/PatientTimeline';
 import ScrollProgressBar from '@/components/ScrollProgressBar';
 import SectionDivider from '@/components/SectionDivider';
 import StatsTicker from '@/components/StatsTicker';
@@ -114,6 +116,20 @@ const Header = memo<HeaderProps>(({ firstName, userRole }) => {
 
 Header.displayName = 'Header';
 
+const HOME_PULSE = [
+  { label: 'Today Screened', value: '12,847' },
+  { label: 'AI Flagged', value: '342' },
+  { label: 'Confirmed', value: '89' },
+  { label: 'Pending Follow-up', value: '56' },
+] as const;
+
+const QUICK_ACTIONS = [
+  { href: '/dashboard/follow-up', label: 'Open Pipeline' },
+  { href: '/dashboard/mande', label: 'View M&E Tools' },
+  { href: '/dashboard/vertex', label: 'Review Analytics' },
+  { href: '/docs', label: 'Open Knowledge Vault' },
+] as const;
+
 export default function CommandHubPage() {
   const { data: session, status } = useSession();
 
@@ -150,6 +166,36 @@ export default function CommandHubPage() {
       
       <div className="relative z-10 min-h-screen pt-6 pb-16 px-6">
         <Header firstName={firstName} userRole={userRole} />
+
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="w-full max-w-[1400px] mx-auto px-6 mt-2 mb-8"
+        >
+          <div className="rounded-2xl border border-white/60 bg-white/70 backdrop-blur-md shadow-[0_8px_35px_rgba(15,23,42,0.06)] p-4 md:p-5">
+            <div className="flex flex-wrap items-center gap-3 md:gap-4">
+              {HOME_PULSE.map((item) => (
+                <div key={item.label} className="min-w-[145px] flex-1">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
+                  <p className="mt-1 text-2xl font-black text-slate-900 tabular-nums">{item.value}</p>
+                </div>
+              ))}
+              <div className="h-10 w-px bg-slate-200/70 hidden lg:block" />
+              <div className="flex flex-wrap gap-2">
+                {QUICK_ACTIONS.map((action) => (
+                  <Link
+                    key={action.href}
+                    href={action.href}
+                    className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50/80 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-indigo-700 hover:bg-indigo-100 transition-colors"
+                  >
+                    {action.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </motion.section>
         
         <div className="w-full max-w-[1400px] mx-auto px-6 mt-6 mb-8">
           <ProgramMission />
@@ -170,7 +216,12 @@ export default function CommandHubPage() {
         <SectionDivider />
       </div>
       
-      <InmateJourney />
+      <div className="relative z-10">
+        <InmateJourney />
+      </div>
+      <div className="relative z-10 border-t border-white/40">
+        <PatientTimeline />
+      </div>
     </div>
   );
 }

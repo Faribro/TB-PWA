@@ -184,10 +184,10 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
       {/* Single compact header */}
       <div className="flex-shrink-0 sticky top-0 z-20 bg-[#f9f8f5]/95
                       backdrop-blur-sm border-b border-black/[0.06]">
-        <div className="flex items-center gap-2 px-4 h-12">
+        <div className="flex flex-wrap items-center gap-2 px-4 py-2 min-h-12">
           
           {/* Search */}
-          <div className="relative w-52">
+          <div className="relative w-52 max-w-full">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2
                                          text-[#bab9b4] pointer-events-none" />
             <input
@@ -207,13 +207,13 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
             onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
             className="px-2 py-1.5 bg-white border border-black/[0.08] rounded-md
                        text-xs text-[#28251d] focus:outline-none focus:border-[#01696f]
-                       focus:ring-1 focus:ring-[#cedcd8] transition-all w-32" />
+                       focus:ring-1 focus:ring-[#cedcd8] transition-all w-32 max-w-full" />
           <span className="text-xs text-[#bab9b4]">—</span>
           <input type="date" value={filters.dateTo}
             onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))}
             className="px-2 py-1.5 bg-white border border-black/[0.08] rounded-md
                        text-xs text-[#28251d] focus:outline-none focus:border-[#01696f]
-                       focus:ring-1 focus:ring-[#cedcd8] transition-all w-32" />
+                       focus:ring-1 focus:ring-[#cedcd8] transition-all w-32 max-w-full" />
 
           {/* Quick date shortcuts */}
           <div className="flex gap-1">
@@ -271,7 +271,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
           )}
 
           {/* Spacer */}
-          <div className="flex-1" />
+          <div className="flex-1 min-w-[24px]" />
 
           {/* Record count */}
           <span className="text-xs text-[#7a7974] tabular-nums whitespace-nowrap">
@@ -347,7 +347,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               style={{ overflow: 'hidden' }}
             >
-              <div className="px-4 pb-3 pt-1 grid grid-cols-5 gap-2
+              <div className="px-4 pb-3 pt-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-2
                              border-t border-black/[0.04]">
                 {[
                   { label: 'State', key: 'state' as const, options: ['', 'Maharashtra', 'Madhya Pradesh', 'Rajasthan', 'Uttar Pradesh', 'Gujarat'] },

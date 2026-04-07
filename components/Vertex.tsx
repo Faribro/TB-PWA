@@ -87,6 +87,10 @@ const supabase = createClient(
 
 // Spring Animation Config
 const springConfig = { type: 'spring' as const, stiffness: 300, damping: 30 };
+const CALENDAR_DEPTH = {
+  tile: "0 8px 18px rgba(15,23,42,0.08)",
+  tileSelected: "0 18px 36px rgba(30,64,175,0.28)",
+} as const;
 
 // Single Source of Truth: Timezone-Safe Date Formatter
 const getLocalYMD = (dateString: string | null | undefined): string | null => {
@@ -130,7 +134,7 @@ const CalendarHeader = ({
   availableStates: string[];
   availableDistricts: string[];
 }) => (
-  <div className="space-y-6 mb-8 px-2">
+  <div className="space-y-3 mb-4 px-1">
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center shadow-inner">
@@ -232,10 +236,10 @@ const CalendarGrid = ({
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-7 gap-1.5 mb-2">
+    <div className="space-y-2.5">
+      <div className="grid grid-cols-7 gap-1.5 mb-0.5">
         {weekDays.map(day => (
-          <div key={day} className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+          <div key={day} className="text-center text-[10px] font-black text-slate-400/90 uppercase tracking-[0.18em]">
             {day}
           </div>
         ))}
@@ -243,7 +247,7 @@ const CalendarGrid = ({
       {/* Magnetic scroll snap container */}
       <div className="grid grid-cols-7 gap-1.5 scroll-snap-x">
         {days.map((day, idx) => {
-          if (!day) return <div key={idx} className="aspect-square" />;
+          if (!day) return <div key={idx} className="aspect-square w-full rounded-xl" style={{ minHeight: "clamp(40px, 5.2vh, 52px)" }} />;
           
           const isSelected = selectedDate === day.dateStr;
           const hasActivity = day.data && day.data.screenedCount > 0;
@@ -258,25 +262,41 @@ const CalendarGrid = ({
             <motion.button
               key={day.dateStr}
               onClick={() => onDateSelect(day.dateStr)}
-              whileHover={{ scale: shouldDim ? 1 : 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: shouldDim ? 1 : 1.02, y: 0 }}
+              whileTap={{ scale: 0.98 }}
               className={cn(
-                "min-h-[56px] rounded-2xl border-2 transition-all duration-300 relative overflow-hidden group/day scroll-snap-center",
-                "active:scale-95 shadow-sm",
+                "aspect-square w-full rounded-xl border transition-all duration-300 relative overflow-hidden group/day scroll-snap-center backdrop-blur-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/80 focus-visible:ring-offset-1",
+                "active:scale-[0.97]",
                 isSelected 
-                  ? "bg-slate-900 border-slate-900 shadow-2xl shadow-blue-500/20 ring-4 ring-blue-500/10" 
-                  : "bg-white border-slate-100 hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/5",
+                  ? "bg-[#0f172a] border-blue-300/70 ring-2 ring-blue-300/25" 
+                  : "bg-white/70 border-white/80 hover:border-blue-200/90",
                 shouldDim && "opacity-20 grayscale",
-                shouldHighlight && !isSelected && "bg-rose-50 border-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.1)]",
-                !isBreachMode && isHighVolume && !isSelected && "bg-blue-50 border-blue-200"
+                shouldHighlight && !isSelected && "bg-rose-50/85 border-rose-200",
+                !isBreachMode && isHighVolume && !isSelected && "bg-blue-50/90 border-blue-200/80"
               )}
+              style={{
+                minHeight: "clamp(40px, 5.2vh, 52px)",
+                backgroundImage: isSelected
+                  ? "linear-gradient(180deg, rgba(30,41,59,0.98) 0%, rgba(15,23,42,0.95) 100%)"
+                  : "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(248,250,252,0.78) 100%)",
+                boxShadow: isSelected
+                  ? `${CALENDAR_DEPTH.tileSelected}, inset 0 1px 0 rgba(255,255,255,0.16)`
+                  : `0 1px 0 rgba(255,255,255,0.95), ${CALENDAR_DEPTH.tile}, inset 0 1px 0 rgba(255,255,255,0.65), inset 0 -1px 0 rgba(148,163,184,0.10)`,
+                transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+              }}
             >
               {/* Glassmorphism depth layer on hover */}
               <div className="absolute inset-0 glass-depth-1 opacity-0 group-hover/day:opacity-100 transition-opacity duration-300" />
+              <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/35 to-transparent opacity-70 pointer-events-none" />
+              {isSelected && (
+                <div className="absolute inset-0 pointer-events-none">
+                  <div className="absolute -inset-2 rounded-2xl bg-blue-400/20 blur-md animate-pulse" />
+                </div>
+              )}
               
               <div className="absolute inset-0 flex flex-col items-center justify-center relative z-10">
                 <span className={cn(
-                  "text-sm font-semibold transition-colors duration-300",
+                  "text-sm font-bold tracking-tight transition-colors duration-300",
                   isSelected ? "text-white" : 
                   shouldHighlight ? "text-rose-600" :
                   hasActivity ? "text-slate-900" : "text-slate-300 group-hover/day:text-slate-600"
@@ -296,7 +316,7 @@ const CalendarGrid = ({
               
               {hasActivity && (
                 <div className={cn(
-                  "absolute bottom-1.5 right-2 text-[10px] font-black tabular-nums opacity-60 z-10",
+                  "absolute bottom-1.5 right-2 text-[10px] font-black tabular-nums opacity-70 z-10",
                   isSelected ? "text-white/80" : shouldHighlight ? "text-rose-700" : "text-slate-500"
                 )}>
                   {isBreachMode && hasBreaches ? day.data.breachCount : day.data.screenedCount}
@@ -525,6 +545,20 @@ export default function Vertex({
   externalPatients?: any[];
   externalLoading?: boolean;
 } = {}) {
+  const now = useMemo(() => new Date(), []);
+  const currentMonthStart = useMemo(
+    () => new Date(now.getFullYear(), now.getMonth(), 1),
+    [now]
+  );
+
+  const clampToCurrentMonth = useCallback((date: Date) => {
+    const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+    if (monthStart.getTime() > currentMonthStart.getTime()) {
+      return currentMonthStart;
+    }
+    return monthStart;
+  }, [currentMonthStart]);
+
   // Use external data when provided (avoids duplicate fetch + 400 errors)
   const { data: swrData = [], isLoading: swrLoading } = useSWRAllPatients(null);
   const globalPatients: any[] = externalPatients ?? swrData;
@@ -545,7 +579,7 @@ export default function Vertex({
     return mostRecent.getTime() === 0 ? new Date() : mostRecent;
   }, [globalPatients]);
 
-  const [currentDate, setCurrentDate] = useState(mostRecentDateWithData);
+  const [currentDate, setCurrentDate] = useState(() => clampToCurrentMonth(mostRecentDateWithData));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [selectedFacility, setSelectedFacility] = useState<string | null>(null);
@@ -560,9 +594,9 @@ export default function Vertex({
   // Update currentDate when data loads and most recent date changes
   useEffect(() => {
     if (!isLoading && mostRecentDateWithData) {
-      setCurrentDate(mostRecentDateWithData);
+      setCurrentDate(clampToCurrentMonth(mostRecentDateWithData));
     }
-  }, [mostRecentDateWithData, isLoading]);
+  }, [mostRecentDateWithData, isLoading, clampToCurrentMonth]);
 
   // Extract available states and districts (memoized with proper dependencies)
   const { availableStates, availableDistricts } = useMemo(() => {
@@ -779,11 +813,14 @@ export default function Vertex({
   }, [patientsForSelectedFacility]);
 
   const handlePrevMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   };
 
   const handleNextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+    setCurrentDate(prev => {
+      const next = new Date(prev.getFullYear(), prev.getMonth() + 1, 1);
+      return clampToCurrentMonth(next);
+    });
   };
 
   const handleDateSelect = (date: string) => {
@@ -854,48 +891,57 @@ export default function Vertex({
   }, [selectedDate, dailySparks, globalPatients]);
 
   return (
-    <div className="relative flex flex-col lg:flex-row items-start w-full gap-8 font-outfit">
+    <div className="relative w-full font-outfit overflow-x-hidden">
       {/* Premium Background Decorative Elements */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-400/10 blur-[150px] rounded-full animate-pulse" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-400/10 blur-[150px] rounded-full animate-pulse delay-500" />
       </div>
 
-      <div className="relative flex flex-col lg:flex-row items-start w-full gap-8 p-8 max-w-[1920px] mx-auto z-10">
+      <div className="relative grid grid-cols-1 lg:grid-cols-12 items-start w-full gap-6 xl:gap-8 p-5 xl:p-8 max-w-[1920px] mx-auto z-10 min-w-0">
         {/* Left Pane: Calendar - UNLOCKED HEIGHT */}
         <motion.div
            initial={{ opacity: 0, x: -40 }}
            animate={{ opacity: 1, x: 0 }}
            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-           className="w-full lg:w-[45%] lg:sticky lg:top-6 h-auto pb-40"
+           className="w-full lg:col-span-5 lg:sticky lg:top-2 lg:self-start lg:h-[calc(100vh-0.75rem)] min-w-0"
         >
-          <Card className="bg-white border-slate-200 shadow-sm rounded-xl p-4 flex flex-col border relative">
+          <Card className="bg-white/95 border-slate-200 shadow-[0_12px_40px_rgba(15,23,42,0.08)] rounded-xl p-3 lg:p-4 flex flex-col border relative h-full min-h-0">
             <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-blue-500/[0.02] to-transparent pointer-events-none" />
-            
-            <CalendarHeader 
-              currentDate={currentDate}
-              onPrevMonth={handlePrevMonth}
-              onNextMonth={handleNextMonth}
-              filterState={filterState}
-              filterDistrict={filterDistrict}
-              onFilterStateChange={setFilterState}
-              onFilterDistrictChange={setFilterDistrict}
-              availableStates={availableStates}
-              availableDistricts={availableDistricts}
-            />
-            <div className="">
-              <CalendarGrid
-                heatmapData={heatmapData}
+
+            <div
+              className="min-h-0 overflow-y-auto pr-1 hide-scrollbar"
+              style={{
+                maxHeight: 'min(76vh, calc(100vh - 200px))',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none'
+              }}
+            >
+              <CalendarHeader 
                 currentDate={currentDate}
-                selectedDate={selectedDate}
-                onDateSelect={handleDateSelect}
-                viewMode={viewMode}
+                onPrevMonth={handlePrevMonth}
+                onNextMonth={handleNextMonth}
+                filterState={filterState}
+                filterDistrict={filterDistrict}
+                onFilterStateChange={setFilterState}
+                onFilterDistrictChange={setFilterDistrict}
+                availableStates={availableStates}
+                availableDistricts={availableDistricts}
               />
+              <div>
+                <CalendarGrid
+                  heatmapData={heatmapData}
+                  currentDate={currentDate}
+                  selectedDate={selectedDate}
+                  onDateSelect={handleDateSelect}
+                  viewMode={viewMode}
+                />
+              </div>
             </div>
             
             {/* Monthly Pulse Console - Dynamic Metrics */}
-            <div className="mt-4 pt-4 border-t border-slate-200/60 flex items-center justify-between">
-              <div className="flex items-center gap-4">
+            <div className="mt-3 pt-3 pb-1 border-t border-slate-200/60 flex flex-wrap items-start gap-4 justify-between shrink-0">
+              <div className="flex flex-wrap items-center gap-4 min-w-0">
                 <div className="group">
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-blue-500 transition-colors">Total</div>
                   <div className="flex items-baseline gap-2">
@@ -935,7 +981,7 @@ export default function Vertex({
                 </div>
               </div>
               
-              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'volume' | 'breaches')} className="w-[180px]">
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'volume' | 'breaches')} className="w-full sm:w-[180px]">
                 <TabsList className="grid w-full grid-cols-2 h-10 bg-slate-100/50 p-1 border-slate-200/60 rounded-xl">
                   <TabsTrigger value="volume" className="rounded-lg text-[10px] font-black uppercase tracking-wider h-8 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md">
                     Volume
@@ -954,7 +1000,7 @@ export default function Vertex({
            initial={{ opacity: 0, x: 40 }}
            animate={{ opacity: 1, x: 0 }}
            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
-           className="w-full lg:w-[55%] flex flex-col lg:sticky lg:top-6 h-[calc(100vh-3rem)]"
+           className="w-full lg:col-span-7 flex flex-col lg:sticky lg:top-6 h-[calc(100vh-3rem)] min-w-0"
            id="right-scroll-container"
         >
           <Card className="flex flex-col flex-1 min-h-0 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm relative">

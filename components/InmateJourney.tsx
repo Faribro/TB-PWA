@@ -108,30 +108,62 @@ const [activeStep, setActiveStep] = useState(0);
 const [isInView, setIsInView] = useState(false);
 const [showHint, setShowHint] = useState(true);
 
+const getSectionAbsoluteTop = useCallback(() => {
+if (!sectionRef.current) return window.scrollY;
+const rect = sectionRef.current.getBoundingClientRect();
+return Math.max(0, rect.top + window.scrollY);
+}, []);
+
+const lockToSectionStart = useCallback(() => {
+const targetTop = getSectionAbsoluteTop();
+lockPosRef.current = targetTop;
+lockedRef.current = true;
+window.scrollTo({ top: targetTop, behavior: "auto" });
+}, [getSectionAbsoluteTop]);
+
 const isSectionFullyVisible = useCallback(() => {
 if (!sectionRef.current) return false;
 const rect = sectionRef.current.getBoundingClientRect();
 return rect.top <= 1 && rect.bottom >= window.innerHeight - 1;
 }, []);
 
+const isSectionInFocusZone = useCallback(() => {
+if (!sectionRef.current) return false;
+const rect = sectionRef.current.getBoundingClientRect();
+const topGate = 24;
+const bottomGate = window.innerHeight * 0.9;
+return rect.top <= topGate && rect.bottom >= bottomGate;
+}, []);
+
+const shouldAutoLock = useCallback(() => {
+if (!sectionRef.current) return false;
+if (completedRef.current) return false;
+if (releasingRef.current) return false;
+const rect = sectionRef.current.getBoundingClientRect();
+return rect.top <= 90 && rect.bottom >= window.innerHeight * 0.72;
+}, []);
+
+const isWithinLockWindow = useCallback(() => {
+if (completedRef.current || releasingRef.current) return false;
+const sectionTop = getSectionAbsoluteTop();
+const y = window.scrollY;
+return y >= sectionTop - 140 && y <= sectionTop + 140;
+}, [getSectionAbsoluteTop]);
+
 const goToStep = useCallback((idx: number) => {
 const stop = STEP_STOPS[idx] ?? STEP_STOPS[0];
 accumRef.current = stop / (ROTATION_STOPS.length - 1);
 if (!lockedRef.current && sectionRef.current) {
-lockedRef.current = true;
-lockPosRef.current = sectionRef.current.offsetTop;
-window.scrollTo(0, lockPosRef.current);
+lockToSectionStart();
 }
-}, []);
+}, [lockToSectionStart]);
 
 useEffect(() => {
 const observer = new IntersectionObserver(
 ([entry]) => {
 setIsInView(entry.isIntersecting);
-if (entry.intersectionRatio >= 0.98 && accumRef.current < 1 && !completedRef.current) {
-lockedRef.current = true;
-lockPosRef.current = sectionRef.current?.offsetTop ?? window.scrollY;
-window.scrollTo(0, lockPosRef.current);
+if (entry.intersectionRatio >= 0.28 && accumRef.current < 1 && !completedRef.current) {
+lockToSectionStart();
 }
 if (entry.intersectionRatio < 0.1) {
 completedRef.current = false;
@@ -145,7 +177,7 @@ smoothRef.current = 0;
 );
 if (sectionRef.current) observer.observe(sectionRef.current);
 return () => observer.disconnect();
-}, []);
+}, [lockToSectionStart]);
 
 useEffect(() => {
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -158,6 +190,10 @@ return;
 }
 
 const onScroll = () => {
+if (!lockedRef.current && (isWithinLockWindow() || shouldAutoLock())) {
+lockToSectionStart();
+return;
+}
 if (!lockedRef.current) return;
 if (completedRef.current) return;
 if (releasingRef.current) return;
@@ -181,10 +217,8 @@ setTimeout(() => { releasingRef.current = false; }, 600);
 };
 
 const onWheel = (e: WheelEvent) => {
-if (!lockedRef.current && !completedRef.current && isSectionFullyVisible()) {
-lockedRef.current = true;
-lockPosRef.current = sectionRef.current?.offsetTop ?? window.scrollY;
-window.scrollTo(0, lockPosRef.current);
+if (!lockedRef.current && !completedRef.current && (isSectionFullyVisible() || isSectionInFocusZone())) {
+lockToSectionStart();
 }
 if (!lockedRef.current) return;
 e.preventDefault();
@@ -207,10 +241,8 @@ touchStartY = e.touches[0].clientY;
 };
 
 const onTouchMove = (e: TouchEvent) => {
-if (!lockedRef.current && !completedRef.current && isSectionFullyVisible()) {
-lockedRef.current = true;
-lockPosRef.current = sectionRef.current?.offsetTop ?? window.scrollY;
-window.scrollTo(0, lockPosRef.current);
+if (!lockedRef.current && !completedRef.current && (isSectionFullyVisible() || isSectionInFocusZone())) {
+lockToSectionStart();
 }
 if (!lockedRef.current) return;
 e.preventDefault();
@@ -223,10 +255,8 @@ if (accumRef.current <= 0) releaseJail("backward");
 };
 
 const onKeyDown = (e: KeyboardEvent) => {
-if (!lockedRef.current && !completedRef.current && isSectionFullyVisible()) {
-lockedRef.current = true;
-lockPosRef.current = sectionRef.current?.offsetTop ?? window.scrollY;
-window.scrollTo(0, lockPosRef.current);
+if (!lockedRef.current && !completedRef.current && (isSectionFullyVisible() || isSectionInFocusZone())) {
+lockToSectionStart();
 }
 if (!lockedRef.current) return;
 if (["ArrowDown", "ArrowUp", "Space", "PageDown", "PageUp"].includes(e.key)) {
@@ -306,7 +336,7 @@ window.removeEventListener("touchstart", onTouchStart);
 window.removeEventListener("touchmove", onTouchMove);
 window.removeEventListener("keydown", onKeyDown);
 };
-}, [showHint, isSectionFullyVisible]);
+}, [showHint, isSectionFullyVisible, isSectionInFocusZone, lockToSectionStart, shouldAutoLock, isWithinLockWindow]);
 
 return (
 <>

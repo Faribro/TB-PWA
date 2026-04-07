@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession, signOut } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Settings, GitBranch, Copy,
-  LogOut, Network, ChevronLeft, LayoutDashboard, FileText, User, BookOpen, Calendar, FilePlus
+  LogOut, Network, ChevronLeft, LayoutDashboard, FileText, User, BookOpen, Calendar, FilePlus, AlertTriangle, ClipboardCheck, Clock3
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -123,7 +123,7 @@ function NavItem({ tab, isActive, isCollapsed, delay }: {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [duplicatePairs] = useState<any[]>([]);
   const [eligibleCount] = useState(0);
   const [dataHealthScore] = useState(100);
@@ -156,6 +156,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // }, []);
 
   const [isSyncing, setIsSyncing] = useState(false);
+  const hoverOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleManualSync = useCallback(async () => {
     if (isSyncing) return;
@@ -179,7 +181,39 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [isSyncing]);
 
-  const handleSidebarToggle = useCallback(() => setSidebarOpen((v) => !v), []);
+  const clearHoverTimers = useCallback(() => {
+    if (hoverOpenTimerRef.current) {
+      clearTimeout(hoverOpenTimerRef.current);
+      hoverOpenTimerRef.current = null;
+    }
+    if (hoverCloseTimerRef.current) {
+      clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const handleSidebarToggle = useCallback(() => {
+    clearHoverTimers();
+    setSidebarOpen((v) => !v);
+  }, [clearHoverTimers]);
+
+  const handleSidebarMouseEnter = useCallback(() => {
+    if (hoverCloseTimerRef.current) {
+      clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = null;
+    }
+    if (sidebarOpen) return;
+    hoverOpenTimerRef.current = setTimeout(() => setSidebarOpen(true), 140);
+  }, [sidebarOpen]);
+
+  const handleSidebarMouseLeave = useCallback(() => {
+    if (hoverOpenTimerRef.current) {
+      clearTimeout(hoverOpenTimerRef.current);
+      hoverOpenTimerRef.current = null;
+    }
+    hoverCloseTimerRef.current = setTimeout(() => setSidebarOpen(false), 220);
+  }, []);
+
   const handleSignOut = useCallback(() => signOut({ callbackUrl: '/login' }), []);
 
   // Get user role and normalize it (handles both 'PC' and 'Prison Coordinator')
@@ -198,6 +232,45 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     console.log('[Sidebar] Filtered tabs:', filtered.map(t => t.label));
     return filtered;
   }, [userRole]);
+
+  const quickSlotTab = useMemo(() => {
+    if (userRole === Role.PRISON_COORDINATOR) {
+      return {
+        id: 'quick-slot',
+        path: '/dashboard/my-submissions',
+        icon: Clock3,
+        label: 'Today Queue',
+        description: 'Submissions due',
+        sonicId: 'nav-quick-slot',
+        roles: [Role.PRISON_COORDINATOR],
+      };
+    }
+    if (userRole === Role.ME_OFFICER) {
+      return {
+        id: 'quick-slot',
+        path: '/dashboard/mande',
+        icon: ClipboardCheck,
+        label: 'Pending Reviews',
+        description: 'Clinical checks',
+        sonicId: 'nav-quick-slot',
+        roles: [Role.ME_OFFICER],
+      };
+    }
+    return {
+      id: 'quick-slot',
+      path: '/dashboard/follow-up',
+      icon: AlertTriangle,
+      label: 'Critical Queue',
+      description: 'Escalations & SLA',
+      sonicId: 'nav-quick-slot',
+      roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER],
+    };
+  }, [userRole]);
+
+  const sidebarTabs = useMemo(() => {
+    const exists = visibleTabs.some((tab) => tab.path === quickSlotTab.path);
+    return exists ? visibleTabs : [quickSlotTab, ...visibleTabs];
+  }, [visibleTabs, quickSlotTab]);
   
   // Debug logging - runs AFTER visibleTabs is computed
   useEffect(() => {
@@ -223,6 +296,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         layout
         animate={{ width: sidebarOpen ? 280 : 80 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        onMouseEnter={handleSidebarMouseEnter}
+        onMouseLeave={handleSidebarMouseLeave}
         className="relative flex-shrink-0 border-r border-white/20 bg-white/80 backdrop-blur-2xl flex flex-col overflow-hidden z-[60] shadow-2xl"
       >
         <div className={`h-[72px] flex items-center border-b border-slate-100/50 flex-shrink-0 ${sidebarOpen ? 'px-6 justify-between' : 'justify-center'}`}>
@@ -267,7 +342,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         <nav aria-label="Main navigation" className="flex-1 px-4 py-8 space-y-2 overflow-y-auto hide-scrollbar">
-          {visibleTabs.map((tab, idx) => {
+          {sidebarTabs.map((tab, idx) => {
             const isActive = pathname === tab.path;
             
             return (
@@ -283,8 +358,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         {session && (
-          <div className="flex-shrink-0 border-t border-slate-100/50 p-4">
-            <div className={`flex items-center gap-4 mb-3 ${!sidebarOpen ? 'justify-center' : ''}`}>
+          <div className={`flex-shrink-0 border-t border-slate-100/50 p-4 ${!sidebarOpen ? 'pb-6' : ''}`}>
+            <div className={`mb-3 rounded-2xl border border-slate-200/70 bg-white/80 px-3 py-3 shadow-[0_8px_25px_rgba(15,23,42,0.06)] ${!sidebarOpen ? 'border-transparent bg-transparent shadow-none p-0 mb-0' : ''}`}>
+            <div className={`flex items-center gap-4 ${!sidebarOpen ? 'justify-center' : ''}`}>
               <div className="relative flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg text-white text-sm font-bold border border-white/40">
                 {session.user.name?.charAt(0)}
                 <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-md" />
@@ -307,16 +383,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </AnimatePresence>
             </div>
 
-            {sidebarOpen && (
+            {sidebarOpen ? (
               <motion.button
-                whileHover={{ x: 4, color: '#e11d48' }}
+                whileHover={{ y: -1 }}
                 onClick={handleSignOut}
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-bold text-slate-500 hover:bg-rose-50 rounded-xl transition-all duration-300 group"
+                className="mt-3 w-full flex items-center justify-between gap-3 px-3 py-2.5 text-xs font-bold text-slate-600 bg-slate-50/70 hover:bg-rose-50 hover:text-rose-700 rounded-xl transition-all duration-300 border border-slate-200/70 hover:border-rose-200 group"
               >
-                <LogOut className="w-4 h-4 transition-transform group-hover:rotate-12 group-hover:text-rose-600" />
-                Sign out
+                <span className="flex items-center gap-2.5">
+                  <LogOut className="w-4 h-4 transition-transform group-hover:rotate-12 group-hover:text-rose-600" />
+                  Sign out securely
+                </span>
+                <span className="text-[10px] uppercase tracking-widest opacity-60 group-hover:opacity-100">Exit</span>
               </motion.button>
+            ) : (
+              <div className="mt-2 flex flex-col items-center gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.06 }}
+                  whileTap={{ scale: 0.94 }}
+                  onClick={handleSignOut}
+                  className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm"
+                  aria-label="Sign out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </motion.button>
+                <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                  Exit
+                </span>
+              </div>
             )}
+            </div>
           </div>
         )}
       </motion.aside>
