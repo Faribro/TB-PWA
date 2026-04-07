@@ -34,7 +34,6 @@ import { Role, normalizeRole } from '@/lib/constants/roles';
 const TAB_CONFIG = [
   { id: 'home', path: '/dashboard/command-hub', icon: LayoutDashboard, label: 'Home', description: 'Unified Hub', sonicId: 'nav-home', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER, Role.PRISON_COORDINATOR] },
   { id: 'vertex', path: '/dashboard/vertex', icon: Network, label: 'Vertex', description: 'Neural overview', sonicId: 'nav-vertex', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER] },
-  { id: 'follow-up', path: '/dashboard/follow-up', icon: GitBranch, label: 'Follow-up Pipeline', description: 'Patient pipeline', sonicId: 'nav-followup', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER] },
   { id: 'mande', path: '/dashboard/mande', icon: Copy, label: 'M&E Tools', description: 'Monitoring & eval', sonicId: 'nav-mande', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER] },
   { id: 'gis', path: '/dashboard/gis', icon: Network, label: 'GIS Map', description: 'Spatial intelligence', sonicId: 'nav-gis', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER] },
   { id: 'knowledge', path: '/docs', icon: BookOpen, label: 'Knowledge', description: 'Docs & guides', sonicId: 'nav-knowledge', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER, Role.PRISON_COORDINATOR] },
@@ -258,7 +257,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
     return {
       id: 'quick-slot',
-      path: '/dashboard/follow-up',
+      path: '/dashboard/command-hub',
       icon: AlertTriangle,
       label: 'Critical Queue',
       description: 'Escalations & SLA',

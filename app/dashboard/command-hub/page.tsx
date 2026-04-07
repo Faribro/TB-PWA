@@ -23,6 +23,7 @@ import PatientTimeline from '@/components/PatientTimeline';
 import ScrollProgressBar from '@/components/ScrollProgressBar';
 import SectionDivider from '@/components/SectionDivider';
 import StatsTicker from '@/components/StatsTicker';
+import PipelineDashboardEmbed from '@/components/PipelineDashboardEmbed';
 
 const BackgroundGrid = memo(() => (
   <div 
@@ -124,7 +125,6 @@ const HOME_PULSE = [
 ] as const;
 
 const QUICK_ACTIONS = [
-  { href: '/dashboard/follow-up', label: 'Open Pipeline' },
   { href: '/dashboard/mande', label: 'View M&E Tools' },
   { href: '/dashboard/vertex', label: 'Review Analytics' },
   { href: '/docs', label: 'Open Knowledge Vault' },
@@ -196,6 +196,10 @@ export default function CommandHubPage() {
             </div>
           </div>
         </motion.section>
+        
+        <div className="w-full px-6 pb-6">
+          <PipelineDashboardEmbed />
+        </div>
         
         <div className="w-full max-w-[1400px] mx-auto px-6 mt-6 mb-8">
           <ProgramMission />
