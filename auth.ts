@@ -25,31 +25,44 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async signIn({ user }) {
       if (!user?.email) return false;
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('email, is_active')
-        .eq('email', user.email)
-        .eq('is_active', true)
-        .single();
-      
-      if (error || !data) {
-        console.log(`Login rejected for ${user.email}: not in profiles`);
-        return '/login?error=AccessDenied';
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('email, is_active')
+          .eq('email', user.email)
+          .eq('is_active', true)
+          .single();
+        
+        if (error || !data) {
+          console.log(`Login rejected for ${user.email}: not in profiles`);
+          return '/login?error=AccessDenied';
+        }
+        return true;
+      } catch (err) {
+        console.error('SignIn callback error:', err);
+        return false;
       }
-      return true;
     },
     async jwt({ token, user }) {
       if (user?.email) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('role, state, district, name')
-          .eq('email', user.email)
-          .single()
+        try {
+          const { data } = await supabase
+            .from('profiles')
+            .select('role, state, district, name')
+            .eq('email', user.email)
+            .single()
 
-        token.role = data?.role ?? 'M&E'
-        token.state = data?.state ?? 'All'
-        token.district = data?.district ?? 'All'
-        token.staffName = data?.name ?? user.name
+          token.role = data?.role ?? 'M&E Officer'
+          token.state = data?.state ?? 'All'
+          token.district = data?.district ?? 'All'
+          token.staffName = data?.name ?? user.name
+        } catch (err) {
+          console.error('JWT callback error:', err);
+          token.role = 'M&E Officer'
+          token.state = 'All'
+          token.district = 'All'
+          token.staffName = user.name
+        }
       }
       return token
     },

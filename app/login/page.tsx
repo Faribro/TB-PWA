@@ -11,7 +11,7 @@ import { verifyOverrideKey } from "@/app/actions/verify-override-key";
 import { sounds } from "@/lib/sound";
 
 const AshokaChakra = memo(function AshokaChakra({ className, style }: { className?: string, style?: React.CSSProperties }) {
-  const paths = useMemo(() => 
+  const paths = useMemo(() =>
     Array.from({ length: 24 }, (_, i) => (
       <path
         key={i}
@@ -24,10 +24,10 @@ const AshokaChakra = memo(function AshokaChakra({ className, style }: { classNam
 
   return (
     <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className={className} style={style} aria-hidden="true">
-      <circle cx="100" cy="100" r="90" fill="none" stroke="currentColor" strokeWidth="8"/>
-      <circle cx="100" cy="100" r="16" fill="currentColor"/>
+      <circle cx="100" cy="100" r="90" fill="none" stroke="currentColor" strokeWidth="8" />
+      <circle cx="100" cy="100" r="16" fill="currentColor" />
       {paths}
-      <circle cx="100" cy="100" r="82" fill="none" stroke="currentColor" strokeWidth="1"/>
+      <circle cx="100" cy="100" r="82" fill="none" stroke="currentColor" strokeWidth="1" />
     </svg>
   );
 });
@@ -36,11 +36,11 @@ const WavingFlagBackground = memo(function WavingFlagBackground() {
   return (
     <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
       <div className="absolute inset-0 opacity-[0.08]">
-        <div 
+        <div
           className="absolute top-[-30%] left-[-20%] w-[140%] h-[70%] bg-[#FF9933] blur-[120px] rounded-[100%] will-change-transform"
           style={{ animation: 'flagWaveSaffron 14s ease-in-out infinite alternate' }}
         />
-        <div 
+        <div
           className="absolute bottom-[-30%] right-[-20%] w-[140%] h-[70%] bg-[#138808] blur-[120px] rounded-[100%] will-change-transform"
           style={{ animation: 'flagWaveGreen 18s ease-in-out infinite alternate' }}
         />
@@ -50,7 +50,8 @@ const WavingFlagBackground = memo(function WavingFlagBackground() {
         <AshokaChakra className="w-[120vw] md:w-[90vw] max-w-[800px] h-auto text-[#000080] will-change-transform" style={{ animation: 'spin 120s linear infinite' }} />
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes flagWaveSaffron {
           0% { transform: translateY(0px) scale(1) rotate(0deg); }
           50% { transform: translateY(40px) scale(1.05) rotate(2deg); }
@@ -70,52 +71,59 @@ const Masthead = memo(function Masthead() {
   return (
     <header className="w-full flex flex-col z-50">
       <div className="h-24 bg-white/90 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-6 sm:px-12 shadow-sm">
-        <div className="flex flex-col items-start">
-          <h1 className="text-xl font-black text-slate-800 tracking-[0.4em] uppercase">S A M A D H A A N</h1>
-          <p className="text-[10px] text-slate-500 tracking-[0.2em] uppercase text-center w-full">Track and Chase</p>
+        <div className="flex items-center">
+          <Image
+            src="/Images/Logo/AllianceIndia-Logo.png"
+            alt="Alliance India"
+            width={280}
+            height={100}
+            className="h-20 w-auto object-contain"
+            style={{ height: '80px', width: 'auto' }}
+            priority
+          />
         </div>
 
         <div className="hidden lg:flex items-center gap-6">
-          <Image 
-            src="/Images/Ministry_of_Health_India.svg" 
-            alt="Ministry of Health and Family Welfare" 
-            width={180} 
-            height={48} 
+          <Image
+            src="/Images/Ministry_of_Health_India.svg"
+            alt="Ministry of Health and Family Welfare"
+            width={180}
+            height={48}
             className="h-12 w-auto object-contain"
             style={{ height: '48px', width: 'auto' }}
             loading="eager"
             sizes="180px"
           />
           <div className="w-[1px] h-10 bg-slate-200" aria-hidden="true" />
-          <Image 
-            src="/Images/NacoLogo.png" 
-            alt="National AIDS Control Organisation" 
-            width={120} 
-            height={48} 
+          <Image
+            src="/Images/NacoLogo.png"
+            alt="National AIDS Control Organisation"
+            width={120}
+            height={48}
             className="h-12 w-auto object-contain bg-white mix-blend-multiply"
             style={{ height: '48px', width: 'auto' }}
             loading="eager"
             sizes="120px"
           />
           <div className="w-[1px] h-10 bg-slate-200" aria-hidden="true" />
-          <Image 
-            src="/Images/Ministry_of_Law_and_Justice.png" 
-            alt="Ministry of Law and Justice" 
-            width={180} 
-            height={48} 
+          <Image
+            src="/Images/Ministry_of_Law_and_Justice.png"
+            alt="Ministry of Law and Justice"
+            width={180}
+            height={48}
             className="h-12 w-auto object-contain"
             style={{ height: '48px', width: 'auto' }}
             loading="eager"
             sizes="180px"
           />
         </div>
-        
+
         <div className="flex lg:hidden items-center">
-          <Image 
-            src="/Images/Ministry_of_Health_India.svg" 
-            alt="Ministry of Health and Family Welfare" 
-            width={140} 
-            height={40} 
+          <Image
+            src="/Images/Ministry_of_Health_India.svg"
+            alt="Ministry of Health and Family Welfare"
+            width={140}
+            height={40}
             className="h-10 w-auto object-contain"
             style={{ height: '40px', width: 'auto' }}
             loading="eager"
@@ -214,14 +222,14 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen relative flex flex-col items-center justify-start overflow-hidden font-outfit bg-slate-50 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px]">
-      
+
       {/* High-End Atmospheric Waving Flag Layer */}
       <WavingFlagBackground />
 
       <Masthead />
-      
+
       <main className="flex-1 flex flex-col items-center justify-center w-full px-4 pt-10 pb-24 relative z-10">
-        
+
         {/* Session Expired Banner */}
         <AnimatePresence>
           {sessionExpired && (
@@ -238,28 +246,28 @@ export default function LoginPage() {
         </AnimatePresence>
 
         {/* Command Vault Card */}
-        <Card 
+        <Card
           className={`w-full max-w-md bg-white border-0 border-t-4 transition-all duration-500 transform
-            ${isHovering 
-                ? 'border-t-blue-500 shadow-[0_30px_60px_rgba(59,130,246,0.15)] -translate-y-1' 
-                : 'border-t-[#004a99] shadow-[0_20px_50px_rgba(0,0,0,0.05)]'} 
+            ${isHovering
+              ? 'border-t-blue-500 shadow-[0_30px_60px_rgba(59,130,246,0.15)] -translate-y-1'
+              : 'border-t-[#004a99] shadow-[0_20px_50px_rgba(0,0,0,0.05)]'} 
             rounded-2xl overflow-hidden mb-8 relative`}
           style={{ boxShadow: isHovering ? '0 30px 60px rgba(59,130,246,0.15), inset 0 0 0 1px rgba(0,0,0,0.04)' : '0 20px 50px rgba(0,0,0,0.05), inset 0 0 0 1px rgba(0,0,0,0.04)' }}
         >
           {/* Beveled Inner Top Highlight */}
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-blue-100/10 via-blue-200/60 to-blue-100/10 z-10" />
-          
+
           <CardContent className="p-10 flex flex-col items-center relative z-20 overflow-hidden">
             {/* Identity Scan Animation */}
             <AnimatePresence>
               {isHovering && (
-                <motion.div 
+                <motion.div
                   initial={{ top: "-10%" }}
                   animate={{ top: "110%" }}
                   exit={{ opacity: 0 }}
-                  transition={{ 
-                    duration: 2, 
-                    repeat: Infinity, 
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
                     ease: "linear",
                     repeatDelay: 0.5
                   }}
@@ -267,7 +275,7 @@ export default function LoginPage() {
                 />
               )}
             </AnimatePresence>
-            
+
             <div className="mb-6 w-full flex justify-center relative">
               <motion.div
                 animate={logoFlash ? {
@@ -290,24 +298,26 @@ export default function LoginPage() {
                     />
                   )}
                 </AnimatePresence>
-                <Image 
-                  src="/Images/Logo/AllianceIndia-Logo.png" 
-                  alt="Alliance India Logo" 
-                  width={280} 
-                  height={100} 
-                  className="h-28 w-auto object-contain drop-shadow-sm"
-                  style={{ height: '112px', width: 'auto' }}
+                <Image
+                  src="/Images/Logo/samadhaan_os_final.svg?v=14"
+                  alt="SAMADHAAN OS Logo"
+                  width={320}
+                  height={120}
+                  className="h-24 w-auto object-contain drop-shadow-lg"
+                  style={{ height: '96px', width: 'auto' }}
                   priority
-                  sizes="280px"
+                  unoptimized
                 />
               </motion.div>
             </div>
 
             <div className="text-center mb-10 w-full flex flex-col items-center">
-              <p className="uppercase tracking-[0.2em] text-[10px] font-bold text-slate-400 w-full text-center">National Monitoring &amp; Evaluation Portal</p>
+              <p className="uppercase tracking-[0.3em] text-[11px] font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-600 via-slate-800 to-slate-600 w-full text-center drop-shadow-sm">
+                Track &amp; Chase
+              </p>
             </div>
 
-            <button 
+            <button
               onClick={handleGoogleSignIn}
               onMouseEnter={() => setIsHovering(true)}
               onMouseLeave={() => setIsHovering(false)}
@@ -320,10 +330,10 @@ export default function LoginPage() {
               <ShieldCheck className="w-5 h-5 text-slate-400 group-hover/btn:text-blue-500 transition-colors z-10" />
               <div className="w-px h-6 bg-slate-200 group-hover/btn:bg-blue-200 transition-colors z-10" />
               <svg className="w-5 h-5 z-10" viewBox="0 0 24 24" aria-hidden="true">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
               </svg>
               <span className="z-10 tracking-tight">Sign in with Google</span>
             </button>
@@ -358,7 +368,7 @@ export default function LoginPage() {
               onClick={() => setShowOverrideModal(false)}
               className="fixed inset-0 bg-black/90 backdrop-blur-md z-[9998]"
             />
-            
+
             {/* VANGUARD Terminal Modal */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -368,15 +378,15 @@ export default function LoginPage() {
               className="fixed inset-0 z-[9999] flex items-center justify-center p-4 font-mono"
             >
               <div className="w-full max-w-5xl max-h-[90vh] border-2 border-[#33ff99]/30 bg-[#0a0f0a] shadow-[0_0_50px_rgba(51,255,153,0.2)] overflow-y-auto flex flex-col relative crt-overlay">
-                
+
                 {/* Top Header Bar */}
                 <div className="flex items-center justify-between px-4 py-2 border-b border-[#33ff99]/30 bg-[#1a2e1a]/50 text-[#33ff99] text-xs font-bold tracking-widest relative z-10">
                   <div className="flex items-center gap-3">
                     <ShieldAlert className="w-4 h-4 animate-pulse" />
                     <span className="animate-flicker">SAMADHAAN_CORE_V2.4 // ROOT_ACCESS</span>
                   </div>
-                  <button 
-                    onClick={() => setShowOverrideModal(false)} 
+                  <button
+                    onClick={() => setShowOverrideModal(false)}
                     className="hover:bg-red-500 hover:text-black transition-colors px-2 py-1 rounded"
                     aria-label="Close VANGUARD terminal"
                   >
@@ -386,7 +396,7 @@ export default function LoginPage() {
 
                 {/* 4-Quadrant Grid Layout */}
                 <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-0.5 bg-[#33ff99]/10 relative z-10">
-                  
+
                   {/* Quadrant 1: Neural Bypass (Matrix Rain) */}
                   <div className="relative bg-[#0c130c] p-4 overflow-hidden border border-[#33ff99]/20">
                     <MatrixRain />
@@ -412,26 +422,25 @@ export default function LoginPage() {
                         <button
                           key={role}
                           onClick={() => setOverrideRole(role)}
-                          className={`py-2 text-xs border transition-all ${
-                            overrideRole === role 
-                              ? 'bg-[#33ff99] text-black border-[#33ff99] shadow-[0_0_10px_rgba(51,255,153,0.5)]' 
+                          className={`py-2 text-xs border transition-all ${overrideRole === role
+                              ? 'bg-[#33ff99] text-black border-[#33ff99] shadow-[0_0_10px_rgba(51,255,153,0.5)]'
                               : 'border-[#33ff99]/30 text-[#33ff99] hover:bg-[#33ff99]/10'
-                          }`}
+                            }`}
                         >
                           :: {role}
                         </button>
                       ))}
                     </div>
-                    <input 
-                      placeholder="[--override-state]" 
+                    <input
+                      placeholder="[--override-state]"
                       className="w-full bg-black border-b border-[#33ff99]/30 text-[#33ff99] p-2 text-xs outline-none focus:border-[#33ff99] mb-2 placeholder:text-[#33ff99]/30"
-                      value={overrideState} 
+                      value={overrideState}
                       onChange={(e) => setOverrideState(e.target.value)}
                     />
-                    <input 
-                      placeholder="[--override-district]" 
+                    <input
+                      placeholder="[--override-district]"
                       className="w-full bg-black border-b border-[#33ff99]/30 text-[#33ff99] p-2 text-xs outline-none focus:border-[#33ff99] placeholder:text-[#33ff99]/30"
-                      value={overrideDistrict} 
+                      value={overrideDistrict}
                       onChange={(e) => setOverrideDistrict(e.target.value)}
                     />
                   </div>
@@ -450,7 +459,7 @@ export default function LoginPage() {
                         root@vanguard:~$ <span className="animate-pulse">_</span>
                       </p>
                     </div>
-                    
+
                     {/* Password input - always visible, fixed at bottom */}
                     <div className="flex-shrink-0 space-y-2">
                       <input
@@ -488,11 +497,10 @@ export default function LoginPage() {
                             : '0 0 0px transparent'
                         }}
                         transition={{ duration: 0.6, repeat: isUnlocked ? 2 : 0 }}
-                        className={`w-full py-4 font-black text-sm tracking-[0.3em] transition-all ${
-                          isUnlocked
+                        className={`w-full py-4 font-black text-sm tracking-[0.3em] transition-all ${isUnlocked
                             ? 'bg-[#33ff99] text-black hover:bg-white shadow-[0_0_20px_rgba(51,255,153,0.5)] hover:shadow-[0_0_30px_rgba(51,255,153,0.8)] cursor-pointer'
                             : 'bg-[#33ff99]/20 text-[#33ff99]/20 cursor-not-allowed'
-                        }`}
+                          }`}
                         aria-label={isUnlocked ? 'Execute system breach sign in' : 'Access restricted, enter key'}
                       >
                         {isUnlocked ? '[ EXECUTE_SYSTEM_BREACH_SIGN_IN ]' : '[ ACCESS_RESTRICTED_ENTER_KEY ]'}

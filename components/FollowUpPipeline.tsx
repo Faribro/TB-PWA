@@ -3,7 +3,7 @@
 import { useMemo, useState, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, X, ChevronLeft, ChevronRight, AlertCircle, ClockAlert, MapPin, List, Grid3x3 } from 'lucide-react';
+import { Filter, X, ChevronLeft, ChevronRight, AlertCircle, ClockAlert, MapPin, List, Grid3x3, Upload } from 'lucide-react';
 import { useTreeFilter } from '@/contexts/TreeFilterContext';
 import { useEntityStore } from '@/stores/useEntityStore';
 import { normalizeGeographicKey } from '@/lib/normalizeGeographicKey';
@@ -42,6 +42,7 @@ interface FollowUpPipelineProps {
   globalPatients?: Patient[];
   isLoading?: boolean;
   onPatientClick?: (patient: Patient) => void;
+  onUploadRegister?: () => void;
 }
 
 // Task 2: Explicit Inline PatientCard Component
@@ -122,7 +123,7 @@ const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelec
   );
 };
 
-export function FollowUpPipeline({ patients, globalPatients, isLoading = false, onPatientClick }: FollowUpPipelineProps) {
+export function FollowUpPipeline({ patients, globalPatients, isLoading = false, onPatientClick, onUploadRegister }: FollowUpPipelineProps) {
   const { filter: treeFilter, clearFilter: clearTreeFilter } = useTreeFilter();
   const activeFilters = useEntityStore(s => s.activeFilters);
   const [triageIds, setTriageIds] = useState<number[]>([]);
@@ -415,6 +416,16 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
             <div className="text-sm font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full">
               {filteredPatients.length.toLocaleString()} {hasActiveFilter ? 'filtered' : 'total'}
             </div>
+            {onUploadRegister && (
+              <button
+                onClick={onUploadRegister}
+                className="flex items-center gap-1.5 h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold tracking-wide shadow-sm transition-all hover:shadow-md"
+                title="Upload handwritten register for OCR extraction"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                Upload Register
+              </button>
+            )}
             <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1">
               <button
                 onClick={() => { sounds.toggle(); setViewMode('list'); }}

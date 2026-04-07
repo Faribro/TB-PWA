@@ -147,10 +147,10 @@ export const FeatureShowcase = memo(() => {
       <div className="absolute inset-0 rounded-[2rem] p-[2px] bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-pulse" style={{ animationDuration: '3s' }}>
         <div className="absolute inset-0 rounded-[2rem] bg-slate-50" />
       </div>
-      
+
       {/* Outer Glow */}
       <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-[2rem] blur-xl" />
-      
+
       {/* Background Slides */}
       <div className="absolute inset-[2px] rounded-[2rem] overflow-hidden">
         {SLIDES.map((slide, index) => (
@@ -162,12 +162,12 @@ export const FeatureShowcase = memo(() => {
             className={`absolute inset-0 ${isEven ? 'bg-white' : 'bg-slate-900'}`}
           >
             <ProgressBar isActive={index === activeIndex} accentColor={slide.accentColor} />
-            
+
             {/* Gradient Background */}
             <div className={`absolute inset-0 bg-gradient-to-br ${slide.gradient} opacity-5`} />
-            
+
             {/* Decorative Pattern */}
-            <div 
+            <div
               className="absolute inset-0 opacity-[0.03]"
               style={{
                 backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
@@ -191,155 +191,154 @@ export const FeatureShowcase = memo(() => {
                 <div className="absolute top-0 bottom-0 left-0 w-[1px] bg-gradient-to-b from-transparent via-pink-400 to-transparent animate-pulse" style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
                 <div className="absolute top-0 bottom-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-indigo-400 to-transparent animate-pulse" style={{ animationDuration: '2s', animationDelay: '1.5s' }} />
               </div>
-          {/* Slide Numbers */}
-          {SLIDES.map((slide, index) => (
-            <SlideNumber
-              key={`number-${slide.id}`}
-              number={slide.id}
-              isActive={index === activeIndex}
-              isEven={isEven}
-            />
-          ))}
+              {/* Slide Numbers */}
+              {SLIDES.map((slide, index) => (
+                <SlideNumber
+                  key={`number-${slide.id}`}
+                  number={slide.id}
+                  isActive={index === activeIndex}
+                  isEven={isEven}
+                />
+              ))}
 
-          {/* Slide Dates */}
-          {SLIDES.map((slide, index) => (
-            <SlideDate
-              key={`date-${slide.id}`}
-              isActive={index === activeIndex}
-              isEven={isEven}
-            />
-          ))}
+              {/* Slide Dates */}
+              {SLIDES.map((slide, index) => (
+                <SlideDate
+                  key={`date-${slide.id}`}
+                  isActive={index === activeIndex}
+                  isEven={isEven}
+                />
+              ))}
 
-          {/* Icon Section */}
-          <div className="absolute left-0 top-0 w-[45%] h-full flex items-center justify-center">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeSlide.id}
-                initial={{ opacity: 0, scale: 0.8, y: 40 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.8, y: -40 }}
-                transition={{ duration: 0.6, delay: 0.5, type: 'spring', stiffness: 300, damping: 25 }}
-                className="relative"
-              >
-                {/* Icon Glow */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${activeSlide.gradient} opacity-30 blur-3xl rounded-full scale-150`} />
-                
-                {/* Icon Container with Neon Border */}
-                <div className="relative w-48 h-48 rounded-3xl p-[2px] bg-gradient-to-br from-white via-blue-200 to-purple-200">
-                  <div className={`w-full h-full rounded-3xl bg-gradient-to-br ${activeSlide.gradient} flex items-center justify-center shadow-[0_0_60px_rgba(139,92,246,0.6)]`}>
-                    <div className="absolute inset-0 bg-white/20 rounded-3xl" />
-                    <activeSlide.icon className="w-24 h-24 text-white relative z-10" />
-                  </div>
-                </div>
-              </motion.div>
-            </AnimatePresence>
-          </div>
+              {/* Icon Section */}
+              <div className="absolute left-0 top-0 w-[45%] h-full flex items-center justify-center">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeSlide.id}
+                    initial={{ opacity: 0, scale: 0.8, y: 40 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, y: -40 }}
+                    transition={{ duration: 0.6, delay: 0.5, type: 'spring', stiffness: 300, damping: 25 }}
+                    className="relative"
+                  >
+                    {/* Icon Glow */}
+                    <div className={`absolute inset-0 bg-gradient-to-br ${activeSlide.gradient} opacity-30 blur-3xl rounded-full scale-150`} />
 
-          {/* Content Section */}
-          <div className="absolute right-0 top-0 w-[55%] h-full flex flex-col justify-center px-12">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeSlide.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-8"
-              >
-                {/* Title */}
-                <div className="space-y-2">
-                  {activeSlide.title.map((line, i) => (
-                    <div key={i} className="relative inline-block">
-                      <motion.div
-                        initial={{ scaleX: 0 }}
-                        animate={{ scaleX: 1 }}
-                        transition={{ duration: 0.5, delay: 0.8 + i * 0.1, ease: 'easeOut' }}
-                        className={`absolute inset-0 bg-gradient-to-r ${activeSlide.gradient} opacity-20 -z-10 -left-4 -right-4`}
-                        style={{ transformOrigin: '100% 50%' }}
-                      />
-                      <motion.h2
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, delay: 0.8 + i * 0.1 }}
-                        className="text-5xl font-black text-slate-900 tracking-tight"
-                      >
-                        {line}
-                      </motion.h2>
+                    {/* Icon Container with Neon Border */}
+                    <div className="relative w-48 h-48 rounded-3xl p-[2px] bg-gradient-to-br from-white via-blue-200 to-purple-200">
+                      <div className={`w-full h-full rounded-3xl bg-gradient-to-br ${activeSlide.gradient} flex items-center justify-center shadow-[0_0_60px_rgba(139,92,246,0.6)]`}>
+                        <div className="absolute inset-0 bg-white/20 rounded-3xl" />
+                        <activeSlide.icon className="w-24 h-24 text-white relative z-10" />
+                      </div>
                     </div>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+
+              {/* Content Section */}
+              <div className="absolute right-0 top-0 w-[55%] h-full flex flex-col justify-center px-12">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeSlide.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-8"
+                  >
+                    {/* Title */}
+                    <div className="space-y-2">
+                      {activeSlide.title.map((line, i) => (
+                        <div key={i} className="relative inline-block">
+                          <motion.div
+                            initial={{ scaleX: 0 }}
+                            animate={{ scaleX: 1 }}
+                            transition={{ duration: 0.5, delay: 0.8 + i * 0.1, ease: 'easeOut' }}
+                            className={`absolute inset-0 bg-gradient-to-r ${activeSlide.gradient} opacity-20 -z-10 -left-4 -right-4`}
+                            style={{ transformOrigin: '100% 50%' }}
+                          />
+                          <motion.h2
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4, delay: 0.8 + i * 0.1 }}
+                            className="text-5xl font-black text-slate-900 tracking-tight"
+                          >
+                            {line}
+                          </motion.h2>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Description */}
+                    <motion.p
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: 0.9 }}
+                      className="text-base text-slate-600 leading-relaxed"
+                    >
+                      {activeSlide.description}
+                    </motion.p>
+
+                    {/* Button with Neon Glow */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: 1 }}
+                    >
+                      <Link href={activeSlide.buttonLink}>
+                        <motion.button
+                          whileHover={{ y: -4 }}
+                          whileTap={{ scale: 0.98 }}
+                          className="group relative px-8 py-4 rounded-xl overflow-hidden"
+                        >
+                          {/* Neon Border */}
+                          <div className={`absolute inset-0 bg-gradient-to-r ${activeSlide.gradient} opacity-100 rounded-xl`} />
+                          <div className="absolute inset-[2px] bg-slate-900 rounded-[10px]" />
+
+                          {/* Glow Effect */}
+                          <div className={`absolute inset-0 bg-gradient-to-r ${activeSlide.gradient} opacity-50 blur-xl`} />
+
+                          {/* Hover Overlay */}
+                          <motion.div
+                            className={`absolute inset-[2px] bg-gradient-to-r ${activeSlide.gradient} rounded-[10px]`}
+                            initial={{ scaleX: 0 }}
+                            whileHover={{ scaleX: 1 }}
+                            transition={{ duration: 0.3 }}
+                            style={{ transformOrigin: '0% 50%' }}
+                          />
+
+                          <span className="relative z-10 flex items-center gap-2 text-white font-semibold text-sm uppercase tracking-wider">
+                            {activeSlide.buttonText}
+                            <ArrowRight className="w-4 h-4" />
+                          </span>
+                        </motion.button>
+                      </Link>
+                    </motion.div>
+                  </motion.div>
+                </AnimatePresence>
+
+                {/* Slide Indicators with Glow */}
+                <div className="absolute bottom-12 right-12 flex gap-3">
+                  {SLIDES.map((slide, index) => (
+                    <button
+                      key={slide.id}
+                      onClick={() => goToSlide(index)}
+                      className="relative group"
+                      aria-label={`Go to slide ${slide.id}`}
+                    >
+                      {index === activeIndex && (
+                        <div className={`absolute inset-0 ${slide.accentColor} opacity-50 blur-md rounded-full scale-150`} />
+                      )}
+                      <div
+                        className={`relative w-2 h-2 rounded-full transition-all duration-300 ${index === activeIndex
+                            ? `${slide.accentColor} w-8 shadow-[0_0_20px_currentColor]`
+                            : 'bg-slate-300 hover:bg-slate-400 group-hover:shadow-[0_0_10px_currentColor]'
+                          }`}
+                      />
+                    </button>
                   ))}
                 </div>
-
-                {/* Description */}
-                <motion.p
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.9 }}
-                  className="text-base text-slate-600 leading-relaxed"
-                >
-                  {activeSlide.description}
-                </motion.p>
-
-                {/* Button with Neon Glow */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 1 }}
-                >
-                  <Link href={activeSlide.buttonLink}>
-                    <motion.button
-                      whileHover={{ y: -4 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="group relative px-8 py-4 rounded-xl overflow-hidden"
-                    >
-                      {/* Neon Border */}
-                      <div className={`absolute inset-0 bg-gradient-to-r ${activeSlide.gradient} opacity-100 rounded-xl`} />
-                      <div className="absolute inset-[2px] bg-slate-900 rounded-[10px]" />
-                      
-                      {/* Glow Effect */}
-                      <div className={`absolute inset-0 bg-gradient-to-r ${activeSlide.gradient} opacity-50 blur-xl`} />
-                      
-                      {/* Hover Overlay */}
-                      <motion.div
-                        className={`absolute inset-[2px] bg-gradient-to-r ${activeSlide.gradient} rounded-[10px]`}
-                        initial={{ scaleX: 0 }}
-                        whileHover={{ scaleX: 1 }}
-                        transition={{ duration: 0.3 }}
-                        style={{ transformOrigin: '0% 50%' }}
-                      />
-                      
-                      <span className="relative z-10 flex items-center gap-2 text-white font-semibold text-sm uppercase tracking-wider">
-                        {activeSlide.buttonText}
-                        <ArrowRight className="w-4 h-4" />
-                      </span>
-                    </motion.button>
-                  </Link>
-                </motion.div>
-              </motion.div>
-            </AnimatePresence>
-
-            {/* Slide Indicators with Glow */}
-            <div className="absolute bottom-12 right-12 flex gap-3">
-              {SLIDES.map((slide, index) => (
-                <button
-                  key={slide.id}
-                  onClick={() => goToSlide(index)}
-                  className="relative group"
-                  aria-label={`Go to slide ${slide.id}`}
-                >
-                  {index === activeIndex && (
-                    <div className={`absolute inset-0 ${slide.accentColor} opacity-50 blur-md rounded-full scale-150`} />
-                  )}
-                  <div
-                    className={`relative w-2 h-2 rounded-full transition-all duration-300 ${
-                      index === activeIndex
-                        ? `${slide.accentColor} w-8 shadow-[0_0_20px_currentColor]`
-                        : 'bg-slate-300 hover:bg-slate-400 group-hover:shadow-[0_0_10px_currentColor]'
-                    }`}
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
+              </div>
             </div>
           </div>
         </div>

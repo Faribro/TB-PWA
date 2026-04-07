@@ -21,7 +21,8 @@ import {
   MapPin,
   Building2,
   ChevronDown,
-  ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  Upload
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ import { sounds } from '@/lib/sound';
 import { FollowUpPipeline } from '@/components/FollowUpPipeline';
 import { PatientDetailDrawer } from '@/components/PatientDetailDrawer';
 import { VertexChart } from '@/components/VertexChart';
+import { RegisterUploadModal } from '@/components/RegisterUploadModal';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope } from '@/hooks/useSessionScope';
 import { useSWRConfig } from 'swr';
@@ -552,6 +554,7 @@ export default function Vertex({
   const [filterState, setFilterState] = useState<string>('All');
   const [filterDistrict, setFilterDistrict] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'volume' | 'breaches'>('volume');
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const { mutate } = useSWRConfig();
 
   // Update currentDate when data loads and most recent date changes
@@ -1291,6 +1294,7 @@ export default function Vertex({
                 patients={sortedFacilityPatients}
                 isLoading={false}
                 onPatientClick={handleOpenPatientDrawer}
+                onUploadRegister={() => setIsUploadModalOpen(true)}
               />
             </div>
           </div>
@@ -1303,6 +1307,15 @@ export default function Vertex({
         isOpen={!!selectedPatient}
         onClose={handleClosePatientDrawer}
         onUpdate={handlePatientUpdate}
+      />
+
+      {/* Upload Modal */}
+      <RegisterUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onSuccess={() => {
+          mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+        }}
       />
     </div>
   );

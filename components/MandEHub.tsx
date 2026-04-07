@@ -25,6 +25,7 @@ import {
   Stethoscope,
   Microscope,
   FileSearch,
+  FileImage,
   Activity,
   Pill,
   TrendingDown,
@@ -38,6 +39,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { PatientDetailDrawer } from './PatientDetailDrawer';
+import { RegisterReconciliation } from './RegisterReconciliation';
 import { useTruthEngine } from '@/hooks/useTruthEngine';
 import { ViolationCard } from './ViolationCard';
 import { DataHealthGauge } from './DataHealthGauge';
@@ -97,7 +99,7 @@ interface CascadeConversion {
   critical: boolean;
 }
 
-type TabId = 'duplicates' | 'integrity' | 'cascade' | 'kanban';
+type TabId = 'duplicates' | 'integrity' | 'cascade' | 'kanban' | 'reconciliation';
 
 interface HubContextValue {
   openPatient: (p: Patient) => void;
@@ -124,6 +126,7 @@ const TABS: { id: TabId; label: string; short: string; icon: React.ElementType }
   { id: 'integrity', label: 'Integrity Scanner', short: 'Integrity', icon: Shield },
   { id: 'cascade', label: 'Care Cascade', short: 'Cascade', icon: GitBranch },
   { id: 'kanban', label: 'SLA Kanban', short: 'Kanban', icon: Kanban },
+  { id: 'reconciliation', label: 'Register Recon', short: 'Recon', icon: FileImage },
 ];
 
 const RECORD_DISPLAY_FIELDS = [
@@ -657,6 +660,9 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
               )}
               {activeTab === 'kanban' && (
                 <AgingSLAKanban patients={globalPatients} />
+              )}
+              {activeTab === 'reconciliation' && (
+                <RegisterReconciliation />
               )}
             </motion.div>
           </AnimatePresence>

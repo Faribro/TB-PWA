@@ -14,6 +14,7 @@ import { CharacterSelector } from './CharacterSelector';
 import { SyncIntelligenceCard } from './settings/SyncIntelligenceCard';
 import { sounds, setSoundEnabled, isSoundEnabled } from '@/lib/sound';
 import { cn } from '@/lib/utils';
+import { NeoPacManMaze } from './NeoPacManMaze';
 
 const PDFLibrary = dynamic(() => import('./pdf/PDFLibrary'), { ssr: false });
 
@@ -229,6 +230,7 @@ function ProfilePanel({
 
         {/* Identity — spans 2 cols */}
         <TiltCard className="col-span-2 relative overflow-hidden rounded-3xl bg-white border border-slate-200/60 shadow-[0_8px_40px_rgb(0,0,0,0.06)] p-4">
+          <NeoPacManMaze accentColor="#3b82f6" gridSize={30} agentCount={3} />
           {/* Noise texture overlay */}
           <div
             className="absolute inset-0 opacity-[0.025] pointer-events-none"
@@ -283,6 +285,7 @@ function ProfilePanel({
 
         {/* Notification summary stat card */}
         <TiltCard className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 to-slate-800 p-6 shadow-[0_8px_40px_rgb(0,0,0,0.15)] flex flex-col justify-between">
+          <NeoPacManMaze accentColor="#8b5cf6" gridSize={25} agentCount={2} />
           <div className="absolute -bottom-8 -right-8 w-36 h-36 bg-gradient-to-br from-violet-500/30 to-blue-500/20 rounded-full blur-2xl" />
           <div>
             <Bell className="w-5 h-5 text-slate-400 mb-3" />
@@ -430,6 +433,7 @@ function SyncPanel({
 
         {/* Cache health */}
         <TiltCard className="relative overflow-hidden rounded-3xl bg-white border border-slate-200/60 shadow-[0_8px_40px_rgb(0,0,0,0.06)] p-7">
+          <NeoPacManMaze accentColor="#10b981" gridSize={28} agentCount={2} />
           <div className="absolute -top-10 -left-10 w-40 h-40 bg-emerald-400/10 rounded-full blur-3xl" />
           <div className="flex items-center justify-between mb-4">
             <HardDrive className="w-5 h-5 text-slate-400" />
@@ -455,6 +459,7 @@ function SyncPanel({
               : 'bg-white border-slate-200/60'
           }`}
         >
+          <NeoPacManMaze accentColor="#f59e0b" gridSize={26} agentCount={2} isHovered={offlineMode} />
           <div className={`absolute -bottom-8 -right-8 w-32 h-32 rounded-full blur-2xl transition-colors ${offlineMode ? 'bg-amber-400/20' : 'bg-slate-400/10'}`} />
           <div className="flex items-center justify-between mb-4">
             {offlineMode

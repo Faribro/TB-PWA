@@ -19,7 +19,10 @@
     "test:pipeline": "node scripts/verify-supabase-connection.js && node scripts/test-triple-sync.js",
     "test:rbac": "node scripts/test-rbac.js",
     "test:rbac-integration": "node scripts/test-rbac-integration.js",
-    "test:rbac-all": "node scripts/test-rbac.js && node scripts/test-rbac-integration.js"
+    "test:rbac-all": "node scripts/test-rbac.js && node scripts/test-rbac-integration.js",
+    "test:reconcile": "node scripts/test-register-reconcile.js",
+    "test:hybrid-ocr": "node scripts/test-hybrid-ocr.js",
+    "test:upload-modal": "node scripts/test-upload-modal.js"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.43",
@@ -61,6 +64,7 @@
     "@vercel/analytics": "^2.0.1",
     "@vitalets/google-translate-api": "^9.2.1",
     "ai": "^6.0.116",
+    "canvas": "^3.2.3",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -89,6 +93,7 @@
     "sonner": "^2.0.7",
     "swr": "^2.4.1",
     "tailwind-merge": "^3.5.0",
+    "tesseract.js": "^7.0.0",
     "three": "^0.183.2",
     "topojson-client": "^3.1.0",
     "xlsx": "^0.18.5",
