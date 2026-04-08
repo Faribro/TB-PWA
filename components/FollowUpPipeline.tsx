@@ -65,6 +65,7 @@ const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelec
 
   return (
     <motion.div
+      data-tour-id="patient-card"
       layout
       variants={{
         hidden: { opacity: 0, scale: 0.8, y: 30 },
@@ -409,22 +410,37 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
           </div>
           <div className="flex items-center gap-2">
             {eligibleCount > 0 && (
-              <div className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
-                {eligibleCount} eligible for triage
-              </div>
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="flex items-center gap-2 bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white px-4 py-2 rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_0_#047857,0_8px_16px_rgba(16,185,129,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_0_#047857,0_10px_20px_rgba(16,185,129,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-2px_0_#047857] active:translate-y-1 transition-all"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                  <span className="text-sm font-black tracking-wide">
+                    {eligibleCount} eligible for triage
+                  </span>
+                </div>
+              </motion.div>
             )}
-            <div className="text-sm font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="text-sm font-black text-slate-700 bg-gradient-to-br from-slate-100 to-slate-200 px-4 py-2 rounded-xl shadow-sm border border-slate-300/50"
+            >
               {filteredPatients.length.toLocaleString()} {hasActiveFilter ? 'filtered' : 'total'}
-            </div>
+            </motion.div>
             {onUploadRegister && (
-              <button
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={onUploadRegister}
-                className="flex items-center gap-1.5 h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold tracking-wide shadow-sm transition-all hover:shadow-md"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-br from-cyan-500 via-cyan-600 to-cyan-700 text-white rounded-xl font-bold text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_0_#0e7490,0_8px_16px_rgba(6,182,212,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_0_#0e7490,0_10px_20px_rgba(6,182,212,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-2px_0_#0e7490] active:translate-y-1 transition-all"
                 title="Upload handwritten register for OCR extraction"
               >
-                <Upload className="w-3.5 h-3.5" />
+                <Upload className="w-4 h-4" />
                 Upload Register
-              </button>
+              </motion.button>
             )}
             <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1">
               <button
@@ -493,7 +509,11 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
                           className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                         />
                       </div>
-                      <div className="flex-1 cursor-pointer" onClick={() => onPatientClick?.(patient)}>
+                      <div
+                        className="flex-1 cursor-pointer"
+                        data-tour-id="patient-card"
+                        onClick={() => onPatientClick?.(patient)}
+                      >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             {/* Data Hierarchy: Name > ID > Status */}
@@ -663,7 +683,7 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
                   <Button
                     onClick={handleBulkTriage}
                     disabled={isTriaging}
-                    className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg"
+                    className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_10px_20px_rgba(16,185,129,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_12px_24px_rgba(16,185,129,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-3px_0_#047857] active:translate-y-1.5 transition-all font-bold"
                   >
                     Mark as Not TB ({triageIds.length} Patient{triageIds.length > 1 ? 's' : ''})
                   </Button>

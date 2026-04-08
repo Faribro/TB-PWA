@@ -6,59 +6,60 @@ import { useSession, signOut } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Settings, GitBranch, Copy,
-  LogOut, Network, ChevronLeft, LayoutDashboard, FileText, User, BookOpen, Calendar, FilePlus, AlertTriangle, ClipboardCheck, Clock3
+  LogOut, Network, Map, ChevronLeft, LayoutDashboard, FileText, User, BookOpen, Calendar, FilePlus, AlertTriangle, ClipboardCheck, Clock3
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import Image from 'next/image';
-import dynamic from 'next/dynamic';
-
-const ClientFloatingEntity = dynamic(() => import('@/components/ClientFloatingEntity'), {
-  ssr: false,
-  loading: () => null,
-});
 
 const MotionLink = motion.create(Link);
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope } from '@/hooks/useSessionScope';
 import { EntityDataSync } from '@/components/EntityDataSync';
 import { SyncStatusFeed } from '@/components/SyncStatusFeed';
-import { useSonicIntelligence } from '@/hooks/useSonicIntelligence';
 import { useEntityStore } from '@/stores/useEntityStore';
 import { sounds } from '@/lib/sound';
+import type * as SoundModule from '@/lib/sound';
 
 import { DashboardErrorBoundary } from '@/components/DashboardErrorBoundary';
 
 import { Role, normalizeRole } from '@/lib/constants/roles';
 
 const TAB_CONFIG = [
-  { id: 'home', path: '/dashboard/command-hub', icon: LayoutDashboard, label: 'Home', description: 'Unified Hub', sonicId: 'nav-home', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER, Role.PRISON_COORDINATOR] },
-  { id: 'vertex', path: '/dashboard/vertex', icon: Network, label: 'Vertex', description: 'Neural overview', sonicId: 'nav-vertex', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER] },
-  { id: 'mande', path: '/dashboard/mande', icon: Copy, label: 'M&E Tools', description: 'Monitoring & eval', sonicId: 'nav-mande', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER] },
-  { id: 'gis', path: '/dashboard/gis', icon: Network, label: 'GIS Map', description: 'Spatial intelligence', sonicId: 'nav-gis', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER] },
-  { id: 'knowledge', path: '/docs', icon: BookOpen, label: 'Knowledge', description: 'Docs & guides', sonicId: 'nav-knowledge', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER, Role.PRISON_COORDINATOR] },
-  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account & sync', sonicId: 'nav-settings', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER, Role.PRISON_COORDINATOR] },
+  { id: 'home', path: '/dashboard/command-hub', icon: LayoutDashboard, label: 'Home', description: 'Unified Hub', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER, Role.PRISON_COORDINATOR], dataTourId: 'sidebar-home' },
+  { id: 'vertex', path: '/dashboard/vertex', icon: Network, label: 'Vertex', description: 'Neural overview', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER], dataTourId: 'sidebar-vertex' },
+  { id: 'mande', path: '/dashboard/mande', icon: Copy, label: 'M&E Tools', description: 'Monitoring & eval', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER], dataTourId: 'sidebar-mne' },
+  { id: 'gis', path: '/dashboard/gis', icon: Map, label: 'GIS Map', description: 'Spatial intelligence', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER], dataTourId: 'sidebar-gis' },
+  { id: 'knowledge', path: '/docs', icon: BookOpen, label: 'Knowledge', description: 'Docs & guides', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER, Role.PRISON_COORDINATOR], dataTourId: 'sidebar-docs' },
+  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account & sync', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER, Role.PRISON_COORDINATOR] },
 ];
 
 const PC_TAB_CONFIG = [
-  { id: 'my-submissions', path: '/dashboard/my-submissions', icon: Calendar, label: 'My Calendar', description: 'View submissions', sonicId: 'nav-calendar', roles: [Role.PRISON_COORDINATOR] },
-  { id: 'submit-new', path: '/dashboard/submit-new', icon: FilePlus, label: 'New Screening', description: 'Submit record', sonicId: 'nav-submit', roles: [Role.PRISON_COORDINATOR] },
-  { id: 'knowledge', path: '/docs', icon: BookOpen, label: 'Knowledge', description: 'Docs & guides', sonicId: 'nav-knowledge', roles: [Role.PRISON_COORDINATOR] },
-  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account', sonicId: 'nav-settings', roles: [Role.PRISON_COORDINATOR] },
+  { id: 'my-submissions', path: '/dashboard/my-submissions', icon: Calendar, label: 'My Calendar', description: 'View submissions', roles: [Role.PRISON_COORDINATOR] },
+  { id: 'submit-new', path: '/dashboard/submit-new', icon: FilePlus, label: 'New Screening', description: 'Submit record', roles: [Role.PRISON_COORDINATOR] },
+  { id: 'knowledge', path: '/docs', icon: BookOpen, label: 'Knowledge', description: 'Docs & guides', roles: [Role.PRISON_COORDINATOR] },
+  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account', roles: [Role.PRISON_COORDINATOR] },
 ];
 
-function NavItem({ tab, isActive, isCollapsed, delay }: {
+function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
   tab: typeof TAB_CONFIG[0];
   isActive: boolean;
   isCollapsed: boolean;
   delay: number;
+  dataTourId?: string;
 }) {
   const Icon = tab.icon;
   return (
     <MotionLink
       href={tab.path}
-      data-sonic={tab.sonicId}
-      onClick={() => sounds.navTab()}
+      data-tour-id={dataTourId}
+      onClick={() => {
+        try {
+          sounds.navTab();
+        } catch (e) {
+          console.error('[Nav] Sound error:', e);
+        }
+      }}
       initial={{ opacity: 0, x: -16 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay, ease: [0.22, 1, 0.36, 1], duration: 0.35 }}
@@ -66,25 +67,25 @@ function NavItem({ tab, isActive, isCollapsed, delay }: {
       title={isCollapsed ? tab.label : undefined}
       className={`
         group relative w-full flex items-center gap-4 rounded-2xl transition-all duration-300 cursor-pointer
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900
         ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}
         ${isActive
-          ? 'bg-blue-500/5 border border-blue-500/10 shadow-sm'
+          ? 'bg-slate-900/[0.04] border border-slate-900/10 shadow-sm'
           : 'text-slate-500 hover:text-slate-900 hover:bg-slate-900/5'}
       `}
     >
         {isActive && (
           <motion.div
             layoutId="sidebar-active-pill"
-            className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-blue-600 rounded-full shadow-[0_0_12px_rgba(37,99,235,0.4)]"
+            className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-slate-900 rounded-full shadow-[0_0_12px_rgba(15,23,42,0.35)]"
             transition={{ type: 'spring', stiffness: 400, damping: 35 }}
           />
         )}
 
         <div className={`
-          relative flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300
+          relative flex-shrink-0 w-10 h-10 min-w-10 min-h-10 rounded-xl flex items-center justify-center transition-all duration-300
           ${isActive
-            ? 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/20'
+            ? 'bg-slate-900 shadow-lg shadow-slate-900/20'
             : 'bg-slate-100 group-hover:bg-slate-200'}
         `}>
           <Icon className={`w-5 h-5 transition-colors ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-900'}`} />
@@ -106,7 +107,7 @@ function NavItem({ tab, isActive, isCollapsed, delay }: {
               transition={{ duration: 0.2 }}
               className="overflow-hidden min-w-0 text-left"
             >
-              <p className={`text-sm font-bold truncate tracking-tight ${isActive ? 'text-blue-700' : 'text-slate-700 group-hover:text-slate-900'}`}>
+              <p className={`text-sm font-bold truncate tracking-tight ${isActive ? 'text-slate-900' : 'text-slate-700 group-hover:text-slate-900'}`}>
                 {tab.label}
               </p>
               <p className="text-[10px] text-slate-400 truncate font-semibold uppercase tracking-wider opacity-80">
@@ -130,29 +131,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const scope = useSessionScope();
   const { data: globalPatients = [], isLoading } = useSWRAllPatients(scope);
   const memoizedPatients = useMemo(() => globalPatients ?? [], [globalPatients]);
-
-  // Only initialize Sonic intelligence once
-  const sonicConfig = useMemo(() => ({
-    allPatients: memoizedPatients,
-    duplicatePairs,
-    eligibleCount,
-    dataHealthScore,
-  }), [memoizedPatients, duplicatePairs, eligibleCount, dataHealthScore]);
-
-  useSonicIntelligence(sonicConfig);
-
-  // ── Realtime Overwatch: DISABLED due to server crashes
-  // useEffect(() => {
-  //   const stop = startRealtimeOverwatch((district: string) => {
-  //     const store = useEntityStore.getState();
-  //     store.pushSonicAlert(
-  //       `🚨 Sir, overriding current view. A critical SLA breach just hit the database for ${district}.`
-  //     );
-  //     store.setSonicFlyTarget({ district, metric: 'breaches' });
-  //     store.setState('alerting');
-  //   });
-  //   return stop;
-  // }, []);
 
   const [isSyncing, setIsSyncing] = useState(false);
   const hoverOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -202,7 +180,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       hoverCloseTimerRef.current = null;
     }
     if (sidebarOpen) return;
-    hoverOpenTimerRef.current = setTimeout(() => setSidebarOpen(true), 140);
+    if (hoverOpenTimerRef.current) return;
+    hoverOpenTimerRef.current = setTimeout(async () => {
+      try {
+        // Dynamic import to ensure function is available
+        const { sounds: soundModule } = await import('@/lib/sound');
+        if (soundModule && soundModule.drawerHoverOpen) {
+          soundModule.drawerHoverOpen();
+        }
+      } catch (e) {
+        console.error('[Sidebar] Sound error:', e);
+      }
+      setSidebarOpen(true);
+      hoverOpenTimerRef.current = null;
+    }, 140);
   }, [sidebarOpen]);
 
   const handleSidebarMouseLeave = useCallback(() => {
@@ -240,7 +231,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         icon: Clock3,
         label: 'Today Queue',
         description: 'Submissions due',
-        sonicId: 'nav-quick-slot',
         roles: [Role.PRISON_COORDINATOR],
       };
     }
@@ -251,7 +241,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         icon: ClipboardCheck,
         label: 'Pending Reviews',
         description: 'Clinical checks',
-        sonicId: 'nav-quick-slot',
         roles: [Role.ME_OFFICER],
       };
     }
@@ -261,7 +250,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       icon: AlertTriangle,
       label: 'Critical Queue',
       description: 'Escalations & SLA',
-      sonicId: 'nav-quick-slot',
       roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER],
     };
   }, [userRole]);
@@ -286,8 +274,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [rawRole, userRole, session, visibleTabs]);
 
   return (
-    <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden selection:bg-blue-500/30">
-      <ClientFloatingEntity />
+    <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden selection:bg-slate-900/20">
       <EntityDataSync patients={memoizedPatients} />
       <SyncStatusFeed />
 
@@ -351,6 +338,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 isActive={isActive}
                 isCollapsed={!sidebarOpen}
                 delay={idx * 0.05}
+                dataTourId={(tab as any).dataTourId}
               />
             );
           })}
@@ -359,10 +347,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {session && (
           <div className={`flex-shrink-0 border-t border-slate-100/50 p-4 ${!sidebarOpen ? 'pb-6' : ''}`}>
             <div className={`mb-3 rounded-2xl border border-slate-200/70 bg-white/80 px-3 py-3 shadow-[0_8px_25px_rgba(15,23,42,0.06)] ${!sidebarOpen ? 'border-transparent bg-transparent shadow-none p-0 mb-0' : ''}`}>
-            <div className={`flex items-center gap-4 ${!sidebarOpen ? 'justify-center' : ''}`}>
-              <div className="relative flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg text-white text-sm font-bold border border-white/40">
+            <div className={`flex items-center gap-4 ${!sidebarOpen ? 'w-full flex-col justify-center items-center gap-3' : ''}`}>
+              <div className="relative flex-shrink-0 w-10 h-10 min-w-10 min-h-10 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg text-white text-sm font-bold border border-white/40">
                 {session.user.name?.charAt(0)}
-                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-md" />
+                <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-md" />
               </div>
 
               <AnimatePresence initial={false}>
@@ -392,22 +380,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <LogOut className="w-4 h-4 transition-transform group-hover:rotate-12 group-hover:text-rose-600" />
                   Sign out securely
                 </span>
-                <span className="text-[10px] uppercase tracking-widest opacity-60 group-hover:opacity-100">Exit</span>
               </motion.button>
             ) : (
-              <div className="mt-2 flex flex-col items-center gap-2">
+              <div className="mt-1 flex w-full flex-col items-center gap-2">
                 <motion.button
                   whileHover={{ scale: 1.06 }}
                   whileTap={{ scale: 0.94 }}
                   onClick={handleSignOut}
-                  className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm"
                   aria-label="Sign out"
                 >
                   <LogOut className="w-4 h-4" />
                 </motion.button>
-                <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
-                  Exit
-                </span>
               </div>
             )}
             </div>

@@ -79,6 +79,64 @@ export const sounds = {
     setTimeout(() => playTone(554, 0.08, 0.08, 'sine'), 40)
   },
 
+  // Sidebar hover-open — subtle ambient lift
+  drawerHoverOpen: () => {
+    // Dense-air whoosh: filtered noise sweep with soft body
+    if (!shouldPlay()) return
+    try {
+      const ctx = getCtx()
+      const now = ctx.currentTime
+
+      const bufferSize = Math.floor(ctx.sampleRate * 0.22)
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < bufferSize; i++) {
+        const t = i / bufferSize
+        const envelope = Math.sin(Math.PI * t) * 0.85
+        data[i] = (Math.random() * 2 - 1) * envelope
+      }
+
+      const source = ctx.createBufferSource()
+      source.buffer = buffer
+
+      const hp = ctx.createBiquadFilter()
+      hp.type = 'highpass'
+      hp.frequency.setValueAtTime(220, now)
+      hp.frequency.exponentialRampToValueAtTime(420, now + 0.22)
+
+      const bp = ctx.createBiquadFilter()
+      bp.type = 'bandpass'
+      bp.frequency.setValueAtTime(1200, now)
+      bp.frequency.exponentialRampToValueAtTime(700, now + 0.22)
+      bp.Q.value = 0.9
+
+      const gain = ctx.createGain()
+      gain.gain.setValueAtTime(0.0001, now)
+      gain.gain.exponentialRampToValueAtTime(0.08, now + 0.04)
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22)
+
+      source.connect(hp)
+      hp.connect(bp)
+      bp.connect(gain)
+      gain.connect(ctx.destination)
+      source.start(now)
+
+      // tiny low body tail for "dense air" feel
+      const body = ctx.createOscillator()
+      const bodyGain = ctx.createGain()
+      body.type = 'sine'
+      body.frequency.setValueAtTime(160, now)
+      body.frequency.exponentialRampToValueAtTime(120, now + 0.2)
+      bodyGain.gain.setValueAtTime(0.0001, now)
+      bodyGain.gain.exponentialRampToValueAtTime(0.018, now + 0.03)
+      bodyGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2)
+      body.connect(bodyGain)
+      bodyGain.connect(ctx.destination)
+      body.start(now)
+      body.stop(now + 0.22)
+    } catch (e) {}
+  },
+
   // Generic button click — crisp, confident single tap
   buttonClick: () => {
     playTone(600, 0.06, 0.12, 'sine', 0.001, 0.04)

@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { cn } from "@/lib/utils";
 import { Outfit, Share_Tech_Mono, Syncopate } from "next/font/google";
 import "./globals.css";
+import "../styles/premium-buttons.css";
 import { Providers } from "@/components/Providers";
 import { DataPacketChase } from "@/components/DataPacketChase";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { AudioContextInitializer } from "@/components/AudioContextInitializer";
 import { ScopeInitializer } from "@/components/ScopeInitializer";
+import TourProvider from "@/components/TourProvider";
 import { Analytics } from "@vercel/analytics/next";
 
 const outfit = Outfit({ subsets: ["latin"], weight: ['400', '700'], variable: '--font-outfit' });
@@ -55,8 +57,19 @@ export default function RootLayout({
           <ServiceWorkerRegistration />
           <AudioContextInitializer />
           <DataPacketChase />
-          {children}
+          <TourProvider>
+            {children}
+          </TourProvider>
           <Analytics />
+          <svg xmlns="http://www.w3.org/2000/svg" version="1.1" className="goo-filter">
+            <defs>
+              <filter id="goo">
+                <feGaussianBlur in="SourceGraphic" result="blur" stdDeviation="10" />
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 21 -7" result="goo" />
+                <feBlend in2="goo" in="SourceGraphic" result="mix" />
+              </filter>
+            </defs>
+          </svg>
         </Providers>
       </body>
     </html>

@@ -311,7 +311,7 @@ export default function BulkUploadPage() {
                 <p className="text-sm text-[#7a7974] mb-4">
                   Accepted formats: .csv, .xlsx, .xls (Max 10MB)
                 </p>
-                <button className="px-6 py-2 bg-[#01696f] text-white rounded-lg font-medium hover:bg-[#0c4e54] transition-colors">
+                <button className="px-6 py-2 bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white rounded-lg font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_0_#047857,0_8px_16px_rgba(16,185,129,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_0_#047857,0_10px_20px_rgba(16,185,129,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-2px_0_#047857] active:translate-y-1 transition-all">
                   Select File
                 </button>
               </div>
@@ -431,7 +431,7 @@ export default function BulkUploadPage() {
               <div className="flex gap-4">
                 <button
                   onClick={handleUpload}
-                  className="flex-1 px-6 py-3 bg-[#01696f] text-white rounded-lg font-medium hover:bg-[#0c4e54] transition-colors"
+                  className="flex-1 px-6 py-3 bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white rounded-lg font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_10px_20px_rgba(16,185,129,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_12px_24px_rgba(16,185,129,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-3px_0_#047857] active:translate-y-1.5 transition-all"
                 >
                   Proceed with Upload
                 </button>
@@ -529,7 +529,7 @@ export default function BulkUploadPage() {
                       </div>
                       <button
                         onClick={() => downloadErrorCSV(uploadResult.validationErrors, 'bulk_upload')}
-                        className="px-4 py-2 bg-[#a12c7b] text-white rounded-lg font-medium hover:bg-[#8a2362] transition-colors"
+                        className="px-4 py-2 bg-gradient-to-br from-rose-500 via-rose-600 to-rose-700 text-white rounded-lg font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_0_#be123c,0_8px_16px_rgba(244,63,94,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_0_#be123c,0_10px_20px_rgba(244,63,94,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-2px_0_#be123c] active:translate-y-1 transition-all"
                       >
                         <Download className="w-4 h-4 inline mr-2" />
                         Download Errors
@@ -542,7 +542,7 @@ export default function BulkUploadPage() {
                 <div className="flex gap-4">
                   <button
                     onClick={() => router.push('/dashboard/vertex')}
-                    className="flex-1 px-6 py-3 bg-[#01696f] text-white rounded-lg font-medium hover:bg-[#0c4e54] transition-colors"
+                    className="flex-1 px-6 py-3 bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white rounded-lg font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_10px_20px_rgba(16,185,129,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_12px_24px_rgba(16,185,129,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-3px_0_#047857] active:translate-y-1.5 transition-all"
                   >
                     View in Vertex
                   </button>
@@ -597,7 +597,7 @@ export default function BulkUploadPage() {
                 <div className="flex gap-4">
                   <button
                     onClick={handleReset}
-                    className="flex-1 px-6 py-3 bg-[#01696f] text-white rounded-lg font-medium hover:bg-[#0c4e54] transition-colors"
+                    className="flex-1 px-6 py-3 bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white rounded-lg font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_10px_20px_rgba(16,185,129,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_12px_24px_rgba(16,185,129,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-3px_0_#047857] active:translate-y-1.5 transition-all"
                   >
                     Try Again
                   </button>

@@ -1158,7 +1158,7 @@ export default function SubmitNewPage() {
               <button 
                 type="button" 
                 onClick={goNext} 
-                className="btn-primary flex-1 py-3 px-6 bg-[#01696f] text-white rounded-lg font-medium text-sm tracking-wide hover:bg-[#0c4e54] active:bg-[#0f3638] transition-all duration-180 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-primary flex-1 py-3 px-6 bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white rounded-lg font-medium text-sm tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_10px_20px_rgba(16,185,129,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_12px_24px_rgba(16,185,129,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-3px_0_#047857] active:translate-y-1.5 transition-all duration-180 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Continue →
               </button>
@@ -1166,7 +1166,7 @@ export default function SubmitNewPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="btn-primary flex-1 py-3 px-6 bg-[#01696f] text-white rounded-lg font-medium text-sm tracking-wide hover:bg-[#0c4e54] active:bg-[#0f3638] transition-all duration-180 disabled:opacity-50 disabled:cursor-not-allowed relative"
+                className="btn-primary flex-1 py-3 px-6 bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white rounded-lg font-medium text-sm tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_10px_20px_rgba(16,185,129,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_12px_24px_rgba(16,185,129,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-3px_0_#047857] active:translate-y-1.5 transition-all duration-180 disabled:opacity-50 disabled:cursor-not-allowed relative"
               >
                 {isSubmitting ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" />
@@ -1200,7 +1200,7 @@ export default function SubmitNewPage() {
             <button 
               type="button" 
               onClick={goNext} 
-              className="btn-primary flex-1 py-3 px-6 bg-[#01696f] text-white rounded-lg font-medium text-sm tracking-wide hover:bg-[#0c4e54] active:bg-[#0f3638] transition-all duration-180"
+              className="btn-primary flex-1 py-3 px-6 bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white rounded-lg font-medium text-sm tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_10px_20px_rgba(16,185,129,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_12px_24px_rgba(16,185,129,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-3px_0_#047857] active:translate-y-1.5 transition-all duration-180"
             >
               Continue →
             </button>
@@ -1209,7 +1209,7 @@ export default function SubmitNewPage() {
               type="button"
               onClick={() => form.handleSubmit(onSubmit as any)()}
               disabled={isSubmitting}
-              className="btn-primary flex-1 py-3 px-6 bg-[#01696f] text-white rounded-lg font-medium text-sm tracking-wide hover:bg-[#0c4e54] active:bg-[#0f3638] transition-all duration-180 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-primary flex-1 py-3 px-6 bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white rounded-lg font-medium text-sm tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_10px_20px_rgba(16,185,129,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_12px_24px_rgba(16,185,129,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-3px_0_#047857] active:translate-y-1.5 transition-all duration-180 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" />

@@ -541,7 +541,6 @@ justifyContent: "center",
 boxShadow: "inset 0 0 40px rgba(79,70,229,0.05)",
 }}
 >
-<span className="text-5xl font-black text-indigo-950/[0.06] tracking-[0.08em]">DESCENT</span>
 </div>
 
 {/* 4 MAIN CONTENT FACES */}
@@ -580,22 +579,6 @@ className="absolute inset-0 shimmer pointer-events-none"
 style={{ opacity: 0.3 }}
 />
 )}
-
-<span
-style={{
-position: "absolute",
-bottom: "1.5rem",
-left: "2rem",
-fontSize: "clamp(4rem,12vw,8rem)",
-fontWeight: 900,
-color: "rgba(79,70,229,0.04)",
-lineHeight: 1,
-userSelect: "none",
-fontVariantNumeric: "tabular-nums",
-}}
->
-0{i + 1}
-</span>
 
 <div
 className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-6 ${step.badge} shadow-lg transition-transform duration-300 ${
@@ -645,7 +628,6 @@ justifyContent: "center",
 boxShadow: "inset 0 0 40px rgba(79,70,229,0.05)",
 }}
 >
-<span className="text-5xl font-black text-indigo-950/[0.06] tracking-[0.08em]">ASCENT</span>
 </div>
 </div>
 </div>
@@ -686,15 +668,6 @@ activeStep === i
 </p>
 <div className="w-12 h-px bg-gradient-to-r from-transparent via-indigo-300 to-transparent" />
 </div>
-<p
-className="font-black uppercase tracking-[0.08em] leading-none text-indigo-950/[0.05]"
-style={{
-fontSize: "clamp(2.5rem,8vw,5.5rem)",
-textShadow: "0 4px 30px rgba(79,70,229,0.12)",
-}}
->
-{STEPS[activeStep]?.title || ""}
-</p>
 </div>
 
 {showHint && (

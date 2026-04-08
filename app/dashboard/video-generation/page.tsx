@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, AlertCircle } from 'lucide-react';
-import SonicDisplayTV from '@/components/SonicDisplayTV';
+// import SonicDisplayTV from '@/components/SonicDisplayTV'; // Component not yet implemented
 import { useVideoGeneration } from '@/hooks/useVideoGeneration';
 import { cn } from '@/lib/utils';
 
@@ -45,12 +45,27 @@ export default function VideoGenerationPage() {
               animate={{ opacity: 1, y: 0 }}
               className="relative"
             >
-              <SonicDisplayTV
-                isEmbedded={true}
-                videoUrl={videoUrl || undefined}
-                progress={progress}
-                title="Veo 2 Neural Analysis"
-              />
+              {/* TODO: Replace with SonicDisplayTV component when implemented */}
+              <div className="aspect-video bg-slate-900/50 backdrop-blur-xl border border-cyan-500/20 rounded-2xl p-8 flex items-center justify-center">
+                {videoUrl ? (
+                  <video src={videoUrl} controls autoPlay className="w-full h-full rounded-xl" />
+                ) : (
+                  <div className="text-center">
+                    <p className="text-cyan-300/60 font-share-tech tracking-widest uppercase text-sm mb-2">
+                      {status === 'generating' ? `Generating... ${Math.round(progress)}%` : 'No video yet'}
+                    </p>
+                    {status === 'generating' && (
+                      <div className="w-48 h-1.5 bg-cyan-950/40 rounded-full overflow-hidden border border-cyan-500/20 mx-auto">
+                        <motion.div
+                          animate={{ width: `${progress}%` }}
+                          transition={{ duration: 0.3 }}
+                          className="h-full bg-gradient-to-r from-cyan-400 to-cyan-300"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </motion.div>
           </div>
 

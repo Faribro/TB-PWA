@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { SonicLanguage } from '@/utils/sonicLanguages';
+// import { SonicLanguage } from '@/utils/sonicLanguages'; // Type not yet defined
 import type { SessionScope } from '@/lib/session-scope';
+
+// Temporary type definition until @/utils/sonicLanguages is created
+export type SonicLanguage = 'en' | 'hi' | 'mr' | 'gu' | 'ta' | 'te' | 'bn' | 'ur' | 'kn' | 'ml' | 'pa' | 'or' | 'as';
 
 export type EntityMode = 'nano' | 'micro' | 'normal' | 'macro' | 'grounded';
 export type EntityState = 'idle' | 'patrolling' | 'investigating' | 'alerting' | 'reporting' | 'idle_ground' | 'greeting' | 'excited';

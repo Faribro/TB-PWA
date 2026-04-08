@@ -18,8 +18,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   session: {
     strategy: "jwt",
-    maxAge: 28800,    // 8 hours
-    updateAge: 3600,  // refresh token every 1 hour of activity
+    maxAge: 28800,
+    updateAge: 3600,
   },
   callbacks: {
     async signIn({ user }) {
@@ -35,7 +35,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         
         if (error || !data) {
           console.log(`Login rejected for ${user.email}: not in profiles`);
-          return '/login?error=AccessDenied';
+          return false;
         }
         return true;
       } catch (err) {
@@ -50,33 +50,34 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             .from('profiles')
             .select('role, state, district, name')
             .eq('email', user.email)
-            .single()
+            .single();
 
-          token.role = data?.role ?? 'M&E Officer'
-          token.state = data?.state ?? 'All'
-          token.district = data?.district ?? 'All'
-          token.staffName = data?.name ?? user.name
+          token.role = data?.role ?? 'M&E Officer';
+          token.state = data?.state ?? 'All';
+          token.district = data?.district ?? 'All';
+          token.staffName = data?.name ?? user.name;
         } catch (err) {
           console.error('JWT callback error:', err);
-          token.role = 'M&E Officer'
-          token.state = 'All'
-          token.district = 'All'
-          token.staffName = user.name
+          token.role = 'M&E Officer';
+          token.state = 'All';
+          token.district = 'All';
+          token.staffName = user.name;
         }
       }
-      return token
+      return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.role = token.role as string
-        session.user.state = token.state as string
-        session.user.district = token.district as string
-        session.user.staffName = token.staffName as string
+        session.user.role = token.role as string;
+        session.user.state = token.state as string;
+        session.user.district = token.district as string;
+        session.user.staffName = token.staffName as string;
       }
-      return session
+      return session;
     },
   },
   pages: {
     signIn: "/login",
   },
+  debug: process.env.NODE_ENV === 'development',
 })

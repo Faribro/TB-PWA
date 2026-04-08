@@ -149,6 +149,7 @@ const CalendarHeader = ({
       </div>
       <div className="flex gap-2">
         <Button
+          data-tour-id="neural-timeline-prev-month"
           onClick={onPrevMonth}
           variant="ghost"
           size="sm"
@@ -157,6 +158,7 @@ const CalendarHeader = ({
           <ChevronLeft className="w-5 h-5 text-slate-600" />
         </Button>
         <Button
+          data-tour-id="neural-timeline-next-month"
           onClick={onNextMonth}
           variant="ghost"
           size="sm"
@@ -170,7 +172,10 @@ const CalendarHeader = ({
     <div className="flex items-center gap-3">
       <div className="relative flex-1">
         <Select value={filterState} onValueChange={onFilterStateChange}>
-          <SelectTrigger className="h-10 text-xs font-bold border-slate-200 bg-white/50 hover:bg-white hover:border-blue-400 transition-all rounded-xl focus:ring-4 focus:ring-blue-500/10">
+          <SelectTrigger
+            data-tour-id="neural-timeline-state-filter"
+            className="h-10 text-xs font-bold border-slate-200 bg-white/50 hover:bg-white hover:border-blue-400 transition-all rounded-xl focus:ring-4 focus:ring-blue-500/10"
+          >
             <div className="flex items-center gap-2">
               <MapPin className="w-3.5 h-3.5 text-slate-400" />
               <SelectValue placeholder="State" />
@@ -236,7 +241,7 @@ const CalendarGrid = ({
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2.5" data-tour-id="neural-timeline-calendar">
       <div className="grid grid-cols-7 gap-1.5 mb-0.5">
         {weekDays.map(day => (
           <div key={day} className="text-center text-[10px] font-black text-slate-400/90 uppercase tracking-[0.18em]">
@@ -261,6 +266,9 @@ const CalendarGrid = ({
           return (
             <motion.button
               key={day.dateStr}
+              data-tour-id="neural-timeline-day"
+              data-has-data={hasActivity ? 'true' : 'false'}
+              data-selected={isSelected ? 'true' : 'false'}
               onClick={() => onDateSelect(day.dateStr)}
               whileHover={{ scale: shouldDim ? 1 : 1.02, y: 0 }}
               whileTap={{ scale: 0.98 }}
@@ -419,13 +427,14 @@ const GeographicHierarchy = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-id="geo-case-distribution">
       {groupedGeography.map((state) => {
         const isStateExpanded = expandedStates.has(state.stateName);
         
         return (
           <div key={state.stateName} className="space-y-3">
             <motion.button
+              data-tour-id="state-drawer"
               onClick={() => toggleState(state.stateName)}
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
@@ -467,6 +476,7 @@ const GeographicHierarchy = ({
                     return (
                       <div key={districtKey} className="space-y-2">
                         <motion.button
+                          data-tour-id="district-drawer"
                           onClick={() => toggleDistrict(districtKey)}
                           className="w-full flex items-center justify-between p-4 bg-white/60 border border-slate-200 rounded-2xl shadow-sm hover:bg-white transition-all group/dist"
                         >
@@ -495,6 +505,7 @@ const GeographicHierarchy = ({
                               {district.facilities.map((facility) => (
                                 <motion.button
                                   key={facility.facilityName}
+                                  data-tour-id="facility-card"
                                   onClick={() => onFacilityClick(facility.facilityName)}
                                   whileHover={{ scale: 1.01, x: 8 }}
                                   whileTap={{ scale: 0.98 }}
@@ -564,19 +575,29 @@ export default function Vertex({
   const globalPatients: any[] = externalPatients ?? swrData;
   const isLoading = externalLoading ?? swrLoading;
 
-  // Find the most recent month with data
+  // Find the most recent month with screening activity
   const mostRecentDateWithData = useMemo(() => {
     if (!globalPatients?.length) return new Date();
     
-    let mostRecent = new Date(0); // Start with epoch
+    let mostRecentScreening = new Date(0); // Start with epoch
+    let mostRecentFallback = new Date(0); // Start with epoch
     for (let i = 0; i < globalPatients.length; i++) {
-      const dateValue = globalPatients[i].screening_date || globalPatients[i].submitted_on;
-      if (!dateValue) continue;
-      const date = new Date(dateValue);
-      if (date > mostRecent) mostRecent = date;
+      const p = globalPatients[i]
+      if (!p) continue
+
+      // Prefer true screening date for Neural Timeline activity.
+      if (p.screening_date) {
+        const d = new Date(p.screening_date)
+        if (!isNaN(d.getTime()) && d > mostRecentScreening) mostRecentScreening = d
+      } else if (p.submitted_on) {
+        const d = new Date(p.submitted_on)
+        if (!isNaN(d.getTime()) && d > mostRecentFallback) mostRecentFallback = d
+      }
     }
     
-    return mostRecent.getTime() === 0 ? new Date() : mostRecent;
+    if (mostRecentScreening.getTime() !== 0) return mostRecentScreening
+    if (mostRecentFallback.getTime() !== 0) return mostRecentFallback
+    return new Date()
   }, [globalPatients]);
 
   const [currentDate, setCurrentDate] = useState(() => clampToCurrentMonth(mostRecentDateWithData));
@@ -648,6 +669,41 @@ export default function Vertex({
 
     return Object.values(grouped);
   }, [globalPatients, filterState, filterDistrict]);
+
+  // If the current month has no screening activity dots, automatically jump to
+  // the most recent month that has activity and pre-select a day with activity.
+  useEffect(() => {
+    if (!heatmapData.length) return
+    if (selectedDate) return
+
+    const monthKey = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+
+    const currentKey = monthKey(currentDate)
+
+    const hasAnyInCurrentMonth = heatmapData.some(
+      d => d?.date?.startsWith(currentKey) && (d?.screenedCount ?? 0) > 0
+    )
+
+    if (hasAnyInCurrentMonth) return
+
+    let latestDateStr: string | null = null
+    for (const d of heatmapData) {
+      if ((d?.screenedCount ?? 0) <= 0) continue
+      if (!latestDateStr || d.date > latestDateStr) latestDateStr = d.date
+    }
+
+    if (!latestDateStr) return
+
+    const [yStr, mStr] = latestDateStr.split('-')
+    const y = Number(yStr)
+    const m = Number(mStr)
+    if (!y || !m) return
+
+    const next = new Date(y, m - 1, 1)
+    setCurrentDate(clampToCurrentMonth(next))
+    setSelectedDate(latestDateStr)
+  }, [heatmapData, selectedDate, currentDate, clampToCurrentMonth])
 
   const patientsForSelectedDate = useMemo(() => {
     if (!selectedDate || !globalPatients?.length) return [];
@@ -1009,6 +1065,7 @@ export default function Vertex({
               {selectedDate ? (
                 <motion.div
                   key={selectedDate}
+                  data-tour-id="active-intelligence-feed-panel"
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 1.02 }}
@@ -1078,7 +1135,9 @@ export default function Vertex({
                             Geographic Case Distribution
                           </h4>
                         </div>
-                        <div className="bg-slate-50/50 rounded-[32px] p-2 border border-slate-200/50">
+                        <div
+                          className="bg-slate-50/50 rounded-[32px] p-2 border border-slate-200/50"
+                        >
                           <GeographicHierarchy 
                             groupedGeography={groupedGeography}
                             onFacilityClick={handleFacilityClick}
@@ -1305,7 +1364,8 @@ export default function Vertex({
         />
       )}
       <Sheet open={!!selectedFacility} onOpenChange={(open) => !open && setSelectedFacility(null)} modal={false}>
-        <SheetContent 
+        <SheetContent
+          data-tour-id="patient-list-panel"
           hideOverlay
           onInteractOutside={(e) => {
             // Prevent Facility List from closing if the Detail Drawer is open

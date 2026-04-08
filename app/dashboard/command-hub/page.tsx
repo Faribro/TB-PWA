@@ -24,6 +24,7 @@ import ScrollProgressBar from '@/components/ScrollProgressBar';
 import SectionDivider from '@/components/SectionDivider';
 import StatsTicker from '@/components/StatsTicker';
 import PipelineDashboardEmbed from '@/components/PipelineDashboardEmbed';
+import CommandFooter from '@/components/CommandFooter';
 
 const BackgroundGrid = memo(() => (
   <div 
@@ -172,11 +173,12 @@ export default function CommandHubPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
           className="w-full max-w-[1400px] mx-auto px-6 mt-2 mb-8"
+          data-tour-id="kpi-dashboard-bar"
         >
           <div className="rounded-2xl border border-white/60 bg-white/70 backdrop-blur-md shadow-[0_8px_35px_rgba(15,23,42,0.06)] p-4 md:p-5">
             <div className="flex flex-wrap items-center gap-3 md:gap-4">
-              {HOME_PULSE.map((item) => (
-                <div key={item.label} className="min-w-[145px] flex-1">
+              {HOME_PULSE.map((item, index) => (
+                <div key={item.label} className="min-w-[145px] flex-1" data-tour-id={index === 0 ? "kpi-screened" : index === 1 ? "kpi-flagged" : undefined}>
                   <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
                   <p className="mt-1 text-2xl font-black text-slate-900 tabular-nums">{item.value}</p>
                 </div>
@@ -197,11 +199,11 @@ export default function CommandHubPage() {
           </div>
         </motion.section>
         
-        <div className="w-full px-6 pb-6">
+        <div className="w-full px-6 pb-6" data-tour-id="pipeline-embed">
           <PipelineDashboardEmbed />
         </div>
         
-        <div className="w-full max-w-[1400px] mx-auto px-6 mt-6 mb-8">
+        <div className="w-full max-w-[1400px] mx-auto px-6 mt-6 mb-8" data-tour-id="program-mission">
           <ProgramMission />
         </div>
         
@@ -213,6 +215,7 @@ export default function CommandHubPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
+          data-tour-id="maze-grid"
         >
           <FeatureShowcase />
         </motion.div>
@@ -220,12 +223,14 @@ export default function CommandHubPage() {
         <SectionDivider />
       </div>
       
-      <div className="relative z-10">
+      <div className="relative z-10" data-tour-id="journey-cube">
         <InmateJourney />
       </div>
-      <div className="relative z-10 border-t border-white/40">
+      <div className="relative z-10 border-t border-white/40" data-tour-id="patient-timeline">
         <PatientTimeline />
       </div>
+      
+      <CommandFooter data-tour-id="command-footer" />
     </div>
   );
 }

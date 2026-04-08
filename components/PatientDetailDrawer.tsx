@@ -68,14 +68,14 @@ const EditableSelect = ({ label, value, onChange, options }: { label: string; va
 const Section = ({ title, icon: Icon, children, isCurrent = false }: { title: string; icon: any; children: React.ReactNode; isCurrent?: boolean }) => (
   <div className={`p-4 rounded-2xl border transition-all duration-500 ${isCurrent ? 'bg-white border-blue-100 shadow-md ring-1 ring-blue-50/50' : 'bg-slate-50/30 border-slate-100/50'}`}>
     <div className="flex items-center gap-3 mb-4">
-      <div className={`p-2 rounded-xl transition-colors ${isCurrent ? 'bg-blue-600 text-white' : 'bg-white text-slate-400 border border-slate-100'}`}>
+      <div className={`p-2 rounded-xl transition-colors ${isCurrent ? 'bg-emerald-600 text-white' : 'bg-white text-slate-400 border border-slate-100'}`}>
         <Icon className="w-4 h-4" />
       </div>
       <h3 className={`text-sm font-black uppercase tracking-tight ${isCurrent ? 'text-slate-900' : 'text-slate-500'}`}>{title}</h3>
       {isCurrent && (
-        <div className="ml-auto flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-50 border border-blue-100">
-          <div className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
-          <span className="text-[10px] font-bold text-blue-700 uppercase">Attention Required</span>
+        <div className="ml-auto flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-100">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+          <span className="text-[10px] font-bold text-emerald-700 uppercase">Attention Required</span>
         </div>
       )}
     </div>
@@ -346,44 +346,68 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
             <Tabs defaultValue="clinical" className="flex-1 flex flex-col min-h-0">
               <div className="px-6 border-b border-slate-100">
                 <TabsList className="bg-transparent gap-6 h-12">
-                  <TabsTrigger value="clinical" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-full px-0 font-black uppercase text-[11px] tracking-widest">Clinical</TabsTrigger>
-                  <TabsTrigger value="admin" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-full px-0 font-black uppercase text-[11px] tracking-widest">Admin & Journey</TabsTrigger>
-                  <TabsTrigger value="demographics" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-full px-0 font-black uppercase text-[11px] tracking-widest">Demographics</TabsTrigger>
+                  <TabsTrigger
+                    value="clinical"
+                    data-tour-id="clinical-tab"
+                    className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-full px-0 font-black uppercase text-[11px] tracking-widest"
+                  >
+                    Clinical
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="admin"
+                    data-tour-id="admin-journey-tab"
+                    className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-full px-0 font-black uppercase text-[11px] tracking-widest"
+                  >
+                    Admin & Journey
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="demographics"
+                    data-tour-id="demographics-tab"
+                    className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-full px-0 font-black uppercase text-[11px] tracking-widest"
+                  >
+                    Demographics
+                  </TabsTrigger>
                 </TabsList>
               </div>
 
               <ScrollArea className="flex-1">
                 <div className="p-6">
                   <TabsContent value="clinical" className="mt-0 space-y-6">
-                    <Section title="Sputum & Referral" icon={FileText} isCurrent={phase === 'Sputum Test'}>
-                      <EditableField label="Referral Date" value={watch('Date of referral for TB Examination (sputum) (dd/mm/yy)')} onChange={(val) => reset({ ...getValues(), 'Date of referral for TB Examination (sputum) (dd/mm/yy)': val })} type="date" />
-                      <EditableSelect 
-                        label="Referred Facility" 
-                        value={watch('Name of facility where referred to (Give code/name of all facilities)')} 
-                        onChange={(val) => reset({ ...getValues(), 'Name of facility where referred to (Give code/name of all facilities)': val })}
-                        options={[
-                          { value: '', label: 'Select facility' },
-                          { value: 'DMC-Designated microscopy Centre', label: 'DMC' },
-                          { value: 'CBNAAT', label: 'CBNAAT' },
-                          { value: 'Radiology', label: 'Radiology' }
-                        ]}
-                      />
-                    </Section>
+                    <div data-tour-id="sputum-referral-section">
+                      <Section title="Sputum & Referral" icon={FileText} isCurrent={phase === 'Sputum Test'}>
+                        <EditableField label="Referral Date" value={watch('Date of referral for TB Examination (sputum) (dd/mm/yy)')} onChange={(val) => reset({ ...getValues(), 'Date of referral for TB Examination (sputum) (dd/mm/yy)': val })} type="date" />
+                        <EditableSelect 
+                          label="Referred Facility" 
+                          value={watch('Name of facility where referred to (Give code/name of all facilities)')} 
+                          onChange={(val) => reset({ ...getValues(), 'Name of facility where referred to (Give code/name of all facilities)': val })}
+                          options={[
+                            { value: '', label: 'Select facility' },
+                            { value: 'DMC-Designated microscopy Centre', label: 'DMC' },
+                            { value: 'CBNAAT', label: 'CBNAAT' },
+                            { value: 'Radiology', label: 'Radiology' }
+                          ]}
+                        />
+                      </Section>
+                    </div>
 
-                    <Section title="Diagnosis" icon={Activity} isCurrent={phase === 'Diagnosis'}>
-                      <EditableSelect 
-                        label="TB Diagnosed" 
-                        value={watch('TB diagnosed (Y/N)')} 
-                        onChange={(val) => reset({ ...getValues(), 'TB diagnosed (Y/N)': val })}
-                        options={[{ value: '', label: 'Select' }, { value: 'Y', label: 'Yes' }, { value: 'N', label: 'No' }]}
-                      />
-                      <EditableField label="Date of Diagnosis" value={watch('Date of TB Diagnosed (dd/mm/yy)')} onChange={(val) => reset({ ...getValues(), 'Date of TB Diagnosed (dd/mm/yy)': val })} type="date" />
-                    </Section>
+                    <div data-tour-id="diagnosis-section">
+                      <Section title="Diagnosis" icon={Activity} isCurrent={phase === 'Diagnosis'}>
+                        <EditableSelect 
+                          label="TB Diagnosed" 
+                          value={watch('TB diagnosed (Y/N)')} 
+                          onChange={(val) => reset({ ...getValues(), 'TB diagnosed (Y/N)': val })}
+                          options={[{ value: '', label: 'Select' }, { value: 'Y', label: 'Yes' }, { value: 'N', label: 'No' }]}
+                        />
+                        <EditableField label="Date of Diagnosis" value={watch('Date of TB Diagnosed (dd/mm/yy)')} onChange={(val) => reset({ ...getValues(), 'Date of TB Diagnosed (dd/mm/yy)': val })} type="date" />
+                      </Section>
+                    </div>
 
-                    <Section title="ATT Initiation" icon={Pill} isCurrent={phase === 'ATT Initiation'}>
-                      <EditableField label="Start Date" value={watch('Date of starting ATT (dd/mm/yyyy)')} onChange={(val) => reset({ ...getValues(), 'Date of starting ATT (dd/mm/yyyy)': val })} type="date" />
-                      <EditableField label="Completion Date" value={watch('Date of Treatment Completion (dd/mm/yyyy)')} onChange={(val) => reset({ ...getValues(), 'Date of Treatment Completion (dd/mm/yyyy)': val })} type="date" />
-                    </Section>
+                    <div data-tour-id="att-initiation-section">
+                      <Section title="ATT Initiation" icon={Pill} isCurrent={phase === 'ATT Initiation'}>
+                        <EditableField label="Start Date" value={watch('Date of starting ATT (dd/mm/yyyy)')} onChange={(val) => reset({ ...getValues(), 'Date of starting ATT (dd/mm/yyyy)': val })} type="date" />
+                        <EditableField label="Completion Date" value={watch('Date of Treatment Completion (dd/mm/yyyy)')} onChange={(val) => reset({ ...getValues(), 'Date of Treatment Completion (dd/mm/yyyy)': val })} type="date" />
+                      </Section>
+                    </div>
                   </TabsContent>
 
                   <TabsContent value="admin" className="mt-0 space-y-6">
@@ -405,14 +429,14 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
                   <TabsContent value="demographics" className="mt-0 space-y-6">
                     {/* Lock/Unlock Toggle */}
-                    <div className="flex items-center justify-between p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                    <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
                       <div className="flex items-center gap-2">
                         {isEditingDemographics ? <Unlock className="w-4 h-4 text-emerald-600" /> : <Lock className="w-4 h-4 text-slate-400" />}
                         <span className="text-xs font-black uppercase text-slate-700">{isEditingDemographics ? 'Edit Mode Active' : 'Read-Only Mode'}</span>
                       </div>
                       <button 
                         onClick={() => setIsEditingDemographics(!isEditingDemographics)}
-                        className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-tight transition-all ${isEditingDemographics ? 'bg-white text-slate-700 shadow-sm' : 'bg-blue-600 text-white shadow-md'}`}
+                        className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-tight transition-all ${isEditingDemographics ? 'bg-white text-slate-700 shadow-sm' : 'bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_0_#047857,0_8px_16px_rgba(16,185,129,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_0_#047857,0_10px_20px_rgba(16,185,129,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-2px_0_#047857] active:translate-y-1'}`}
                       >
                         {isEditingDemographics ? 'Lock & Cancel' : 'Unlock to Edit'}
                       </button>
@@ -466,21 +490,30 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
               <div className="px-6 py-4 border-t border-slate-100 bg-white/80 backdrop-blur-md flex flex-col gap-3 shrink-0">
                 {isEditingDemographics && (
-                  <button onClick={handleSaveDemographics} disabled={isSavingDemographics} className="w-full bg-blue-600 text-white font-black uppercase text-[11px] tracking-widest py-3 rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+                  <button onClick={handleSaveDemographics} disabled={isSavingDemographics} className="w-full bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white font-black uppercase text-[11px] tracking-widest py-3 rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_10px_20px_rgba(16,185,129,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_12px_24px_rgba(16,185,129,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-3px_0_#047857] active:translate-y-1.5 transition-all flex items-center justify-center gap-2">
                     {isSavingDemographics ? <Sparkles className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     Save Demographics
                   </button>
                 )}
                 
                 {!isEditingDemographics && phase !== 'Closed' && (
-                  <button onClick={handleSaveClinical} disabled={isSubmitting} className="w-full bg-slate-900 text-white font-black uppercase text-[11px] tracking-widest py-3 rounded-2xl shadow-lg shadow-slate-200 hover:bg-black transition-all flex items-center justify-center gap-2">
+                  <button
+                    data-tour-id="submit-clinical-update"
+                    onClick={handleSaveClinical}
+                    disabled={isSubmitting}
+                    className="w-full bg-slate-900 text-white font-black uppercase text-[11px] tracking-widest py-3 rounded-2xl shadow-lg shadow-slate-200 hover:bg-black transition-all flex items-center justify-center gap-2"
+                  >
                     {isSubmitting ? <Sparkles className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                     Submit Clinical Update
                   </button>
                 )}
 
                 {!isClosed && !showCloseLoop && (
-                  <button onClick={() => setShowCloseLoop(true)} className="w-full text-red-500 font-bold text-[10px] uppercase tracking-widest hover:bg-red-50 py-2 rounded-xl transition-colors">
+                  <button
+                    data-tour-id="close-loop-button"
+                    onClick={() => setShowCloseLoop(true)}
+                    className="w-full text-red-500 font-bold text-[10px] uppercase tracking-widest hover:bg-red-50 py-2 rounded-xl transition-colors"
+                  >
                     Close Loop (Not TB)
                   </button>
                 )}

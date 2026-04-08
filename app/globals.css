@@ -40,11 +40,6 @@ canvas[data-engine] {
   50% { opacity: 0.3; transform: scale(1.1); }
 }
 
-@keyframes sonic-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.7); }
-  50% { box-shadow: 0 0 0 10px rgba(6, 182, 212, 0); }
-}
-
 @keyframes breathe {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.8; transform: scale(1.1); }
@@ -82,21 +77,6 @@ canvas[data-engine] {
     transform: scale(4);
     opacity: 0;
   }
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   SONIC BOOM
-═══════════════════════════════════════════════════════════════ */
-.sonic-boom-target {
-  position: relative;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.sonic-boom-target canvas,
-.sonic-boom-target img {
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: block !important;
 }
 
 .animate-breathe {

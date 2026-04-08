@@ -145,7 +145,7 @@ export default function AdminUsersPage() {
               setEditingUser(null);
               setIsModalOpen(true);
             }}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white font-bold rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_8px_0_#047857,0_12px_24px_rgba(16,185,129,0.4)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_8px_0_#047857,0_16px_32px_rgba(16,185,129,0.6)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-3px_0_#047857] active:translate-y-2 transition-all"
             data-sync-target="master"
           >
             <Plus className="w-5 h-5" />
@@ -269,7 +269,7 @@ export default function AdminUsersPage() {
                     <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Phone (Optional)</label>
                     <input type="tel" name="phone" defaultValue={editingUser?.phone || ''} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" />
                   </div>
-                  <motion.button type="submit" disabled={isSaving} whileHover={{ scale: isSaving ? 1 : 1.02 }} whileTap={{ scale: isSaving ? 1 : 0.98 }} className="w-full py-3 bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  <motion.button type="submit" disabled={isSaving} whileHover={{ scale: isSaving ? 1 : 1.02 }} whileTap={{ scale: isSaving ? 1 : 0.98 }} className="w-full py-3 bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white font-bold rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_8px_0_#047857,0_12px_24px_rgba(16,185,129,0.4)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_8px_0_#047857,0_16px_32px_rgba(16,185,129,0.6)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-3px_0_#047857] active:translate-y-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                     {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                     {isSaving ? 'Saving...' : (editingUser ? 'Update User' : 'Create User')}
                   </motion.button>

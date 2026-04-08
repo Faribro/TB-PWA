@@ -14,21 +14,17 @@ import { motion, AnimatePresence, useMotionValue, useTransform, animate } from '
 import {
   Users,
   Shield,
-  Kanban,
   GitBranch,
   AlertTriangle,
   Merge,
   X,
   Eye,
-  EyeOff,
-  Calendar,
   Stethoscope,
   Microscope,
   FileSearch,
   FileImage,
   Activity,
   Pill,
-  TrendingDown,
   Search,
   Command,
   ChevronRight,
@@ -37,42 +33,28 @@ import {
   ArrowRight,
   BarChart3,
   Sparkles,
+  User,
+  FileText,
+  Building2,
+  Calendar,
+  CalendarCheck,
+  Database,
+  TrendingUp,
+  TrendingDown,
 } from 'lucide-react';
 import { PatientDetailDrawer } from './PatientDetailDrawer';
-import { RegisterReconciliation } from './RegisterReconciliation';
 import { useTruthEngine } from '@/hooks/useTruthEngine';
 import { ViolationCard } from './ViolationCard';
 import { DataHealthGauge } from './DataHealthGauge';
 import ThreeBackground from './ThreeBackground';
 import { useSWRConfig } from 'swr';
+import { DuplicateAssassin, detectExactDuplicates, type DuplicatePair, type Patient } from './DuplicateAssassin';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface Patient {
-  id: number;
-  inmate_name?: string;
-  unique_id?: string;
-  kobo_uuid?: string;
-  facility_name?: string;
-  age?: number;
-  screening_date?: string;
-  tb_diagnosed?: string;
-  att_start_date?: string;
-  referral_date?: string;
-  xray_result?: string;
-  symptoms_10s?: string;
-  [key: string]: any;
-}
-
-interface DuplicatePair {
-  key: string;
-  recordA: Patient;
-  recordB: Patient;
-  matchReason: string;
-  confidence: number; // 0-100
-}
+// Patient and DuplicatePair types are now imported from DuplicateAssassin
 
 interface IntegrityViolation {
   id: string;
@@ -99,7 +81,7 @@ interface CascadeConversion {
   critical: boolean;
 }
 
-type TabId = 'duplicates' | 'integrity' | 'cascade' | 'kanban' | 'reconciliation';
+type TabId = 'duplicates' | 'integrity' | 'cascade';
 
 interface HubContextValue {
   openPatient: (p: Patient) => void;
@@ -125,20 +107,7 @@ const TABS: { id: TabId; label: string; short: string; icon: React.ElementType }
   { id: 'duplicates', label: 'Duplicate Assassin', short: 'Dupes', icon: Users },
   { id: 'integrity', label: 'Integrity Scanner', short: 'Integrity', icon: Shield },
   { id: 'cascade', label: 'Care Cascade', short: 'Cascade', icon: GitBranch },
-  { id: 'kanban', label: 'SLA Kanban', short: 'Kanban', icon: Kanban },
-  { id: 'reconciliation', label: 'Register Recon', short: 'Recon', icon: FileImage },
 ];
-
-const RECORD_DISPLAY_FIELDS = [
-  { key: 'inmate_name', label: 'Name' },
-  { key: 'unique_id', label: 'Unique ID' },
-  { key: 'facility_name', label: 'Facility' },
-  { key: 'age', label: 'Age' },
-  { key: 'screening_date', label: 'Screening Date' },
-  { key: 'tb_diagnosed', label: 'TB Diagnosed' },
-];
-
-const CONFLICT_CHECK_FIELDS = ['age', 'screening_date', 'tb_diagnosed', 'facility_name'];
 
 const MS_PER_DAY = 86_400_000;
 
@@ -146,18 +115,8 @@ const MS_PER_DAY = 86_400_000;
 // Utility helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function pairKey(a: Patient, b: Patient) {
-  return `${Math.min(a.id, b.id)}-${Math.max(a.id, b.id)}`;
-}
-
 function safePct(num: number, denom: number) {
   return denom > 0 ? (num / denom) * 100 : 0;
-}
-
-function getConflicts(a: Patient, b: Patient): Set<string> {
-  const s = new Set<string>();
-  CONFLICT_CHECK_FIELDS.forEach((f) => { if (a[f] !== b[f]) s.add(f); });
-  return s;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -281,7 +240,7 @@ function CommandPalette({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Intelligence Bar (live anomaly strip)
+// Intelligence Bar (live anomaly strip) — AWWWARDS REFINED
 // ─────────────────────────────────────────────────────────────────────────────
 
 function IntelligenceBar({
@@ -301,22 +260,25 @@ function IntelligenceBar({
     {
       count: duplicates,
       label: 'duplicates',
-      color: 'bg-violet-50 text-violet-700 border-violet-200',
+      color: 'bg-violet-500/10 text-violet-700 border-violet-500/20 hover:bg-violet-500/15 hover:border-violet-500/30',
       dot: 'bg-violet-500',
+      glow: 'shadow-[0_0_20px_rgba(139,92,246,0.15)]',
       tab: 'duplicates' as TabId,
     },
     {
       count: high,
       label: 'critical errors',
-      color: 'bg-red-50 text-red-700 border-red-200',
+      color: 'bg-red-500/10 text-red-700 border-red-500/20 hover:bg-red-500/15 hover:border-red-500/30',
       dot: 'bg-red-500',
+      glow: 'shadow-[0_0_20px_rgba(239,68,68,0.15)]',
       tab: 'integrity' as TabId,
     },
     {
       count: medium,
       label: 'warnings',
-      color: 'bg-amber-50 text-amber-700 border-amber-200',
+      color: 'bg-amber-500/10 text-amber-700 border-amber-500/20 hover:bg-amber-500/15 hover:border-amber-500/30',
       dot: 'bg-amber-400',
+      glow: 'shadow-[0_0_20px_rgba(245,158,11,0.15)]',
       tab: 'integrity' as TabId,
     },
   ].filter((c) => c.count > 0);
@@ -325,32 +287,48 @@ function IntelligenceBar({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -8 }}
+      initial={{ opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-3 flex-wrap"
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className="flex items-center gap-2.5 flex-wrap"
     >
       {attLeak && (
         <motion.button
           type="button"
-          animate={{ scale: [1, 1.02, 1] }}
-          transition={{ repeat: Infinity, duration: 2.5 }}
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          whileHover={{ scale: 1.02, y: -1 }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
           onClick={() => onChipClick('cascade')}
-          className="flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white rounded-full text-xs font-semibold shadow-[0_0_12px_rgb(220,38,38,0.4)]"
+          aria-label="View ATT initiation leak in Care Cascade"
+          className="group relative inline-flex items-center h-8 gap-2 px-4 bg-gradient-to-br from-red-600 to-red-700 text-white rounded-full text-xs font-semibold shadow-[0_4px_16px_rgba(220,38,38,0.3)] hover:shadow-[0_6px_24px_rgba(220,38,38,0.4)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 overflow-hidden"
         >
-          <Flame className="w-3 h-3" />
-          ATT initiation leak
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
+          <Flame className="w-3.5 h-3.5 relative z-10" />
+          <span className="relative z-10">ATT initiation leak</span>
         </motion.button>
       )}
-      {chips.map((chip) => (
-        <button
+      {chips.map((chip, idx) => (
+        <motion.button
           type="button"
           key={chip.label}
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: idx * 0.05, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          whileHover={{ scale: 1.02, y: -1 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => onChipClick(chip.tab)}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition-opacity hover:opacity-80 ${chip.color}`}
+          aria-label={`View ${chip.count} ${chip.label}`}
+          className={`inline-flex items-center h-8 gap-2.5 px-4 rounded-full text-xs font-semibold border backdrop-blur-sm transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 ${chip.color} ${chip.glow}`}
         >
-          <span className={`w-1.5 h-1.5 rounded-full ${chip.dot}`} />
+          <motion.span 
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+            className={`w-1.5 h-1.5 rounded-full ${chip.dot}`} 
+          />
           <AnimatedNumber value={chip.count} /> {chip.label}
-        </button>
+        </motion.button>
       ))}
     </motion.div>
   );
@@ -370,8 +348,61 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
   const [dismissedPairs, setDismissedPairs] = useState<Set<string>>(new Set());
   const [cmdOpen, setCmdOpen] = useState(false);
   const [integrityFilter, setIntegrityFilter] = useState<'all' | 'high' | 'medium'>('all');
-  const [isDashboardHidden, setIsDashboardHidden] = useState(false);
+  // Hidden by default; reveals only when user scrolls up.
+  const [isDashboardHidden, setIsDashboardHidden] = useState(true);
+  const [isCompactMode, setIsCompactMode] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const lastScrollYRef = useRef(0);
   const { mutate } = useSWRConfig();
+
+  // Debug log
+  console.log('MandEHub - Received patients:', globalPatients?.length || 0);
+
+  // ── Compact mode detection ────────────────────────────────────────────
+
+  useEffect(() => {
+    const checkViewport = () => setIsCompactMode(window.innerHeight < 860);
+    checkViewport();
+    window.addEventListener('resize', checkViewport);
+    return () => window.removeEventListener('resize', checkViewport);
+  }, []);
+
+  // ── Auto-hide dashboard on scroll down, reveal on scroll up ────────────
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const scrollHost = (rootRef.current?.closest('main') as HTMLElement | null) ?? window;
+    const getScrollTop = () => (scrollHost instanceof Window ? scrollHost.scrollY : scrollHost.scrollTop);
+    lastScrollYRef.current = getScrollTop();
+    let ticking = false;
+
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(() => {
+        const currentY = getScrollTop();
+        const delta = currentY - lastScrollYRef.current;
+
+        // Keep hidden near top unless user actively scrolls up.
+        if (currentY <= 16 && delta >= 0) {
+          setIsDashboardHidden(true);
+        }
+
+        // Ignore micro-jitter from touchpads.
+        if (Math.abs(delta) > 8) {
+          if (delta > 0 && currentY > 120) {
+            setIsDashboardHidden(true);
+          } else if (delta < 0) {
+            setIsDashboardHidden(false);
+          }
+          lastScrollYRef.current = currentY;
+        }
+        ticking = false;
+      });
+    };
+
+    scrollHost.addEventListener('scroll', onScroll, { passive: true });
+    return () => scrollHost.removeEventListener('scroll', onScroll as EventListener);
+  }, []);
 
   // ── Keyboard shortcut ──────────────────────────────────────────────────
 
@@ -386,74 +417,13 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // ── Duplicate pairs ────────────────────────────────────────────────────
+  // ── Duplicate pairs (using strict exact duplicate detection) ─────────────
 
   const duplicatePairs = useMemo<DuplicatePair[]>(() => {
-    const pairs: DuplicatePair[] = [];
-    if (!globalPatients || globalPatients.length === 0) return pairs;
-
-    const nameFacilityMap = new Map<string, Patient[]>();
-    const uuidMap = new Map<string, Patient[]>();
-    const processed = new Set<string>();
-
-    // O(N) Single Pass: Group into buckets (takes ~1 millisecond)
-    for (const p of globalPatients) {
-      if (p.kobo_uuid) {
-        const arr = uuidMap.get(p.kobo_uuid) || [];
-        arr.push(p);
-        uuidMap.set(p.kobo_uuid, arr);
-      }
-      if (p.inmate_name && p.facility_name) {
-        // Safely extract YYYY-MM
-        let monthKey = 'unknown_date';
-        if (p.screening_date) {
-          const d = new Date(p.screening_date);
-          if (!isNaN(d.getTime())) {
-            monthKey = `${d.getFullYear()}-${d.getMonth()}`;
-          }
-        }
-        
-        // Strict Bucket Key: Name + Facility + Month
-        const key = `${(p.inmate_name || 'unknown').toLowerCase().trim()}-${p.facility_name}-${monthKey}`;
-        const arr = nameFacilityMap.get(key) || [];
-        arr.push(p);
-        nameFacilityMap.set(key, arr);
-      }
-    }
-
-    // O(1) Bucket Processing Helper: Only compares patients that share the same bucket
-    const processGroup = (group: Patient[], reason: string) => {
-      if (group.length > 1) {
-        // Hard cap to prevent N^2 explosion on bad data
-        const safeGroup = group.slice(0, 10);
-        for (let i = 0; i < safeGroup.length; i++) {
-          for (let j = i + 1; j < safeGroup.length; j++) {
-            const a = safeGroup[i];
-            const b = safeGroup[j];
-            const key = pairKey(a, b);
-            
-            if (!processed.has(key) && !dismissedPairs.has(key)) {
-              const conflicts = getConflicts(a, b);
-              pairs.push({
-                key,
-                recordA: a,
-                recordB: b,
-                matchReason: reason,
-                // Fewer conflicting fields = higher confidence
-                confidence: Math.max(0, 100 - conflicts.size * 18)
-              });
-              processed.add(key);
-            }
-          }
-        }
-      }
-    };
-
-    // Process the matched buckets
-    uuidMap.forEach(group => processGroup(group, 'Matching Kobo UUID'));
-    nameFacilityMap.forEach(group => processGroup(group, 'Same name + facility + month'));
-
-    return pairs.sort((a, b) => b.confidence - a.confidence);
+    return detectExactDuplicates(globalPatients, dismissedPairs, {
+      bucketByNameFacility: true,
+      bucketByUUID: true,
+    });
   }, [globalPatients, dismissedPairs]);
 
   // ── Integrity violations (delegated to useTruthEngine hook) ───────────
@@ -523,86 +493,121 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
 
   return (
     <HubContext.Provider value={ctxValue}>
-      <div className="h-full overflow-y-auto relative p-4 lg:p-6">
-        <div className="max-w-7xl mx-auto space-y-4 relative z-10">
+      <div ref={rootRef} className="min-h-screen relative bg-gradient-to-br from-slate-50 via-white to-slate-50">
+        {/* Ambient background orbs */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-violet-500/5 rounded-full blur-3xl" />
+        </div>
+
+        <div className={`max-w-7xl mx-auto px-4 lg:px-6 relative z-10 ${
+          isCompactMode ? 'py-2 space-y-2' : 'py-3 space-y-3'
+        }`}>
 
           {/* ── Header ──────────────────────────────────────────────────── */}
-          <div className="flex items-start justify-between gap-4 flex-wrap pb-3">
-            <div>
-              <h1 className="text-[32px] font-black text-slate-900 tracking-tighter uppercase leading-tight">
-                M&E Intelligence <span className="text-blue-600">Hub</span>
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className={`flex items-start justify-between gap-4 flex-wrap ${
+              isCompactMode ? 'pb-0' : 'pb-1'
+            }`}
+          >
+            <div className="flex-1 min-w-0">
+              <h1 className={`font-bold tracking-tight leading-tight bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 bg-clip-text text-transparent ${
+                isCompactMode ? 'text-xl' : 'text-2xl'
+              }`}>
+                M&E <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">Tools</span>
               </h1>
-              <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mt-2 opacity-80">
-                Monitoring & Evaluation · {globalPatients.length.toLocaleString()} patients loaded
-              </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              {/* Hide Dashboard Toggle */}
-              <button
-                type="button"
-                onClick={() => setIsDashboardHidden(!isDashboardHidden)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-full text-sm text-slate-600 hover:border-slate-300 hover:text-slate-900 transition-all shadow-sm"
-              >
-                {isDashboardHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                <span>{isDashboardHidden ? 'Show' : 'Hide'} Dashboard</span>
-              </button>
-
+            <div className="flex items-center gap-2 flex-shrink-0">
               {/* Command palette trigger */}
-              <button
+              <motion.button
                 type="button"
+                whileHover={{ scale: 1.02, y: -1 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setCmdOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-500 hover:border-slate-300 hover:text-slate-700 transition-all shadow-sm"
+                aria-label="Open command palette"
+                className="group relative flex items-center gap-2 px-4 py-2 bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-xl text-sm font-medium shadow-[0_4px_16px_rgba(15,23,42,0.2)] hover:shadow-[0_6px_24px_rgba(15,23,42,0.3)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 overflow-hidden"
               >
-                <Command className="w-4 h-4" />
-                <span>Commands</span>
-                <kbd className="ml-1 text-xs bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
-              </button>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
+                <Command className="w-4 h-4 relative z-10" />
+                <span className="hidden sm:inline relative z-10">Commands</span>
+                <kbd className="hidden sm:inline ml-1 text-xs bg-slate-800/50 text-slate-300 px-1.5 py-0.5 rounded font-mono relative z-10 border border-slate-700/50">⌘K</kbd>
+              </motion.button>
             </div>
-          </div>
+          </motion.div>
 
           {/* ── Intelligence Bar ─────────────────────────────────────────── */}
+          {!isDashboardHidden && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden"
+            >
+              <IntelligenceBar
+                duplicates={duplicatePairs.length}
+                high={highCount}
+                medium={mediumCount}
+                attLeak={cascadeData.criticalLeak}
+                onChipClick={setActiveTab}
+              />
+            </motion.div>
+          )}
+
           <AnimatePresence>
-            {!isDashboardHidden && (
+            {isDashboardHidden && (
               <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3 }}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                className="flex justify-center"
               >
-                <IntelligenceBar
-                  duplicates={duplicatePairs.length}
-                  high={highCount}
-                  medium={mediumCount}
-                  attLeak={cascadeData.criticalLeak}
-                  onChipClick={setActiveTab}
-                />
+                <div className="group relative inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-slate-900/90 border border-cyan-400/30 text-[11px] font-semibold text-cyan-300 shadow-[0_0_24px_rgba(34,211,238,0.25),0_4px_16px_rgba(0,0,0,0.1)] backdrop-blur-xl hover:shadow-[0_0_32px_rgba(34,211,238,0.35),0_6px_20px_rgba(0,0,0,0.15)] transition-all duration-300">
+                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/10 to-cyan-500/0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <motion.span
+                    animate={{ y: [1, -3, 1], opacity: [0.6, 1, 0.6] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                    className="font-mono tracking-tight text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)] relative z-10"
+                  >
+                    ↑↑↑
+                  </motion.span>
+                  <span className="relative z-10">Scroll up to reveal dashboard</span>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
 
           {/* ── Data Health Gauge ────────────────────────────────────────── */}
-          <AnimatePresence>
-            {!isDashboardHidden && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <DataHealthGauge
-                  healthScore={healthScore}
-                  highCount={highCount}
-                  mediumCount={mediumCount}
-                  onSectionClick={handleGaugeClick}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {!isDashboardHidden && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+              className="overflow-hidden"
+            >
+              <DataHealthGauge
+                healthScore={healthScore}
+                highCount={highCount}
+                mediumCount={mediumCount}
+                onSectionClick={handleGaugeClick}
+              />
+            </motion.div>
+          )}
 
           {/* ── Navigation ──────────────────────────────────────────────── */}
-          <div className="glass-light rounded-3xl border border-white shadow-2xl p-2 relative z-10">
-            <div className="relative flex gap-1">
+          <div className={`sticky top-0 z-20 bg-gradient-to-b from-slate-50/95 via-slate-50/90 to-transparent backdrop-blur-xl -mx-4 lg:-mx-6 px-4 lg:px-6 ${
+            isCompactMode ? 'py-1.5' : 'py-2'
+          }`}>
+            <div className={`bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] ${
+              isCompactMode ? 'p-1' : 'p-1.5'
+            }`}>
+              <div className="relative flex gap-1">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -611,26 +616,33 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
                     {isActive && (
                       <motion.div
                         layoutId="pill"
-                        className="absolute inset-0 bg-slate-900 rounded-[14px]"
+                        className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-[0_4px_16px_rgba(15,23,42,0.2)]"
                         style={{ zIndex: 0 }}
-                        transition={{ type: 'spring', bounce: 0.18, duration: 0.5 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                       />
                     )}
-                    <button
+                    <motion.button
                       type="button"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                       onClick={() => setActiveTab(tab.id)}
-                      className="relative z-10 w-full px-4 py-2 rounded-[14px] font-medium text-sm flex items-center justify-center gap-2 transition-colors duration-150"
+                      aria-label={`Switch to ${tab.label}`}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={`relative z-10 w-full rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                        isCompactMode ? 'px-3 py-2' : 'px-4 py-2.5'
+                      }`}
                       style={{ color: isActive ? '#ffffff' : '#64748b' }}
                     >
                       {/* @ts-ignore */}
                       <Icon className="w-4 h-4" />
                       <span className="hidden sm:inline">{tab.label}</span>
                       <span className="sm:hidden">{tab.short}</span>
-                    </button>
+                    </motion.button>
                   </div>
                 );
               })}
             </div>
+          </div>
           </div>
 
           {/* ── Tab Content ─────────────────────────────────────────────── */}
@@ -641,10 +653,14 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.22 }}
-              className="max-h-[calc(100vh-220px)] overflow-y-auto"
+              className={isCompactMode ? 'pb-4' : 'pb-6'}
             >
               {activeTab === 'duplicates' && (
-                <DuplicateAssassin pairs={duplicatePairs} onDismiss={handleDismiss} />
+                <DuplicateAssassin
+                  pairs={duplicatePairs}
+                  onDismiss={handleDismiss}
+                  onViewRecord={setSelectedPatient}
+                />
               )}
               {activeTab === 'integrity' && (
                 <div id="integrity-scanner">
@@ -657,12 +673,6 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
               )}
               {activeTab === 'cascade' && (
                 <CareCascadeFlow data={cascadeData} />
-              )}
-              {activeTab === 'kanban' && (
-                <AgingSLAKanban patients={globalPatients} />
-              )}
-              {activeTab === 'reconciliation' && (
-                <RegisterReconciliation />
               )}
             </motion.div>
           </AnimatePresence>
@@ -687,256 +697,6 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
     </HubContext.Provider>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Duplicate Assassin
-// ─────────────────────────────────────────────────────────────────────────────
-
-function DuplicateAssassin({
-  pairs,
-  onDismiss,
-}: {
-  pairs: DuplicatePair[];
-  onDismiss: (pair: DuplicatePair) => void;
-}) {
-  const { openPatient } = useHub();
-  const [idx, setIdx] = useState(0);
-  const [exiting, setExiting] = useState<'left' | 'right' | null>(null);
-
-  useEffect(() => {
-    setIdx((prev) => (prev >= pairs.length ? Math.max(0, pairs.length - 1) : prev));
-  }, [pairs.length]);
-
-  // Keyboard controls
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (pairs.length === 0) return; // Don't listen if no pairs
-      if (e.key === 'ArrowRight') advance();
-      if (e.key === 'ArrowLeft') advance();
-      if (e.key === 'd' || e.key === 'D') { handleDismiss(); }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [idx, pairs]);
-
-  const advance = () => setIdx((p) => Math.min(p + 1, pairs.length - 1));
-
-  const handleDismiss = () => {
-    if (!pair) return;
-    setExiting('right');
-    setTimeout(() => {
-      onDismiss(pair);
-      setExiting(null);
-    }, 280);
-  };
-
-  if (pairs.length === 0) {
-    return <AllClear icon={Users} title="No Duplicates Found" sub="Your database is clean — no potential duplicates detected." />;
-  }
-
-  const pair = pairs[idx];
-  if (!pair) return null;
-
-  const conflicts = getConflicts(pair.recordA, pair.recordB);
-  const progress = pairs.length > 0 ? ((idx + 1) / pairs.length) * 100 : 0;
-
-  return (
-    <div className="space-y-5">
-      {/* Progress bar */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-700 font-semibold">
-            {idx + 1} <span className="text-slate-400 font-normal">of {pairs.length} potential duplicates</span>
-          </span>
-          <ConfidenceBadge value={pair.confidence} />
-        </div>
-        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-          <motion.div
-            className="h-full bg-violet-500 rounded-full"
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.4 }}
-          />
-        </div>
-      </div>
-
-      {/* Split Review Cards */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={pair.key}
-          initial={{ opacity: 0, x: exiting === 'right' ? 40 : -40 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: exiting === 'right' ? -60 : 60 }}
-          transition={{ duration: 0.28 }}
-          className="grid grid-cols-1 md:grid-cols-2 gap-4"
-        >
-          <RecordCard 
-            record={pair.recordA} 
-            label="Record A" 
-            conflicts={conflicts} 
-            onView={() => openPatient(pair.recordA)}
-            side="left"
-          />
-          <RecordCard 
-            record={pair.recordB} 
-            label="Record B" 
-            conflicts={conflicts} 
-            onView={() => openPatient(pair.recordB)}
-            side="right"
-          />
-        </motion.div>
-      </AnimatePresence>
-
-      {/* Match badge */}
-      <div className="flex items-center gap-3 bg-amber-50 border border-amber-200/80 rounded-2xl px-5 py-3.5">
-        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-        <span className="text-sm font-medium text-amber-900">
-          Match detected: <span className="font-bold">{pair.matchReason}</span>
-        </span>
-        {conflicts.size > 0 && (
-          <span className="ml-auto text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-            {conflicts.size} conflicting field{conflicts.size > 1 ? 's' : ''}
-          </span>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className="grid grid-cols-3 gap-3">
-        <ActionButton
-          onClick={() => { advance(); }}
-          className="bg-blue-600 hover:bg-blue-700 text-white shadow-[0_4px_14px_rgb(37,99,235,0.3)]"
-          icon={<Merge className="w-4 h-4" />}
-          label="Keep A"
-          hint="merges B→A"
-        />
-        <ActionButton
-          onClick={() => { advance(); }}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-[0_4px_14px_rgb(5,150,105,0.3)]"
-          icon={<Merge className="w-4 h-4 scale-x-[-1]" />}
-          label="Keep B"
-          hint="merges A→B"
-        />
-        <ActionButton
-          onClick={handleDismiss}
-          className="bg-slate-100 hover:bg-slate-200 text-slate-700"
-          icon={<X className="w-4 h-4" />}
-          label="Dismiss"
-          hint="press D"
-        />
-      </div>
-    </div>
-  );
-}
-
-function ConfidenceBadge({ value }: { value: number }) {
-  const color =
-    value >= 90 ? 'bg-red-50 text-red-700 border-red-200' :
-    value >= 70 ? 'bg-amber-50 text-amber-700 border-amber-200' :
-    'bg-emerald-50 text-emerald-700 border-emerald-200';
-  return (
-    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${color}`}>
-      {value}% confidence match
-    </span>
-  );
-}
-
-function ActionButton({
-  onClick,
-  className,
-  icon,
-  label,
-  hint,
-}: {
-  onClick: () => void;
-  className: string;
-  icon: React.ReactNode;
-  label: string;
-  hint: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-1 px-4 py-4 rounded-2xl font-semibold text-sm transition-all active:scale-95 ${className}`}
-    >
-      <span className="flex items-center gap-2">{icon}{label}</span>
-      <span className="text-xs opacity-60 font-normal">{hint}</span>
-    </button>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Record Card with whileInView Cinematic Split Effect
-// ─────────────────────────────────────────────────────────────────────────────
-
-const RecordCard = memo(function RecordCard({
-  record,
-  label,
-  conflicts,
-  onView,
-  side,
-}: {
-  record: Patient;
-  label: string;
-  conflicts: Set<string>;
-  onView: () => void;
-  side: 'left' | 'right';
-}) {
-  return (
-    <motion.div
-      initial={{ 
-        opacity: 0, 
-        x: side === 'left' ? -100 : 100, 
-        y: 50 
-      }}
-      whileInView={{ 
-        opacity: 1, 
-        x: 0, 
-        y: 0 
-      }}
-      viewport={{ once: false, amount: 0.3 }}
-      transition={{ 
-        type: "spring", 
-        stiffness: 200, 
-        damping: 20,
-        delay: side === 'right' ? 0.1 : 0
-      }}
-      className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.04)] p-5 space-y-3"
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{label}</span>
-        <button
-          type="button"
-          onClick={onView}
-          className="flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors"
-        >
-          <Eye className="w-3.5 h-3.5" />
-          View full
-        </button>
-      </div>
-
-      <div className="space-y-2">
-        {RECORD_DISPLAY_FIELDS.map(({ key, label }) => {
-          const isConflict = conflicts.has(key);
-          return (
-            <div
-              key={key}
-              className={`px-3 py-2.5 rounded-xl text-sm transition-colors ${
-                isConflict
-                  ? 'bg-yellow-50 border border-yellow-200'
-                  : 'bg-slate-50'
-              }`}
-            >
-              <span className="text-xs text-slate-400 font-medium">{label}</span>
-              <p className={`font-semibold mt-0.5 ${isConflict ? 'text-yellow-800' : 'text-slate-900'}`}>
-                {record[key] ?? <span className="text-slate-300 font-normal italic">—</span>}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-    </motion.div>
-  );
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Integrity Scanner (Upgraded with Truth Engine)
@@ -974,26 +734,35 @@ function IntegrityScannerUpgraded({
   const handleResolve = (v: any) => openPatient(v.patient);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Stat cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
-          { label: 'Total', value: violations.length, color: 'text-slate-900', active: filter === 'all', onClick: () => handleFilterChange('all') },
-          { label: 'High', value: highCount, color: 'text-red-600', active: filter === 'high', onClick: () => handleFilterChange('high') },
-          { label: 'Medium', value: medCount, color: 'text-amber-600', active: filter === 'medium', onClick: () => handleFilterChange('medium') },
-        ].map((s) => (
-          <button
-            key={s.label}
-            type="button"
-            onClick={s.onClick}
-            className={`bg-white rounded-2xl border p-5 text-left transition-all ${
-              s.active ? 'border-slate-900 shadow-[0_0_0_1px_#0f172a]' : 'border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.04)] hover:border-slate-300'
-            }`}
-          >
-            <p className="text-xs text-slate-500 mb-1">{s.label} Violations</p>
-            <AnimatedNumber value={s.value} className={`text-3xl font-bold ${s.color}`} />
-          </button>
-        ))}
+          { label: 'Total', value: violations.length, color: 'text-slate-900', icon: Database, iconColor: 'text-slate-600', active: filter === 'all', onClick: () => handleFilterChange('all') },
+          { label: 'High', value: highCount, color: 'text-red-600', icon: TrendingUp, iconColor: 'text-red-600', active: filter === 'high', onClick: () => handleFilterChange('high') },
+          { label: 'Medium', value: medCount, color: 'text-amber-600', icon: TrendingDown, iconColor: 'text-amber-600', active: filter === 'medium', onClick: () => handleFilterChange('medium') },
+        ].map((s) => {
+          const StatIcon = s.icon;
+          return (
+            <button
+              key={s.label}
+              type="button"
+              onClick={s.onClick}
+              aria-label={`Filter by ${s.label} violations`}
+              aria-pressed={s.active}
+              className={`bg-white rounded-2xl border p-5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                s.active ? 'border-slate-900 shadow-sm ring-1 ring-slate-900' : 'border-slate-200/60 shadow-sm hover:border-slate-300 hover:shadow-md'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-slate-500">{s.label} Violations</p>
+                {/* @ts-ignore */}
+                <StatIcon className={`w-4 h-4 ${s.iconColor}`} />
+              </div>
+              <AnimatedNumber value={s.value} className={`text-3xl font-bold ${s.color}`} />
+            </button>
+          );
+        })}
       </div>
 
       {/* Violation cards */}
@@ -1008,6 +777,17 @@ function IntegrityScannerUpgraded({
             />
           ))}
         </AnimatePresence>
+        {filtered.length === 0 && violations.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-slate-50 rounded-2xl border border-slate-200/60 p-12 text-center"
+          >
+            <CheckCircle2 className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-slate-700">No {filter} severity violations</p>
+            <p className="text-xs text-slate-500 mt-1">Try selecting a different filter</p>
+          </motion.div>
+        )}
       </div>
     </div>
   );
@@ -1126,9 +906,9 @@ function CareCascadeFlow({
   const maxCount = steps[0]?.count || 1;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* SVG Funnel */}
-      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.04)] p-6">
+      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6">
         <h2 className="text-base font-bold text-slate-900 mb-6">Patient Journey Funnel</h2>
         <div className="space-y-2">
           {steps.map((step, i) => {
@@ -1190,7 +970,7 @@ function CareCascadeFlow({
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           {
             label: 'Overall Conversion',
@@ -1231,270 +1011,7 @@ function CareCascadeFlow({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Aging SLA Kanban
-// ─────────────────────────────────────────────────────────────────────────────
 
-interface SLAPatient {
-  patient: Patient;
-  daysWaiting: number;
-  severity: 'critical' | 'warning' | 'safe';
-}
-
-function AgingSLAKanban({ patients }: { patients: Patient[] }) {
-  const { openPatient } = useHub();
-
-  const { pendingReferral, pendingDiagnosis, pendingTreatment } = useMemo(() => {
-    const referral: SLAPatient[] = [];
-    const diagnosis: SLAPatient[] = [];
-    const treatment: SLAPatient[] = [];
-    const now = Date.now();
-
-    for (const p of patients) {
-      // Skip completed patients
-      if (p.att_start_date) continue;
-
-      let baseDate: string | null = null;
-      let bucket: SLAPatient[] | null = null;
-
-      const isTB = p.tb_diagnosed === 'Y' || p.tb_diagnosed === 'Yes';
-
-      if (isTB) {
-        // Pending Treatment
-        baseDate = p.screening_date || p.referral_date;
-        bucket = treatment;
-      } else if (p.referral_date) {
-        // Pending Diagnosis
-        baseDate = p.referral_date;
-        bucket = diagnosis;
-      } else if (p.screening_date) {
-        // Pending Referral
-        baseDate = p.screening_date;
-        bucket = referral;
-      }
-
-      if (baseDate && bucket) {
-        const date = new Date(baseDate);
-        if (!isNaN(date.getTime())) {
-          const daysWaiting = Math.floor((now - date.getTime()) / 86400000);
-          const severity: 'critical' | 'warning' | 'safe' =
-            daysWaiting > 7 ? 'critical' : daysWaiting >= 4 ? 'warning' : 'safe';
-
-          bucket.push({ patient: p, daysWaiting, severity });
-        }
-      }
-    }
-
-    // Sort descending by daysWaiting (most critical first)
-    const sortDesc = (a: SLAPatient, b: SLAPatient) => b.daysWaiting - a.daysWaiting;
-    referral.sort(sortDesc);
-    diagnosis.sort(sortDesc);
-    treatment.sort(sortDesc);
-
-    return {
-      pendingReferral: referral,
-      pendingDiagnosis: diagnosis,
-      pendingTreatment: treatment,
-    };
-  }, [patients]);
-
-  const lanes = [
-    {
-      id: 'referral',
-      title: 'Pending Referral',
-      icon: FileSearch,
-      color: 'blue',
-      data: pendingReferral,
-      total: pendingReferral.length,
-    },
-    {
-      id: 'diagnosis',
-      title: 'Pending Diagnosis',
-      icon: Microscope,
-      color: 'purple',
-      data: pendingDiagnosis,
-      total: pendingDiagnosis.length,
-    },
-    {
-      id: 'treatment',
-      title: 'Pending Treatment',
-      icon: Pill,
-      color: 'amber',
-      data: pendingTreatment,
-      total: pendingTreatment.length,
-    },
-  ];
-
-  return (
-    <div className="space-y-5">
-      {/* Header Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        {lanes.map((lane) => {
-          const Icon = lane.icon;
-          const criticalCount = lane.data.filter((s) => s.severity === 'critical').length;
-          return (
-            <div
-              key={lane.id}
-              className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.04)] p-5"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center bg-${lane.color}-50`}
-                >
-                  {/* @ts-ignore */}
-                  <Icon className={`w-5 h-5 text-${lane.color}-600`} />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-slate-500">{lane.title}</p>
-                  <AnimatedNumber value={lane.total} className="text-2xl font-bold text-slate-900" />
-                </div>
-              </div>
-              {criticalCount > 0 && (
-                <div className="flex items-center gap-1.5 text-xs text-red-600 bg-red-50 px-2 py-1 rounded-lg">
-                  <AlertTriangle className="w-3 h-3" />
-                  <span className="font-semibold">{criticalCount} critical</span>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Kanban Lanes */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full items-start">
-        {lanes.map((lane) => {
-          const Icon = lane.icon;
-          const slicedData = lane.data.slice(0, 50);
-
-          return (
-            <div key={lane.id} className="space-y-3">
-              {/* Lane Header */}
-              <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.04)] p-4">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center bg-${lane.color}-50`}
-                  >
-                    {/* @ts-ignore */}
-                    <Icon className={`w-4 h-4 text-${lane.color}-600`} />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-slate-900 text-sm">{lane.title}</h3>
-                    <p className="text-xs text-slate-500">
-                      {lane.total} patient{lane.total !== 1 ? 's' : ''}
-                      {lane.total > 50 && ` (showing first 50)`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Cards */}
-              <div className="space-y-2 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
-                <AnimatePresence initial={false}>
-                  {slicedData.map((item, idx) => {
-                    const { patient, daysWaiting, severity } = item;
-                    const severityConfig = {
-                      critical: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' },
-                      warning: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
-                      safe: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200' },
-                    };
-                    const config = severityConfig[severity];
-
-                    return (
-                      <motion.button
-                        key={patient.id}
-                        type="button"
-                        layout
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ delay: Math.min(idx * 0.02, 0.3), duration: 0.2 }}
-                        onClick={() => openPatient(patient)}
-                        className="w-full bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200/60 shadow-[0_2px_12px_rgb(0,0,0,0.04)] p-4 text-left hover:-translate-y-0.5 hover:shadow-md transition-all"
-                      >
-                        {/* SLA Badge */}
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-slate-900 text-sm truncate">
-                              {patient.inmate_name}
-                            </h4>
-                          </div>
-                          <span
-                            className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded-full border ${config.bg} ${config.text} ${config.border}`}
-                          >
-                            {daysWaiting}d
-                          </span>
-                        </div>
-
-                        {/* Details */}
-                        <div className="space-y-1">
-                          <p className="text-xs text-slate-600 truncate">
-                            {patient.facility_name || 'Unknown Facility'}
-                          </p>
-                          <p className="text-[10px] text-slate-400 font-mono truncate">
-                            {patient.unique_id}
-                          </p>
-                        </div>
-
-                        {/* Severity Indicator */}
-                        {severity === 'critical' && (
-                          <div className="flex items-center gap-1 mt-2 text-[10px] text-red-600">
-                            <AlertTriangle className="w-3 h-3" />
-                            <span className="font-semibold">SLA Breach</span>
-                          </div>
-                        )}
-                      </motion.button>
-                    );
-                  })}
-                </AnimatePresence>
-
-                {slicedData.length === 0 && (
-                  <div className="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                    <p className="text-sm text-slate-600 font-medium">All clear</p>
-                    <p className="text-xs text-slate-400 mt-1">No patients in this stage</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Coming Soon (Kanban placeholder)
-// ─────────────────────────────────────────────────────────────────────────────
-
-const ComingSoon = memo(function ComingSoon({
-  title,
-  icon: Icon,
-  description,
-}: {
-  title: string;
-  icon: React.ElementType;
-  description: string;
-}) {
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.04)] p-16 text-center">
-      <div className="max-w-sm mx-auto space-y-4">
-        <div className="w-16 h-16 bg-gradient-to-br from-slate-800 to-slate-600 rounded-2xl flex items-center justify-center mx-auto shadow-[0_8px_24px_rgb(0,0,0,0.15)]">
-          {/* @ts-ignore */}
-          <Icon className="w-8 h-8 text-white" />
-        </div>
-        <div>
-          <h3 className="text-xl font-bold text-slate-900">{title}</h3>
-          <p className="text-sm text-slate-500 mt-2 leading-relaxed">{description}</p>
-        </div>
-        <div className="flex items-center justify-center gap-2 text-xs text-slate-400 pt-2 border-t border-slate-100">
-          <Calendar className="w-3.5 h-3.5" />
-          <span>Coming next sprint</span>
-        </div>
-      </div>
-    </div>
-  );
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // All Clear (empty state)

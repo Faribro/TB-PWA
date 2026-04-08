@@ -22,7 +22,8 @@
     "test:rbac-all": "node scripts/test-rbac.js && node scripts/test-rbac-integration.js",
     "test:reconcile": "node scripts/test-register-reconcile.js",
     "test:hybrid-ocr": "node scripts/test-hybrid-ocr.js",
-    "test:upload-modal": "node scripts/test-upload-modal.js"
+    "test:upload-modal": "node scripts/test-upload-modal.js",
+    "seed:knowledge": "bun run scripts/seed-knowledge-articles.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.43",

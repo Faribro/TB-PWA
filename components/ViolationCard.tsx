@@ -12,23 +12,23 @@ interface ViolationCardProps {
   index?: number;
 }
 
-// Severity-keyed style tokens — defined outside component to avoid re-creation
+// Severity-keyed style tokens — AWWWARDS REFINED
 const SEVERITY_STYLES = {
   high: {
-    bar: 'bg-red-500',
-    badge: 'bg-red-50 text-red-700 border-red-200',
+    bar: 'bg-gradient-to-b from-red-500 to-red-600',
+    badge: 'bg-red-500/10 text-red-700 border-red-500/20 backdrop-blur-sm',
     icon: 'text-red-500',
     violation: 'text-red-700',
-    cardBorder: 'border-red-100',
-    suggestion: 'bg-red-50 border-red-100 text-red-800',
+    cardBorder: 'border-red-500/20 hover:border-red-500/30',
+    suggestion: 'bg-red-500/10 border-red-500/20 text-red-800',
   },
   medium: {
-    bar: 'bg-amber-400',
-    badge: 'bg-amber-50 text-amber-700 border-amber-200',
+    bar: 'bg-gradient-to-b from-amber-400 to-amber-500',
+    badge: 'bg-amber-500/10 text-amber-700 border-amber-500/20 backdrop-blur-sm',
     icon: 'text-amber-500',
     violation: 'text-amber-700',
-    cardBorder: 'border-amber-100',
-    suggestion: 'bg-amber-50 border-amber-100 text-amber-800',
+    cardBorder: 'border-amber-500/20 hover:border-amber-500/30',
+    suggestion: 'bg-amber-500/10 border-amber-500/20 text-amber-800',
   },
 } as const;
 
@@ -42,27 +42,34 @@ export const ViolationCard = memo(function ViolationCard({
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: 20, height: 0 }}
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, x: 20, scale: 0.95, height: 0 }}
       transition={{
-        delay: Math.min(index * 0.04, 0.4),
-        duration: 0.24,
+        delay: Math.min(index * 0.05, 0.5),
+        duration: 0.4,
         ease: [0.22, 1, 0.36, 1],
       }}
+      whileHover={{ y: -2, scale: 1.01 }}
       className={`
-        relative flex overflow-hidden
-        bg-white rounded-2xl border shadow-[0_2px_16px_rgba(0,0,0,0.05)]
-        hover:shadow-[0_4px_24px_rgba(0,0,0,0.09)] hover:-translate-y-px
-        transition-all duration-200 cursor-default
+        group relative flex overflow-hidden
+        bg-white/80 backdrop-blur-sm rounded-2xl border shadow-[0_4px_20px_rgba(0,0,0,0.06)]
+        hover:shadow-[0_8px_32px_rgba(0,0,0,0.12)] 
+        transition-all duration-300 cursor-default
         ${styles.cardBorder}
       `}
     >
       {/* ── Left severity bar ───────────────────────────────────────────── */}
-      <div className={`w-1 shrink-0 ${styles.bar}`} />
+      <motion.div 
+        className={`w-1 shrink-0 ${styles.bar}`}
+        initial={{ scaleY: 0 }}
+        animate={{ scaleY: 1 }}
+        transition={{ delay: index * 0.05 + 0.2, duration: 0.4 }}
+        style={{ originY: 0 }}
+      />
 
       {/* ── Card body ───────────────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col gap-3 p-5 min-w-0">
+      <div className="flex flex-1 flex-col gap-2.5 p-4 min-w-0">
 
         {/* Row 1: Patient name + severity badge */}
         <div className="flex items-center justify-between gap-3">
@@ -102,10 +109,13 @@ export const ViolationCard = memo(function ViolationCard({
         </p>
 
         {/* Row 4: Quick Fix suggestion */}
-        <div
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: index * 0.05 + 0.3, duration: 0.4 }}
           className={`
             flex items-start gap-2.5 px-3.5 py-3
-            rounded-xl border text-xs leading-relaxed
+            rounded-xl border text-xs leading-relaxed backdrop-blur-sm
             ${styles.suggestion}
           `}
         >
@@ -114,7 +124,7 @@ export const ViolationCard = memo(function ViolationCard({
             <span className="font-semibold">Quick Fix: </span>
             {violation.suggestion}
           </span>
-        </div>
+        </motion.div>
 
         {/* Row 5: Impact score bar + Resolve button */}
         <div className="flex items-center justify-between gap-4 pt-0.5">
@@ -141,19 +151,22 @@ export const ViolationCard = memo(function ViolationCard({
           <motion.button
             type="button"
             onClick={() => onResolve(violation)}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
+            whileHover={{ scale: 1.05, x: 2 }}
+            whileTap={{ scale: 0.95 }}
             className="
-              flex items-center gap-1.5
+              group/btn relative flex items-center gap-1.5
               px-4 py-2 rounded-xl
-              bg-slate-900 hover:bg-slate-700
+              bg-gradient-to-br from-slate-900 to-slate-800
+              hover:from-slate-800 hover:to-slate-700
               text-white text-xs font-semibold
-              shadow-[0_2px_8px_rgba(15,23,42,0.25)]
-              transition-colors duration-150 shrink-0
+              shadow-[0_4px_16px_rgba(15,23,42,0.3)]
+              hover:shadow-[0_6px_24px_rgba(15,23,42,0.4)]
+              transition-all duration-300 shrink-0 overflow-hidden
             "
           >
-            Resolve
-            <ArrowRight className="w-3.5 h-3.5" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-200%] group-hover/btn:translate-x-[200%] transition-transform duration-700" />
+            <span className="relative z-10">Resolve</span>
+            <ArrowRight className="w-3.5 h-3.5 relative z-10 group-hover/btn:translate-x-0.5 transition-transform" />
           </motion.button>
         </div>
       </div>
