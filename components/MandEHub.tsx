@@ -348,11 +348,8 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
   const [dismissedPairs, setDismissedPairs] = useState<Set<string>>(new Set());
   const [cmdOpen, setCmdOpen] = useState(false);
   const [integrityFilter, setIntegrityFilter] = useState<'all' | 'high' | 'medium'>('all');
-  // Hidden by default; reveals only when user scrolls up.
-  const [isDashboardHidden, setIsDashboardHidden] = useState(true);
   const [isCompactMode, setIsCompactMode] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const lastScrollYRef = useRef(0);
   const { mutate } = useSWRConfig();
 
   // Debug log
@@ -367,44 +364,7 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
     return () => window.removeEventListener('resize', checkViewport);
   }, []);
 
-  // ── Auto-hide dashboard on scroll down, reveal on scroll up ────────────
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const scrollHost = (rootRef.current?.closest('main') as HTMLElement | null) ?? window;
-    const getScrollTop = () => (scrollHost instanceof Window ? scrollHost.scrollY : scrollHost.scrollTop);
-    lastScrollYRef.current = getScrollTop();
-    let ticking = false;
-
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      window.requestAnimationFrame(() => {
-        const currentY = getScrollTop();
-        const delta = currentY - lastScrollYRef.current;
-
-        // Keep hidden near top unless user actively scrolls up.
-        if (currentY <= 16 && delta >= 0) {
-          setIsDashboardHidden(true);
-        }
-
-        // Ignore micro-jitter from touchpads.
-        if (Math.abs(delta) > 8) {
-          if (delta > 0 && currentY > 120) {
-            setIsDashboardHidden(true);
-          } else if (delta < 0) {
-            setIsDashboardHidden(false);
-          }
-          lastScrollYRef.current = currentY;
-        }
-        ticking = false;
-      });
-    };
-
-    scrollHost.addEventListener('scroll', onScroll, { passive: true });
-    return () => scrollHost.removeEventListener('scroll', onScroll as EventListener);
-  }, []);
-
-  // ── Keyboard shortcut ──────────────────────────────────────────────────
+  // ── Keyboard shortcut ────────────────────────────────────────────────
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -540,65 +500,41 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
           </motion.div>
 
           {/* ── Intelligence Bar ─────────────────────────────────────────── */}
-          {!isDashboardHidden && (
-            <motion.div 
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="overflow-hidden"
-            >
-              <IntelligenceBar
-                duplicates={duplicatePairs.length}
-                high={highCount}
-                medium={mediumCount}
-                attLeak={cascadeData.criticalLeak}
-                onChipClick={setActiveTab}
-              />
-            </motion.div>
-          )}
-
-          <AnimatePresence>
-            {isDashboardHidden && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                className="flex justify-center"
-              >
-                <div className="group relative inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-slate-900/90 border border-cyan-400/30 text-[11px] font-semibold text-cyan-300 shadow-[0_0_24px_rgba(34,211,238,0.25),0_4px_16px_rgba(0,0,0,0.1)] backdrop-blur-xl hover:shadow-[0_0_32px_rgba(34,211,238,0.35),0_6px_20px_rgba(0,0,0,0.15)] transition-all duration-300">
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/10 to-cyan-500/0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <motion.span
-                    animate={{ y: [1, -3, 1], opacity: [0.6, 1, 0.6] }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                    className="font-mono tracking-tight text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)] relative z-10"
-                  >
-                    ↑↑↑
-                  </motion.span>
-                  <span className="relative z-10">Scroll up to reveal dashboard</span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+            className="overflow-hidden"
+          >
+            <IntelligenceBar
+              duplicates={duplicatePairs.length}
+              high={highCount}
+              medium={mediumCount}
+              attLeak={cascadeData.criticalLeak}
+              onDuplicatesClick={() => setActiveTab('duplicates')}
+              onIntegrityClick={() => {
+                setActiveTab('integrity');
+                setIntegrityFilter('high');
+              }}
+              onCascadeClick={() => setActiveTab('cascade')}
+            />
+          </motion.div>
 
           {/* ── Data Health Gauge ────────────────────────────────────────── */}
-          {!isDashboardHidden && (
-            <motion.div 
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
-              className="overflow-hidden"
-            >
-              <DataHealthGauge
-                healthScore={healthScore}
-                highCount={highCount}
-                mediumCount={mediumCount}
-                onSectionClick={handleGaugeClick}
-              />
-            </motion.div>
-          )}
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+            className="overflow-hidden"
+          >
+            <DataHealthGauge
+              healthScore={healthScore}
+              highCount={highCount}
+              mediumCount={mediumCount}
+              onSectionClick={handleGaugeClick}
+            />
+          </motion.div>
 
           {/* ── Navigation ──────────────────────────────────────────────── */}
           <div className={`sticky top-0 z-20 bg-gradient-to-b from-slate-50/95 via-slate-50/90 to-transparent backdrop-blur-xl -mx-4 lg:-mx-6 px-4 lg:px-6 ${
