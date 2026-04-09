@@ -81,62 +81,22 @@ const allPatientsFetcher = async (scope: SessionScope | null, userEmail?: string
     const cached = await getCachedPatients(cacheKey);
     if (cached.length > 0) return cached;
 
-    const supabase = createClient(userEmail);
+    // Use server-side API route with proper RBAC instead of direct Supabase client
+    console.log('[useSWRPatients] Fetching from /api/patients');
+    const response = await fetch('/api/patients');
     
-    // Step 1: Build count query with 3-tier RBAC
-    let countQuery = supabase
-      .from('patients')
-      .select('*', { count: 'exact', head: true });
+    if (!response.ok) {
+      console.error('[useSWRPatients] API error:', response.status, response.statusText);
+      return [];
+    }
     
-    // Apply 3-tier data isolation
-    if (scope?.staffName) {
-      // Tier 3: Prison Coordinator - filter by staff name (case-insensitive, trimmed)
-      countQuery = countQuery.ilike('staff_name', scope.staffName.trim());
-    } else if (scope?.district) {
-      // Tier 2b: District level - filter by state AND district
-      countQuery = countQuery.eq('screening_state', scope.state!);
-      countQuery = countQuery.eq('screening_district', scope.district);
-    } else if (scope?.state) {
-      // Tier 2a: State level - filter by state only
-      countQuery = countQuery.eq('screening_state', scope.state);
+    const { data } = await response.json();
+    
+    if (data && data.length > 0) {
+      await cachePatients(data, cacheKey);
     }
-    // Tier 1: National level - no filters (admin, PM)
-
-    const { count, error: countError } = await countQuery;
-    if (countError || !count) return [];
-
-    // Step 2: Fire all pages in parallel with same filters
-    const batchSize = 1000;
-    const pages = Math.ceil(count / batchSize);
-    const fetches = Array.from({ length: pages }, (_, i) => {
-      const supabase = createClient(userEmail);
-      let q = supabase
-        .from('patients')
-        .select('*')
-        .range(i * batchSize, (i + 1) * batchSize - 1);
-      
-      // Apply same 3-tier filters
-      if (scope?.staffName) {
-        q = q.ilike('staff_name', scope.staffName.trim());
-      } else if (scope?.district) {
-        q = q.eq('screening_state', scope.state!);
-        q = q.eq('screening_district', scope.district);
-      } else if (scope?.state) {
-        q = q.eq('screening_state', scope.state);
-      }
-      
-      return q;
-    });
-
-    const results = await Promise.all(fetches);
-    const allData: any[] = [];
-    for (const { data, error } of results) {
-      if (error || !data) continue;
-      allData.push(...data);
-    }
-
-    await cachePatients(allData, cacheKey);
-    return allData;
+    
+    return data || [];
   } catch (error) {
     console.error('[useSWRPatients] allPatientsFetcher failed:', error);
     return [];

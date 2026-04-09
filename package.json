@@ -17,12 +17,14 @@
     "test:sync": "node scripts/test-triple-sync.js",
     "test:e2e": "node scripts/run-test.js",
     "test:pipeline": "node scripts/verify-supabase-connection.js && node scripts/test-triple-sync.js",
+    "test:realtime-sync": "node scripts/test-realtime-sync-rigorous.js",
     "test:rbac": "node scripts/test-rbac.js",
     "test:rbac-integration": "node scripts/test-rbac-integration.js",
     "test:rbac-all": "node scripts/test-rbac.js && node scripts/test-rbac-integration.js",
     "test:reconcile": "node scripts/test-register-reconcile.js",
     "test:hybrid-ocr": "node scripts/test-hybrid-ocr.js",
     "test:upload-modal": "node scripts/test-upload-modal.js",
+    "test:rls": "bun run scripts/test-rls-normalization.ts",
     "seed:knowledge": "bun run scripts/seed-knowledge-articles.ts"
   },
   "dependencies": {
@@ -84,6 +86,7 @@
     "next-auth": "^5.0.0-beta.30",
     "pdf-parse-fork": "^1.2.0",
     "pg": "^8.20.0",
+    "postgres": "^3.4.9",
     "rbush": "^4.0.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",

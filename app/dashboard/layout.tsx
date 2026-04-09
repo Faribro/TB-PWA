@@ -87,8 +87,8 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
           ${isActive
             ? 'bg-slate-900 shadow-lg shadow-slate-900/20'
             : 'bg-slate-100 group-hover:bg-slate-200'}
-        `}>
-          <Icon className={`w-5 h-5 transition-colors ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-900'}`} />
+        `} suppressHydrationWarning>
+          <Icon className={`w-5 h-5 transition-colors ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-900'}`} suppressHydrationWarning />
 
           {isCollapsed && (
             <div className="absolute left-full ml-4 px-3 py-2 bg-slate-900 text-white text-[11px] font-bold uppercase tracking-widest rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 z-50 shadow-2xl translate-x-[-10px] group-hover:translate-x-0">
@@ -321,8 +321,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <motion.div
               animate={{ rotate: sidebarOpen ? 0 : 180 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              suppressHydrationWarning
             >
-              <ChevronLeft className="w-4 h-4 text-slate-400 group-hover:text-slate-900 transition-colors" />
+              <ChevronLeft className="w-4 h-4 text-slate-400 group-hover:text-slate-900 transition-colors" suppressHydrationWarning />
             </motion.div>
           </motion.button>
         </div>
@@ -375,9 +376,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 whileHover={{ y: -1 }}
                 onClick={handleSignOut}
                 className="mt-3 w-full flex items-center justify-between gap-3 px-3 py-2.5 text-xs font-bold text-slate-600 bg-slate-50/70 hover:bg-rose-50 hover:text-rose-700 rounded-xl transition-all duration-300 border border-slate-200/70 hover:border-rose-200 group"
+                suppressHydrationWarning
               >
-                <span className="flex items-center gap-2.5">
-                  <LogOut className="w-4 h-4 transition-transform group-hover:rotate-12 group-hover:text-rose-600" />
+                <span className="flex items-center gap-2.5" suppressHydrationWarning>
+                  <LogOut className="w-4 h-4 transition-transform group-hover:rotate-12 group-hover:text-rose-600" suppressHydrationWarning />
                   Sign out securely
                 </span>
               </motion.button>
@@ -389,8 +391,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   onClick={handleSignOut}
                   className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm"
                   aria-label="Sign out"
+                  suppressHydrationWarning
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="w-4 h-4" suppressHydrationWarning />
                 </motion.button>
               </div>
             )}

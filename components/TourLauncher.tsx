@@ -116,8 +116,9 @@ export default function TourLauncher() {
           e.currentTarget.querySelector('svg')?.setAttribute('stroke', '#6366f1')
           e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.1), 0 0 0 1px rgba(99,102,241,0.06)'
         }}
+        suppressHydrationWarning
       >
-        <Map size={18} style={{ color: '#6366f1' }} />
+        <Map size={18} style={{ color: '#6366f1' }} suppressHydrationWarning />
       </motion.button>
 
       {/* Tooltip */}
@@ -137,6 +138,7 @@ export default function TourLauncher() {
           pointerEvents: 'none',
           transition: 'opacity 0.2s',
         }}
+        suppressHydrationWarning
       >
         Guided Tours
       </div>

@@ -1,7 +1,7 @@
 import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
 import { createClient } from "@supabase/supabase-js"
-import { cookies } from "next/headers"
+import { normalizeRole } from "@/lib/constants/roles"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -52,7 +52,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             .eq('email', user.email)
             .single();
 
-          token.role = data?.role ?? 'M&E Officer';
+          // CRITICAL FIX: Normalize role from short code to long form for RLS compatibility
+          // profiles.role stores: PM, SPM, ME, PC, admin
+          // RLS policies expect: Program Manager, State Program Manager, M&E Officer, Prison Coordinator, admin
+          const rawRole = data?.role ?? 'ME';
+          const normalizedRole = normalizeRole(rawRole) ?? 'M&E Officer';
+          
+          console.log(`[JWT] Role normalization: "${rawRole}" → "${normalizedRole}"`);
+          
+          token.role = normalizedRole;
           token.state = data?.state ?? 'All';
           token.district = data?.district ?? 'All';
           token.staffName = data?.name ?? user.name;
