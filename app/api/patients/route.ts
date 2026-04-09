@@ -7,9 +7,23 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now();
   
   try {
+    // Check environment variables
+    const hasUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const hasKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+    console.log(`[/api/patients] ENV CHECK: URL=${hasUrl}, KEY=${hasKey}`);
+    
+    if (!hasUrl || !hasKey) {
+      console.error('[/api/patients] Missing environment variables!');
+      return NextResponse.json({ 
+        error: 'Server configuration error',
+        details: { hasUrl, hasKey }
+      }, { status: 500 });
+    }
+
     const session = await auth();
     
     if (!session?.user) {
+      console.log('[/api/patients] No session found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -50,7 +64,15 @@ export async function GET(request: NextRequest) {
     // Get total count first
     let countQuery = supabase.from('patients').select('*', { count: 'exact', head: true });
     countQuery = applyFilters(countQuery);
-    const { count: totalCount } = await countQuery;
+    const { count: totalCount, error: countError } = await countQuery;
+    
+    if (countError) {
+      console.error('[/api/patients] Count query error:', countError);
+      return NextResponse.json({ 
+        error: 'Database query failed',
+        details: countError
+      }, { status: 500 });
+    }
     
     console.log(`  Total count: ${totalCount}`);
 
