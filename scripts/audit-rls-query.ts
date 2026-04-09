@@ -18,7 +18,7 @@ async function run() {
   console.log('\n═══ QUERY 1: pg_policies for patients ═══');
   
   // Create temp function
-  await supabase.rpc('exec_sql' as any, { sql: '' }).catch(() => {});
+  // await supabase.rpc('exec_sql' as any, { sql: '' }).catch(() => {});
 
   // Use the postgres endpoint directly via fetch with service role
   const SUPABASE_URL = 'https://wwcgybgvfulotflitogu.supabase.co';
@@ -82,3 +82,5 @@ async function run() {
 }
 
 run().catch(console.error);
+
+export {};

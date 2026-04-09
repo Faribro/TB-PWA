@@ -511,12 +511,12 @@ export default function MandEHub({ globalPatients = [] }: MandEHubProps) {
               high={highCount}
               medium={mediumCount}
               attLeak={cascadeData.criticalLeak}
-              onDuplicatesClick={() => setActiveTab('duplicates')}
-              onIntegrityClick={() => {
-                setActiveTab('integrity');
-                setIntegrityFilter('high');
+              onChipClick={(tab) => {
+                setActiveTab(tab);
+                if (tab === 'integrity') {
+                  setIntegrityFilter('high');
+                }
               }}
-              onCascadeClick={() => setActiveTab('cascade')}
             />
           </motion.div>
 

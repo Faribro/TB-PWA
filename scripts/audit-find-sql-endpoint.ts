@@ -56,3 +56,5 @@ for (const url of endpoints) {
 const pgMetaUrl = `https://${PROJECT_REF}.supabase.co/pg/policies?table=patients&schema=public`;
 const r = await tryEndpoint(pgMetaUrl);
 console.log('pg_meta policies:', r.status, r.body.substring(0, 500));
+
+export {};

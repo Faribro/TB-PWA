@@ -769,7 +769,7 @@ interface FormFieldRowProps {
   status: 'same' | 'different' | 'unknown';
 }
 
-function FormFieldRow({ label, icon: Icon, value, status }: FormFieldRowProps) {
+function FormFieldRow({ label, icon, value, status }: FormFieldRowProps) {
   const isSame = status === 'same';
   const isDiff = status === 'different';
 
@@ -784,7 +784,7 @@ function FormFieldRow({ label, icon: Icon, value, status }: FormFieldRowProps) {
   return (
     <div className={outer}>
       <div className="flex items-center gap-1 text-[9px] font-semibold tracking-[0.12em] uppercase text-slate-500/80">
-        <Icon className="w-3 h-3 text-slate-400/70" />
+        {icon && typeof icon === 'function' && icon({ className: "w-3 h-3 text-slate-400/70" })}
         <span>{label}</span>
       </div>
       <div className="mt-0 rounded bg-white/90 px-1.5 py-0.5 text-[11px] font-medium text-slate-800 shadow-[0_1px_0_rgba(148,163,184,0.12),inset_0_-1px_0_rgba(148,163,184,0.08)] border border-slate-100/50">
