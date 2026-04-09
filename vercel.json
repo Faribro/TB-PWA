@@ -4,6 +4,9 @@
   "installCommand": "bun install",
   "framework": "nextjs",
   "functions": {
+    "app/api/patients/route.ts": {
+      "maxDuration": 60
+    },
     "app/api/**/*.ts": {
       "maxDuration": 10
     }

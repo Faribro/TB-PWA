@@ -86,17 +86,21 @@ const allPatientsFetcher = async (scope: SessionScope | null, userEmail?: string
     const response = await fetch('/api/patients');
     
     if (!response.ok) {
-      console.error('[useSWRPatients] API error:', response.status, response.statusText);
-      return [];
+      const errorText = await response.text();
+      console.error('[useSWRPatients] API error:', response.status, response.statusText, errorText);
+      throw new Error(`API error: ${response.status} - ${errorText}`);
     }
     
-    const { data } = await response.json();
+    const result = await response.json();
+    console.log('[useSWRPatients] API response:', { count: result.data?.length, hasData: !!result.data });
     
-    if (data && data.length > 0) {
+    const data = result.data || [];
+    
+    if (data.length > 0) {
       await cachePatients(data, cacheKey);
     }
     
-    return data || [];
+    return data;
   } catch (error) {
     console.error('[useSWRPatients] allPatientsFetcher failed:', error);
     return [];
