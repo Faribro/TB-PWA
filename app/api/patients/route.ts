@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     console.log('[/api/patients] User:', session.user.email, 'Role:', rawRole, '→', role, 'State:', state);
 
     // Build query with filters
-    let query = supabase.from('patients').select('*');
+    let query = supabase.from('patients').select('*').limit(20000); // Override default 1000 limit
     
     if (role === Role.ADMIN || role === Role.PROGRAM_MANAGER) {
       // National - no filter
