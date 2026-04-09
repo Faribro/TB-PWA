@@ -77,13 +77,6 @@ export function useSWRPatients(params: FetchPatientsParams) {
   );
 }
 
-export function useSWRAllPatients(userState?: string) {
-  return useSWR(['allPatients', userState], () => allPatientsFetcher(userState), {
-    revalidateOnMount: true,
-    refreshInterval: 60000,
-  });
-}
-
 export function useSWRFilterMetadata(userState?: string) {
   return useSWR(['filterMetadata', userState], async () => {
     let query = supabase

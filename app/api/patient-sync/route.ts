@@ -177,7 +177,10 @@ export async function POST(request: NextRequest) {
       message: 'Webhook not configured' 
     };
     
-    if (GOOGLE_SCRIPT_URL && koboUuid) {
+    // Determine the UUID to use for Google Sheets lookup (priority: provided koboUuid > patient's kobo_uuid > patient's unique_id)
+    const sheetsLookupId = koboUuid || updatedPatient.kobo_uuid || updatedPatient.unique_id;
+    
+    if (GOOGLE_SCRIPT_URL && sheetsLookupId) {
       try {
         // FUZZY KEY NORMALIZATION: Sanitize and filter keys
         const normalizedUpdates: Record<string, any> = {};
@@ -217,14 +220,14 @@ export async function POST(request: NextRequest) {
 
         const webhookPayload = {
           action: 'update_patient',
-          uuid: koboUuid,
+          uuid: sheetsLookupId,
           updates: normalizedUpdates
         };
 
         // CRITICAL DEBUG LOG: Print exact payload being sent
         console.log('═══════════════════════════════════════════════════════════');
         console.log('🚀 SENDING TO GOOGLE SHEETS:');
-        console.log('UUID:', koboUuid);
+        console.log('Lookup ID:', sheetsLookupId, '(source:', koboUuid ? 'provided' : updatedPatient.kobo_uuid ? 'patient.kobo_uuid' : 'patient.unique_id', ')');
         console.log('Payload Keys:', Object.keys(normalizedUpdates));
         console.log('Full Payload:', JSON.stringify(webhookPayload, null, 2));
         console.log('═══════════════════════════════════════════════════════════');
@@ -288,6 +291,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Build warnings array
+    const warnings: string[] = [];
+    if (!sheetsLookupId) {
+      warnings.push('No Kobo UUID available for Google Sheets lookup. Patient may not exist in sheet yet.');
+    } else if (!googleSheetsResult.success) {
+      warnings.push('Google Sheets sync failed — data saved to Supabase only. Re-sync manually.');
+    }
+    
     // Return success even if webhook fails (Supabase is the source of truth)
     return NextResponse.json({
       success: true,
@@ -297,9 +308,7 @@ export async function POST(request: NextRequest) {
         data: updatedPatient
       },
       googleSheets: googleSheetsResult,
-      warnings: googleSheetsResult.success
-        ? []
-        : ['Google Sheets sync failed — data saved to Supabase only. Re-sync manually.']
+      warnings
     });
 
   } catch (error: any) {

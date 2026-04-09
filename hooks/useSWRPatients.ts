@@ -134,23 +134,57 @@ export function useSWRPatients(params: FetchPatientsParams) {
   };
 }
 
-export function useSWRAllPatients(scope: SessionScope | null) {
+export function useSWRAllPatients(scope: SessionScope | null, page: number = 1, pageSize: number = 100) {
   const { data: session } = useSession();
   const key = session && scope 
-    ? ['allPatients', scope.state ?? 'all', scope.district ?? 'all', scope.staffName ?? 'all'] 
+    ? ['/api/patients', scope.state ?? 'all', scope.district ?? 'all', scope.staffName ?? 'all', page, pageSize] 
     : null;
   
   const swr = useSWR(
     key,
-    () => scope ? allPatientsFetcher(scope, session?.user?.email) : Promise.resolve([]),
+    async () => {
+      if (!scope) return { data: [], totalCount: 0, page, pageSize, totalPages: 0, hasMore: false };
+      
+      try {
+        const response = await fetch(`/api/patients?page=${page}&pageSize=${pageSize}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('[useSWRAllPatients] API error:', response.status, errorText);
+          throw new Error(`API error: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        
+        return {
+          data: result.data || [],
+          totalCount: result.totalCount || 0,
+          page: result.page || page,
+          pageSize: result.pageSize || pageSize,
+          totalPages: result.totalPages || 1,
+          hasMore: result.hasMore || false
+        };
+      } catch (error) {
+        console.error('[useSWRAllPatients] Fetch failed:', error);
+        return { data: [], totalCount: 0, page, pageSize, totalPages: 0, hasMore: false };
+      }
+    },
     swrAllPatientsConfig
   );
 
-  const localData = useLiveQuery(() => db.patients.toArray());
-
   return {
       ...swr,
-      data: localData && localData.length > 0 ? localData : swr.data
+      data: swr.data?.data || [],
+      totalCount: swr.data?.totalCount || 0,
+      page: swr.data?.page || page,
+      pageSize: swr.data?.pageSize || pageSize,
+      totalPages: swr.data?.totalPages || 1,
+      hasMore: swr.data?.hasMore || false,
+      isLoading: !swr.data && !swr.error,
   };
 }
 

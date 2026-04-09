@@ -40,8 +40,22 @@ function doPost(e) {
       var patientData = payload.record || payload;
       var updates = payload.updates || patientData;
       
+      // Support both 'uuid' and 'uniqueId' field names
+      var uniqueId = payload.uuid || 
+                     payload.uniqueId || 
+                     patientData.unique_id || 
+                     patientData['Unique ID'] ||
+                     patientData.uuid;
+      
+      if (!uniqueId) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          error: 'Missing UUID - provide either uuid, uniqueId, or unique_id'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      
       return handleNextjsUpdate_({
-        uniqueId: patientData.unique_id || patientData['Unique ID'] || payload.uniqueId,
+        uniqueId: uniqueId,
         updates: updates
       });
     }
@@ -83,19 +97,36 @@ function handleNextjsUpdate_(data) {
     var dataRange = sheet.getDataRange();
     var values = dataRange.getValues();
     var headers = values[0];
-    var uniqueIdCol = headers.indexOf('Unique ID');
     
-    if (uniqueIdCol === -1) throw new Error('Unique ID column not found');
+    // Try multiple column names for UUID lookup
+    var uniqueIdCol = headers.indexOf('KoboUUID');
+    if (uniqueIdCol === -1) uniqueIdCol = headers.indexOf('Unique ID');
+    if (uniqueIdCol === -1) uniqueIdCol = headers.indexOf('uuid');
+    if (uniqueIdCol === -1) uniqueIdCol = headers.indexOf('_uuid');
+    
+    if (uniqueIdCol === -1) {
+      Logger.log('Available headers: ' + JSON.stringify(headers));
+      throw new Error('KoboUUID column not found. Available: ' + headers.join(', '));
+    }
+    
+    Logger.log('Looking for UUID: ' + uniqueId + ' in column ' + uniqueIdCol);
     
     var rowIndex = -1;
     for (var i = 1; i < values.length; i++) {
-      if (values[i][uniqueIdCol] === uniqueId) {
+      var cellValue = values[i][uniqueIdCol];
+      // Convert to string for comparison and trim whitespace
+      if (String(cellValue).trim() === String(uniqueId).trim()) {
         rowIndex = i;
         break;
       }
     }
     
-    if (rowIndex === -1) throw new Error('Patient not found: ' + uniqueId);
+    if (rowIndex === -1) {
+      Logger.log('UUID not found in sheet. Checked ' + (values.length - 1) + ' rows');
+      throw new Error('UUID not found in sheet: ' + uniqueId);
+    }
+    
+    Logger.log('Found UUID at row: ' + (rowIndex + 1));
     
     var updates = data.updates;
     var updatedColumns = [];

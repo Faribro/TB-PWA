@@ -23,6 +23,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Parse pagination params - Vercel-friendly defaults
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
+    const pageSize = Math.min(1000, Math.max(1, parseInt(searchParams.get('pageSize') ?? '100', 10)));
+    const offset = (page - 1) * pageSize;
+    
+    // Limit total fetch for Vercel serverless (max 5000 records to prevent timeout)
+    const maxRecords = Math.min(pageSize, 5000);
+
     const supabase = createServerClient();
     
     const rawRole = session.user.role ?? 'ME';
@@ -30,85 +39,77 @@ export async function GET(request: NextRequest) {
     const state = session.user.state;
     const staffName = (session.user as any).staffName;
 
-    console.log('[/api/patients] User:', session.user.email, 'Role:', role, 'State:', state);
+    console.log(`[/api/patients] User: ${session.user.email}, Role: ${role}, Page: ${page}, PageSize: ${pageSize}`);
 
-    // Build base query
-    let query = supabase.from('patients').select('*', { count: 'exact' });
-    
-    // Apply RBAC filters
-    if (role === Role.ADMIN || role === Role.PROGRAM_MANAGER) {
-      // National tier - no filters
-      console.log('[/api/patients] Tier: NATIONAL');
-    } else if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
-      if (state && state !== 'All') {
-        query = query.eq('screening_state', state);
-        console.log('[/api/patients] Tier: STATE -', state);
+    // Build base query with filters applied to both count and data
+    const applyFilters = (query: any) => {
+      if (role === Role.ADMIN || role === Role.PROGRAM_MANAGER) {
+        // National tier - no filters
+      } else if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
+        if (state && state !== 'All') {
+          query = query.eq('screening_state', state);
+        }
+      } else if (role === Role.PRISON_COORDINATOR) {
+        if (staffName) {
+          query = query.ilike('staff_name', staffName.trim());
+        }
       }
-    } else if (role === Role.PRISON_COORDINATOR) {
-      if (staffName) {
-        query = query.ilike('staff_name', staffName.trim());
-        console.log('[/api/patients] Tier: FACILITY -', staffName);
-      }
+      return query;
+    };
+
+    // Get filtered count
+    let countQuery = supabase.from('patients').select('*', { count: 'exact', head: true });
+    countQuery = applyFilters(countQuery);
+    const { count: totalCount, error: countError } = await countQuery;
+
+    if (countError) {
+      console.error('[/api/patients] Count error:', countError);
+      return NextResponse.json({ error: 'Database error', details: countError.message }, { status: 500 });
     }
 
-    // Fetch data with pagination fallback
-    const BATCH_SIZE = 5000;
-    let allData: any[] = [];
-    let offset = 0;
-    let hasMore = true;
-    let totalCount = 0;
+    // Fetch single page (Vercel-safe - no batching loops)
+    let dataQuery = supabase
+      .from('patients')
+      .select('*')
+      .range(offset, offset + maxRecords - 1)
+      .order('screening_date', { ascending: false });
+    
+    dataQuery = applyFilters(dataQuery);
+    const { data, error } = await dataQuery;
 
-    while (hasMore) {
-      const { data: batch, error, count } = await query
-        .range(offset, offset + BATCH_SIZE - 1)
-        .order('screening_date', { ascending: false });
-
-      if (error) {
-        console.error('[/api/patients] Query error:', error);
-        return NextResponse.json({ 
-          error: 'Database query failed', 
-          details: error.message 
-        }, { status: 500 });
-      }
-
-      if (count !== null && totalCount === 0) {
-        totalCount = count;
-      }
-
-      if (batch && batch.length > 0) {
-        allData.push(...batch);
-        console.log(`[/api/patients] Batch ${Math.floor(offset / BATCH_SIZE) + 1}: ${batch.length} records (total: ${allData.length}/${totalCount})`);
-        
-        if (batch.length < BATCH_SIZE) {
-          hasMore = false;
-        } else {
-          offset += BATCH_SIZE;
-        }
-      } else {
-        hasMore = false;
-      }
-
-      // Safety: prevent infinite loops
-      if (offset > 100000) {
-        console.warn('[/api/patients] Safety limit reached at 100k records');
-        break;
-      }
+    if (error) {
+      console.error('[/api/patients] Query error:', error);
+      return NextResponse.json({ error: 'Database query failed', details: error.message }, { status: 500 });
     }
 
     const duration = Date.now() - startTime;
-    console.log(`[/api/patients] ✅ Fetched ${allData.length} records in ${duration}ms`);
+    const totalPages = Math.ceil((totalCount || 0) / pageSize);
+    
+    console.log(`[/api/patients] ✅ Page ${page}/${totalPages}: ${data?.length || 0} records (${duration}ms)`);
 
-    const response: PatientsResponse = {
-      data: allData,
-      count: allData.length,
-      duration
+    const response = {
+      data: data || [],
+      count: data?.length || 0,
+      totalCount: totalCount || 0,
+      page,
+      pageSize,
+      totalPages,
+      hasMore: page < totalPages,
+      duration,
+      _meta: {
+        role,
+        state: state || null,
+        tier: role === Role.ADMIN || role === Role.PROGRAM_MANAGER ? 'NATIONAL' : 
+              role === Role.PRISON_COORDINATOR ? 'FACILITY' : 'STATE'
+      }
     };
 
     return NextResponse.json(response, {
       headers: {
-        'Cache-Control': 'private, max-age=60, stale-while-revalidate=300',
-        'X-Total-Count': String(allData.length),
-        'X-Duration-Ms': String(duration)
+        'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+        'X-Total-Count': String(totalCount || 0),
+        'X-Page': String(page),
+        'X-Total-Pages': String(totalPages)
       }
     });
   } catch (error) {
