@@ -14,7 +14,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Filter, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { LinesAndDotsLoader } from '@/components/LinesAndDotsLoader';
-import { createClient } from '@/lib/supabase-client';
 
 const NeuralDashboard = dynamic(() => import('@/app/dashboard/neural-dashboard-view'), {
   ssr: false,
@@ -139,45 +138,23 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
 
   useEffect(() => {
     async function fetchMetrics() {
-      const supabase = createClient();
-      let totalQ = supabase.from('patients').select('*', { count: 'exact', head: true });
-      let pendingQ = supabase.from('patients').select('*', { count: 'exact', head: true })
-        .eq('xray_result', 'Abnormal - Suspected')
-        .is('att_start_date', null)
-        .is('referral_date', null);
-
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-      let monthQ = supabase.from('patients').select('*', { count: 'exact', head: true })
-        .gte('screening_date', startOfMonth.toISOString());
-        
-      let attQ = supabase.from('patients').select('*', { count: 'exact', head: true })
-        .not('att_start_date', 'is', null);
-
-      if (scope.state) {
-        totalQ   = totalQ.eq('screening_state', scope.state);
-        pendingQ = pendingQ.eq('screening_state', scope.state);
-        monthQ   = monthQ.eq('screening_state', scope.state);
-        attQ     = attQ.eq('screening_state', scope.state);
+      try {
+        const response = await fetch('/api/metrics');
+        if (!response.ok) {
+          console.error('[Vertex] Metrics API error:', response.status);
+          return;
+        }
+        const data = await response.json();
+        setMetrics(data);
+      } catch (error) {
+        console.error('[Vertex] Failed to fetch metrics:', error);
       }
-      if (scope.district) {
-        totalQ   = totalQ.eq('screening_district', scope.district);
-        pendingQ = pendingQ.eq('screening_district', scope.district);
-        monthQ   = monthQ.eq('screening_district', scope.district);
-        attQ     = attQ.eq('screening_district', scope.district);
-      }
-
-      const [{ count: total }, { count: pending }, { count: thisMonth }, { count: onATT }] =
-        await Promise.all([totalQ, pendingQ, monthQ, attQ]);
-
-      setMetrics({ total: total ?? 0, pending: pending ?? 0, thisMonth: thisMonth ?? 0, onATT: onATT ?? 0 });
     }
 
     fetchMetrics();
     const id = setInterval(fetchMetrics, 30000);
     return () => clearInterval(id);
-  }, [scope]);
+  }, []);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">

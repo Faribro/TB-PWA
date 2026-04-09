@@ -27,83 +27,76 @@ export async function GET(request: NextRequest) {
     console.log(`  User: ${session.user.email}`);
     console.log(`  Role: ${rawRole} → ${role}`);
     console.log(`  State: ${state}`);
-    console.log(`  District: ${district}`);
-    console.log(`  Staff: ${staffName}`);
 
-    // Step 1: Get total count
+    // Build base query with filters
+    const applyFilters = (query: any) => {
+      if (role === Role.ADMIN || role === Role.PROGRAM_MANAGER) {
+        console.log('  Tier: NATIONAL (no filters)');
+        // No filters - fetch ALL records
+      } else if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
+        if (state && state !== 'All') {
+          query = query.eq('screening_state', state);
+          console.log(`  Tier: STATE (filter: ${state})`);
+        }
+      } else if (role === Role.PRISON_COORDINATOR) {
+        if (staffName) {
+          query = query.ilike('staff_name', staffName.trim());
+          console.log(`  Tier: FACILITY (filter: ${staffName})`);
+        }
+      }
+      return query;
+    };
+
+    // Get total count first
     let countQuery = supabase.from('patients').select('*', { count: 'exact', head: true });
-
-    // Apply 3-tier data isolation
-    if (role === Role.ADMIN || role === Role.PROGRAM_MANAGER) {
-      console.log('  Tier: NATIONAL (no filters)');
-    } else if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
-      if (state && state !== 'All') {
-        countQuery = countQuery.eq('screening_state', state);
-        console.log(`  Tier: STATE (filter: ${state})`);
-      }
-    } else if (role === Role.PRISON_COORDINATOR) {
-      if (staffName) {
-        countQuery = countQuery.ilike('staff_name', staffName.trim());
-        console.log(`  Tier: FACILITY (filter: ${staffName})`);
-      }
-    }
-
-    const { count, error: countError } = await countQuery;
+    countQuery = applyFilters(countQuery);
+    const { count: totalCount } = await countQuery;
     
-    if (countError) {
-      console.error('[/api/patients] Count error:', countError);
-      return NextResponse.json({ error: countError.message }, { status: 500 });
-    }
+    console.log(`  Total count: ${totalCount}`);
 
-    if (!count || count === 0) {
+    if (!totalCount || totalCount === 0) {
       console.log('[/api/patients] No records found');
       console.log('═══════════════════════════════════════════════════════════════════════════');
       return NextResponse.json({ data: [], count: 0 });
     }
 
-    console.log(`  Total count: ${count}`);
-
-    // Step 2: Fetch all records in batches
+    // Fetch ALL data in batches to avoid Supabase 1000 row limit
     const batchSize = 1000;
-    const pages = Math.ceil(count / batchSize);
+    const batches = Math.ceil(totalCount / batchSize);
     const allData: any[] = [];
 
-    console.log(`  Fetching ${pages} batches...`);
+    console.log(`  Fetching ${batches} batches of ${batchSize} records each...`);
 
-    for (let i = 0; i < pages; i++) {
-      let query = supabase
+    for (let i = 0; i < batches; i++) {
+      let batchQuery = supabase
         .from('patients')
         .select('*')
         .range(i * batchSize, (i + 1) * batchSize - 1);
+      
+      batchQuery = applyFilters(batchQuery);
 
-      // Apply same filters
-      if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
-        if (state && state !== 'All') {
-          query = query.eq('screening_state', state);
-        }
-      } else if (role === Role.PRISON_COORDINATOR) {
-        if (staffName) {
-          query = query.ilike('staff_name', staffName.trim());
-        }
-      }
+      const { data: batchData, error: batchError } = await batchQuery;
 
-      const { data, error } = await query;
-
-      if (error) {
-        console.error(`  ❌ Batch ${i + 1}/${pages} error:`, error);
+      if (batchError) {
+        console.error(`  ❌ Batch ${i + 1}/${batches} error:`, batchError);
         continue;
       }
 
-      if (data) {
-        allData.push(...data);
+      if (batchData && batchData.length > 0) {
+        allData.push(...batchData);
+        console.log(`  📦 Batch ${i + 1}/${batches}: ${batchData.length} records (total: ${allData.length})`);
       }
     }
 
     const duration = Date.now() - startTime;
-    console.log(`  ✅ Fetched ${allData.length}/${count} records in ${duration}ms`);
+    
+    console.log(`  ✅ Fetched ${allData.length}/${totalCount} records in ${duration}ms`);
     console.log('═══════════════════════════════════════════════════════════════════════════');
 
-    return NextResponse.json({ data: allData, count });
+    return NextResponse.json({ 
+      data: allData, 
+      count: allData.length
+    });
   } catch (error) {
     console.error('[/api/patients] Error:', error);
     console.log('═══════════════════════════════════════════════════════════════════════════');
