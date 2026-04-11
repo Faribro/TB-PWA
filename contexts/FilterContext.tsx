@@ -13,7 +13,7 @@ import { useEntityStore } from '@/stores/useEntityStore';
  * - TreeFilterContext.district
  */
 
-export type FilterStatus = 'All' | 'High Alert' | 'On Track';
+export type FilterStatus = 'All' | 'Suspected' | 'Normal' | 'High Alert' | 'On Track';
 
 export interface FilterState {
   coordinator: string | null;

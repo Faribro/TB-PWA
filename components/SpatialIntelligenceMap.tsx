@@ -215,6 +215,40 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
         p && normalizeGeographicKey(p.screening_district) === normalizeGeographicKey(filter.district)
       );
     }
+
+    // Apply categorical status filters (ENHANCED ENGINE)
+    if (filter.status !== 'All') {
+      filtered = filtered.filter(p => {
+        if (!p) return false;
+        
+        switch (filter.status) {
+          case 'Suspected':
+            // Suspected: Patients awaiting diagnosis (not "Yes" and not "No")
+            return !p.tb_diagnosed || (p.tb_diagnosed !== 'Yes' && p.tb_diagnosed !== 'Y' && p.tb_diagnosed !== 'No');
+          
+          case 'Normal':
+            // Normal: Patients confirmed non-TB
+            return p.tb_diagnosed === 'No' || p.tb_diagnosed === 'N';
+          
+          case 'High Alert':
+            // High Alert: Using existing SLA Breach definition
+            const screeningDate = p.screening_date ? new Date(p.screening_date) : null;
+            if (!screeningDate) return false;
+            const daysSince = (Date.now() - screeningDate.getTime()) / (1000 * 60 * 60 * 24);
+            return !p.referral_date && daysSince > 7;
+          
+          case 'On Track':
+            // On Track: Diagnosed and referred or within SLA
+            const sDate = p.screening_date ? new Date(p.screening_date) : null;
+            if (!sDate) return true;
+            const dSince = (Date.now() - sDate.getTime()) / (1000 * 60 * 60 * 24);
+            return !!p.referral_date || dSince <= 7;
+            
+          default:
+            return true;
+        }
+      });
+    }
     
     return filtered;
   }, [globalPatients, treeFilter, filter.state, filter.district]);
@@ -280,8 +314,19 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
           })
           .then(topology => {
             const objectKey = Object.keys(topology.objects)[0];
-            const geojson = feature(topology, topology.objects[objectKey]);
-            return geojson.features;
+            const geojson: any = feature(topology, topology.objects[objectKey]);
+            
+            // Defensive: ensure we return an array of features
+            if (geojson.type === 'FeatureCollection') {
+              return geojson.features;
+            } else if (geojson.type === 'Feature') {
+              return [geojson];
+            }
+            return [];
+          })
+          .then(features => {
+            // Further filter to remove features without geometry or with invalid structure
+            return (features || []).filter((f: any) => f && f.geometry);
           })
           .catch(() => [])
       )
@@ -344,10 +389,10 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
       return [30, 41, 59, 100]; // Slate-800 for no data
     }
 
-    const value = metrics[metric];
+    const value = metrics[metric] || 0;
     const percentage = (value / metrics.screened) * 100;
-    const yieldPercent = metrics.screened > 0 ? (metrics.diagnosed / metrics.screened) * 100 : 0;
-    const breachPercent = metrics.screened > 0 ? (metrics.breaches / metrics.screened) * 100 : 0;
+    const yieldPercent = (metrics.diagnosed || 0) / (metrics.screened || 1) * 100;
+    const breachPercent = (metrics.breaches || 0) / (metrics.screened || 1) * 100;
 
     // Breach metric: Red scale (high = bad) - Legend-aligned
     if (metric === 'breaches') {
@@ -489,16 +534,21 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
         wireframe: false,
         lineWidthMinPixels: 2,
         getElevation: (d: any) => {
+          if (!d || !d.properties) return 1000;
           const name = d.properties.district || d.properties.st_nm || '';
           const key = normalizeGeographicKey(name);
           const metrics = choroplethDict.get(key);
           if (!metrics) {
             return 1000;
           }
-          const value = metrics[activeMetric];
-          return Math.max(value * 150, 1000);
+          const val = metrics[activeMetric] || 0;
+          // Guard against NaN or non-numeric values which crash deck.gl assertions
+          const safeVal = isNaN(val) ? 0 : val;
+          return Math.max(safeVal * 150, 1000);
         },
         getFillColor: (d: any, { index }: { index: number }) => {
+          if (!d || !d.properties) return [30, 41, 59, 100];
+          
           // Fallback for multiple GeoJSON property name conventions
           const districtName = d.properties.district || d.properties.NAME_2 || d.properties.dtname || '';
           const stateName = d.properties.st_nm || d.properties.NAME_1 || d.properties.state || '';
@@ -701,6 +751,9 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
   }, [isClient, webGLSupported, geoData, choroplethDict, activeMetric, getColorFromMetric, setDistrict, filter.state, filter.district, hoveredHUD, flyToDistrict]);
 
   // City Pillars Layer (Glowing Columns) - Wired to Active Metric
+  const hoveredHUDRef = useRef(hoveredHUD);
+  useEffect(() => { hoveredHUDRef.current = hoveredHUD; }, [hoveredHUD]);
+
   const cityPillarsLayer = useMemo(() => {
     if (!isClient || !webGLSupported || enrichedCities.length === 0) return null;
 
@@ -709,7 +762,7 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
       data: enrichedCities,
       pickable: true,
       extruded: true,
-      diskResolution: 12,
+      diskResolution: 6,
       radius: 8000,
       material: {
         ambient: 0.2,
@@ -721,15 +774,15 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
       getElevation: (d: any) => {
         const key = normalizeGeographicKey(d.city);
         const metrics = choroplethDict.get(key);
-        const value = metrics ? metrics[activeMetric] : d.tbCases;
+        const value = metrics ? (metrics[activeMetric] || 0) : (d.tbCases || 0);
         const baseHeight = value * 2;
-        const isInHoveredDistrict = hoveredHUD && 
-          normalizeGeographicKey(d.city) === normalizeGeographicKey(hoveredHUD.district);
+        const isInHoveredDistrict = hoveredHUDRef.current && 
+          normalizeGeographicKey(d.city) === normalizeGeographicKey(hoveredHUDRef.current.district);
         return isInHoveredDistrict ? baseHeight * 1.5 : baseHeight;
       },
       getFillColor: (d: any) => {
-        const isInHoveredDistrict = hoveredHUD && 
-          normalizeGeographicKey(d.city) === normalizeGeographicKey(hoveredHUD.district);
+        const isInHoveredDistrict = hoveredHUDRef.current && 
+          normalizeGeographicKey(d.city) === normalizeGeographicKey(hoveredHUDRef.current.district);
         
         if (isInHoveredDistrict) {
           return [100, 200, 255, 255];
@@ -738,7 +791,7 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
         const isBreachView = activeMetric === 'breaches' || activeGISMetric === 'breaches';
         const key = normalizeGeographicKey(d.city);
         const metrics = choroplethDict.get(key);
-        const value = metrics ? metrics[activeMetric] : d.tbCases;
+        const value = metrics ? (metrics[activeMetric] || 0) : (d.tbCases || 0);
         const intensity = Math.min(value / 150, 1);
 
         if (isBreachView) {
@@ -762,7 +815,7 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
         getFillColor: [hoveredHUD, activeMetric, activeGISMetric, choroplethDict]
       }
     });
-  }, [isClient, webGLSupported, enrichedCities, hoveredHUD, activeMetric, activeGISMetric, choroplethDict]);
+  }, [isClient, webGLSupported, enrichedCities, activeMetric, activeGISMetric, choroplethDict]); // Omitted hoveredHUD to stop geometry re-generation
 
   // City Pillars Text Layer (Numbers on top of Columns with Dynamic Scaling & Glow)
   const cityPillarsTextLayer = useMemo(() => {
@@ -778,8 +831,13 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
       getPosition: (d: any) => {
         const key = normalizeGeographicKey(d.city);
         const metrics = choroplethDict.get(key);
-        const value = metrics ? metrics[activeMetric] : d.tbCases;
-        return [d.position[0], d.position[1], (value * 2) + 5000];
+        const value = metrics ? (metrics[activeMetric] || 0) : (d.tbCases || 0);
+        const baseHeight = value * 2;
+        const isInHoveredDistrict = hoveredHUDRef.current && 
+          normalizeGeographicKey(d.city) === normalizeGeographicKey(hoveredHUDRef.current.district);
+        
+        const finalPosition = d.position || [0, 0];
+        return [finalPosition[0], finalPosition[1], (isInHoveredDistrict ? baseHeight * 1.5 : baseHeight) + 5000];
       },
       getText: (d: any) => {
         const key = normalizeGeographicKey(d.city);
@@ -814,7 +872,7 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
         getPosition: { duration: 600, type: 'spring' }
       }
     });
-  }, [isClient, webGLSupported, enrichedCities, hoveredHUD, activeMetric, activeGISMetric, choroplethDict]);
+  }, [isClient, webGLSupported, enrichedCities, activeMetric, activeGISMetric, choroplethDict]); // Omitted hoveredHUD for perf gain
 
   // Lighting effect for 3D visualization
   const lightingEffect = useMemo(() => {
@@ -1187,6 +1245,7 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
   return (
     <CommandCenterLayout
       filteredPatients={filteredPatients}
+      globalPatients={globalPatients}
       uniqueCoordinators={uniqueCoordinators}
       onZoomToFit={handleZoomToFit}
       onShowCascade={() => setShowCascade(!showCascade)}

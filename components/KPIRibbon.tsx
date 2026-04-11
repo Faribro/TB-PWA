@@ -155,7 +155,7 @@ export function KPIRibbon({ filteredPatients, compact = false }: KPIRibbonProps)
     <div className="flex flex-col h-full bg-[#111111] border-r border-[#222] font-mono text-[10px] w-[260px] shrink-0">
       {/* Header */}
       <div className="h-10 border-b border-[#222] flex items-center px-4 font-bold tracking-widest text-[#888] uppercase shrink-0">
-        Global Situation
+        Situation
       </div>
       
       <div className="flex-1 overflow-y-auto custom-dark-scrollbar p-3">
@@ -199,8 +199,8 @@ export function KPIRibbon({ filteredPatients, compact = false }: KPIRibbonProps)
               >
                 <div className="flex items-center gap-2">
                   <div 
-                    className={`w-3 h-3 rounded-sm flex items-center justify-center text-[8px] font-black
-                    ${isActive ? 'bg-[#10b981] text-black shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'border border-[#444] bg-transparent text-transparent'}
+                    className={`w-3 h-3 rounded-sm flex items-center justify-center text-[8px] font-black transition-all duration-300
+                    ${isActive ? 'bg-[#10b981] text-black shadow-[0_0_12px_rgba(16,185,129,1)] scale-110' : 'border border-[#444] bg-transparent text-transparent group-hover:border-[#666]'}
                     `}
                   >
                     ✓
@@ -211,13 +211,13 @@ export function KPIRibbon({ filteredPatients, compact = false }: KPIRibbonProps)
                   >
                     {metric.icon}
                   </div>
-                  <span className={`font-bold tracking-wider ${isActive ? 'text-white' : 'text-[#999]'}`}>
+                  <span className={`font-bold tracking-wider transition-all duration-300 ${isActive ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,1)]' : 'text-[#888] group-hover:text-[#bbb]'}`}>
                     {metric.label.toUpperCase()}
                   </span>
                 </div>
                 
                 {/* Count value replacing context */}
-                <span className="text-[#666] font-bold tabular-nums">
+                <span className={`font-black tabular-nums transition-all duration-300 ${isActive ? 'text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]' : 'text-[#666] group-hover:text-[#888]'}`}>
                   {metric.value.toLocaleString()}
                 </span>
               </div>
@@ -228,11 +228,6 @@ export function KPIRibbon({ filteredPatients, compact = false }: KPIRibbonProps)
         {/* Separator / Additional non-kpi layers could go here */}
         <div className="h-px bg-[#222] my-4" />
         
-        {/* Mini user tag imitating worldmonitor bottom left corner */}
-        <div className="mt-auto px-1 pt-4 text-[9px] text-[#555] tracking-widest uppercase font-bold flex flex-col gap-1">
-          <div><span className="text-cyan-500">© SAMADHAAN</span> · WORLD OS™</div>
-          <div>v2.0.7 · <span className="text-[#888]">@HEALTH_DEPT</span></div>
-        </div>
       </div>
     </div>
   );

@@ -87,38 +87,31 @@ export default function TourLauncher() {
     <>
       {/* Launcher Button */}
       <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        drag
+        dragMomentum={false}
+        dragConstraints={{ left: -(typeof window !== 'undefined' ? window.innerWidth : 1920), right: 0, top: -(typeof window !== 'undefined' ? window.innerHeight : 1080), bottom: 0 }}
+        whileHover={{ scale: 1.1, boxShadow: '0 0 20px rgba(99,102,241,0.5)' }}
+        whileTap={{ scale: 0.9 }}
         onClick={() => setIsOpen(true)}
         style={{
           position: 'fixed',
           bottom: '80px',
           right: '24px',
-          width: '48px',
-          height: '48px',
+          width: '54px',
+          height: '54px',
           borderRadius: '9999px',
           background: 'white',
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.1), 0 0 0 1px rgba(99,102,241,0.06)',
-          cursor: 'pointer',
+          border: '2px solid #6366f1',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+          cursor: 'grab',
           zIndex: 9980,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = '#6366f1'
-          e.currentTarget.querySelector('svg')?.setAttribute('stroke', 'white')
-          e.currentTarget.style.boxShadow = '0 8px 30px rgba(99,102,241,0.35)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'white'
-          e.currentTarget.querySelector('svg')?.setAttribute('stroke', '#6366f1')
-          e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.1), 0 0 0 1px rgba(99,102,241,0.06)'
-        }}
         suppressHydrationWarning
       >
-        <Map size={18} style={{ color: '#6366f1' }} suppressHydrationWarning />
+        <Map size={24} style={{ color: '#6366f1' }} suppressHydrationWarning />
       </motion.button>
 
       {/* Tooltip */}
@@ -132,15 +125,16 @@ export default function TourLauncher() {
           padding: '6px 12px',
           borderRadius: '8px',
           fontSize: '12px',
-          fontWeight: 500,
+          fontWeight: 800,
           zIndex: 9980,
           opacity: isOpen ? 0 : 1,
           pointerEvents: 'none',
           transition: 'opacity 0.2s',
+          letterSpacing: '0.1em'
         }}
         suppressHydrationWarning
       >
-        Guided Tours
+        LINK
       </div>
 
       {/* Tour Picker Panel */}
@@ -178,7 +172,7 @@ export default function TourLauncher() {
                     letterSpacing: '0.2px',
                     textShadow: '0 0 12px rgba(16, 185, 129, 0.08)',
                   }}>
-                    Guided Tours
+                    NEURAL_LINK
                   </h3>
                   <p style={{
                     fontSize: '12px',
@@ -186,7 +180,7 @@ export default function TourLauncher() {
                     fontFamily: 'var(--font-share-tech-mono)',
                     margin: '4px 0 0',
                   }}>
-                    Step-by-step feature walkthroughs
+                    Operational walkthrough protocols
                   </p>
                 </div>
                 <button

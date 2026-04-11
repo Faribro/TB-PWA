@@ -41,14 +41,14 @@ const LEGEND_ITEMS = [
 
 export function ColorLegend({ className = '' }: ColorLegendProps) {
   return (
-    <div className={`flex items-center gap-4 ${className}`}>
+    <div className={`flex items-center gap-6 ${className}`}>
       {LEGEND_ITEMS.map((item, index) => (
-        <div key={item.label} className="flex items-center gap-1.5 grayscale opacity-80 hover:grayscale-0 hover:opacity-100 transition-all cursor-crosshair">
+        <div key={item.label} className="flex items-center gap-2 group transition-all cursor-crosshair hover:scale-105">
           <div
-            className="w-2 h-2 rounded-[1px] shadow-[0_0_8px_rgba(255,255,255,0.2)]"
-            style={{ backgroundColor: item.color }}
+            className="w-2.5 h-2.5 rounded-sm shadow-[0_0_15px_currentColor] border border-white/20 transition-all duration-300 group-hover:shadow-[0_0_20px_currentColor] group-hover:bg-white"
+            style={{ backgroundColor: item.color, color: item.color }}
           />
-          <span className="text-[9px] font-bold tracking-widest uppercase text-[#999]">
+          <span className="text-[10px] font-black tracking-widest uppercase text-[#999] group-hover:text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.1)] transition-colors">
             {item.label}
           </span>
         </div>
