@@ -184,6 +184,7 @@ export function useSWRPatients(params: FetchPatientsParams) {
 }
 
 interface UseSWRAllPatientsOptions {
+  pageSize?: number;
   filters?: {
     state?: string;
     district?: string;
@@ -201,8 +202,8 @@ export function useSWRAllPatients(
   
   // Role-based page size
   const pageSize = useMemo(() => {
-    return getDefaultPageSize(session?.user?.role);
-  }, [session?.user?.role]);
+    return options.pageSize ?? getDefaultPageSize(session?.user?.role);
+  }, [options.pageSize, session?.user?.role]);
   
   const { filters } = options;
   

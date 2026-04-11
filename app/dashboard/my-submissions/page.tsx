@@ -118,7 +118,7 @@ export default function MySubmissionsPage() {
       map[date].count++;
       if (p.tb_diagnosed === 'Yes') map[date].tbPositive++;
     });
-    return Object.entries(map).map(([date, v]) => ({ date, ...v }));
+    return Object.entries(map).map(([date, v]) => ({ date, count: v.count, tbPositive: v.tbPositive, suspected: 0, attStarted: 0, referred: 0 }));
   }, [patients]);
 
   // Handle calendar day click

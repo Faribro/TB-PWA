@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: No scope' }, { status: 403 });
     }
 
-    const userId = (session.user as any)?.id ?? request.ip ?? 'anonymous';
+    const userId = (session.user as any)?.id ?? request.headers.get('x-forwarded-for') ?? 'anonymous';
     if (!checkRateLimit(userId)) {
       return NextResponse.json(
         { error: 'Rate limit exceeded. Please wait 1 minute.' },

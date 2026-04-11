@@ -59,6 +59,12 @@ export async function POST(req: NextRequest) {
         const transformed: Record<string, any> = mapKoboPayloadToSupabase(body);
         transformed.kobo_uuid = String(uuid);
         transformed.created_at = transformed.created_at ?? new Date().toISOString();
+        
+        // Initialize Google Sheets sync fields
+        transformed.synced_to_sheets = false;
+        transformed.sheets_sync_attempts = 0;
+        transformed.sheets_sync_error = null;
+        transformed.webhook_received_at = new Date().toISOString();
 
         if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
           console.error('[webhook] Missing Supabase env vars')
