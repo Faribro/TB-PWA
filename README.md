@@ -3281,17 +3281,13 @@ ORDER BY indexname;
 | Ingest | koboMapper.ts | KoboCollect → Supabase schema |
 | API | /api/patients | Paginated record fetch, RBAC, batching |
 | API | /api/vertex/metrics | Aggregated stats, server-side GROUP BY |
-| Hook | useSWRPatients.ts | Client cache, role-based page sizes |
+| Hook | useSWRPatients.ts | Client cache, network-first fetching |
 | Store | useEntityStore.ts | Global patient state |
 | View | vertex/page.tsx | Calendar + table, SEPARATE data sources |
 
-### Record Limits by Role
+### Record Limits
 
-| Role | Max Records | Use Case |
-|------|-------------|----------|
-| ADMIN / PM | 20,000 | Full dataset analysis |
-| SUPERVISOR (SPM/ME) | 10,000 | State/district oversight |
-| FIELD_USER (PC) | 2,000 | Facility-level daily view |
+**NO RECORD LIMITS** - All users can fetch unlimited records (subject to Supabase 1000-row batch limit, which is handled internally by the batch fetching logic).
 
 ### Calendar Data Flow
 

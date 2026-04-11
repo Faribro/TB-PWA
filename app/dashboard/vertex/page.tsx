@@ -83,6 +83,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     error: patientsError,
     mutate: mutatePatients 
   } = useSWRAllPatients(scope, {
+    pageSize: 100000, // Explicitly set to large number to remove limits
     filters: {
       state: selectedState,
       district: selectedDistrict,

@@ -4,24 +4,26 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 (async () => {
-  const { data, error, count } = await supabase.from('patients')
-    .select('screening_date', { count: 'exact' });
-  if (error) console.error(error);
+  let allData = [];
+  for(let page=0; page<20; page++) {
+    const { data } = await supabase.from('patients')
+      .select('screening_date')
+      .range(page*1000, page*1000 + 999);
+    if (!data || data.length === 0) break;
+    allData.push(...data);
+  }
   
   const counts = {};
-  data.forEach(p => {
+  allData.forEach(p => {
     let d = p.screening_date;
-    if (d) d = d.substring(0, 10); // get YYYY-MM-DD
+    if (d) d = d.substring(0, 10);
     counts[d] = (counts[d] || 0) + 1;
   });
   
-  // Sort dates
   const sortedDates = Object.keys(counts).sort();
   for (let d of sortedDates) {
     if (d && d.startsWith('2026-01')) {
       console.log(d, counts[d]);
     }
   }
-  console.log('Total Count returned in this page:', data.length);
-  console.log('Exact DB Count (count: exact):', count);
 })();

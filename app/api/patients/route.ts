@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     // Parse pagination params
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
-    const requestedPageSizeStr = searchParams.get('pageSize');
+    const requestedPageSize = Math.max(1, parseInt(searchParams.get('pageSize') ?? '1000', 10));
     
     // Extract filter params
     const filterState = searchParams.get('state');
@@ -81,47 +81,25 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Role-based record limits (hard caps per tier)
-    // ADMIN/PM: 20,000 | SUPERVISOR (SPM/ME): 10,000 | FIELD: 2,000
-    let tierLimit: number;
-
-    const isAdmin = role === Role.ADMIN;
-    const isPM    = role === Role.PROGRAM_MANAGER;
-    const isSPM   = role === Role.STATE_PROGRAM_MANAGER;
-    const isME    = role === Role.ME_OFFICER;
-    const isPC    = role === Role.PRISON_COORDINATOR;
-    
-    // DEBUG: Log boolean checks
-    console.log(`[patients/route] DEBUG - Role checks:`, { isAdmin, isPM, isSPM, isME, isPC });
-    
-    if (isAdmin || isPM) {
-      tierLimit = 20000;
-    } else if (isSPM || isME) {
-      tierLimit = 10000;
-    } else {
-      tierLimit = 2000;
-    }
-
-    // Client can request LESS than tier limit, but never MORE
-    const requestedPageSize = requestedPageSizeStr ? parseInt(requestedPageSizeStr, 10) : tierLimit;
-    const maxRecords = Math.min(requestedPageSize, tierLimit);
+    // NO RECORD LIMITS - use requestedPageSize directly
+    const maxRecords = requestedPageSize;
     
     const batchSize = 1000; // Supabase hard limit per query
     const offset = (page - 1) * maxRecords;
     let batches = 0;
 
-    console.log(`[patients/route] FINAL - User: ${session.user.email}, Role: ${role}, TierLimit: ${tierLimit}, Requested: ${requestedPageSize}, Max: ${maxRecords}`);
+    console.log(`[patients/route] FINAL - User: ${session.user.email}, Role: ${role}, Max: ${maxRecords} (no limits)`);
 
     // Build base query with ALL filters (RBAC + query params)
     const applyFilters = (query: any) => {
       // RBAC filters — use canonical Role constants
-      if (isAdmin || isPM) {
+      if (role === Role.ADMIN || role === Role.PROGRAM_MANAGER) {
         // National tier — no RBAC filters
-      } else if (isSPM || isME) {
+      } else if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
         if (sessionState && sessionState !== 'All') {
           query = query.eq('screening_state', sessionState);
         }
-      } else if (isPC) {
+      } else if (role === Role.PRISON_COORDINATOR) {
         if (staffName) {
           query = query.ilike('staff_name', staffName.trim());
         }

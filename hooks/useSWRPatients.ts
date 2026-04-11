@@ -69,15 +69,9 @@ const fetcher = async (key: string, params: FetchPatientsParams, userEmail?: str
 };
 
 // Role-based default page sizes — must match canonical Role values from lib/constants/roles.ts
-const getDefaultPageSize = (role?: string): number => {
-  if (!role) return 2000;
-  const r = role.toLowerCase();
-  // NATIONAL tier: admin, Program Manager
-  if (r === 'admin' || r === 'pm' || r === 'program manager') return 20000;
-  // STATE tier: State Program Manager, M&E Officer
-  if (r === 'spm' || r === 'state program manager' || r === 'me' || r === 'm&e officer') return 10000;
-  // FACILITY tier: Prison Coordinator, etc.
-  return 2000;
+const getDefaultPageSize = (role: string): number => {
+  // NO LIMITS - default to 100000 for all users
+  return 100000;
 };
 
 const allPatientsFetcher = async (
@@ -97,10 +91,11 @@ const allPatientsFetcher = async (
       throw new Error('offline');
     }
 
-    // Build query URL with filters
+    // Build query URL with filters and cache-busting timestamp
     const params = new URLSearchParams();
     params.set('page', '1');
     params.set('pageSize', String(pageSize));
+    params.set('_t', String(Date.now())); // Cache-busting timestamp
     if (filters?.state) params.set('state', filters.state);
     if (filters?.district) params.set('district', filters.district);
     if (filters?.dateFrom) params.set('dateFrom', filters.dateFrom);
