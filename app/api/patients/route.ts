@@ -23,23 +23,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Parse pagination params - Vercel-friendly defaults
+    // Parse pagination params
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
-    const pageSize = Math.min(1000, Math.max(1, parseInt(searchParams.get('pageSize') ?? '100', 10)));
-    const offset = (page - 1) * pageSize;
+    const requestedPageSize = parseInt(searchParams.get('pageSize') ?? '100', 10);
     
-    // Limit total fetch for Vercel serverless (max 5000 records to prevent timeout)
-    const maxRecords = Math.min(pageSize, 5000);
-
     const supabase = createServerClient();
     
     const rawRole = session.user.role ?? 'ME';
     const role = normalizeRole(rawRole) ?? Role.ME_OFFICER;
     const state = session.user.state;
     const staffName = (session.user as any).staffName;
+    
+    // Limit total fetch based on role (max 20000 for admin/PM, 5000 for others)
+    // Supabase has hard limit of 1000 per query, so we batch fetch
+    const maxRecords = role === Role.ADMIN || role === Role.PROGRAM_MANAGER 
+      ? Math.min(requestedPageSize, 20000) 
+      : Math.min(requestedPageSize, 5000);
+    
+    const batchSize = 1000; // Supabase max per query
+    const offset = (page - 1) * maxRecords; // Offset based on requested page size
 
-    console.log(`[/api/patients] User: ${session.user.email}, Role: ${role}, Page: ${page}, PageSize: ${pageSize}`);
+    console.log(`[/api/patients] User: ${session.user.email}, Role: ${role}, Requested: ${requestedPageSize}, Max: ${maxRecords}, BatchSize: ${batchSize}`);
 
     // Build base query with filters applied to both count and data
     const applyFilters = (query: any) => {
@@ -67,32 +72,52 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Database error', details: countError.message }, { status: 500 });
     }
 
-    // Fetch single page (Vercel-safe - no batching loops)
-    let dataQuery = supabase
-      .from('patients')
-      .select('*')
-      .range(offset, offset + maxRecords - 1)
-      .order('screening_date', { ascending: false });
+    // Fetch data - for large datasets, we need to batch fetch
+    // Supabase has a hard limit of 1000 rows per request
+    let allData: any[] = [];
+    let fetchOffset = offset;
+    const totalToFetch = Math.min(maxRecords, (totalCount || 0) - offset);
     
-    dataQuery = applyFilters(dataQuery);
-    const { data, error } = await dataQuery;
-
-    if (error) {
-      console.error('[/api/patients] Query error:', error);
-      return NextResponse.json({ error: 'Database query failed', details: error.message }, { status: 500 });
+    while (allData.length < totalToFetch) {
+      const remainingToFetch = totalToFetch - allData.length;
+      const currentBatchSize = Math.min(batchSize, remainingToFetch);
+      
+      let batchQuery = supabase
+        .from('patients')
+        .select('*')
+        .range(fetchOffset, fetchOffset + currentBatchSize - 1)
+        .order('screening_date', { ascending: false });
+      
+      batchQuery = applyFilters(batchQuery);
+      const { data: batchData, error: batchError } = await batchQuery;
+      
+      if (batchError) {
+        console.error('[/api/patients] Batch query error:', batchError);
+        return NextResponse.json({ error: 'Database query failed', details: batchError.message }, { status: 500 });
+      }
+      
+      if (!batchData || batchData.length === 0) break;
+      
+      allData = allData.concat(batchData);
+      fetchOffset += batchData.length;
+      
+      // Safety break
+      if (batchData.length < currentBatchSize) break;
     }
+    
+    const data = allData;
 
     const duration = Date.now() - startTime;
-    const totalPages = Math.ceil((totalCount || 0) / pageSize);
+    const totalPages = Math.ceil((totalCount || 0) / requestedPageSize);
     
-    console.log(`[/api/patients] ✅ Page ${page}/${totalPages}: ${data?.length || 0} records (${duration}ms)`);
+    console.log(`[/api/patients] ✅ Fetched ${data?.length || 0}/${totalCount} records (${duration}ms)`);
 
     const response = {
       data: data || [],
       count: data?.length || 0,
       totalCount: totalCount || 0,
       page,
-      pageSize,
+      pageSize: requestedPageSize,
       totalPages,
       hasMore: page < totalPages,
       duration,
@@ -100,7 +125,9 @@ export async function GET(request: NextRequest) {
         role,
         state: state || null,
         tier: role === Role.ADMIN || role === Role.PROGRAM_MANAGER ? 'NATIONAL' : 
-              role === Role.PRISON_COORDINATOR ? 'FACILITY' : 'STATE'
+              role === Role.PRISON_COORDINATOR ? 'FACILITY' : 'STATE',
+        batchSize,
+        maxFetched: maxRecords
       }
     };
 
