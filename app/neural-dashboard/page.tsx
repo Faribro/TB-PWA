@@ -10,7 +10,7 @@ import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 
 export default function NeuralDashboardPage() {
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
-  const { data: patients = [], isLoading } = useSWRAllPatients(null);
+  const { patients: patients = [], isLoading } = useSWRAllPatients(null);
   const { mutate } = useSWRConfig();
 
   if (isLoading) {

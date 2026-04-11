@@ -3251,6 +3251,86 @@ This section documents **new** findings from a repo-wide review (beyond the exis
 
 ✅ All migrations completed as of 2026-04-11
 
+### Performance Indexes (Run in Supabase SQL Editor)
+
+```sql
+-- Performance indexes for screening_date queries
+-- Run once in Supabase SQL Editor
+CREATE INDEX IF NOT EXISTS idx_patients_screening_date 
+  ON patients(screening_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_patients_state_date 
+  ON patients(screening_state, screening_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_patients_district_date 
+  ON patients(screening_district, screening_date DESC);
+
+-- Verify indexes created
+SELECT indexname, tablename 
+FROM pg_indexes 
+WHERE tablename = 'patients'
+ORDER BY indexname;
+```
+
+## Architecture Notes
+
+### Data Pipeline Architecture
+
+| Layer | File | Responsibility |
+|-------|------|----------------|
+| Ingest | koboMapper.ts | KoboCollect → Supabase schema |
+| API | /api/patients | Paginated record fetch, RBAC, batching |
+| API | /api/vertex/metrics | Aggregated stats, server-side GROUP BY |
+| Hook | useSWRPatients.ts | Client cache, role-based page sizes |
+| Store | useEntityStore.ts | Global patient state |
+| View | vertex/page.tsx | Calendar + table, SEPARATE data sources |
+
+### Record Limits by Role
+
+| Role | Max Records | Use Case |
+|------|-------------|----------|
+| ADMIN / PM | 20,000 | Full dataset analysis |
+| SUPERVISOR (SPM/ME) | 10,000 | State/district oversight |
+| FIELD_USER (PC) | 2,000 | Facility-level daily view |
+
+### Calendar Data Flow
+
+**CRITICAL:** Calendar NEVER fetches raw patient records. 
+It uses `/api/vertex/metrics` which runs server-side 
+GROUP BY queries. This scales to 1M+ records without 
+any client-side performance impact.
+
+```
+┌─────────────┐     ┌─────────────────┐     ┌──────────────┐
+│   Calendar  │────▶│ /api/vertex/    │────▶│  Supabase    │
+│   Component │     │    metrics      │     │  GROUP BY    │
+└─────────────┘     └─────────────────┘     └──────────────┘
+                           │
+                           ▼
+                    ┌─────────────┐
+                    │ Daily Stats │
+                    │ (365 rows)  │
+                    └─────────────┘
+```
+
+### API Response Envelope
+
+All `/api/patients` responses include metadata:
+
+```typescript
+{
+  data: Patient[],
+  meta: {
+    total: number,        // total matching records
+    returned: number,     // records in this response
+    limit: number,        // effective limit applied
+    role: string,         // role used for cap
+    batches: number,      // Supabase calls made
+    durationMs: number    // total fetch time
+  }
+}
+```
+
 ## Change Log
 
 [2026-04-11] app/dashboard/vertex/page.tsx - Fixed calendar to fetch all months in year (not just current month); fetches 1-12 months in parallel when calendar view active [AQ]
@@ -3264,3 +3344,15 @@ This section documents **new** findings from a repo-wide review (beyond the exis
 [2026-04-11] app/api/retry-sheet-sync/route.ts - Created secure batch retry endpoint for failed ETL dispatches [AQ]
 [2026-04-11] app/api/vertex/metrics/route.ts - Optimized to single-query year-aware endpoint with view=year/month param; replaced 12×5 parallel queries with 1 query; added 5min edge cache [AQ]
 [2026-04-11] components/ScreeningCalendar.tsx - Enhanced calendar day tooltips to show all metrics: screened, suspected, TB+, on ATT, referred (previously only showed screened and TB+) [AQ]
+[2026-04-11] app/api/patch-screening-dates/route.ts - Created API endpoint for Google Apps Script to patch submitted_on and screening_date fields in Supabase from sheet data; accepts batches of 50 patches with webhook secret auth [AQ]
+[2026-04-11] app/api/patients/route.ts - Implemented batch fetching to overcome Supabase 1000-row limit; fetches data in 1000-row chunks until maxRecords (20K for admin) is reached; fixes vertex showing only 1000 records [AQ]
+[2026-04-11] lib/supabase-server-admin.ts - Added global headers configuration for Supabase client [AQ]
+[2026-04-11] app/api/patients/route.ts - Increased maxRecords limit from 5000 to 20000 for admin/PM users to allow fetching all 19K records; other roles remain at 5000 limit for performance [AQ]
+[2026-04-11] app/dashboard/vertex/page.tsx - Increased pageSize from 100 to 20000 in useSWRAllPatients to fetch all records for admin users; fixes issue where vertex dashboard only showed 100 records instead of all 19,218 [AQ]
+[2026-04-11] app/api/patients/route.ts [WS] - Hardened: column selection (20 cols vs *), role-based limits (20K/10K/2K), filter support (state/district/date/search), response envelope with meta, proper error handling [WS]
+[2026-04-11] hooks/useSWRPatients.ts [WS] - Hardened: role-based default page sizes, production SWR config (2min dedup, keepPreviousData), new return shape with meta, filter support [WS]
+[2026-04-11] app/dashboard/vertex/page.tsx [WS] - Hardened: loading skeletons for metrics, error boundary with retry, month navigation handlers, data source separation enforcement, meta display in record count [WS]
+[2026-04-11] README.md [WS] - Added Performance Indexes SQL, Architecture Notes section with data pipeline diagram and role limits table [WS]
+[2026-04-11] components/Vertex.tsx - Fixed geographic drawer showing wrong patients (SCENARIO C: facility name collision across states). Changed selectedFacility state from string to {name, state, district} object; updated patientsForSelectedFacility filter to match facility_name AND screening_state AND screening_district; updated GeographicHierarchy onFacilityClick signature to pass state+district context. Drawer now shows only patients from the exact facility in the correct state/district. [AQ]
+[2026-04-11] app/api/patients/route.ts - Fixed applyFilters role checks to use normalizeRole() + canonical Role constants instead of fragile toLowerCase().includes() string matching; removed debug console.logs; added isPC constant for Prison Coordinator RBAC filter [AQ]
+[2026-04-11] hooks/useSessionScope.ts - Fixed SUPERUSER_ROLES to use canonical Role.ADMIN and Role.PROGRAM_MANAGER constants (was using stale short codes 'PM' and 'admin' which no longer match JWT after auth.ts normalization); added Role import [AQ]

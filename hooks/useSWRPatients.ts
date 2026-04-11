@@ -1,5 +1,6 @@
 import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
+import { useMemo } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { withRetry } from '@/lib/retryMechanism';
 import { cachePatients, getCachedPatients } from '@/lib/cacheManager';
@@ -67,43 +68,96 @@ const fetcher = async (key: string, params: FetchPatientsParams, userEmail?: str
   });
 };
 
-const allPatientsFetcher = async (scope: SessionScope | null, userEmail?: string) => {
+// Role-based default page sizes — must match canonical Role values from lib/constants/roles.ts
+const getDefaultPageSize = (role?: string): number => {
+  if (!role) return 2000;
+  const r = role.toLowerCase();
+  // NATIONAL tier: admin, Program Manager
+  if (r === 'admin' || r === 'pm' || r === 'program manager') return 20000;
+  // STATE tier: State Program Manager, M&E Officer
+  if (r === 'spm' || r === 'state program manager' || r === 'me' || r === 'm&e officer') return 10000;
+  // FACILITY tier: Prison Coordinator, etc.
+  return 2000;
+};
+
+const allPatientsFetcher = async (
+  scope: SessionScope | null, 
+  pageSize: number = 100,
+  filters?: { state?: string; district?: string; dateFrom?: string; dateTo?: string; search?: string }
+) => {
+  // Build cache key based on scope + filters
+  const filterKey = filters ? JSON.stringify(filters) : 'all';
+  const cacheKey = scope?.staffName 
+    ? `staff::${scope.staffName}::${filterKey}` 
+    : `${scope?.state ?? 'all'}::${scope?.district ?? 'all'}::${filterKey}`;
+  
   try {
+    // NETWORK-FIRST: Always try to fetch fresh data when online
     if (!navigator.onLine) {
-        throw new Error('offline');
+      throw new Error('offline');
     }
 
-    // Build cache key based on scope tier
-    const cacheKey = scope?.staffName 
-      ? `staff::${scope.staffName}` 
-      : `${scope?.state ?? 'all'}::${scope?.district ?? 'all'}`;
+    // Build query URL with filters
+    const params = new URLSearchParams();
+    params.set('page', '1');
+    params.set('pageSize', String(pageSize));
+    if (filters?.state) params.set('state', filters.state);
+    if (filters?.district) params.set('district', filters.district);
+    if (filters?.dateFrom) params.set('dateFrom', filters.dateFrom);
+    if (filters?.dateTo) params.set('dateTo', filters.dateTo);
+    if (filters?.search) params.set('search', filters.search);
     
-    const cached = await getCachedPatients(cacheKey);
-    if (cached.length > 0) return cached;
-
-    // Use server-side API route with proper RBAC instead of direct Supabase client
-    console.log('[useSWRPatients] Fetching from /api/patients');
-    const response = await fetch('/api/patients');
+    const url = `/api/patients?${params.toString()}`;
+    console.log('[useSWRPatients] Fetching fresh data:', url);
+    
+    const response = await fetch(url);
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[useSWRPatients] API error:', response.status, response.statusText, errorText);
-      throw new Error(`API error: ${response.status} - ${errorText}`);
+      console.error('[useSWRPatients] API error:', response.status, errorText);
+      throw new Error(`API error: ${response.status}`);
     }
     
     const result = await response.json();
-    console.log('[useSWRPatients] API response:', { count: result.data?.length, hasData: !!result.data });
+    
+    if (result.error) {
+      throw new Error(result.message || result.error);
+    }
+    
+    console.log('[useSWRPatients] API response:', { 
+      returned: result.data?.length, 
+      total: result.meta?.total,
+      batches: result.meta?.batches,
+      duration: result.meta?.durationMs 
+    });
     
     const data = result.data || [];
     
+    // Update cache with fresh data
     if (data.length > 0) {
       await cachePatients(data, cacheKey);
     }
     
-    return data;
+    return { 
+      data, 
+      meta: result.meta || { total: data.length, returned: data.length, cached: false }
+    };
   } catch (error) {
-    console.error('[useSWRPatients] allPatientsFetcher failed:', error);
-    return [];
+    console.error('[useSWRPatients] Network fetch failed, trying cache:', error);
+    
+    // FALLBACK: Try cache if network failed
+    try {
+      const cached = await getCachedPatients(cacheKey);
+      if (cached.length > 0) {
+        console.log('[useSWRPatients] Returning cached data as fallback:', cached.length);
+        return { data: cached, meta: { cached: true, count: cached.length, total: cached.length } };
+      }
+    } catch (cacheError) {
+      console.error('[useSWRPatients] Cache fallback also failed:', cacheError);
+    }
+    
+    // FINAL FALLBACK: Return empty
+    return { data: [], meta: null, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 };
 
@@ -134,57 +188,58 @@ export function useSWRPatients(params: FetchPatientsParams) {
   };
 }
 
-export function useSWRAllPatients(scope: SessionScope | null, page: number = 1, pageSize: number = 100) {
+interface UseSWRAllPatientsOptions {
+  filters?: {
+    state?: string;
+    district?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    search?: string;
+  };
+}
+
+export function useSWRAllPatients(
+  scope: SessionScope | null, 
+  options: UseSWRAllPatientsOptions = {}
+) {
   const { data: session } = useSession();
+  
+  // Role-based page size
+  const pageSize = useMemo(() => {
+    return getDefaultPageSize(session?.user?.role);
+  }, [session?.user?.role]);
+  
+  const { filters } = options;
+  
+  // Build SWR key
   const key = session && scope 
-    ? ['/api/patients', scope.state ?? 'all', scope.district ?? 'all', scope.staffName ?? 'all', page, pageSize] 
+    ? ['/api/patients', scope.state ?? 'all', scope.district ?? 'all', scope.staffName ?? 'all', pageSize, JSON.stringify(filters)] 
     : null;
   
-  const swr = useSWR(
+  const { data, error, isLoading, mutate } = useSWR(
     key,
-    async () => {
-      if (!scope) return { data: [], totalCount: 0, page, pageSize, totalPages: 0, hasMore: false };
-      
-      try {
-        const response = await fetch(`/api/patients?page=${page}&pageSize=${pageSize}`);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('[useSWRAllPatients] API error:', response.status, errorText);
-          throw new Error(`API error: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        
-        if (result.error) {
-          throw new Error(result.error);
-        }
-        
-        return {
-          data: result.data || [],
-          totalCount: result.totalCount || 0,
-          page: result.page || page,
-          pageSize: result.pageSize || pageSize,
-          totalPages: result.totalPages || 1,
-          hasMore: result.hasMore || false
-        };
-      } catch (error) {
-        console.error('[useSWRAllPatients] Fetch failed:', error);
-        return { data: [], totalCount: 0, page, pageSize, totalPages: 0, hasMore: false };
+    () => allPatientsFetcher(scope, pageSize, filters),
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 120000,     // 2 min dedup
+      errorRetryCount: 3,
+      errorRetryInterval: 5000,
+      keepPreviousData: true,       // no flash on filter change
+      onError: (err) => {
+        console.error('[useSWRPatients]', err);
       }
-    },
-    swrAllPatientsConfig
+    }
   );
 
   return {
-      ...swr,
-      data: swr.data?.data || [],
-      totalCount: swr.data?.totalCount || 0,
-      page: swr.data?.page || page,
-      pageSize: swr.data?.pageSize || pageSize,
-      totalPages: swr.data?.totalPages || 1,
-      hasMore: swr.data?.hasMore || false,
-      isLoading: !swr.data && !swr.error,
+    patients: data?.data ?? [],
+    meta: data?.meta ?? null,
+    total: data?.meta?.total ?? 0,
+    isLoading,
+    error,
+    mutate,
+    pageSize
   };
 }
 

@@ -12,7 +12,7 @@ export default function ActionsHub() {
   const [activeState, setActiveState] = useState<string | null>(null);
   const userRole = 'National Admin';
   const userState = undefined;
-  const { data: allPatients = [] } = useSWRAllPatients(userState);
+  const { patients: allPatients = [] } = useSWRAllPatients(userState);
   const { mutate } = useSWRConfig();
 
   const filteredData = useMemo(() => {

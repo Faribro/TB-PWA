@@ -1,6 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
+import { Role } from '@/lib/constants/roles';
 
 export interface SessionScope {
   role: string;
@@ -9,7 +10,8 @@ export interface SessionScope {
   staffName: string | null;
 }
 
-export const SUPERUSER_ROLES = ['PM', 'admin', 'Program Manager'] as const;
+// Roles that have national-level (unrestricted) data access
+export const SUPERUSER_ROLES = [Role.ADMIN, Role.PROGRAM_MANAGER] as const;
 
 export function isSuperuser(scope: SessionScope | null): boolean {
   if (!scope) return false;

@@ -380,7 +380,7 @@ const GeographicHierarchy = ({
   onFacilityClick 
 }: { 
   groupedGeography: StateData[];
-  onFacilityClick: (facilityName: string) => void;
+  onFacilityClick: (facilityName: string, state: string, district: string) => void;
 }) => {
   const [expandedStates, setExpandedStates] = useState<Set<string>>(new Set());
   const [expandedDistricts, setExpandedDistricts] = useState<Set<string>>(new Set());
@@ -489,7 +489,7 @@ const GeographicHierarchy = ({
                                 <motion.button
                                   key={facility.facilityName}
                                   data-tour-id="facility-card"
-                                  onClick={() => onFacilityClick(facility.facilityName)}
+                                  onClick={() => onFacilityClick(facility.facilityName, state.stateName, district.districtName)}
                                   whileHover={{ scale: 1.01, x: 8 }}
                                   whileTap={{ scale: 0.98 }}
                                   className="w-full flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 shadow-sm transition-all duration-200 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5"
@@ -554,7 +554,7 @@ export default function Vertex({
   }, [currentMonthStart]);
 
   // Use external data when provided (avoids duplicate fetch + 400 errors)
-  const { data: swrData = [], isLoading: swrLoading } = useSWRAllPatients(null);
+  const { patients: swrData = [], isLoading: swrLoading } = useSWRAllPatients(null);
   const globalPatients: any[] = externalPatients ?? swrData;
   const isLoading = externalLoading ?? swrLoading;
 
@@ -586,7 +586,7 @@ export default function Vertex({
   const [currentDate, setCurrentDate] = useState(() => clampToCurrentMonth(mostRecentDateWithData));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
-  const [selectedFacility, setSelectedFacility] = useState<string | null>(null);
+  const [selectedFacility, setSelectedFacility] = useState<{ name: string; state: string; district: string } | null>(null);
   const sessionScope = useSessionScope();
   const canEdit = ['PM', 'admin', 'SPM'].includes(sessionScope?.role ?? '');
   const [filterState, setFilterState] = useState<string>('All');
@@ -794,10 +794,14 @@ export default function Vertex({
     return result;
   }, [patientsForSelectedDate]);
 
-  // Task 3: Filter patients for selected facility
+  // Task 3: Filter patients for selected facility (match name + state + district to avoid cross-state collisions)
   const patientsForSelectedFacility = useMemo(() => {
     if (!selectedFacility) return [];
-    return patientsForSelectedDate.filter((p: any) => p.facility_name === selectedFacility);
+    return patientsForSelectedDate.filter((p: any) =>
+      p.facility_name === selectedFacility.name &&
+      p.screening_state === selectedFacility.state &&
+      p.screening_district === selectedFacility.district
+    );
   }, [selectedFacility, patientsForSelectedDate]);
 
   // Task 2: SLA Auto-Sort Engine (Triage Intelligence)
@@ -871,8 +875,8 @@ export default function Vertex({
     setSelectedDate(null);
   };
 
-  const handleFacilityClick = (facilityName: string) => {
-    setSelectedFacility(facilityName);
+  const handleFacilityClick = (facilityName: string, state: string, district: string) => {
+    setSelectedFacility({ name: facilityName, state, district });
   };
 
   const handleOpenPatientDrawer = (patient: any) => {
@@ -1346,7 +1350,7 @@ export default function Vertex({
           onClick={() => { if (!selectedPatient) setSelectedFacility(null); }}
         />
       )}
-      <Sheet open={!!selectedFacility} onOpenChange={(open) => !open && setSelectedFacility(null)} modal={false}>
+      <Sheet open={!!selectedFacility} onOpenChange={(open) => { if (!open) setSelectedFacility(null); }} modal={false}>
         <SheetContent
           data-tour-id="patient-list-panel"
           hideOverlay
@@ -1365,7 +1369,7 @@ export default function Vertex({
               <div className="flex items-center justify-between">
                 <div>
                   <SheetTitle className="text-2xl font-black text-slate-900 mb-1">
-                    {selectedFacility}
+                    {selectedFacility?.name}
                   </SheetTitle>
                   <p className="text-sm font-medium text-slate-500">
                     {patientsForSelectedFacility.length} patients screened

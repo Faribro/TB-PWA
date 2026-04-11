@@ -17,7 +17,7 @@ const SpatialIntelligenceMap = dynamic(() => import('@/components/SpatialIntelli
 
 export default function GISPage() {
   const scope = useSessionScope();
-  const { data: globalPatients = [] } = useSWRAllPatients(scope);
+  const { patients: globalPatients = [] } = useSWRAllPatients(scope);
 
   return (
     <div className="h-full w-full overflow-hidden" data-map-container>

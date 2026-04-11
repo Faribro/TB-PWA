@@ -60,8 +60,6 @@ export default function VertexPage() {
 
 // Separated so the scope is guaranteed non-null inside this component
 function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSessionScope>> }) {
-  const { data: globalPatients = [], isLoading, error } = useSWRAllPatients(scope);
-  
   const [view, setView] = useState<'table' | 'calendar'>('table');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -76,8 +74,31 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
   const selectedState = filters.state;
   const selectedDistrict = filters.district;
 
+  // Fetch patients with filters - ONLY for table view
+  const { 
+    patients: globalPatients, 
+    meta, 
+    total, 
+    isLoading: isLoadingPatients, 
+    error: patientsError,
+    mutate: mutatePatients 
+  } = useSWRAllPatients(scope, {
+    filters: {
+      state: selectedState,
+      district: selectedDistrict,
+      dateFrom: filters.dateFrom,
+      dateTo: filters.dateTo,
+      search: filters.search
+    }
+  });
+  
+  // SOURCE A: Calendar + metrics data (NEVER use patients for calendar)
   // ONE call for full year calendar data (cached 5min)
-  const { data: yearMetrics } = useSWR(
+  const { 
+    data: yearMetrics, 
+    error: yearMetricsError,
+    isLoading: isLoadingYearMetrics
+  } = useSWR(
     view === 'calendar' 
       ? `/api/vertex/metrics?year=${currentYear}&view=year&state=${selectedState || 'all'}&district=${selectedDistrict || 'all'}`
       : null,
@@ -90,13 +111,47 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
   );
 
   // Separate call for selected month totals panel
-  const { data: monthMetrics } = useSWR(
+  const { 
+    data: monthMetrics, 
+    error: monthMetricsError,
+    isLoading: isLoadingMonthMetrics,
+    mutate: mutateMonthMetrics
+  } = useSWR(
     `/api/vertex/metrics?year=${currentYear}&month=${currentMonth}&view=month&state=${selectedState || 'all'}&district=${selectedDistrict || 'all'}`,
     fetcher,
     {
       dedupingInterval: 60000,
       revalidateOnFocus: false,
     }
+  );
+  
+  // Combined loading state for metrics
+  const isLoadingMetrics = isLoadingYearMetrics || isLoadingMonthMetrics;
+  const metricsError = yearMetricsError || monthMetricsError;
+
+  // Loading skeleton component for metrics
+  const MetricsSkeleton = () => (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="bg-white rounded-lg p-4 border border-slate-200">
+          <div className="h-4 w-20 bg-slate-200 animate-pulse rounded mb-2" />
+          <div className="h-8 w-16 bg-slate-200 animate-pulse rounded" />
+        </div>
+      ))}
+    </div>
+  );
+
+  // Error display component
+  const MetricsError = ({ error, onRetry }: { error: Error; onRetry: () => void }) => (
+    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+      <p className="text-red-700 text-sm">Unable to load metrics. Retrying...</p>
+      <button 
+        onClick={onRetry}
+        className="mt-2 text-xs text-red-600 underline hover:text-red-800"
+      >
+        Retry Now
+      </button>
+    </div>
   );
 
   const canExport = ['PM', 'admin', 'SPM'].includes(scope.role ?? '');
@@ -154,6 +209,25 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
       referred: monthMetrics.referred,
     };
   }, [monthMetrics]);
+
+  // Month navigation - update currentMonth and currentYear
+  const handlePrevMonth = () => {
+    if (currentMonth === 1) {
+      setCurrentMonth(12);
+      setCurrentYear(y => y - 1);
+    } else {
+      setCurrentMonth(m => m - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (currentMonth === 12) {
+      setCurrentMonth(1);
+      setCurrentYear(y => y + 1);
+    } else {
+      setCurrentMonth(m => m + 1);
+    }
+  };
 
   const handleExport = useCallback(async () => {
     setIsExporting(true);
@@ -276,7 +350,12 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
               {filteredPatients.length.toLocaleString()}
             </span>
             {' / '}
-            {globalPatients.length.toLocaleString()}
+            {total.toLocaleString()}
+            {meta && (
+              <span className="text-[10px] text-slate-400 ml-1">
+                (fetched {meta.returned?.toLocaleString()} in {meta.batches} batches)
+              </span>
+            )}
           </span>
 
           {/* Thin divider */}
@@ -398,16 +477,66 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
       {/* Main content */}
       <div className="flex-1 overflow-y-auto">
         {view === 'calendar' ? (
-          <ScreeningCalendar
-            data={calendarData}
-            onDayClick={handleDayClick}
-            selectedDate={selectedCalendarDate}
-          />
+          <>
+            {/* Monthly Overview Panel - with loading & error states */}
+            {isLoadingMonthMetrics ? (
+              <MetricsSkeleton />
+            ) : monthMetricsError ? (
+              <MetricsError 
+                error={monthMetricsError} 
+                onRetry={() => mutateMonthMetrics()} 
+              />
+            ) : monthlyStats ? (
+              <div className="bg-slate-900 text-white rounded-lg p-4 mb-4 mx-4 mt-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-sm font-medium text-slate-300">MONTHLY OVERVIEW</h3>
+                  <span className="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded">
+                    {new Date(currentYear, currentMonth - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </span>
+                </div>
+                <div className="text-3xl font-bold mb-1">
+                  {(monthlyStats.screened || 0).toLocaleString()}
+                </div>
+                <div className="text-xs text-slate-400 mb-4">PATIENTS SCREENED</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                  <div className="border-r border-slate-700">
+                    <div className="text-lg font-semibold">{(monthlyStats.suspected || 0).toLocaleString()}</div>
+                    <div className="text-xs text-slate-400">SUSPECTED</div>
+                  </div>
+                  <div className="border-r border-slate-700">
+                    <div className="text-lg font-semibold">{(monthlyStats.diagnosed || 0).toLocaleString()}</div>
+                    <div className="text-xs text-slate-400">DIAGNOSED</div>
+                  </div>
+                  <div className="border-r border-slate-700">
+                    <div className="text-lg font-semibold">{(monthlyStats.attStarted || 0).toLocaleString()}</div>
+                    <div className="text-xs text-slate-400">ATT STARTED</div>
+                  </div>
+                  <div>
+                    <div className="text-lg font-semibold">{(monthlyStats.referred || 0).toLocaleString()}</div>
+                    <div className="text-xs text-slate-400">REFERRED</div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            
+            {/* Calendar with loading state */}
+            {isLoadingYearMetrics ? (
+              <div className="flex items-center justify-center h-96">
+                <div className="text-slate-400">Loading calendar data...</div>
+              </div>
+            ) : (
+              <ScreeningCalendar
+                data={calendarData}
+                onDayClick={handleDayClick}
+                selectedDate={selectedCalendarDate}
+              />
+            )}
+          </>
         ) : (
           <div className="h-full">
             <NeuralDashboard
               globalPatients={filteredPatients}
-              isLoading={isLoading}
+              isLoading={isLoadingPatients}
               filter={null}
               onSetFilter={() => {}}
             />

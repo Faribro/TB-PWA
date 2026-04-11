@@ -8,7 +8,7 @@ import { LinesAndDotsLoader } from './LinesAndDotsLoader';
 
 export default function PipelineDashboardEmbed() {
   const scope = useSessionScope();
-  const { data: globalPatients = [], isLoading } = useSWRAllPatients(scope);
+  const { patients: globalPatients = [], isLoading } = useSWRAllPatients(scope);
   const [currentChunk, setCurrentChunk] = useState(0);
   const [progress, setProgress] = useState(0);
 

@@ -16,7 +16,7 @@ const CommandCenter = dynamic(() => import('@/components/CommandCenter'), {
 
 export default function FollowUpPage() {
   const scope = useSessionScope();
-  const { data: globalPatients = [], isLoading } = useSWRAllPatients(scope);
+  const { patients: globalPatients = [], isLoading } = useSWRAllPatients(scope);
 
   return (
     <div className="h-screen">

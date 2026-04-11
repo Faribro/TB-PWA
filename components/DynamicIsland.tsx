@@ -13,7 +13,7 @@ export function DynamicIsland() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const scope = useSessionScope()
-  const { data: globalPatients = [] } = useSWRAllPatients(scope)
+  const { patients: globalPatients = [] } = useSWRAllPatients(scope)
 
   // Calculate live metrics
   const metrics = useMemo(() => {

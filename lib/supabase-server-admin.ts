@@ -11,6 +11,14 @@ export const createServerClient = () => {
         persistSession: false,
         autoRefreshToken: false,
       },
+      db: {
+        schema: 'public',
+      },
+      global: {
+        headers: {
+          'Prefer': 'return=representation',
+        },
+      },
     }
   );
 };

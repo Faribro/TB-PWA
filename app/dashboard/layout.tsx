@@ -151,7 +151,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [dataHealthScore] = useState(100);
 
   const scope = useSessionScope();
-  const { data: globalPatients = [], isLoading } = useSWRAllPatients(scope);
+  const { patients: globalPatients = [], isLoading } = useSWRAllPatients(scope);
   const memoizedPatients = useMemo(() => globalPatients ?? [], [globalPatients]);
 
   const [isSyncing, setIsSyncing] = useState(false);

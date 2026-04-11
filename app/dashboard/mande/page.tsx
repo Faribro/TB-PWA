@@ -18,7 +18,7 @@ const MandEHub = dynamic(() => import('@/components/MandEHub'), {
 export default function MandEPage() {
   const { status } = useSession();
   const scope = useSessionScope();
-  const { data: globalPatients = [], error, isLoading } = useSWRAllPatients(scope);
+  const { patients: globalPatients = [], error, isLoading } = useSWRAllPatients(scope);
 
   // Debug log
   console.log('M&E Page - Patients loaded:', globalPatients?.length || 0);
