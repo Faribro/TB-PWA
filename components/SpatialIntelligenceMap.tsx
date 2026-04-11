@@ -787,8 +787,11 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
         const value = metrics ? metrics[activeMetric] : d.tbCases;
         return value === 0 ? ' ' : String(value);
       },
-      getSize: 25000,
-      sizeUnits: 'meters',
+      getSize: 16,
+      sizeUnits: 'pixels',
+      sizeScale: 1,
+      sizeMinPixels: 14,
+      sizeMaxPixels: 48,
       getColor: [255, 255, 255, 255],
       getTextAnchor: 'middle',
       getAlignmentBaseline: 'bottom',
@@ -1254,12 +1257,6 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
           />
         </div>
 
-        {/* KPI Metric Selector */}
-        <MapKPIOverlay
-          activeMetric={activeMetric}
-          onMetricChange={setActiveMetric}
-        />
-
         {/* Cascade Funnel Panel */}
         <AnimatePresence>
           {showCascade && (
@@ -1291,8 +1288,8 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
 
         {/* Magic Lens Debug Indicator */}
         {isLensActive && (
-          <div className="fixed top-4 right-4 z-[99999] bg-cyan-500/90 backdrop-blur-sm px-4 py-2 rounded-full text-white text-sm font-bold shadow-lg shadow-cyan-500/50 animate-pulse">
-            🔍 Magic Lens Active
+          <div className="fixed top-4 right-4 z-[99999] bg-[#111] border border-[#333] px-3 py-1.5 rounded-sm text-[#888] text-[9px] font-mono tracking-widest animate-pulse">
+            <span className="text-emerald-500 font-bold">LENS</span> ACTIVE
           </div>
         )}
 
@@ -1303,7 +1300,7 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="absolute top-6 left-6 z-40 space-y-3 max-w-[280px]"
+              className="absolute top-6 left-6 z-40 space-y-2 max-w-[240px]"
             >
             {pinnedInsights.map((pin, index) => (
               <motion.div
@@ -1312,54 +1309,45 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-slate-950/95 backdrop-blur-xl border-2 border-amber-400/60 rounded-xl p-4 shadow-2xl shadow-amber-500/20"
+                className="bg-[#111111]/95 backdrop-blur-xl border border-[#333] rounded-sm p-3 shadow-lg"
               >
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-2 pb-2 border-b border-[#222]">
                   <div className="flex items-center gap-2">
-                    <Pin className="w-4 h-4 text-amber-400" />
-                    <span className="text-sm font-bold text-white">{pin.district}</span>
+                    <div className="w-1.5 h-1.5 bg-amber-500 rounded-sm" />
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-white">{pin.district}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`text-xs font-bold px-2 py-1 rounded ${
-                      pin.breachRate > 80 ? 'bg-red-500/30 text-red-300' :
-                      pin.breachRate > 60 ? 'bg-orange-500/30 text-orange-300' :
-                      pin.breachRate > 40 ? 'bg-amber-500/30 text-amber-300' :
-                      'bg-emerald-500/30 text-emerald-300'
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm ${
+                      pin.breachRate > 80 ? 'bg-red-500/20 text-red-500' :
+                      pin.breachRate > 60 ? 'bg-orange-500/20 text-orange-500' :
+                      pin.breachRate > 40 ? 'bg-amber-500/20 text-amber-500' :
+                      'bg-emerald-500/20 text-emerald-500'
                     }`}>
                       {pin.breachRate.toFixed(0)}%
                     </span>
                     <button
                       onClick={() => handleUnpinInsight(pin.id)}
-                      className="text-slate-400 hover:text-white transition-colors"
+                      className="text-[#555] hover:text-white transition-colors"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
-                <div className="space-y-2 text-xs">
+                <div className="space-y-1 text-[9px] font-mono tracking-wide">
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Patients:</span>
-                    <span className="text-white font-semibold">{pin.patients}</span>
+                    <span className="text-[#666]">VOL:</span>
+                    <span className="text-[#ccc]">{pin.patients}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Breaches:</span>
-                    <span className="text-red-400 font-semibold">{pin.breaches}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400">SLA Status:</span>
-                    <span className={`font-bold ${
-                      pin.breachRate > 80 ? 'text-red-400' : 'text-emerald-400'
-                    }`}>
-                      {pin.breachRate > 80 ? '⚠️ High Risk' : '✓ On Track'}
-                    </span>
+                    <span className="text-[#666]">ERR:</span>
+                    <span className="text-red-500 font-bold">{pin.breaches}</span>
                   </div>
                 </div>
                 <button
                   onClick={() => flyToDistrict(pin.district)}
-                  className="mt-3 w-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 text-amber-200 text-xs font-semibold py-2 rounded-lg transition-all flex items-center justify-center gap-2"
+                  className="mt-2 w-full bg-[#1a1a1a] hover:bg-[#222] border border-[#333] text-[#888] text-[9px] uppercase font-bold tracking-widest py-1.5 rounded-sm transition-all text-center"
                 >
-                  <Activity className="w-3.5 h-3.5" />
-                  Fly to Location
+                  TARGET_LOC
                 </button>
               </motion.div>
             ))}
@@ -1377,57 +1365,49 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
             style={{ position: 'absolute', left: hoveredHUD.x + 20, top: hoveredHUD.y - 80 }}
             className="z-50"
           >
-            <div className="bg-slate-950/95 backdrop-blur-xl border-2 border-cyan-400/60 rounded-xl p-4 shadow-2xl shadow-cyan-500/30 min-w-[280px]" style={{ pointerEvents: 'auto' }}>
-              <div className="flex items-center justify-between mb-3">
+            <div className="bg-[#111111]/95 backdrop-blur-xl border border-[#333] rounded-sm p-3 shadow-2xl min-w-[220px]" style={{ pointerEvents: 'auto' }}>
+              <div className="flex items-center justify-between mb-2 pb-2 border-b border-[#222]">
                 <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-cyan-400" />
-                  <span className="text-sm font-bold text-white">{hoveredHUD.district}</span>
+                  <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+                  <span className="text-[10px] font-bold text-white tracking-widest uppercase">{hoveredHUD.district}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs font-bold px-2 py-1 rounded ${
-                    hoveredHUD.breachRate > 80 ? 'bg-red-500/30 text-red-300' :
-                    hoveredHUD.breachRate > 60 ? 'bg-orange-500/30 text-orange-300' :
-                    hoveredHUD.breachRate > 40 ? 'bg-amber-500/30 text-amber-300' :
-                    'bg-emerald-500/30 text-emerald-300'
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm ${
+                    hoveredHUD.breachRate > 80 ? 'bg-red-500/20 text-red-500' :
+                    hoveredHUD.breachRate > 60 ? 'bg-orange-500/20 text-orange-500' :
+                    hoveredHUD.breachRate > 40 ? 'bg-amber-500/20 text-amber-500' :
+                    'bg-emerald-500/20 text-emerald-500'
                   }`}>
                     {hoveredHUD.breachRate.toFixed(0)}%
                   </span>
                   <button
                     onClick={() => handlePinInsight(hoveredHUD.district, hoveredHUD.breachRate, hoveredHUD.patients)}
-                    className="text-amber-400 hover:text-amber-300 transition-colors"
-                    title="Pin this insight"
+                    className="text-[#666] hover:text-amber-500 transition-colors"
                   >
-                    <Pin className="w-4 h-4" />
+                    <Pin className="w-3 h-3" />
                   </button>
                 </div>
               </div>
-              <div className="space-y-2 text-xs">
+              <div className="space-y-1.5 text-[9px] font-mono tracking-wide capitalize-none">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Patients:</span>
-                  <span className="text-white font-semibold">{hoveredHUD.patients}</span>
+                  <span className="text-[#666]">VOL:</span>
+                  <span className="text-[#ccc]">{hoveredHUD.patients}</span>
                 </div>
                 {hoveredHUD.yieldPercent !== undefined && (
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Yield:</span>
-                    <span className="text-cyan-400 font-semibold">{hoveredHUD.yieldPercent.toFixed(1)}%</span>
+                    <span className="text-[#666]">YLD:</span>
+                    <span className="text-cyan-500">{hoveredHUD.yieldPercent.toFixed(1)}%</span>
                   </div>
                 )}
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">SLA Status:</span>
+                <div className="flex justify-between items-center bg-[#161616] mt-1 p-1 rounded-[1px] border border-[#222]">
+                  <span className="text-[#666] uppercase">SLA:</span>
                   <span className={`font-bold ${
-                    hoveredHUD.breachRate > 80 ? 'text-red-400' : 'text-emerald-400'
+                    hoveredHUD.breachRate > 80 ? 'text-red-500' : 'text-emerald-500'
                   }`}>
-                    {hoveredHUD.breachRate > 80 ? '⚠️ ' + hoveredHUD.breachRate.toFixed(0) + '% Breach' : '✓ On Track'}
+                    {hoveredHUD.breachRate > 80 ? '⚠ ' + hoveredHUD.breachRate.toFixed(0) + '% BREACH' : '✓ TRACKED'}
                   </span>
                 </div>
               </div>
-              <button
-                onClick={() => flyToDistrict(hoveredHUD.district)}
-                className="mt-3 w-full bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/50 text-cyan-200 text-xs font-semibold py-2 rounded-lg transition-all flex items-center justify-center gap-2"
-              >
-                <Activity className="w-3.5 h-3.5" />
-                Teleport to Pipeline
-              </button>
             </div>
           </motion.div>
         )}

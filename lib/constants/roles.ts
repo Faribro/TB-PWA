@@ -126,6 +126,7 @@ export const FeaturePermissions: Record<string, readonly UserRole[]> = {
     Role.ADMIN,
     Role.PROGRAM_MANAGER,
     Role.STATE_PROGRAM_MANAGER,
+    Role.ME_OFFICER,
   ],
   MANAGE_USERS: [
     Role.ADMIN,

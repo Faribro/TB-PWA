@@ -155,7 +155,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     </div>
   );
 
-  const canExport = ['PM', 'admin', 'SPM'].includes(scope.role ?? '');
+  const canExport = ['Program Manager', 'admin', 'State Program Manager', 'M&E Officer'].includes(scope.role ?? '');
   
   const activeFilterCount = [
     filters.search,

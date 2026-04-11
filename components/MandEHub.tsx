@@ -706,7 +706,7 @@ function IntegrityScannerUpgraded({
         <AnimatePresence initial={false}>
           {filtered.map((v, i) => (
             <ViolationCard
-              key={v.id}
+              key={`${v.id}-${i}`}
               violation={v}
               onResolve={handleResolve}
               index={i}

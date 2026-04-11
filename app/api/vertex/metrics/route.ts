@@ -109,8 +109,8 @@ export async function GET(request: NextRequest) {
         totalScreened++;
         
         // Count metrics
-        const isSuspected = record.xray_result?.toLowerCase().includes('abnormal') ?? false;
-        const isDiagnosed = record.tb_diagnosed === 'Yes';
+        const isSuspected = record.xray_result === 'Suspected TB Case';
+        const isDiagnosed = record.tb_diagnosed === 'Y';
         const isAttStarted = record.att_start_date !== null;
         const isReferred = record.referral_date !== null;
         
@@ -200,8 +200,8 @@ export async function GET(request: NextRequest) {
         const date = record.screening_date;
         totalScreened++;
         
-        const isSuspected = record.xray_result?.toLowerCase().includes('abnormal') ?? false;
-        const isDiagnosed = record.tb_diagnosed === 'Yes';
+        const isSuspected = record.xray_result === 'Suspected TB Case';
+        const isDiagnosed = record.tb_diagnosed === 'Y';
         const isAttStarted = record.att_start_date !== null;
         const isReferred = record.referral_date !== null;
         

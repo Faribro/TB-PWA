@@ -820,7 +820,7 @@ export default function Vertex({
       }
 
       // Priority 2: Actionable - Abnormal X-Ray or Symptoms Present
-      const hasAbnormalXray = patient.xray_result?.toLowerCase().includes('abnormal');
+      const hasAbnormalXray = patient.xray_result === 'Suspected TB Case';
       const hasSymptoms = patient.symptoms_10s === 'Yes' || patient.symptoms_10s === 'Y';
       if ((hasAbnormalXray || hasSymptoms) && !patient.tb_diagnosed) {
         return 2;
@@ -999,7 +999,7 @@ export default function Vertex({
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-black text-rose-600 tracking-tighter drop-shadow-sm">
                       {globalPatients.filter((p: any) => {
-                        const isAbnormal = p.xray_result?.toLowerCase().includes('abnormal');
+                        const isAbnormal = p.xray_result === 'Suspected TB Case';
                         const noTreatment = !p.att_start_date && !p.referral_date;
                         return isAbnormal && noTreatment;
                       }).length.toLocaleString()}
@@ -1152,18 +1152,10 @@ export default function Vertex({
 
                     const stats = {
                       total: monthPatients.length,
-                      suspected: monthPatients.filter((p: any) => {
-                        const hasAbnormalXray = p.xray_result?.toLowerCase().includes('abnormal');
-                        const hasSymptoms = p.symptoms_10s === 'Yes' || p.symptoms_10s === 'Y';
-                        return hasAbnormalXray || hasSymptoms;
-                      }).length,
-                      notSuspected: monthPatients.filter((p: any) => {
-                        const hasAbnormalXray = p.xray_result?.toLowerCase().includes('abnormal');
-                        const hasSymptoms = p.symptoms_10s === 'Yes' || p.symptoms_10s === 'Y';
-                        return !hasAbnormalXray && !hasSymptoms;
-                      }).length,
+                      suspected: monthPatients.filter((p: any) => p.xray_result === 'Suspected TB Case').length,
+                      notSuspected: monthPatients.filter((p: any) => p.xray_result !== 'Suspected TB Case').length,
                       diagnosed: monthPatients.filter((p: any) => p.tb_diagnosed === 'Y').length,
-                      notDiagnosed: monthPatients.filter((p: any) => p.tb_diagnosed === 'N').length,
+                      notDiagnosed: monthPatients.filter((p: any) => p.tb_diagnosed !== 'Y').length,
                       attStarted: monthPatients.filter((p: any) => p.att_start_date != null).length,
                       referralDone: monthPatients.filter((p: any) => p.referral_date != null).length,
                     };

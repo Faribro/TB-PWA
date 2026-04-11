@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, Layers, X, BarChart3, Trophy, Globe, Building2, Hospital, Maximize2 } from 'lucide-react';
+import { Filter, Layers, X, BarChart3, Trophy, Globe, Maximize2, Settings, Search, Cpu } from 'lucide-react';
 import { useUniversalFilter } from '@/contexts/FilterContext';
 import { KPIRibbon } from './KPIRibbon';
 import { ColorLegend } from './ColorLegend';
@@ -33,350 +33,232 @@ export function CommandCenterLayout({
   onHeatmapModeChange,
 }: CommandCenterLayoutProps) {
   const { filter, setCoordinator, setStatus, resetFilters, hasActiveFilters } = useUniversalFilter();
-  const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
-  const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
+
+  // Quick stats extraction
+  const highRiskPatients = filteredPatients.filter(p => !p.referral_date).length;
+  const topDistricts = [...new Set(filteredPatients.map((p: any) => p.screening_district))].slice(0, 6);
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-slate-50">
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {/* HEADER BAR - Docked Top */}
-      {/* ═══════════════════════════════════════════════════════════ */}
-      <motion.header
-        initial={{ opacity: 0.8, y: -80 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="absolute top-0 left-0 right-0 z-50 glass-light border-b border-white shadow-lg"
-        style={{ height: '80px' }}
-      >
-        <div className="h-full px-8 flex items-center justify-between">
-          {/* Left: Primary Actions */}
-          <div className="flex items-center gap-4">
-            {/* Cascade Button */}
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={onShowCascade}
-              className={`
-                flex items-center gap-2.5 px-5 py-2.5
-                rounded-2xl transition-all duration-300 font-bold
-                ${showCascade
-                  ? `bg-blue-600 text-white shadow-lg shadow-blue-500/20`
-                  : `bg-white/50 border border-slate-200 text-slate-600 hover:bg-white hover:border-blue-300 hover:text-blue-600 shadow-sm`
-                }
-              `}
-            >
-              <BarChart3 className="w-4 h-4" />
-              <span className="text-sm tracking-tight">Cascade</span>
-            </motion.button>
-
-            {/* Rankings Button */}
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={onShowLeaderboard}
-              className={`
-                flex items-center gap-2.5 px-5 py-2.5
-                rounded-2xl transition-all duration-300 font-bold
-                ${showLeaderboard
-                  ? `bg-amber-500 text-white shadow-lg shadow-amber-500/20`
-                  : `bg-white/50 border border-slate-200 text-slate-600 hover:bg-white hover:border-amber-300 hover:text-amber-600 shadow-sm`
-                }
-              `}
-            >
-              <Trophy className="w-4 h-4" />
-              <span className="text-sm tracking-tight">Rankings</span>
-            </motion.button>
+    <div className="flex flex-col h-screen w-full bg-[#0a0a0a] text-slate-300 font-mono overflow-hidden uppercase">
+      {/* ───────────────────────────────────────────────────────── */}
+      {/* TOP HEADER */}
+      {/* ───────────────────────────────────────────────────────── */}
+      <header className="h-[44px] bg-[#121212] flex items-center justify-between border-b border-[#222] px-3 shrink-0 relative z-50">
+        
+        {/* Left items */}
+        <div className="flex items-center gap-4 text-[10px] font-bold tracking-[0.15em] text-[#777]">
+          <div className="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-sm border border-emerald-500/20">
+            <Globe className="w-3 h-3" />
+            WORLD
           </div>
+          <div className="flex items-center gap-3 bg-[#1a1a1a] px-3 py-1 rounded-sm border border-[#333]">
+            <span className="text-white">MONITOR</span>
+            <span className="text-[#555] text-[9px] tracking-widest">v2.0.7</span>
+          </div>
+          <div className="text-[#666] flex items-center gap-2 hover:text-white cursor-pointer transition-colors">
+            <span className="text-cyan-500">@</span>SAMADHAAN
+          </div>
+          
+          <div className="flex items-center gap-1.5 ml-4">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-emerald-500">LIVE</span>
+          </div>
+          <div className="text-white">Global</div>
+        </div>
 
-          {/* Right: Sidebar Toggles */}
-          <div className="flex items-center gap-4">
-            {/* Zoom to Fit */}
-            <motion.button
-              whileHover={{ scale: 1.02, backgroundColor: 'white' }}
-              whileTap={{ scale: 0.98 }}
-              onClick={onZoomToFit}
-              className={`
-                flex items-center gap-2 px-4 py-2.5
-                rounded-2xl border border-slate-200 bg-white/50
-                transition-all duration-300 text-slate-500 hover:text-slate-900 shadow-sm
-              `}
-            >
-              <Maximize2 className="w-4 h-4" />
-              <span className="text-sm font-bold tracking-tight">Fit All</span>
-            </motion.button>
-
-            <div className="w-px h-8 bg-slate-200" />
-
-            {/* Left Sidebar Toggle */}
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
-              className={`
-                flex items-center gap-2.5 px-5 py-2.5
-                rounded-2xl transition-all duration-300 font-bold
-                ${leftSidebarOpen || hasActiveFilters
-                  ? `bg-indigo-600 text-white shadow-lg shadow-indigo-500/20`
-                  : `bg-white/50 border border-slate-200 text-slate-600 hover:bg-white hover:border-indigo-300 hover:text-indigo-600 shadow-sm`
-                }
-              `}
-            >
-              <Filter className="w-4 h-4" />
-              <span className="text-sm tracking-tight">Filters</span>
-              {hasActiveFilters && (
-                <span className="bg-white text-indigo-600 text-[10px] font-black rounded-full w-5 h-5 flex items-center justify-center shadow-inner">
-                  {[filter.coordinator, filter.status !== 'All', filter.district].filter(Boolean).length}
-                </span>
-              )}
-            </motion.button>
-
-            {/* Right Sidebar Toggle */}
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
-              className={`
-                flex items-center gap-2.5 px-5 py-2.5
-                rounded-2xl transition-all duration-300 font-bold
-                ${rightSidebarOpen
-                  ? `bg-blue-600 text-white shadow-lg shadow-blue-500/20`
-                  : `bg-white/50 border border-slate-200 text-slate-600 hover:bg-white hover:border-blue-300 hover:text-blue-600 shadow-sm`
-                }
-              `}
-            >
-              <Layers className="w-4 h-4" />
-              <span className="text-sm tracking-tight">Legend</span>
-            </motion.button>
+        {/* Center: System Status */}
+        <div className="absolute left-1/2 -translate-x-1/2 hidden xl:flex items-center gap-3">
+          <div className="bg-[#161616] border border-[#333] px-4 py-1.5 rounded-sm text-[10px] font-black tracking-widest text-white flex items-center gap-3 shadow-inner">
+            <Cpu className="w-3 h-3 text-amber-500" />
+            <span className="text-amber-500">DEFCON 4</span>
+            <span className="text-[#666]">24%</span>
           </div>
         </div>
-      </motion.header>
 
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {/* LEFT SIDEBAR - Tactical Filters */}
-      {/* ═══════════════════════════════════════════════════════════ */}
-      <AnimatePresence>
-        {leftSidebarOpen && (
-          <motion.aside
-            initial={{ x: -360, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -360, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="absolute left-0 z-50 glass-light border-r border-white shadow-2xl overflow-y-auto hide-scrollbar"
-            style={{
-              top: '80px',
-              bottom: '100px',
-              width: '360px',
-            }}
-          >
-            <div className="p-8">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-                    <Filter className="w-4 h-4 text-indigo-600" />
-                  </div>
-                  <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                    Tactical Filters
-                  </h2>
-                </div>
-                <button
-                  onClick={() => setLeftSidebarOpen(false)}
-                  className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+        {/* Right items */}
+        <div className="flex items-center gap-4 text-[10px] font-bold tracking-[0.1em] text-[#777]">
+          {/* Tactical Filters Dropdowns embedded in Header */}
+          <div className="flex items-center gap-2 mr-4">
+            <select
+              value={filter.coordinator || ''}
+              onChange={e => setCoordinator(e.target.value || null)}
+              className="bg-[#1a1a1a] border border-[#333] text-white px-2 py-1 rounded-sm focus:outline-none focus:border-[#555] hover:bg-[#222] transition-colors cursor-pointer w-32"
+            >
+              <option value="">ALL COORD...</option>
+              {uniqueCoordinators.map(c => (
+                <option key={c} value={c}>{c.substring(0,12)}...</option>
+              ))}
+            </select>
+          </div>
+
+          <button className="flex items-center gap-1.5 hover:text-white transition-colors" onClick={onZoomToFit}>
+            <Maximize2 className="w-3 h-3" /> FIT
+          </button>
+          <div className="w-px h-3 bg-[#333]" />
+          <button className={`flex items-center gap-1.5 transition-colors ${showCascade ? 'text-blue-400' : 'hover:text-white'}`} onClick={onShowCascade}>
+            <BarChart3 className="w-3 h-3" /> CASCADE
+          </button>
+          <button className={`flex items-center gap-1.5 transition-colors ${showLeaderboard ? 'text-amber-400' : 'hover:text-white'}`} onClick={onShowLeaderboard}>
+            <Trophy className="w-3 h-3" /> RANK
+          </button>
+          <div className="w-px h-3 bg-[#333]" />
+          <button className="hover:text-white transition-colors border border-[#333] bg-[#1a1a1a] p-1 rounded-sm"><Search className="w-3 h-3" /></button>
+          <button className="hover:text-white transition-colors border border-[#333] bg-[#1a1a1a] p-1 rounded-sm"><Settings className="w-3 h-3" /></button>
+        </div>
+      </header>
+
+      {/* ───────────────────────────────────────────────────────── */}
+      {/* MIDDLE: LAYERS & MAP */}
+      {/* ───────────────────────────────────────────────────────── */}
+      <div className="flex flex-1 overflow-hidden">
+        
+        {/* LEFT PANEL: LAYERS -> handled by fully restyled KPIRibbon */}
+        <KPIRibbon filteredPatients={filteredPatients} compact />
+
+        {/* CENTER: MAP AREA */}
+        <main className="flex-1 relative z-0 bg-[#050505]">
+          {children}
+
+          {/* Floating World Monitor Legend */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none z-50">
+            <div className="bg-[#111111]/95 backdrop-blur-xl border border-[#333] rounded-sm flex items-center p-2 pointer-events-auto shadow-2xl">
+              <div className="px-4 text-[9px] font-black tracking-widest text-[#666] border-r border-[#333] mr-3 uppercase flex items-center gap-2">
+                <Layers className="w-3 h-3" /> LEGEND
               </div>
-
-              {/* Coordinator Filter */}
-              <div className="mb-8">
-                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 block">
-                  Prison Coordinator
-                </label>
-                <div className="relative group">
-                  <select
-                    value={filter.coordinator || ''}
-                    onChange={e => setCoordinator(e.target.value || null)}
-                    className={`
-                      w-full px-4 py-3 rounded-2xl
-                      border border-slate-200 bg-white/50
-                      text-slate-900 text-sm font-bold
-                      appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500
-                      transition-all duration-300
-                    `}
-                  >
-                    <option value="">All Coordinators</option>
-                    {uniqueCoordinators.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Status Filter */}
-              <div className="mb-8">
-                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 block">
-                  Deployment Status
-                </label>
-                <div className="grid grid-cols-1 gap-2.5">
-                  {(['All', 'High Alert', 'On Track'] as const).map(status => (
-                    <button
-                      key={status}
-                      onClick={() => setStatus(status)}
-                      className={`
-                        px-4 py-3 text-sm font-bold rounded-2xl
-                        transition-all duration-300 text-left flex items-center justify-between
-                        ${filter.status === status
-                          ? status === 'High Alert'
-                            ? 'bg-red-50 text-red-600 border border-red-200 shadow-sm'
-                            : status === 'On Track'
-                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm'
-                            : 'bg-blue-50 text-blue-600 border border-blue-200 shadow-sm'
-                          : 'bg-white/30 border border-slate-200 text-slate-500 hover:bg-white hover:border-slate-300 hover:text-slate-700'
-                        }
-                      `}
-                    >
-                      {status}
-                      {filter.status === status && <div className={`w-1.5 h-1.5 rounded-full bg-current`} />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Active Filters */}
-              {hasActiveFilters && (
-                <div className="pt-6 border-t border-slate-200/50">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Configuration</span>
-                    <button
-                      onClick={resetFilters}
-                      className="text-[10px] font-black uppercase text-red-500 hover:text-red-600 tracking-wider"
-                    >
-                      Reset All
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {filter.coordinator && (
-                      <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-1.5 text-[11px] font-bold text-blue-600 flex items-center gap-2 shadow-sm">
-                        {filter.coordinator}
-                        <button onClick={() => setCoordinator(null)} className="hover:text-blue-800">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-                    {filter.status !== 'All' && (
-                      <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-1.5 text-[11px] font-bold text-amber-600 flex items-center gap-2 shadow-sm">
-                        {filter.status}
-                        <button onClick={() => setStatus('All')} className="hover:text-amber-800">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+              <ColorLegend className="bg-transparent border-none p-0 !shadow-none" />
             </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
+          </div>
+        </main>
+      </div>
 
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {/* RIGHT SIDEBAR - Legend & Controls (with migrated KPI Dashboard) */}
-      {/* ═══════════════════════════════════════════════════════════ */}
-      <AnimatePresence>
-        {rightSidebarOpen && (
-          <motion.aside
-            initial={{ x: 400, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 400, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="absolute right-0 z-50 glass-light border-l border-white shadow-2xl overflow-y-auto no-scrollbar pb-32"
-            style={{
-              top: '80px',
-              bottom: 0,
-              width: '400px',
-            }}
-          >
-            <div className="p-8">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                    <Layers className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                    Intelligence Layer
-                  </h2>
+      {/* ───────────────────────────────────────────────────────── */}
+      {/* BOTTOM PANEL: FEEDS */}
+      {/* ───────────────────────────────────────────────────────── */}
+      <div className="h-[260px] bg-[#0a0a0a] border-t border-[#222] shrink-0 flex text-[10px] font-bold tracking-widest text-[#777] z-50">
+        
+        {/* News Feed / Alerts */}
+        <div className="w-[300px] border-r border-[#222] flex flex-col bg-[#111111]">
+          <div className="flex items-center justify-between p-3 border-b border-[#222] bg-[#161616]">
+            <div className="flex items-center gap-2">
+              <span className="text-white tracking-[0.2em] font-black">LIVE ALERTS</span>
+              <span className="text-red-500 border border-red-500/20 px-1.5 rounded-sm bg-red-500/10">
+                {highRiskPatients}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <button className="hover:text-white px-2 py-0.5 border border-[#333] rounded-sm opacity-50">||</button>
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-dark-scrollbar">
+            {filteredPatients.slice(0, 15).map((p: any) => (
+              <div key={p.id} className="px-3 py-2 border border-[#222] hover:border-[#444] bg-[#161616] hover:bg-[#1a1a1a] cursor-pointer flex justify-between rounded-sm items-center transition-colors group">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="w-1.5 h-1.5 shrink-0 rounded-full bg-red-500 group-hover:scale-125 transition-transform" />
+                  <span className="text-amber-500 truncate uppercase" title={p.screening_district}>
+                    {p.screening_district || "UNKNOWN REGION"}
+                  </span>
                 </div>
-                <button
-                  onClick={() => setRightSidebarOpen(false)}
-                  className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <span className="text-[#555] shrink-0">{new Date(p.screening_date).toLocaleDateString()}</span>
               </div>
+            ))}
+          </div>
+        </div>
 
-              {/* KPI Metrics (Migrated from Bottom) */}
-              <div className="mb-8">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                  Key Indicators
-                </h3>
-                <div className="bg-white/50 rounded-2xl border border-slate-200 p-6 shadow-sm">
-                  <KPIRibbon filteredPatients={filteredPatients} compact />
+        {/* Live Webcams equivalent: Geography Array */}
+        <div className="flex-1 border-r border-[#222] flex flex-col bg-[#050505]">
+          <div className="flex items-center justify-between p-3 border-b border-[#222] bg-[#111111] shadow-md z-10">
+            <div className="flex items-center gap-2">
+              <span className="text-white tracking-[0.2em] font-black">GEOGRAPHY MATRIX</span>
+              <span className="text-[#444] hover:text-white cursor-pointer ml-2">?</span>
+            </div>
+            <div className="flex items-center gap-2 text-[#555]">
+              <span className="hover:text-white cursor-pointer bg-red-500/10 px-2.5 py-1 rounded-sm text-red-500 border border-red-500/20 shadow-inner">
+                SLA BREACH
+              </span>
+              <span className="hover:text-white cursor-pointer px-2 py-1">ALL</span>
+              <span className="hover:text-white cursor-pointer px-2 py-1">NORTH</span>
+              <span className="hover:text-white cursor-pointer px-2 py-1">SOUTH</span>
+            </div>
+          </div>
+          
+          <div className="flex-1 grid grid-cols-3 grid-rows-2 gap-[1px] bg-[#222] overflow-hidden p-[1px]">
+             {topDistricts.map((dist:any, i) => (
+                <div key={i} className="bg-[#111111] relative group overflow-hidden flex flex-col items-center justify-center border border-transparent hover:border-[#333] transition-colors cursor-crosshair">
+                   <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10 bg-[#000]/80 border border-[#222] px-2 py-1 rounded-sm backdrop-blur-md">
+                     <div className="w-1.5 h-1.5 rounded-full bg-red-500/80 animate-pulse" />
+                     <span className="text-[9px] text-white tracking-widest">{dist || 'REG-UNDEF'}</span>
+                   </div>
+                   
+                   {/* Matrix Visuals */}
+                   <div className="w-full h-full opacity-40 group-hover:opacity-80 transition-opacity relative bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] bg-repeat">
+                     <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a] mix-blend-multiply" />
+                     <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-red-500/10 to-transparent mix-blend-screen transition-all group-hover:h-full" />
+                     <div className="absolute inset-0 flex items-center justify-center">
+                       <div className="text-[48px] text-[#222] font-black tracking-tighter drop-shadow-lg group-hover:text-[#444] transition-colors">
+                         {filteredPatients.filter((p:any) => p.screening_district === dist).length}
+                       </div>
+                     </div>
+                   </div>
+                   
+                   <div className="absolute bottom-2 right-2 flex gap-1 z-10">
+                     <span className="bg-[#000]/80 px-2 py-1 border border-[#222] rounded-sm text-[#888] font-mono text-[9px]">
+                       NODE {String(i+1).padStart(2, '0')}
+                     </span>
+                   </div>
                 </div>
-              </div>
+             ))}
+             {/* Fill empty spots if less than 6 */}
+             {Array.from({length: Math.max(0, 6 - topDistricts.length)}).map((_, i) => (
+               <div key={`empty-${i}`} className="bg-[#0a0a0a] flex items-center justify-center text-[#222] font-mono">
+                 NO SIGNAL
+               </div>
+             ))}
+          </div>
+        </div>
 
-              {/* Legend */}
-              <div className="mb-8">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                  Color Legend
-                </h3>
-                <ColorLegend className="p-0" />
+        {/* AI Insights */}
+        <div className="w-[340px] flex flex-col bg-[#111111]">
+          <div className="flex items-center justify-between p-3 border-b border-[#222] bg-[#161616]">
+            <div className="flex items-center gap-2">
+              <span className="text-white tracking-[0.2em] font-black">AI INSIGHTS</span>
+              <span className="text-[#444] hover:text-white cursor-pointer ml-2">?</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-emerald-500 border border-emerald-500/30 px-2.5 py-1 rounded-sm bg-emerald-500/10 tracking-widest shadow-[0_0_10px_rgba(16,185,129,0.1)]">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              LIVE
+            </div>
+          </div>
+          
+          <div className="flex-1 p-5 overflow-y-auto custom-dark-scrollbar bg-[#0a0a0a]">
+            {/* World Brief Card */}
+            <div className="border border-[#333] bg-[#111111] rounded-sm p-5 hover:border-[#555] transition-all cursor-pointer relative overflow-hidden group shadow-lg">
+              {/* Scanline effect */}
+              <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_4px] pointer-events-none opacity-50" />
+              
+              <div className="flex items-center gap-3 mb-4 relative z-10 border-b border-[#222] pb-3">
+                <Globe className="w-4 h-4 text-cyan-500" />
+                <span className="text-white font-bold tracking-[0.15em] text-[11px]">WORLD BRIEF</span>
               </div>
-
-              {/* Instructions */}
-              <div className="bg-slate-900 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                {/* Decorative glow inside dark box */}
-                <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/20 blur-2xl group-hover:scale-150 transition-transform duration-500" />
-                
-                <h3 className="text-white text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                  Interface Controls
-                </h3>
-                <div className="space-y-3">
-                  {[
-                    'Drag canvas to navigate map',
-                    'Scroll wheel for precision zoom',
-                    'Hover clusters for intel peek',
-                    'Click KPI ribbon for quick filter'
-                  ].map((text, i) => (
-                    <div key={i} className="flex items-center gap-3 text-slate-400 text-[11px] font-medium">
-                      <div className="w-1 h-1 rounded-full bg-slate-700" />
-                      {text}
-                    </div>
-                  ))}
-                </div>
+              
+              <div className="relative z-10 space-y-4">
+                <p className="text-[11px] text-[#999] leading-[1.8] normal-case font-medium tracking-wide">
+                  The health OS intelligence layer has detected <span className="text-amber-500 font-bold bg-amber-500/10 px-1 rounded-sm">{highRiskPatients}</span> unreferred cases in active geographies.
+                </p>
+                <div className="h-px w-full bg-gradient-to-r from-[#333] to-transparent" />
+                <p className="text-[11px] text-[#999] leading-[1.8] normal-case font-medium tracking-wide">
+                  Analysis indicates the primary drop-off occurs during the <span className="text-cyan-400">referral conversion phase</span>. Teleport directly to matrix nodes for high-resolution interception.
+                </p>
               </div>
             </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
+            
+            <button className="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-sm font-bold tracking-widest text-[10px] transition-colors shadow-[0_0_15px_rgba(37,99,235,0.3)]">
+              EXECUTE INTERVENTION
+            </button>
+          </div>
+        </div>
 
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {/* MAP STAGE - Center (fills remaining space, no bottom cramping) */}
-      {/* ═══════════════════════════════════════════════════════════ */}
-      <main
-        className="absolute z-0"
-        style={{
-          top: '80px',
-          bottom: 0,
-          left: 0,
-          right: 0,
-        }}
-      >
-        {children}
-      </main>
+      </div>
     </div>
   );
 }

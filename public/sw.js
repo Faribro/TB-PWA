@@ -30,7 +30,10 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached
-      return fetch(e.request, { redirect: 'follow' })
+      return fetch(e.request, { redirect: 'follow' }).catch((err) => {
+        console.debug('[SW] Fetch failed natively (likely network/aborted):', e.request.url);
+        throw err;
+      });
     })
   )
 })

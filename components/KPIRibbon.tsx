@@ -32,6 +32,8 @@ interface KPIMetric {
   filterStatus?: FilterStatus;
 }
 
+import { useEntityStore } from '@/stores/useEntityStore';
+
 // Helper: Calculate SLA breach
 const isSLABreach = (patient: Patient): boolean => {
   const screeningDate = patient.screening_date ? new Date(patient.screening_date) : null;
@@ -53,6 +55,7 @@ const calculateRiskScore = (breachRate: number, totalPatients: number): number =
 
 export function KPIRibbon({ filteredPatients, compact = false }: KPIRibbonProps) {
   const { filter, setStatus } = useUniversalFilter();
+  const setActiveGISMetric = useEntityStore(s => s.setActiveGISMetric);
 
   const metrics = useMemo((): KPIMetric[] => {
     const screened = filteredPatients.length;
@@ -139,146 +142,98 @@ export function KPIRibbon({ filteredPatients, compact = false }: KPIRibbonProps)
       // Toggle filter: if already active, reset to 'All'
       setStatus(filter.status === metric.filterStatus ? 'All' : metric.filterStatus);
     }
+    
+    // Connect to Map Indicator Engine
+    const mapMetric = metric.id === 'breach' ? 'breaches' : metric.id;
+    if (['screened', 'diagnosed', 'initiated', 'completed', 'breaches'].includes(mapMetric)) {
+      setActiveGISMetric(mapMetric);
+    }
   };
 
-  // Compact mode: Render as vertical stack in sidebar
-  if (compact) {
-    return (
-      <div className="space-y-3">
-        {metrics.map((metric, index) => {
-          const isActive = metric.filterStatus && filter.status === metric.filterStatus;
-          const isClickable = !!metric.filterStatus;
-          
-          return (
-            <motion.button
-              key={metric.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
-              onClick={() => handleMetricClick(metric)}
-              disabled={!isClickable}
-              className={`
-                w-full p-4 rounded-xl border transition-all duration-300
-                ${isActive 
-                  ? `${metric.borderColor} bg-white shadow-sm` 
-                  : 'border-slate-200/40 bg-white/50 hover:bg-white hover:border-slate-300'
-                }
-                ${isClickable ? 'cursor-pointer active:scale-95' : 'cursor-default'}
-                flex items-center justify-between group
-              `}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`${metric.color}`}>
-                  {metric.icon}
-                </div>
-                <div className="text-left">
-                  <div className="text-xs font-bold text-slate-700">
-                    {metric.label}
-                  </div>
-                  <div className="text-[10px] text-slate-400">
-                    {metric.context}
-                  </div>
-                </div>
-              </div>
-              <div className="text-xl font-black text-slate-900 tabular-nums">
-                {metric.value.toLocaleString()}
-              </div>
-            </motion.button>
-          );
-        })}
-      </div>
-    );
-  }
-
+  // World Monitor style "LAYERS" Panel
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
-      className="fixed bottom-0 left-0 right-0 z-[1200] bg-white/40 backdrop-blur-3xl border-t border-slate-200/50"
-      style={{ height: '100px' }}
-    >
-      <div className="h-full px-8 flex items-center gap-4">
-        {metrics.map((metric, index) => {
-          const isActive = metric.filterStatus && filter.status === metric.filterStatus;
-          const isClickable = !!metric.filterStatus;
-          
-          // Calculate risk score for dynamic glow
-          const screened = filteredPatients.length;
-          const breaches = filteredPatients.filter(isSLABreach).length;
-          const breachRate = screened > 0 ? (breaches / screened) * 100 : 0;
-          const riskScore = calculateRiskScore(breachRate, screened);
-          const isHighRisk = metric.id === 'breach' && riskScore > 70;
-
-          return (
-            <motion.button
-              key={metric.id}
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
-              onClick={() => handleMetricClick(metric)}
-              disabled={!isClickable}
-              className={`
-                flex-1 h-14 px-5
-                rounded-2xl
-                border transition-all duration-300
-                ${isActive 
-                  ? `${metric.borderColor} bg-white shadow-lg ${metric.id === 'breach' ? 'shadow-red-500/10' : 'shadow-blue-500/10'}` 
-                  : 'border-slate-200/40 bg-slate-50/50 hover:bg-white hover:border-slate-300 hover:shadow-md'
-                }
-                ${isClickable ? 'cursor-pointer active:scale-95' : 'cursor-default'}
-                ${isHighRisk ? 'animate-pulse' : ''}
-                flex items-center justify-between
-                group relative overflow-hidden
-              `}
-            >
-              {/* Subtle background gradient on active */}
-              {isActive && (
-                <div className={`absolute inset-0 opacity-5 bg-gradient-to-br ${metric.bgColor.replace('bg-', 'from-')}`} />
-              )}
-
-              {/* Left: Icon + Label */}
-              <div className="flex items-center gap-4">
-                <div className={`
-                  ${metric.color} transition-transform duration-300 group-hover:scale-110
-                `}>
-                  {metric.icon}
-                </div>
-                <div className="text-left">
-                  <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
-                    {metric.label}
-                  </div>
-                  <div className="text-[10px] text-slate-500">
-                    {metric.context}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: Value */}
-              <div className="flex items-center gap-3">
-                <motion.div
-                  key={metric.value}
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4 }}
-                  className="text-2xl font-black text-slate-900 tabular-nums"
-                >
-                  {metric.value.toLocaleString()}
-                </motion.div>
-
-                {/* Active indicator */}
-                {isActive && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className={`w-1.5 h-1.5 rounded-full ${metric.color.replace('text-', 'bg-')} shadow-[0_0_8px_rgba(0,0,0,0.1)]`}
-                  />
-                )}
-              </div>
-            </motion.button>
-          );
-        })}
+    <div className="flex flex-col h-full bg-[#111111] border-r border-[#222] font-mono text-[10px] w-[260px] shrink-0">
+      {/* Header */}
+      <div className="h-10 border-b border-[#222] flex items-center px-4 font-bold tracking-widest text-[#888] uppercase shrink-0">
+        Global Situation
       </div>
-    </motion.div>
+      
+      <div className="flex-1 overflow-y-auto custom-dark-scrollbar p-3">
+        <div className="flex items-center justify-between text-[#666] mb-2 px-1">
+          <span>LAYERS</span>
+          <span className="cursor-pointer hover:text-white pb-1">?</span>
+        </div>
+        
+        {/* Search */}
+        <div className="mb-4 relative">
+          <input
+            type="text"
+            placeholder="Search layers..."
+            className="w-full bg-[#1a1a1a] border border-[#333] text-white px-3 py-1.5 focus:outline-none focus:border-[#555] rounded-sm placeholder-[#555]"
+          />
+        </div>
+
+        {/* Metrics mapped to layers */}
+        <div className="space-y-[2px]">
+          {metrics.map((metric, index) => {
+            const isActive = metric.filterStatus && filter.status === metric.filterStatus;
+            const isClickable = !!metric.filterStatus;
+            
+            // Map the colors logic for neon vibes
+            const accentColor = metric.id === 'breach' ? '#ef4444' : 
+                                metric.id === 'screened' ? '#06b6d4' :
+                                metric.id === 'diagnosed' ? '#f59e0b' :
+                                metric.id === 'initiated' ? '#a855f7' :
+                                metric.id === 'completed' ? '#10b981' : '#3b82f6';
+
+            return (
+              <div 
+                key={metric.id}
+                onClick={() => handleMetricClick(metric)}
+                className={`
+                  flex items-center justify-between p-2 cursor-pointer transition-all rounded-sm
+                  hover:bg-[#1a1a1a]
+                  ${isActive ? 'bg-[#161616]' : 'bg-transparent'}
+                  ${!isClickable && 'opacity-60 cursor-default hover:bg-transparent'}
+                `}
+              >
+                <div className="flex items-center gap-2">
+                  <div 
+                    className={`w-3 h-3 rounded-sm flex items-center justify-center text-[8px] font-black
+                    ${isActive ? 'bg-[#10b981] text-black shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'border border-[#444] bg-transparent text-transparent'}
+                    `}
+                  >
+                    ✓
+                  </div>
+                  <div 
+                    className="w-[18px] h-[18px] flex items-center justify-center drop-shadow-md"
+                    style={{ color: accentColor }}
+                  >
+                    {metric.icon}
+                  </div>
+                  <span className={`font-bold tracking-wider ${isActive ? 'text-white' : 'text-[#999]'}`}>
+                    {metric.label.toUpperCase()}
+                  </span>
+                </div>
+                
+                {/* Count value replacing context */}
+                <span className="text-[#666] font-bold tabular-nums">
+                  {metric.value.toLocaleString()}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        
+        {/* Separator / Additional non-kpi layers could go here */}
+        <div className="h-px bg-[#222] my-4" />
+        
+        {/* Mini user tag imitating worldmonitor bottom left corner */}
+        <div className="mt-auto px-1 pt-4 text-[9px] text-[#555] tracking-widest uppercase font-bold flex flex-col gap-1">
+          <div><span className="text-cyan-500">© SAMADHAAN</span> · WORLD OS™</div>
+          <div>v2.0.7 · <span className="text-[#888]">@HEALTH_DEPT</span></div>
+        </div>
+      </div>
+    </div>
   );
 }
