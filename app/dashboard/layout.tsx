@@ -18,8 +18,29 @@ import { useSessionScope } from '@/hooks/useSessionScope';
 import { EntityDataSync } from '@/components/EntityDataSync';
 import { SyncStatusFeed } from '@/components/SyncStatusFeed';
 import { useEntityStore } from '@/stores/useEntityStore';
-import { sounds } from '@/lib/sound';
-import type * as SoundModule from '@/lib/sound';
+// Sound module loaded dynamically to avoid chunk errors
+let sounds: any = null;
+let soundInitPromise: Promise<any> | null = null;
+
+async function initSounds() {
+  if (sounds) return sounds;
+  if (soundInitPromise) return soundInitPromise;
+  
+  soundInitPromise = import('@/lib/sound').then(mod => {
+    sounds = mod.sounds || {};
+    return sounds;
+  }).catch(() => {
+    sounds = {};
+    return sounds;
+  });
+  
+  return soundInitPromise;
+}
+
+// Pre-init on module load
+if (typeof window !== 'undefined') {
+  initSounds();
+}
 
 import { DashboardErrorBoundary } from '@/components/DashboardErrorBoundary';
 
@@ -53,11 +74,12 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
     <MotionLink
       href={tab.path}
       data-tour-id={dataTourId}
-      onClick={() => {
+      onClick={async () => {
         try {
-          sounds.navTab();
+          const s = await initSounds();
+          s.navTab?.();
         } catch (e) {
-          console.error('[Nav] Sound error:', e);
+          // Silent fail
         }
       }}
       initial={{ opacity: 0, x: -16 }}

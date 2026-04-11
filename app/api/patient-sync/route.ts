@@ -134,12 +134,24 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Get timestamp constraint if provided by client
+    const clientTimestamp = updates.client_timestamp;
+    delete supabaseUpdates.client_timestamp; // Remove from specific fields
+
+    // ✅ FIX: Use updated_at optimistic lock
+    supabaseUpdates.updated_at = new Date().toISOString();
+
     console.log('[patient-sync] Supabase updates:', supabaseUpdates);
 
     let updateQuery = supabase
       .from('patients')
       .update(supabaseUpdates)
       .eq('id', patientId);
+
+    // Only update if server is older (optimistic locking)
+    if (clientTimestamp) {
+      updateQuery = updateQuery.lt('updated_at', clientTimestamp);
+    }
 
     // Ownership guard: non-admins can only update patients in their own state
     // Skip ownership check for service role authentication
@@ -152,6 +164,15 @@ export async function POST(request: NextRequest) {
 
     if (supabaseError) {
       console.error('[patient-sync] Supabase error:', supabaseError);
+      
+      // Handle optimistic locking conflict code
+      if (supabaseError.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Conflict: record updated by another process' },
+          { status: 409 }
+        );
+      }
+
       return NextResponse.json(
         { error: 'Failed to update Supabase', details: supabaseError.message },
         { status: 500 }
@@ -160,10 +181,10 @@ export async function POST(request: NextRequest) {
 
     // Check if any rows were updated
     if (!supabaseData || supabaseData.length === 0) {
-      console.error('[patient-sync] No rows updated - patient not found or access denied');
+      console.error('[patient-sync] No rows updated - patient not found, access denied, or update conflict');
       return NextResponse.json(
-        { error: 'Patient not found or access denied', details: 'No matching patient record' },
-        { status: 404 }
+        { error: 'Conflict or access denied', details: 'No matching patient record or record updated by another process' },
+        { status: 409 } // Changed to 409 to reflect potential lock conflict
       );
     }
 

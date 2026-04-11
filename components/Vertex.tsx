@@ -137,8 +137,8 @@ const CalendarHeader = ({
   <div className="space-y-3 mb-4 px-1">
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center shadow-inner">
-          <CalendarIcon className="w-6 h-6 text-blue-600" />
+        <div className="w-12 h-12 rounded-2xl vertex-header-icon flex items-center justify-center">
+          <CalendarIcon className="w-6 h-6 text-indigo-600" />
         </div>
         <div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tighter">
@@ -153,7 +153,7 @@ const CalendarHeader = ({
           onClick={onPrevMonth}
           variant="ghost"
           size="sm"
-          className="h-10 w-10 bg-white hover:bg-slate-50 border border-slate-200 shadow-sm transition-all p-0 rounded-xl"
+          className="h-10 w-10 vertex-nav-btn flex items-center justify-center rounded-xl p-0"
         >
           <ChevronLeft className="w-5 h-5 text-slate-600" />
         </Button>
@@ -162,7 +162,7 @@ const CalendarHeader = ({
           onClick={onNextMonth}
           variant="ghost"
           size="sm"
-          className="h-10 w-10 bg-white hover:bg-slate-50 border border-slate-200 shadow-sm transition-all p-0 rounded-xl"
+          className="h-10 w-10 vertex-nav-btn flex items-center justify-center rounded-xl p-0"
         >
           <ChevronRight className="w-5 h-5 text-slate-600" />
         </Button>
@@ -174,14 +174,14 @@ const CalendarHeader = ({
         <Select value={filterState} onValueChange={onFilterStateChange}>
           <SelectTrigger
             data-tour-id="neural-timeline-state-filter"
-            className="h-10 text-xs font-bold border-slate-200 bg-white/50 hover:bg-white hover:border-blue-400 transition-all rounded-xl focus:ring-4 focus:ring-blue-500/10"
+            className="h-10 text-xs font-bold vertex-filter-select rounded-xl focus:ring-4 focus:ring-indigo-500/10"
           >
             <div className="flex items-center gap-2">
               <MapPin className="w-3.5 h-3.5 text-slate-400" />
               <SelectValue placeholder="State" />
             </div>
           </SelectTrigger>
-          <SelectContent className="rounded-2xl border-slate-200 shadow-2xl">
+          <SelectContent className="rounded-2xl border-white/60 shadow-2xl bg-white/80 backdrop-blur-xl">
             <SelectItem value="All" className="font-bold">All States</SelectItem>
             {availableStates.map(state => (
               <SelectItem key={state} value={state} className="font-medium">{state}</SelectItem>
@@ -192,13 +192,13 @@ const CalendarHeader = ({
       
       <div className="relative flex-1">
         <Select value={filterDistrict} onValueChange={onFilterDistrictChange}>
-          <SelectTrigger className="h-10 text-xs font-bold border-slate-200 bg-white/50 hover:bg-white hover:border-blue-400 transition-all rounded-xl focus:ring-4 focus:ring-blue-500/10">
+          <SelectTrigger className="h-10 text-xs font-bold vertex-filter-select rounded-xl focus:ring-4 focus:ring-indigo-500/10">
             <div className="flex items-center gap-2">
               <Building2 className="w-3.5 h-3.5 text-slate-400" />
               <SelectValue placeholder="District" />
             </div>
           </SelectTrigger>
-          <SelectContent className="rounded-2xl border-slate-200 shadow-2xl">
+          <SelectContent className="rounded-2xl border-white/60 shadow-2xl bg-white/80 backdrop-blur-xl">
             <SelectItem value="All" className="font-bold">All Districts</SelectItem>
             {availableDistricts.map(district => (
               <SelectItem key={district} value={district} className="font-medium">{district}</SelectItem>
@@ -273,50 +273,33 @@ const CalendarGrid = ({
               whileHover={{ scale: shouldDim ? 1 : 1.02, y: 0 }}
               whileTap={{ scale: 0.98 }}
               className={cn(
-                "aspect-square w-full rounded-xl border transition-all duration-300 relative overflow-hidden group/day scroll-snap-center backdrop-blur-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/80 focus-visible:ring-offset-1",
+                "aspect-square w-full rounded-[14px] flex flex-col items-center justify-center relative group/day scroll-snap-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/80 focus-visible:ring-offset-1 z-10",
                 "active:scale-[0.97]",
-                isSelected 
-                  ? "bg-[#0f172a] border-blue-300/70 ring-2 ring-blue-300/25" 
-                  : "bg-white/70 border-white/80 hover:border-blue-200/90",
-                shouldDim && "opacity-20 grayscale",
-                shouldHighlight && !isSelected && "bg-rose-50/85 border-rose-200",
-                !isBreachMode && isHighVolume && !isSelected && "bg-blue-50/90 border-blue-200/80"
+                isSelected ? "vertex-glass-tile-selected" : "vertex-glass-tile",
+                !isSelected && shouldHighlight && "vertex-glass-tile-breach",
+                !isSelected && !isBreachMode && isHighVolume && "vertex-glass-tile-high",
+                shouldDim && "opacity-30 grayscale"
               )}
               style={{
-                minHeight: "clamp(40px, 5.2vh, 52px)",
-                backgroundImage: isSelected
-                  ? "linear-gradient(180deg, rgba(30,41,59,0.98) 0%, rgba(15,23,42,0.95) 100%)"
-                  : "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(248,250,252,0.78) 100%)",
-                boxShadow: isSelected
-                  ? `${CALENDAR_DEPTH.tileSelected}, inset 0 1px 0 rgba(255,255,255,0.16)`
-                  : `0 1px 0 rgba(255,255,255,0.95), ${CALENDAR_DEPTH.tile}, inset 0 1px 0 rgba(255,255,255,0.65), inset 0 -1px 0 rgba(148,163,184,0.10)`,
-                transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+                minHeight: "clamp(40px, 5.2vh, 52px)"
               }}
             >
-              {/* Glassmorphism depth layer on hover */}
-              <div className="absolute inset-0 glass-depth-1 opacity-0 group-hover/day:opacity-100 transition-opacity duration-300" />
-              <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/35 to-transparent opacity-70 pointer-events-none" />
-              {isSelected && (
-                <div className="absolute inset-0 pointer-events-none">
-                  <div className="absolute -inset-2 rounded-2xl bg-blue-400/20 blur-md animate-pulse" />
-                </div>
-              )}
               
-              <div className="absolute inset-0 flex flex-col items-center justify-center relative z-10">
+              <div className="absolute inset-0 flex flex-col items-center justify-center relative z-20">
                 <span className={cn(
                   "text-sm font-bold tracking-tight transition-colors duration-300",
                   isSelected ? "text-white" : 
                   shouldHighlight ? "text-rose-600" :
-                  hasActivity ? "text-slate-900" : "text-slate-300 group-hover/day:text-slate-600"
+                  hasActivity ? "text-slate-900" : "text-slate-400 group-hover/day:text-indigo-600"
                 )}>
                   {day.dayNum}
                 </span>
                 
                 {hasActivity && !isBreachMode && (
-                  <div className="flex gap-1 mt-1.5 opacity-80">
+                  <div className="flex gap-1 mt-1.5 opacity-90">
                     <div className={cn(
-                      "w-1.5 h-1.5 rounded-full shadow-sm",
-                      isSelected ? "bg-white" : hasBreaches ? "bg-rose-500" : "bg-emerald-500"
+                      "w-1.5 h-1.5 rounded-full shadow-sm vertex-activity-dot",
+                      isSelected ? "bg-white text-white" : hasBreaches ? "bg-rose-500 text-rose-500" : "bg-indigo-500 text-indigo-500"
                     )} />
                   </div>
                 )}
@@ -948,10 +931,11 @@ export default function Vertex({
 
   return (
     <div className="relative w-full font-outfit overflow-x-hidden">
-      {/* Premium Background Decorative Elements */}
+      {/* Premium Background Decorative Elements / Synthwave Aurora */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-400/10 blur-[150px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-400/10 blur-[150px] rounded-full animate-pulse delay-500" />
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[rgba(167,139,250,0.15)] blur-[120px] rounded-full mix-blend-screen" style={{ animation: 'vertex-aurora 15s ease-in-out infinite alternate' }} />
+        <div className="absolute bottom-[-10%] right-[-5%] w-[60%] h-[60%] bg-[rgba(96,165,250,0.12)] blur-[140px] rounded-full mix-blend-screen" style={{ animation: 'vertex-aurora 20s ease-in-out infinite alternate-reverse' }} />
+        <div className="absolute top-[40%] left-[30%] w-[40%] h-[40%] bg-[rgba(244,114,182,0.08)] blur-[100px] rounded-full mix-blend-screen" style={{ animation: 'vertex-aurora 18s ease-in-out infinite alternate' }} />
       </div>
 
       <div className="relative grid grid-cols-1 lg:grid-cols-12 items-start w-full gap-6 xl:gap-8 p-5 xl:p-8 max-w-[1920px] mx-auto z-10 min-w-0">
@@ -962,8 +946,7 @@ export default function Vertex({
            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
            className="w-full lg:col-span-5 lg:sticky lg:top-2 lg:self-start lg:h-[calc(100vh-0.75rem)] min-w-0"
         >
-          <Card className="bg-white/95 border-slate-200 shadow-[0_12px_40px_rgba(15,23,42,0.08)] rounded-xl p-3 lg:p-4 flex flex-col border relative h-full min-h-0">
-            <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-blue-500/[0.02] to-transparent pointer-events-none" />
+          <div className="vertex-glass-card rounded-[24px] p-3 lg:p-4 flex flex-col relative h-full min-h-0">
 
             <div
               className="min-h-0 overflow-y-auto pr-1 hide-scrollbar"
@@ -996,12 +979,12 @@ export default function Vertex({
             </div>
             
             {/* Monthly Pulse Console - Dynamic Metrics */}
-            <div className="mt-3 pt-3 pb-1 border-t border-slate-200/60 flex flex-wrap items-start gap-4 justify-between shrink-0">
-              <div className="flex flex-wrap items-center gap-4 min-w-0">
+            <div className="mt-3 pt-4 pb-2 px-3 vertex-pulse-console rounded-xl flex flex-wrap items-start gap-4 justify-between shrink-0">
+              <div className="flex flex-wrap items-center gap-5 min-w-0">
                 <div className="group">
-                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-blue-500 transition-colors">Total</div>
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-indigo-500 transition-colors">Total</div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-slate-950 tracking-tighter">
+                    <span className="text-2xl font-black text-slate-900 tracking-tighter shadow-sm drop-shadow-sm">
                       {globalPatients.length.toLocaleString()}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400 uppercase">Screened</span>
@@ -1010,7 +993,7 @@ export default function Vertex({
                 <div className="group">
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-rose-500 transition-colors">Pending</div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-rose-600 tracking-tighter">
+                    <span className="text-2xl font-black text-rose-600 tracking-tighter drop-shadow-sm">
                       {globalPatients.filter((p: any) => {
                         const isAbnormal = p.xray_result?.toLowerCase().includes('abnormal');
                         const noTreatment = !p.att_start_date && !p.referral_date;
@@ -1020,10 +1003,10 @@ export default function Vertex({
                     <span className="text-[10px] font-bold text-slate-400 uppercase">Alerts</span>
                   </div>
                 </div>
-                <div className="group">
+                <div className="group hidden sm:block">
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-emerald-500 transition-colors">This Month</div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-emerald-600 tracking-tighter">
+                    <span className="text-2xl font-black text-emerald-600 tracking-tighter drop-shadow-sm">
                       {globalPatients.filter((p: any) => {
                         const dateValue = p.screening_date || p.submitted_on;
                         if (!dateValue) return false;
@@ -1038,17 +1021,17 @@ export default function Vertex({
               </div>
               
               <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'volume' | 'breaches')} className="w-full sm:w-[180px]">
-                <TabsList className="grid w-full grid-cols-2 h-10 bg-slate-100/50 p-1 border-slate-200/60 rounded-xl">
-                  <TabsTrigger value="volume" className="rounded-lg text-[10px] font-black uppercase tracking-wider h-8 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md">
+                <TabsList className="grid w-full grid-cols-2 h-10 bg-white/40 backdrop-blur-md p-1 border border-white/60 shadow-inner rounded-xl">
+                  <TabsTrigger value="volume" className="rounded-lg text-[10px] font-black uppercase tracking-wider h-8 data-[state=active]:vertex-tab-active data-[state=active]:text-indigo-700 transition-all duration-300">
                     Volume
                   </TabsTrigger>
-                  <TabsTrigger value="breaches" className="rounded-lg text-[10px] font-black uppercase tracking-wider h-8 data-[state=active]:bg-white data-[state=active]:text-rose-700 data-[state=active]:shadow-md">
+                  <TabsTrigger value="breaches" className="rounded-lg text-[10px] font-black uppercase tracking-wider h-8 data-[state=active]:vertex-tab-active data-[state=active]:text-rose-700 transition-all duration-300">
                     Alerts
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
-          </Card>
+          </div>
         </motion.div>
 
         {/* Right Pane: Daily Briefing - INTERNAL SCROLL */}

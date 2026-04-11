@@ -206,6 +206,346 @@ canvas[data-engine] {
   border: 1px solid rgba(255, 255, 255, 0.7);
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   VERTEX SYNTHWAVE GLASSMORPHISM – Premium Light-Through-Glass
+═══════════════════════════════════════════════════════════════ */
+
+/* Sweeping light reflection that moves across glass surfaces */
+@keyframes vertex-glass-sweep {
+  0%   { transform: translateX(-120%) rotate(-15deg); opacity: 0; }
+  15%  { opacity: 0.7; }
+  60%  { opacity: 0.3; }
+  100% { transform: translateX(220%) rotate(-15deg); opacity: 0; }
+}
+
+/* Prismatic refraction shimmer on glass borders */
+@keyframes vertex-prismatic-border {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Soft aurora-like glow behind glass */
+@keyframes vertex-aurora {
+  0%   { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 0.15; }
+  25%  { transform: translate(5%, -3%) rotate(15deg) scale(1.05); opacity: 0.22; }
+  50%  { transform: translate(-3%, 5%) rotate(-10deg) scale(0.98); opacity: 0.18; }
+  75%  { transform: translate(4%, 2%) rotate(5deg) scale(1.03); opacity: 0.25; }
+  100% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 0.15; }
+}
+
+/* Glowing dot pulse for active tiles */
+@keyframes vertex-dot-glow {
+  0%, 100% { box-shadow: 0 0 4px currentColor, 0 0 8px currentColor; transform: scale(1); }
+  50%      { box-shadow: 0 0 8px currentColor, 0 0 16px currentColor; transform: scale(1.2); }
+}
+
+/* Glass tile selected ring animation */
+@keyframes vertex-selected-ring {
+  0%   { opacity: 0.3; transform: scale(0.98); }
+  50%  { opacity: 0.6; transform: scale(1.02); }
+  100% { opacity: 0.3; transform: scale(0.98); }
+}
+
+/* ── Vertex Glass Card ────────────────────────────────────── */
+.vertex-glass-card {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.75) 0%,
+    rgba(248, 250, 255, 0.60) 40%,
+    rgba(240, 245, 255, 0.55) 100%
+  );
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow:
+    0 1px 1px rgba(255, 255, 255, 0.9),
+    0 8px 32px rgba(99, 102, 241, 0.06),
+    0 24px 64px rgba(99, 102, 241, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -1px 0 rgba(148, 163, 184, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+/* The light sweep overlay – applied as pseudo-element */
+.vertex-glass-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.45) 45%,
+    rgba(200, 210, 255, 0.20) 50%,
+    rgba(255, 255, 255, 0.35) 55%,
+    transparent 70%
+  );
+  animation: vertex-glass-sweep 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Prismatic top edge refraction */
+.vertex-glass-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(167, 139, 250, 0.4) 15%,
+    rgba(96, 165, 250, 0.5) 30%,
+    rgba(52, 211, 153, 0.3) 50%,
+    rgba(251, 191, 36, 0.3) 70%,
+    rgba(244, 114, 182, 0.4) 85%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: vertex-prismatic-border 6s ease-in-out infinite;
+  z-index: 2;
+}
+
+/* ── Vertex Glass Tile (Calendar Day Cell) ────────────────── */
+.vertex-glass-tile {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.82) 0%,
+    rgba(250, 251, 255, 0.65) 60%,
+    rgba(243, 246, 255, 0.55) 100%
+  );
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95),
+    0 4px 12px rgba(99, 102, 241, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 0 rgba(148, 163, 184, 0.06);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.vertex-glass-tile::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -30%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 40%,
+    rgba(210, 220, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.2) 60%,
+    transparent 100%
+  );
+  transform: skewX(-15deg);
+  transition: left 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.vertex-glass-tile:hover::before {
+  left: 110%;
+}
+
+.vertex-glass-tile:hover {
+  border-color: rgba(167, 139, 250, 0.25);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95),
+    0 8px 24px rgba(99, 102, 241, 0.10),
+    0 2px 8px rgba(167, 139, 250, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(148, 163, 184, 0.08);
+}
+
+/* ── Selected Tile – Deep Synthwave Glass ──────────────────── */
+.vertex-glass-tile-selected {
+  background: linear-gradient(
+    160deg,
+    rgba(30, 27, 75, 0.95) 0%,
+    rgba(49, 46, 129, 0.92) 40%,
+    rgba(67, 56, 202, 0.88) 100%
+  );
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  border: 1px solid rgba(167, 139, 250, 0.45);
+  box-shadow:
+    0 0 0 1px rgba(139, 92, 246, 0.2),
+    0 8px 24px rgba(99, 102, 241, 0.30),
+    0 2px 8px rgba(139, 92, 246, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+}
+
+.vertex-glass-tile-selected::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from 0deg,
+    rgba(167, 139, 250, 0.3),
+    rgba(96, 165, 250, 0.2),
+    rgba(52, 211, 153, 0.15),
+    rgba(251, 191, 36, 0.15),
+    rgba(244, 114, 182, 0.2),
+    rgba(167, 139, 250, 0.3)
+  );
+  z-index: -1;
+  animation: vertex-selected-ring 3s ease-in-out infinite;
+  filter: blur(6px);
+}
+
+/* Breach-mode highlighted tile */
+.vertex-glass-tile-breach {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 241, 242, 0.85) 0%,
+    rgba(254, 226, 226, 0.70) 100%
+  );
+  border-color: rgba(244, 63, 94, 0.25);
+  box-shadow:
+    0 4px 12px rgba(244, 63, 94, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* High-volume tile */
+.vertex-glass-tile-high {
+  background: linear-gradient(
+    160deg,
+    rgba(239, 246, 255, 0.90) 0%,
+    rgba(219, 234, 254, 0.72) 100%
+  );
+  border-color: rgba(96, 165, 250, 0.25);
+}
+
+/* ── Vertex Activity Dot ──────────────────────────────────── */
+.vertex-activity-dot {
+  animation: vertex-dot-glow 2.5s ease-in-out infinite;
+}
+
+/* ── Vertex Header Icon ───────────────────────────────────── */
+.vertex-header-icon {
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.12) 0%,
+    rgba(167, 139, 250, 0.10) 50%,
+    rgba(96, 165, 250, 0.12) 100%
+  );
+  box-shadow:
+    0 4px 14px rgba(99, 102, 241, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  position: relative;
+  overflow: hidden;
+}
+
+.vertex-header-icon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: vertex-glass-sweep 5s ease-in-out infinite;
+}
+
+/* ── Vertex Nav Button ────────────────────────────────────── */
+.vertex-nav-btn {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.80) 0%,
+    rgba(248, 250, 255, 0.60) 100%
+  );
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 2px 8px rgba(99, 102, 241, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.vertex-nav-btn:hover {
+  border-color: rgba(167, 139, 250, 0.3);
+  box-shadow:
+    0 4px 16px rgba(99, 102, 241, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transform: translateY(-1px);
+}
+
+/* ── Vertex Filter Select ─────────────────────────────────── */
+.vertex-filter-select {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(248, 250, 255, 0.40) 100%
+  );
+  backdrop-filter: blur(10px) saturate(130%);
+  -webkit-backdrop-filter: blur(10px) saturate(130%);
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  box-shadow:
+    0 2px 6px rgba(99, 102, 241, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.vertex-filter-select:hover {
+  border-color: rgba(139, 92, 246, 0.25);
+  box-shadow:
+    0 4px 12px rgba(99, 102, 241, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* ── Vertex Pulse Console (Bottom Metric Bar) ──────────── */
+.vertex-pulse-console {
+  background: linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(248, 250, 255, 0.35) 100%
+  );
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border-top: 1px solid rgba(255, 255, 255, 0.50);
+  position: relative;
+}
+
+.vertex-pulse-console::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(167, 139, 250, 0.25) 20%,
+    rgba(96, 165, 250, 0.35) 50%,
+    rgba(167, 139, 250, 0.25) 80%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: vertex-prismatic-border 5s ease-in-out infinite;
+}
+
+/* ── Vertex Tab Toggle ───────────────────────────────────── */
+.vertex-tab-active {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.90) 0%,
+    rgba(248, 250, 255, 0.80) 100%
+  );
+  box-shadow:
+    0 2px 8px rgba(99, 102, 241, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
 /* CRT Terminal Effects */
 .terminal-glow {
   text-shadow: 0 0 5px rgba(51, 255, 153, 0.7), 0 0 10px rgba(51, 255, 153, 0.5);

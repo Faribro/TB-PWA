@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { auth } from '@/auth';
+import { getSessionScope } from '@/lib/session-scope';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -165,6 +167,16 @@ async function upsertBatch(records: any[]): Promise<{ upserted: number; batchErr
 //             Omit (or pass null) to start from the beginning.
 // Response: { done, nextCursor, fetched, upserted, total, skippedRows, rowErrorSample }
 export async function POST(request: NextRequest) {
+  // ✅ FIX: Only admin/PM can trigger manual sync
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 });
+  }
+  const scope = await getSessionScope();
+  if (!['admin', 'PM'].includes(scope?.role || '')) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
+
   const startTime = Date.now();
 
   try {

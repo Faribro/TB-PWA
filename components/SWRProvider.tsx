@@ -8,9 +8,9 @@ export function SWRProvider({ children }: { children: ReactNode }) {
     <SWRConfig
       value={{
         refreshInterval: 30000, // Auto-refresh every 30s
-        revalidateOnFocus: true,
+        revalidateOnFocus: false, // Prevents re-fetch on tab switch
         revalidateOnReconnect: true,
-        dedupingInterval: 2000,
+        dedupingInterval: 30000,
         errorRetryCount: 3,
         errorRetryInterval: 5000,
         keepPreviousData: true,

@@ -28,12 +28,10 @@ const nextConfig = {
     '@cornerstonejs/tools',
   ],
 
-  experimental: {
-    // Turbopack configuration for package optimization
-    turbo: {
-      resolveAlias: {
-        three: 'three',
-      },
+  // Turbopack configuration (moved from experimental.turbo)
+  turbopack: {
+    resolveAlias: {
+      three: 'three',
     },
   },
 };

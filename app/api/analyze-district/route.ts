@@ -4,6 +4,21 @@ import { sanitizeForAI, validateSanitization } from '@/utils/dataSanitizer';
 import { auth } from '@/auth';
 import { getSessionScope } from '@/lib/session-scope';
 
+// ✅ Add simple in-memory rate limit (no Redis needed for start)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(userId, { count: 1, resetAt: now + 60_000 }); // 1 min window
+    return true;
+  }
+  if (entry.count >= 10) return false; // Max 10 AI calls/min per user
+  entry.count++;
+  return true;
+}
+
 export async function POST(request: NextRequest) {
   try {
     // ── Auth & Scope Guard ──────────────────────────────────────
@@ -14,6 +29,14 @@ export async function POST(request: NextRequest) {
     const scope = await getSessionScope();
     if (!scope) {
       return NextResponse.json({ error: 'Forbidden: No scope' }, { status: 403 });
+    }
+
+    const userId = (session.user as any)?.id ?? request.ip ?? 'anonymous';
+    if (!checkRateLimit(userId)) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Please wait 1 minute.' },
+        { status: 429 }
+      );
     }
 
     const body = await request.json();

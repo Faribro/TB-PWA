@@ -10,6 +10,9 @@ interface ScreeningDay {
   date: string
   count: number
   tbPositive: number
+  suspected: number
+  attStarted: number
+  referred: number
 }
 
 interface Props {
@@ -200,7 +203,7 @@ export function ScreeningCalendar({ data, onDayClick, selectedDate }: Props) {
                         }}
                         disabled={isFuture}
                         title={count > 0
-                          ? `${dateStr}: ${count} screened${day?.tbPositive ? `, ${day.tbPositive} TB+` : ''}`
+                          ? `${dateStr}\n${count} screened${day?.suspected ? ` | ${day.suspected} suspected` : ''}${day?.tbPositive ? ` | ${day.tbPositive} TB+` : ''}${day?.attStarted ? ` | ${day.attStarted} on ATT` : ''}${day?.referred ? ` | ${day.referred} referred` : ''}`
                           : dateStr
                         }
                         className={cn(

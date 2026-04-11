@@ -3246,3 +3246,21 @@ This section documents **new** findings from a repo-wide review (beyond the exis
 - **Rate limiting**: use a shared limiter (Redis/Upstash) for AI + export endpoints; correctly parse `x-forwarded-for`.
 - **LLM outputs**: validate request bodies and model outputs with schemas (e.g., Zod) before parsing/using.
 - **Logging**: remove or redact logs that could contain patient info or free-form user text; ensure Sentry scrubbing is enabled.
+
+## Pending SQL Migrations
+
+✅ All migrations completed as of 2026-04-11
+
+## Change Log
+
+[2026-04-11] app/dashboard/vertex/page.tsx - Fixed calendar to fetch all months in year (not just current month); fetches 1-12 months in parallel when calendar view active [AQ]
+[2026-04-11] app/api/vertex/metrics/route.ts - Created server-side aggregation API for Vertex calendar to avoid loading 19K records into memory; queries screening_date with month boundaries and returns daily breakdown + monthly totals [AQ]
+[2026-04-11] app/dashboard/vertex/page.tsx - Replaced client-side calendar data aggregation with server-side API call; removed old metrics polling; added useSWR for /api/vertex/metrics with 60s refresh [AQ]
+[2026-04-11] lib/koboMapper.ts - Fixed date format: all date fields now use ISO YYYY-MM-DD instead of DD/MM/YYYY for Supabase DATE column compatibility; added toISODate() and parseSubmittedOn() helpers; kept toDDMMYYYY() for display/export only [AQ]
+[2026-04-11] README.md - Added SQL migration to backfill screening_date from submitted_on for 19,218 existing NULL records [AQ]
+[2026-04-11] ROOT - Deleted 4 dead patch/debug files [AQ]
+[2026-04-11] app/api/webhook/kobo/route.ts - Replaced local transformPayload with centralized lib/koboMapper mapping [AQ]
+[2026-04-11] lib/koboMapper.ts - Expanded mapped fields to preserve data parity with incoming Kobo webhook payloads [AQ]
+[2026-04-11] app/api/retry-sheet-sync/route.ts - Created secure batch retry endpoint for failed ETL dispatches [AQ]
+[2026-04-11] app/api/vertex/metrics/route.ts - Optimized to single-query year-aware endpoint with view=year/month param; replaced 12×5 parallel queries with 1 query; added 5min edge cache [AQ]
+[2026-04-11] components/ScreeningCalendar.tsx - Enhanced calendar day tooltips to show all metrics: screened, suspected, TB+, on ATT, referred (previously only showed screened and TB+) [AQ]

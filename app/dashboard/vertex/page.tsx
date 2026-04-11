@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import useSWR from 'swr';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope, isSuperuser } from '@/hooks/useSessionScope';
 import { useEntityStore } from '@/stores/useEntityStore';
@@ -14,6 +15,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Filter, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { LinesAndDotsLoader } from '@/components/LinesAndDotsLoader';
+
+// Simple fetcher for SWR
+const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 const NeuralDashboard = dynamic(() => import('@/app/dashboard/neural-dashboard-view'), {
   ssr: false,
@@ -58,14 +62,42 @@ export default function VertexPage() {
 function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSessionScope>> }) {
   const { data: globalPatients = [], isLoading, error } = useSWRAllPatients(scope);
   
-  const [metrics, setMetrics] = useState({ total: 0, pending: 0, thisMonth: 0, onATT: 0 });
   const [view, setView] = useState<'table' | 'calendar'>('table');
-  const [filters, setFilters] = useState<VertexFilters>(DEFAULT_FILTERS);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const national = isSuperuser(scope);
   const setFilter = useEntityStore(s => s.setGlobalFilter);
+
+  // State/district filters for query
+  const [filters, setFilters] = useState<VertexFilters>(DEFAULT_FILTERS);
+  const selectedState = filters.state;
+  const selectedDistrict = filters.district;
+
+  // ONE call for full year calendar data (cached 5min)
+  const { data: yearMetrics } = useSWR(
+    view === 'calendar' 
+      ? `/api/vertex/metrics?year=${currentYear}&view=year&state=${selectedState || 'all'}&district=${selectedDistrict || 'all'}`
+      : null,
+    fetcher,
+    {
+      dedupingInterval: 300000, // 5 min — calendar data
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    }
+  );
+
+  // Separate call for selected month totals panel
+  const { data: monthMetrics } = useSWR(
+    `/api/vertex/metrics?year=${currentYear}&month=${currentMonth}&view=month&state=${selectedState || 'all'}&district=${selectedDistrict || 'all'}`,
+    fetcher,
+    {
+      dedupingInterval: 60000,
+      revalidateOnFocus: false,
+    }
+  );
 
   const canExport = ['PM', 'admin', 'SPM'].includes(scope.role ?? '');
   
@@ -106,16 +138,22 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     });
   }, [globalPatients, filters, selectedCalendarDate]);
 
+  // Calendar dots use yearMetrics
   const calendarData = useMemo(() => {
-    const map: Record<string, { count: number; tbPositive: number }> = {};
-    globalPatients.forEach(p => {
-      if (!p.screening_date) return;
-      if (!map[p.screening_date]) map[p.screening_date] = { count: 0, tbPositive: 0 };
-      map[p.screening_date].count++;
-      if (p.tb_diagnosed === 'Yes') map[p.screening_date].tbPositive++;
-    });
-    return Object.entries(map).map(([date, v]) => ({ date, ...v }));
-  }, [globalPatients]);
+    return yearMetrics?.dailyBreakdown || [];
+  }, [yearMetrics]);
+
+  // Monthly overview panel uses monthMetrics
+  const monthlyStats = useMemo(() => {
+    if (!monthMetrics) return null;
+    return {
+      screened: monthMetrics.screened,
+      suspected: monthMetrics.suspected,
+      diagnosed: monthMetrics.diagnosed,
+      attStarted: monthMetrics.attStarted,
+      referred: monthMetrics.referred,
+    };
+  }, [monthMetrics]);
 
   const handleExport = useCallback(async () => {
     setIsExporting(true);
@@ -136,25 +174,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     setView('table');
   }, []);
 
-  useEffect(() => {
-    async function fetchMetrics() {
-      try {
-        const response = await fetch('/api/metrics');
-        if (!response.ok) {
-          console.error('[Vertex] Metrics API error:', response.status);
-          return;
-        }
-        const data = await response.json();
-        setMetrics(data);
-      } catch (error) {
-        console.error('[Vertex] Failed to fetch metrics:', error);
-      }
-    }
 
-    fetchMetrics();
-    const id = setInterval(fetchMetrics, 30000);
-    return () => clearInterval(id);
-  }, []);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">

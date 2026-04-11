@@ -212,7 +212,7 @@ function formatSubmissionTimestamp(isoTimestamp: string): string {
 }
 
 /**
- * 📅 Convert date string to DD/MM/YYYY format
+ * 📅 Convert date string to DD/MM/YYYY format (for display/export only)
  */
 function toDDMMYYYY(v: string | number): string {
   if (!v) return '';
@@ -229,6 +229,88 @@ function toDDMMYYYY(v: string | number): string {
 }
 
 /**
+ * 📅 Convert date string to ISO format YYYY-MM-DD (for Supabase DATE columns)
+ */
+function toISODate(raw: string | number | null | undefined): string | null {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  
+  // Already ISO format: YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    return s.substring(0, 10);
+  }
+  
+  // DD/MM/YYYY or DD/MM/YY format
+  const dmyMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (dmyMatch) {
+    const day = dmyMatch[1].padStart(2, '0');
+    const month = dmyMatch[2].padStart(2, '0');
+    const year = dmyMatch[3].length === 2 
+      ? '20' + dmyMatch[3] 
+      : dmyMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+  
+  // "Submitted on DD/MM/YY at H:MM AM/PM IST" format
+  const submittedMatch = s.match(
+    /(\d{1,2})\/(\d{1,2})\/(\d{2,4})/
+  );
+  if (submittedMatch) {
+    const day = submittedMatch[1].padStart(2, '0');
+    const month = submittedMatch[2].padStart(2, '0');
+    const year = submittedMatch[3].length === 2 
+      ? '20' + submittedMatch[3] 
+      : submittedMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+
+  // Try native Date parsing as last resort
+  const parsed = new Date(s);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toISOString().substring(0, 10);
+  }
+  
+  return null;
+}
+
+/**
+ * 📅 Parse submitted_on timestamp to ISO format with IST timezone
+ */
+function parseSubmittedOn(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  
+  // Already ISO timestamp
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s;
+  
+  // "Submitted on DD/MM/YY at H:MM AM/PM IST" format
+  const m = s.match(
+    /(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+at\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i
+  );
+  if (m) {
+    const day = m[1].padStart(2, '0');
+    const month = m[2].padStart(2, '0');
+    const year = m[3].length === 2 ? '20' + m[3] : m[3];
+    let hours = parseInt(m[4]);
+    const mins = m[5];
+    const ampm = m[6].toUpperCase();
+    if (ampm === 'PM' && hours < 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+    const hh = String(hours).padStart(2, '0');
+    // IST = UTC+5:30
+    return `${year}-${month}-${day}T${hh}:${mins}:00+05:30`;
+  }
+  
+  // Try native Date parsing
+  const parsed = new Date(s);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toISOString();
+  }
+  
+  return null;
+}
+
+/**
  * 📝 Convert to proper case (First letter capital)
  */
 function toProperCase(s: string): string {
@@ -240,13 +322,10 @@ function toProperCase(s: string): string {
  * 🏥️ Extract GPS coordinates from _geolocation array
  */
 function extractCoordinates(geolocation: any): { latitude: number | null; longitude: number | null } {
-  if (!geolocation || !Array.isArray(geolocation)) {
-    return { latitude: null, longitude: null };
-  }
-  
+  const geo = Array.isArray(geolocation) ? geolocation : [];
   return {
-    latitude: geolocation[0] ? parseFloat(geolocation[0]) : null,
-    longitude: geolocation[1] ? parseFloat(geolocation[1]) : null
+    latitude: geo[0] != null ? parseFloat(String(geo[0])) : null,
+    longitude: geo[1] != null ? parseFloat(String(geo[1])) : null
   };
 }
 
@@ -332,12 +411,12 @@ export interface MappedPatientData {
   district: string;
   facility_name: string;
   facility_type: string;
-  screening_date: string;
+  screening_date: string | null;
   unique_id: string;
   inmate_name: string;
   inmate_type: string;
   father_husband_name: string;
-  date_of_birth: string;
+  date_of_birth: string | null;
   age: string;
   sex: string;
   contact_number: string;
@@ -345,24 +424,45 @@ export interface MappedPatientData {
   chest_xray_result: string;
   symptoms_10s: string;
   tb_past_history: string;
-  referral_date: string;
+  referral_date: string | null;
   referred_facility: string;
   tb_diagnosed: string;
-  tb_diagnosis_date: string;
+  tb_diagnosis_date: string | null;
   tb_type: string;
-  att_start_date: string;
-  att_completion_date: string;
+  att_start_date: string | null;
+  att_completion_date: string | null;
   hiv_status: string;
   art_status_at_referral: string;
   art_number: string;
   nikshay_abha_id: string;
-  nikshay_registration_date: string;
+  nikshay_registration_date: string | null;
   remarks: string;
   kobo_uuid: string;
   kobo_id: string;
   serial_number: string;
   latitude: number | null;
   longitude: number | null;
+  microplan_block: string;
+  symptom_cough_2weeks: boolean;
+  symptom_fever: boolean;
+  symptom_night_sweats: boolean;
+  symptom_weight_loss: boolean;
+  symptom_haemoptysis: boolean;
+  symptom_chest_pain: boolean;
+  symptom_breathlessness: boolean;
+  symptom_lymphadenopathy: boolean;
+  symptom_loss_of_appetite: boolean;
+  symptom_other: boolean;
+  symptom_other_detail: string;
+  xray_done: boolean;
+  cbnaat_done: boolean;
+  cbnaat_result: string;
+  referred_for_diagnosis: boolean;
+  dr_tb: boolean;
+  att_started: boolean;
+  treatment_regimen: string;
+  dots_provider: string;
+  treatment_status: string;
 }
 
 export interface FacilityCounters {
@@ -444,8 +544,8 @@ export function mapKoboPayloadToSupabase(
   ])).toLowerCase();
   const facilityType = mappings.facilityTypeMapping[facilityTypeRaw] || facilityTypeRaw;
 
-  // Column 6: Screening Date (4-way fallback)
-  const screeningDate = toDDMMYYYY(getField(payload, [
+  // Column 6: Screening Date (4-way fallback) - ISO format for Supabase
+  const screeningDate = toISODate(getField(payload, [
     'grp_screening/screening_date', 
     'screening_date', 
     'grp_screening/Date_of_Screening_CH_x_ray_dd_mm_yy', 
@@ -487,8 +587,8 @@ export function mapKoboPayloadToSupabase(
     'Father_Husband_s_Name'
   ]));
 
-  // Column 11: Date of Birth (4-way fallback)
-  const dateOfBirth = toDDMMYYYY(getField(payload, [
+  // Column 11: Date of Birth (4-way fallback) - ISO format for Supabase
+  const dateOfBirth = toISODate(getField(payload, [
     'grp_demo/date_of_birth', 
     'date_of_birth', 
     'grp_demo/Date_of_Birth', 
@@ -553,8 +653,8 @@ export function mapKoboPayloadToSupabase(
     'Whether_any_past_history_of_TB_Y_N'
   ])] || "No";
 
-  // Column 19: Referral Date (4-way fallback)
-  const referralDate = toDDMMYYYY(getField(payload, [
+  // Column 19: Referral Date (4-way fallback) - ISO format for Supabase
+  const referralDate = toISODate(getField(payload, [
     'grp_referral/referral_date', 
     'referral_date', 
     'grp_referral/Date_of_referral_for_ion_sputum_dd_mm_yy', 
@@ -577,8 +677,8 @@ export function mapKoboPayloadToSupabase(
     'TB_diagnosed'
   ])] || "No";
 
-  // Column 22: Diagnosis Date (4-way fallback)
-  const tbDiagnosisDate = toDDMMYYYY(getField(payload, [
+  // Column 22: Diagnosis Date (4-way fallback) - ISO format for Supabase
+  const tbDiagnosisDate = toISODate(getField(payload, [
     'grp_referral/tb_diagnosis_date', 
     'tb_diagnosis_date', 
     'grp_referral/Date_of_TB_Diagnosed_dd_mm_yy', 
@@ -593,16 +693,16 @@ export function mapKoboPayloadToSupabase(
     'Type_of_TB_Diagnosed_P_EP'
   ])] || "";
 
-  // Column 24: ATT Start Date (4-way fallback)
-  const attStartDate = toDDMMYYYY(getField(payload, [
+  // Column 24: ATT Start Date (4-way fallback) - ISO format for Supabase
+  const attStartDate = toISODate(getField(payload, [
     'grp_referral/att_start_date', 
     'att_start_date', 
     'grp_referral/Date_of_starting_ATT_dd_mm_yyyy', 
     'Date_of_starting_ATT_dd_mm_yyyy'
   ]));
 
-  // Column 25: ATT Completion Date (4-way fallback)
-  const attCompletionDate = toDDMMYYYY(getField(payload, [
+  // Column 25: ATT Completion Date (4-way fallback) - ISO format for Supabase
+  const attCompletionDate = toISODate(getField(payload, [
     'grp_referral/att_completion_date', 
     'att_completion_date', 
     'grp_referral/Date_of_Treatment_Completion_dd_mm_yyyy', 
@@ -641,8 +741,8 @@ export function mapKoboPayloadToSupabase(
     'NIKSHAY_ABHA_ID'
   ])).toUpperCase();
 
-  // Column 30: Nikshay Registration Date (4-way fallback)
-  const nikshayRegistrationDate = toDDMMYYYY(getField(payload, [
+  // Column 30: Nikshay Registration Date (4-way fallback) - ISO format for Supabase
+  const nikshayRegistrationDate = toISODate(getField(payload, [
     'grp_reg/nikshay_registration_date', 
     'nikshay_registration_date', 
     'grp_reg/Date_of_registration_dd_mm_yyyy', 
@@ -671,8 +771,40 @@ export function mapKoboPayloadToSupabase(
     'SERIAL_NUMBER'
   ]);
 
+  // Handle boolean mapping helper
+  const parseBool = (v: any): boolean => {
+    const s = String(v).toLowerCase();
+    return s === 'true' || s === '1' || s === 'yes' || s === 'selected';
+  };
+
+  // Additional fields from original Webhook mapping
+  const microplanBlock = getField(payload, ['grp_screening/Microplan_Block', 'Microplan_Block']);
+  const cbnaatResult = getField(payload, ['grp_tb/CBNAAT_Result', 'CBNAAT_Result']);
+  const treatmentRegimen = getField(payload, ['grp_treatment/Treatment_Regimen', 'Treatment_Regimen']);
+  const dotsProvider = getField(payload, ['grp_treatment/DOTS_Provider', 'DOTS_Provider']);
+  const treatmentStatus = getField(payload, ['grp_treatment/Treatment_Status', 'Treatment_Status']);
+  const symptomOtherDetail = getField(payload, ['grp_tb/Symptom_Other_Detail', 'Symptom_Other_Detail']);
+
+  const symptomCough2weeks = parseBool(getField(payload, ['grp_tb/Symptom_Cough_2weeks', 'Symptom_Cough_2weeks']));
+  const symptomFever = parseBool(getField(payload, ['grp_tb/Symptom_Fever', 'Symptom_Fever']));
+  const symptomNightSweats = parseBool(getField(payload, ['grp_tb/Symptom_Night_Sweats', 'Symptom_Night_Sweats']));
+  const symptomWeightLoss = parseBool(getField(payload, ['grp_tb/Symptom_Weight_Loss', 'Symptom_Weight_Loss']));
+  const symptomHaemoptysis = parseBool(getField(payload, ['grp_tb/Symptom_Haemoptysis', 'Symptom_Haemoptysis']));
+  const symptomChestPain = parseBool(getField(payload, ['grp_tb/Symptom_Chest_Pain', 'Symptom_Chest_Pain']));
+  const symptomBreathlessness = parseBool(getField(payload, ['grp_tb/Symptom_Breathlessness', 'Symptom_Breathlessness']));
+  const symptomLymphadenopathy = parseBool(getField(payload, ['grp_tb/Symptom_Lymphadenopathy', 'Symptom_Lymphadenopathy']));
+  const symptomLossOfAppetite = parseBool(getField(payload, ['grp_tb/Symptom_Loss_of_Appetite', 'Symptom_Loss_of_Appetite']));
+  const symptomOther = parseBool(getField(payload, ['grp_tb/Symptom_Other', 'Symptom_Other']));
+  const xrayDone = parseBool(getField(payload, ['grp_tb/Xray_Done', 'Xray_Done']));
+  const cbnaatDone = parseBool(getField(payload, ['grp_tb/CBNAAT_Done', 'CBNAAT_Done']));
+  const referredForDiagnosis = parseBool(getField(payload, ['grp_referral/Referred_for_Diagnosis', 'Referred_for_Diagnosis']));
+  const drTb = parseBool(getField(payload, ['grp_treatment/DR_TB', 'DR_TB']));
+  const attStarted = parseBool(getField(payload, ['grp_treatment/ATT_Started', 'ATT_Started']));
+
   // Column 35-36: GPS coordinates (from _geolocation)
-  const { latitude, longitude } = extractCoordinates(payload._geolocation);
+  const geo = Array.isArray(payload._geolocation) ? payload._geolocation : [];
+  const latitude = geo[0] != null ? parseFloat(String(geo[0])) : null;
+  const longitude = geo[1] != null ? parseFloat(String(geo[1])) : null;
 
   return {
     staff_name: staffName,
@@ -711,7 +843,28 @@ export function mapKoboPayloadToSupabase(
     kobo_id: koboId,
     serial_number: serialNumber,
     latitude,
-    longitude
+    longitude,
+    microplan_block: microplanBlock,
+    symptom_cough_2weeks: symptomCough2weeks,
+    symptom_fever: symptomFever,
+    symptom_night_sweats: symptomNightSweats,
+    symptom_weight_loss: symptomWeightLoss,
+    symptom_haemoptysis: symptomHaemoptysis,
+    symptom_chest_pain: symptomChestPain,
+    symptom_breathlessness: symptomBreathlessness,
+    symptom_lymphadenopathy: symptomLymphadenopathy,
+    symptom_loss_of_appetite: symptomLossOfAppetite,
+    symptom_other: symptomOther,
+    symptom_other_detail: symptomOtherDetail,
+    xray_done: xrayDone,
+    cbnaat_done: cbnaatDone,
+    cbnaat_result: cbnaatResult,
+    referred_for_diagnosis: referredForDiagnosis,
+    dr_tb: drTb,
+    att_started: attStarted,
+    treatment_regimen: treatmentRegimen,
+    dots_provider: dotsProvider,
+    treatment_status: treatmentStatus
   };
 }
 
