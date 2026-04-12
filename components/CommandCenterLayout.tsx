@@ -34,7 +34,7 @@ export function CommandCenterLayout({
   heatmapMode,
   onHeatmapModeChange,
 }: CommandCenterLayoutProps) {
-  const { filter, setDistrict, setStatus, resetFilters, hasActiveFilters } = useUniversalFilter();
+  const { filter, setDistrict, setState, setStatus, resetFilters, hasActiveFilters } = useUniversalFilter();
 
   const [isLegendOpen, setIsLegendOpen] = useState(false);
   const [aiInsights, setAiInsights] = useState<{insightText: string, activeNode: string, timestamp: number}[]>([]);

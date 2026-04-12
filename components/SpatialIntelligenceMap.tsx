@@ -1492,3 +1492,4 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
   </CommandCenterLayout>
   );
 });
+
