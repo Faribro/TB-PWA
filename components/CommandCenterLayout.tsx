@@ -224,45 +224,64 @@ export function CommandCenterLayout({
           </div>
         </div>
 
-        <div className="absolute left-1/2 -translate-x-1/2 hidden xl:flex items-center gap-1.5 bg-[#0a0a0a] border border-[#222] p-1 rounded-sm shadow-inner overflow-hidden">
-          {[
-            { id: 'All', label: 'ALL', icon: Globe },
-            { id: 'Suspected', label: 'SUSPECTED', icon: Search, color: 'text-amber-500', glow: 'shadow-[0_0_12px_rgba(245,158,11,0.4)]' },
-            { id: 'Normal', label: 'NORMAL', icon: Activity, color: 'text-emerald-500', glow: 'shadow-[0_0_12px_rgba(16,185,129,0.4)]' },
-            { id: 'High Alert', label: 'HIGH ALERT', icon: AlertCircle, color: 'text-red-500', glow: 'shadow-[0_0_12px_rgba(239,68,68,0.4)]' },
-          ].map((item) => {
-            const isActive = filter.status === item.id;
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  playSonarBeep();
-                  setStatus(item.id as any);
-                }}
-                className={`
-                  flex items-center gap-2 px-3 py-1.5 rounded-sm transition-all duration-300 relative group
-                  ${isActive ? 'bg-[#1a1a1a] border border-[#333] z-10' : 'hover:bg-[#111] border border-transparent'}
-                `}
-              >
-                {isActive && (
-                  <motion.div 
-                    layoutId="filter-active"
-                    className="absolute inset-0 bg-white/[0.03] pointer-events-none"
-                  />
-                )}
-                <Icon className={`w-3.5 h-3.5 ${isActive ? (item.color || 'text-cyan-400') : 'text-[#444] group-hover:text-[#888]'}`} />
-                <span className={`text-[9px] font-black tracking-[0.2em] transition-colors
-                  ${isActive ? 'text-white' : 'text-[#444] group-hover:text-[#888]'}
-                `}>
-                  {item.label}
-                </span>
-                {isActive && (
-                  <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-1/2 h-[1px] ${item.color?.replace('text', 'bg') || 'bg-cyan-500'} ${item.glow || 'shadow-[0_0_8px_rgba(34,211,238,0.6)]'}`} />
-                )}
-              </button>
-            );
-          })}
+        {/* Vertex-Style State/District Filters */}
+        <div className="absolute left-1/2 -translate-x-1/2 hidden xl:flex items-center gap-3 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] px-4 py-2 rounded-lg shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+          {/* State Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-bold tracking-widest text-[#666] uppercase">State</span>
+            <select
+              value={filter.state || ''}
+              onChange={(e) => {
+                playSonarBeep();
+                setState(e.target.value || null);
+              }}
+              className="bg-[#111] border border-[#333] text-white text-[10px] font-bold tracking-wider uppercase px-3 py-1.5 rounded-sm focus:outline-none focus:border-cyan-500/50 focus:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all cursor-pointer hover:border-[#444] min-w-[140px]"
+            >
+              <option value="">All States</option>
+              <option value="Madhya Pradesh">Madhya Pradesh</option>
+              <option value="Maharashtra">Maharashtra</option>
+              <option value="Rajasthan">Rajasthan</option>
+              <option value="Uttar Pradesh">Uttar Pradesh</option>
+              <option value="Gujarat">Gujarat</option>
+              <option value="Karnataka">Karnataka</option>
+              <option value="Delhi">Delhi</option>
+            </select>
+          </div>
+          
+          <div className="w-px h-4 bg-[#333]" />
+          
+          {/* District Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-bold tracking-widest text-[#666] uppercase">District</span>
+            <select
+              value={filter.district || ''}
+              onChange={(e) => {
+                playSonarBeep();
+                setDistrict(e.target.value || null);
+              }}
+              className="bg-[#111] border border-[#333] text-white text-[10px] font-bold tracking-wider uppercase px-3 py-1.5 rounded-sm focus:outline-none focus:border-cyan-500/50 focus:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all cursor-pointer hover:border-[#444] min-w-[140px]"
+            >
+              <option value="">All Districts</option>
+              {topDistricts.map((d: string) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Clear Filters */}
+          {(filter.state || filter.district) && (
+            <button
+              onClick={() => {
+                playSonarBeep();
+                setState(null);
+                setDistrict(null);
+              }}
+              className="flex items-center gap-1 text-[9px] text-cyan-400 hover:text-white transition-colors ml-2"
+            >
+              <X className="w-3 h-3" />
+              Clear
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-4 text-[10px] font-bold tracking-[0.1em] text-[#777]">
@@ -414,7 +433,7 @@ export function CommandCenterLayout({
                     </AnimatePresence>
 
                     <div 
-                      className="w-full h-full bg-gradient-to-br from-[#0f0f0f] to-[#0a0a0a] backdrop-blur-2xl border-[1.5px] rounded-xl transition-all duration-500 flex flex-col overflow-hidden relative transform-gpu p-3 group-hover/tile:shadow-[0_0_40px_rgba(34,211,238,0.3)]"
+                      className="w-full h-full bg-gradient-to-br from-[#0f0f0f] to-[#0a0a0a] backdrop-blur-2xl border-[1.5px] rounded-xl transition-all duration-500 flex flex-col overflow-hidden relative transform-gpu p-3 group-hover/tile:shadow-[0_0_40px_rgba(34,211,238,0.3)] group/card"
                       style={{
                         borderColor: isSelected ? 'rgba(255,255,255,0.9)' : `rgba(${glowColor}, 0.5)`,
                         boxShadow: isSelected 
@@ -422,6 +441,11 @@ export function CommandCenterLayout({
                           : `0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)`
                       }}
                     >
+                       {/* Animated border glow */}
+                       <div 
+                         className="absolute -inset-[1px] rounded-xl opacity-40 blur-[2px] transition-opacity duration-500 group-hover/card:opacity-80"
+                         style={{ background: `linear-gradient(135deg, rgba(${glowColor}, 0.6) 0%, transparent 50%, rgba(${glowColor}, 0.3) 100%)` }}
+                       />
                        {/* Premium glass overlay */}
                        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] via-transparent to-transparent pointer-events-none" />
                        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
