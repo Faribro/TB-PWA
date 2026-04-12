@@ -314,7 +314,7 @@ export function CommandCenterLayout({
 
             <div 
               ref={matrixRef}
-              className="w-full h-full flex overflow-x-auto overflow-y-hidden hidden-scrollbar gap-2 bg-[#0a0a0a] p-3"
+              className="w-full h-full grid grid-cols-6 gap-2 bg-[#0a0a0a] p-3 overflow-hidden"
             >
                {topDistricts.map((dist:any, i) => {
                  const districtPatients = activePool.filter((p: any) => p.screening_district === dist);
@@ -377,7 +377,7 @@ export function CommandCenterLayout({
                        <div className="w-full h-full flex flex-col items-center justify-center relative">
                          <div className="absolute inset-0 opacity-20 mix-blend-screen transition-opacity group-hover/tile:opacity-40" style={{ background: `radial-gradient(circle at 50% 80%, rgba(${glowColor}, 0.3), transparent 70%)` }} />
                          
-                         <dt className={`text-[44px] font-black tracking-tighter transition-all z-10 tabular-nums leading-none select-none ${isSelected ? 'text-white' : textColor}`}
+                         <dt className={`text-[32px] font-black tracking-tighter transition-all z-10 tabular-nums leading-none select-none ${isSelected ? 'text-white' : textColor}`}
                              style={{ 
                                textShadow: isSelected 
                                  ? `0 0 30px rgba(255,255,255,0.8), 0 0 60px rgba(${glowColor},0.6)` 
@@ -385,7 +385,6 @@ export function CommandCenterLayout({
                              }}>
                            {vol}
                          </dt>
-                         <span className={`text-[8px] font-black mt-0.5 tracking-[0.3em] ${isSelected ? 'text-white/70' : 'text-[#555]'} transition-colors uppercase`}>T-VOL</span>
                          
                          {/* Holographic Bar Chart */}
                          <div className="absolute bottom-4 left-4 right-4 h-1 bg-black/40 rounded-full overflow-hidden">
@@ -402,17 +401,6 @@ export function CommandCenterLayout({
                          </div>
                        </div>
 
-                       <div className="absolute bottom-2 right-2 z-10 flex items-center gap-2">
-                         <span className="px-1.5 py-0.5 border rounded-sm font-mono text-[7px] font-black backdrop-blur-sm transition-all"
-                               style={{
-                                 backgroundColor: isSelected ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.7)',
-                                 color: isSelected ? '#000' : `rgb(${glowColor})`,
-                                 borderColor: isSelected ? 'rgba(255,255,255,0.9)' : `rgba(${glowColor}, 0.4)`,
-                                 boxShadow: isSelected ? `0 0 15px rgba(${glowColor}, 0.6)` : 'none'
-                               }}>
-                           NX-{String(i+1).padStart(2, '0')}
-                         </span>
-                       </div>
                     </div>
                   </div>
                  );
