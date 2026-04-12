@@ -197,51 +197,64 @@ export default function CommandHubPage() {
           className="w-full max-w-[1400px] mx-auto px-6 mt-2 mb-8"
           data-tour-id="kpi-dashboard-bar"
         >
-          {/* Premium Metrics Bar with Glassmorphism */}
-          <div className="relative rounded-2xl overflow-hidden">
-            {/* Animated gradient background */}
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10" />
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+          {/* Ultra-Premium Metrics Bar */}
+          <div className="relative rounded-3xl overflow-hidden">
+            {/* Animated gradient background with multiple layers */}
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-pink-500/5 animate-pulse" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
             
-            {/* Glassmorphism card */}
-            <div className="relative bg-white/80 backdrop-blur-xl border border-white/60 shadow-[0_8px_40px_rgba(15,23,42,0.1)] p-5">
-              <div className="flex flex-wrap items-center gap-5 md:gap-8">
-                {/* Screened - Premium Card */}
+            {/* Ambient glow effects */}
+            <div className="absolute -top-20 -left-20 w-60 h-60 bg-gradient-to-br from-blue-400/20 to-cyan-400/20 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute -bottom-20 -right-20 w-60 h-60 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+            
+            {/* Glassmorphism card with premium shadow */}
+            <div className="relative bg-white/90 backdrop-blur-2xl border border-white/80 shadow-[0_8px_50px_rgba(0,0,0,0.08),0_0_0_1px_rgba(255,255,255,0.5)] p-6">
+              <div className="flex flex-wrap items-center gap-6 md:gap-8">
+                {/* Screened - Ultra Premium Card */}
                 <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.1 }}
-                  className="relative group min-w-[200px] flex-1"
+                  initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.1, type: 'spring', stiffness: 200 }}
+                  className="relative group min-w-[220px] flex-1"
                   data-tour-id="kpi-screened"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative p-4 rounded-xl border border-blue-100/50 bg-gradient-to-br from-blue-50/50 to-transparent hover:from-blue-50/70 transition-all">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg">
-                        <Activity className="w-4 h-4 text-white" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 via-blue-500/5 to-cyan-500/0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="relative p-5 rounded-2xl border border-blue-100/60 bg-gradient-to-br from-blue-50/70 via-white to-transparent hover:from-blue-50/90 transition-all duration-500 shadow-[0_4px_20px_rgba(59,130,246,0.08)] hover:shadow-[0_8px_30px_rgba(59,130,246,0.15)]">
+                    {/* Animated border glow */}
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-400/0 via-blue-400/30 to-blue-400/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    
+                    <div className="relative flex items-center gap-3 mb-4">
+                      <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent rounded-xl" />
+                        <Activity className="w-5 h-5 text-white relative z-10" />
                       </div>
-                      <p className="text-[10px] uppercase tracking-[0.15em] text-blue-600 font-bold">Screened</p>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-blue-600/80 font-bold">Screened</p>
+                        <div className="h-0.5 w-8 bg-gradient-to-r from-blue-400 to-transparent rounded-full mt-1" />
+                      </div>
                     </div>
-                    <div className="space-y-2">
+                    
+                    <div className="space-y-3">
                       <div className="flex items-baseline justify-between">
-                        <span className="text-[8px] text-blue-400/70 uppercase tracking-wider">Today</span>
+                        <span className="text-[8px] uppercase tracking-[0.15em] text-blue-400/60 font-semibold">Today</span>
                         <motion.span 
                           key={`today-screened-${metrics?.todayScreened}`}
-                          initial={{ y: -10, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          className="text-2xl font-black text-blue-700 tabular-nums"
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: 'spring', stiffness: 300 }}
+                          className="text-3xl font-black text-blue-700 tabular-nums tracking-tight"
                         >
                           {metrics?.todayScreened?.toLocaleString() || '0'}
                         </motion.span>
                       </div>
                       <div className="flex items-baseline justify-between">
-                        <span className="text-[8px] text-blue-400/70 uppercase tracking-wider">Total</span>
+                        <span className="text-[8px] uppercase tracking-[0.15em] text-blue-400/60 font-semibold">Total</span>
                         <motion.span 
                           key={`total-screened-${metrics?.totalScreened}`}
-                          initial={{ y: -10, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          transition={{ delay: 0.05 }}
-                          className="text-lg font-bold text-blue-500/80 tabular-nums"
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: 'spring', stiffness: 300, delay: 0.05 }}
+                          className="text-xl font-bold text-blue-500/90 tabular-nums tracking-tight"
                         >
                           {metrics?.totalScreened?.toLocaleString() || '0'}
                         </motion.span>
@@ -250,42 +263,50 @@ export default function CommandHubPage() {
                   </div>
                 </motion.div>
 
-                {/* Suspected - Premium Card */}
+                {/* Suspected - Ultra Premium Card */}
                 <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="relative group min-w-[200px] flex-1"
+                  initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2, type: 'spring', stiffness: 200 }}
+                  className="relative group min-w-[220px] flex-1"
                   data-tour-id="kpi-flagged"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 to-amber-500/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative p-4 rounded-xl border border-amber-100/50 bg-gradient-to-br from-amber-50/50 to-transparent hover:from-amber-50/70 transition-all">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-400 flex items-center justify-center shadow-lg">
-                        <Target className="w-4 h-4 text-white" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 via-amber-500/5 to-orange-500/0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="relative p-5 rounded-2xl border border-amber-100/60 bg-gradient-to-br from-amber-50/70 via-white to-transparent hover:from-amber-50/90 transition-all duration-500 shadow-[0_4px_20px_rgba(245,158,11,0.08)] hover:shadow-[0_8px_30px_rgba(245,158,11,0.15)]">
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-amber-400/0 via-amber-400/30 to-amber-400/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    
+                    <div className="relative flex items-center gap-3 mb-4">
+                      <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-400 flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent rounded-xl" />
+                        <Target className="w-5 h-5 text-white relative z-10" />
                       </div>
-                      <p className="text-[10px] uppercase tracking-[0.15em] text-amber-600 font-bold">Suspected</p>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-amber-600/80 font-bold">Suspected</p>
+                        <div className="h-0.5 w-8 bg-gradient-to-r from-amber-400 to-transparent rounded-full mt-1" />
+                      </div>
                     </div>
-                    <div className="space-y-2">
+                    
+                    <div className="space-y-3">
                       <div className="flex items-baseline justify-between">
-                        <span className="text-[8px] text-amber-400/70 uppercase tracking-wider">Today</span>
+                        <span className="text-[8px] uppercase tracking-[0.15em] text-amber-400/60 font-semibold">Today</span>
                         <motion.span 
                           key={`today-suspected-${metrics?.todaySuspected}`}
-                          initial={{ y: -10, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          className="text-2xl font-black text-amber-700 tabular-nums"
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: 'spring', stiffness: 300 }}
+                          className="text-3xl font-black text-amber-700 tabular-nums tracking-tight"
                         >
                           {metrics?.todaySuspected?.toLocaleString() || '0'}
                         </motion.span>
                       </div>
                       <div className="flex items-baseline justify-between">
-                        <span className="text-[8px] text-amber-400/70 uppercase tracking-wider">Total</span>
+                        <span className="text-[8px] uppercase tracking-[0.15em] text-amber-400/60 font-semibold">Total</span>
                         <motion.span 
                           key={`total-suspected-${metrics?.totalSuspected}`}
-                          initial={{ y: -10, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          transition={{ delay: 0.05 }}
-                          className="text-lg font-bold text-amber-500/80 tabular-nums"
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: 'spring', stiffness: 300, delay: 0.05 }}
+                          className="text-xl font-bold text-amber-500/90 tabular-nums tracking-tight"
                         >
                           {metrics?.totalSuspected?.toLocaleString() || '0'}
                         </motion.span>
@@ -294,41 +315,49 @@ export default function CommandHubPage() {
                   </div>
                 </motion.div>
 
-                {/* Diagnosed - Premium Card */}
+                {/* Diagnosed - Ultra Premium Card */}
                 <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.3 }}
-                  className="relative group min-w-[200px] flex-1"
+                  initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3, type: 'spring', stiffness: 200 }}
+                  className="relative group min-w-[220px] flex-1"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 to-emerald-500/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative p-4 rounded-xl border border-emerald-100/50 bg-gradient-to-br from-emerald-50/50 to-transparent hover:from-emerald-50/70 transition-all">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-green-400 flex items-center justify-center shadow-lg">
-                        <Shield className="w-4 h-4 text-white" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 via-emerald-500/5 to-green-500/0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="relative p-5 rounded-2xl border border-emerald-100/60 bg-gradient-to-br from-emerald-50/70 via-white to-transparent hover:from-emerald-50/90 transition-all duration-500 shadow-[0_4px_20px_rgba(16,185,129,0.08)] hover:shadow-[0_8px_30px_rgba(16,185,129,0.15)]">
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-emerald-400/0 via-emerald-400/30 to-emerald-400/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    
+                    <div className="relative flex items-center gap-3 mb-4">
+                      <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-400 flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent rounded-xl" />
+                        <Shield className="w-5 h-5 text-white relative z-10" />
                       </div>
-                      <p className="text-[10px] uppercase tracking-[0.15em] text-emerald-600 font-bold">Diagnosed</p>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-600/80 font-bold">Diagnosed</p>
+                        <div className="h-0.5 w-8 bg-gradient-to-r from-emerald-400 to-transparent rounded-full mt-1" />
+                      </div>
                     </div>
-                    <div className="space-y-2">
+                    
+                    <div className="space-y-3">
                       <div className="flex items-baseline justify-between">
-                        <span className="text-[8px] text-emerald-400/70 uppercase tracking-wider">Today</span>
+                        <span className="text-[8px] uppercase tracking-[0.15em] text-emerald-400/60 font-semibold">Today</span>
                         <motion.span 
                           key={`today-diagnosed-${metrics?.todayDiagnosed}`}
-                          initial={{ y: -10, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          className="text-2xl font-black text-emerald-700 tabular-nums"
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: 'spring', stiffness: 300 }}
+                          className="text-3xl font-black text-emerald-700 tabular-nums tracking-tight"
                         >
                           {metrics?.todayDiagnosed?.toLocaleString() || '0'}
                         </motion.span>
                       </div>
                       <div className="flex items-baseline justify-between">
-                        <span className="text-[8px] text-emerald-400/70 uppercase tracking-wider">Total</span>
+                        <span className="text-[8px] uppercase tracking-[0.15em] text-emerald-400/60 font-semibold">Total</span>
                         <motion.span 
                           key={`total-diagnosed-${metrics?.totalDiagnosed}`}
-                          initial={{ y: -10, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          transition={{ delay: 0.05 }}
-                          className="text-lg font-bold text-emerald-500/80 tabular-nums"
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: 'spring', stiffness: 300, delay: 0.05 }}
+                          className="text-xl font-bold text-emerald-500/90 tabular-nums tracking-tight"
                         >
                           {metrics?.totalDiagnosed?.toLocaleString() || '0'}
                         </motion.span>
@@ -337,41 +366,49 @@ export default function CommandHubPage() {
                   </div>
                 </motion.div>
 
-                {/* Pending - Premium Card */}
+                {/* Pending - Ultra Premium Card */}
                 <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.4 }}
-                  className="relative group min-w-[200px] flex-1"
+                  initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4, type: 'spring', stiffness: 200 }}
+                  className="relative group min-w-[220px] flex-1"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative p-4 rounded-xl border border-blue-100/50 bg-gradient-to-br from-blue-50/50 to-transparent hover:from-blue-50/70 transition-all">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-400 flex items-center justify-center shadow-lg">
-                        <Clock className="w-4 h-4 text-white" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 via-blue-500/5 to-indigo-500/0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="relative p-5 rounded-2xl border border-blue-100/60 bg-gradient-to-br from-blue-50/70 via-white to-transparent hover:from-blue-50/90 transition-all duration-500 shadow-[0_4px_20px_rgba(59,130,246,0.08)] hover:shadow-[0_8px_30px_rgba(59,130,246,0.15)]">
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-400/0 via-blue-400/30 to-blue-400/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    
+                    <div className="relative flex items-center gap-3 mb-4">
+                      <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-400 flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent rounded-xl" />
+                        <Clock className="w-5 h-5 text-white relative z-10" />
                       </div>
-                      <p className="text-[10px] uppercase tracking-[0.15em] text-blue-600 font-bold">Pending</p>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-blue-600/80 font-bold">Pending</p>
+                        <div className="h-0.5 w-8 bg-gradient-to-r from-blue-400 to-transparent rounded-full mt-1" />
+                      </div>
                     </div>
-                    <div className="space-y-2">
+                    
+                    <div className="space-y-3">
                       <div className="flex items-baseline justify-between">
-                        <span className="text-[8px] text-blue-400/70 uppercase tracking-wider">Today</span>
+                        <span className="text-[8px] uppercase tracking-[0.15em] text-blue-400/60 font-semibold">Today</span>
                         <motion.span 
                           key={`today-pending-${metrics?.todayPending}`}
-                          initial={{ y: -10, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          className="text-2xl font-black text-blue-700 tabular-nums"
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: 'spring', stiffness: 300 }}
+                          className="text-3xl font-black text-blue-700 tabular-nums tracking-tight"
                         >
                           {metrics?.todayPending?.toLocaleString() || '0'}
                         </motion.span>
                       </div>
                       <div className="flex items-baseline justify-between">
-                        <span className="text-[8px] text-blue-400/70 uppercase tracking-wider">Total</span>
+                        <span className="text-[8px] uppercase tracking-[0.15em] text-blue-400/60 font-semibold">Total</span>
                         <motion.span 
                           key={`total-pending-${metrics?.totalPending}`}
-                          initial={{ y: -10, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          transition={{ delay: 0.05 }}
-                          className="text-lg font-bold text-blue-500/80 tabular-nums"
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: 'spring', stiffness: 300, delay: 0.05 }}
+                          className="text-xl font-bold text-blue-500/90 tabular-nums tracking-tight"
                         >
                           {metrics?.totalPending?.toLocaleString() || '0'}
                         </motion.span>
@@ -380,35 +417,37 @@ export default function CommandHubPage() {
                   </div>
                 </motion.div>
 
-                <div className="h-14 w-px bg-gradient-to-b from-transparent via-slate-200 to-transparent hidden lg:block" />
+                <div className="h-16 w-px bg-gradient-to-b from-transparent via-slate-200 to-transparent hidden lg:block" />
                 
-                <div className="flex flex-wrap gap-2 items-center">
+                <div className="flex flex-wrap gap-3 items-center">
                   <Link
                     href="/dashboard/mande"
-                    className="group relative px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[11px] font-semibold tracking-wide shadow-lg hover:shadow-xl hover:scale-105 transition-all overflow-hidden"
+                    className="group relative px-5 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white text-[11px] font-bold tracking-wide shadow-[0_4px_20px_rgba(79,70,229,0.3)] hover:shadow-[0_8px30px_rgba(79,70,229,0.4)] hover:scale-105 transition-all duration-300 overflow-hidden"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     <span className="relative flex items-center gap-2">
-                      <TrendingUp className="w-3.5 h-3.5" />
+                      <TrendingUp className="w-4 h-4" />
                       M&E Tools
                     </span>
                   </Link>
                   <Link
                     href="/dashboard/vertex"
-                    className="group relative px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-[11px] font-semibold tracking-wide shadow-lg hover:shadow-xl hover:scale-105 transition-all overflow-hidden"
+                    className="group relative px-5 py-3 rounded-2xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 text-white text-[11px] font-bold tracking-wide shadow-[0_4px_20px_rgba(6,182,212,0.3)] hover:shadow-[0_8px30px_rgba(6,182,212,0.4)] hover:scale-105 transition-all duration-300 overflow-hidden"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     <span className="relative flex items-center gap-2">
-                      <BarChart3 className="w-3.5 h-3.5" />
+                      <BarChart3 className="w-4 h-4" />
                       Analytics
                     </span>
                   </Link>
                   <Link
                     href="/docs"
-                    className="group relative px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-[11px] font-semibold tracking-wide hover:border-slate-300 hover:bg-slate-50 transition-all"
+                    className="group relative px-5 py-3 rounded-2xl bg-white border border-slate-200/80 text-slate-700 text-[11px] font-bold tracking-wide hover:border-slate-300 hover:bg-slate-50/80 hover:shadow-lg transition-all duration-300"
                   >
                     <span className="relative flex items-center gap-2">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      <Sparkles className="w-4 h-4 text-amber-500" />
                       Knowledge
                     </span>
                   </Link>
