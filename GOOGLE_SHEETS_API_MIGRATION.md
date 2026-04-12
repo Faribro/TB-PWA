@@ -123,6 +123,12 @@ curl -X POST http://localhost:3000/api/admin/backfill-sheets \
   -H "x-admin-secret: YOUR_SERVICE_ROLE_KEY"
 ```
 
+**For stuck records (3+ failed attempts):**
+```bash
+curl -X POST "http://localhost:3000/api/admin/backfill-sheets?retry-stuck=true" \
+  -H "x-admin-secret: YOUR_SERVICE_ROLE_KEY"
+```
+
 **Expected Response:**
 ```json
 {

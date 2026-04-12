@@ -77,16 +77,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('[backfill] Starting backfill process...');
+    // Check for retry-stuck query parameter
+    const url = new URL(req.url);
+    const retryStuck = url.searchParams.get('retry-stuck') === 'true';
+
+    console.log('[backfill] Starting backfill process...', { retryStuck });
 
     // ═══════════════════════════════════════════════════════════════════════
     // STEP 2: Query unsynced patients
     // ═══════════════════════════════════════════════════════════════════════
-    const { data: patients, error: queryError } = await supabase
+    let query = supabase
       .from('patients')
       .select('*')
-      .or('synced_to_sheets.is.null,synced_to_sheets.eq.false')
-      .lt('sheets_sync_attempts', 3)
+      .or('synced_to_sheets.is.null,synced_to_sheets.eq.false');
+    
+    // If retry-stuck=true, include stuck records (3+ attempts)
+    // Otherwise, only include records with < 3 attempts
+    if (!retryStuck) {
+      query = query.lt('sheets_sync_attempts', 3);
+    }
+    
+    const { data: patients, error: queryError } = await query
       .order('created_at', { ascending: true })
       .limit(200);
 
