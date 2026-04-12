@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, Layers, X, BarChart3, Trophy, Globe, Maximize2, Settings, Search, Cpu, Database, ChevronLeft, ChevronRight, Activity, AlertCircle, Brain, Sparkles } from 'lucide-react';
+import { Filter, Layers, X, BarChart3, Trophy, Globe, Maximize2, Settings, Search, Cpu, Database, ChevronLeft, ChevronRight, Activity, AlertCircle } from 'lucide-react';
 import { useUniversalFilter } from '@/contexts/FilterContext';
 import { KPIRibbon } from './KPIRibbon';
 import { ColorLegend } from './ColorLegend';
@@ -282,108 +282,7 @@ export function CommandCenterLayout({
       {/* ───────────────────────────────────────────────────────── */}
       <div className="h-[340px] bg-[#0a0a0a] border-t border-[#222] shrink-0 flex text-[10px] font-bold tracking-widest text-[#777] z-50">
         
-        {/* SECTION 1: AI INSIGHTS (LEFT) - NOVA NEON */}
-        <div className="w-[260px] border-r border-[#222] flex flex-col bg-[#0a0a0a] relative group/ai">
-          <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-cyan-500 to-transparent opacity-20" />
-          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.02] via-transparent to-transparent pointer-events-none" />
-          
-          <div className="flex items-center justify-between p-3 border-b border-[#222] bg-[#161616] relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent opacity-0 group-hover/ai:opacity-100 transition-opacity duration-700" />
-            <div className="flex items-center gap-2 relative z-10">
-              <span className="text-white tracking-[0.3em] font-black drop-shadow-[0_0_20px_rgba(6,182,212,0.8)] uppercase animate-pulse">AI BRIEF</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-emerald-400 border border-emerald-500/50 px-2 py-0.5 rounded-full bg-emerald-950/40 tracking-widest shadow-[0_0_25px_rgba(16,185,129,0.5)] font-black text-[8px] relative z-10 backdrop-blur-sm">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,1)]" />
-              NEURAL
-            </div>
-          </div>
-          
-          <div className="flex-1 flex flex-col overflow-hidden bg-[#0a0a0a] relative">
-            {/* Functional Telemetry Layer */}
-            <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none overflow-hidden font-mono text-[6px] text-cyan-500 break-all leading-none transition-opacity group-hover:opacity-[0.07]">
-              {Array.from({ length: 40 }).map((_, i) => (
-                <div key={i} className="whitespace-nowrap animate-pulse" style={{ animationDelay: `${i * 0.1}s` }}>
-                  {Math.random().toString(16).repeat(10)}
-                </div>
-              ))}
-            </div>
-
-            {/* Notification Stream - NOVA NEON */}
-            <div ref={aiFeedRef} className="flex-1 overflow-y-auto custom-dark-scrollbar p-3 space-y-3 relative z-10">
-              <AnimatePresence initial={false}>
-                {aiInsights.map((insight, idx) => {
-                  const isCommand = insight.insightText.includes('COMMAND');
-                  const isAlert = insight.insightText.includes('CRITICAL') || insight.insightText.includes('BREACH');
-                  const spectralColor = isCommand ? 'blue' : isAlert ? 'red' : 'cyan';
-                  const glowRGB = isCommand ? '37,99,235' : isAlert ? '239,68,68' : '6,182,212';
-                  
-                  return (
-                  <motion.div 
-                    key={insight.timestamp}
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    className={`border p-3 rounded-sm relative overflow-hidden group/card shadow-[0_0_25px_rgba(${glowRGB},0.15)] hover:shadow-[0_0_40px_rgba(${glowRGB},0.3)] transition-all duration-500 backdrop-blur-xl bg-white/[0.02]`}
-                    style={{ borderColor: `rgba(${glowRGB}, 0.3)` }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent pointer-events-none" />
-                    <div className={`absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[rgb(${glowRGB})] to-transparent opacity-50`} />
-                    <div className={`absolute bottom-0 right-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[rgb(${glowRGB})] to-transparent opacity-50`} />
-                    
-                    <div className="flex items-center justify-between mb-2 opacity-60 text-[8px] font-black tracking-widest uppercase relative z-10">
-                      <span className="flex items-center gap-1.5">
-                        <div className={`w-1 h-1 rounded-full bg-[rgb(${glowRGB})] shadow-[0_0_6px_rgba(${glowRGB},1)] animate-pulse`} />
-                        <Globe className="w-2.5 h-2.5" style={{ color: `rgb(${glowRGB})` }} /> 
-                        <span style={{ color: `rgb(${glowRGB})` }}>{isCommand ? 'SECURE_CMD' : isAlert ? 'ALERT' : 'INTEL'}</span>
-                      </span>
-                      <span className="text-[#666]">{new Date(insight.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-                    </div>
-                    <p className="text-[10px] text-[#aaa] leading-relaxed normal-case font-medium tracking-tight relative z-10 group-hover/card:text-white transition-colors">
-                      {insight.insightText}
-                    </p>
-                    {insight.activeNode && !isCommand && (
-                      <div className="mt-2 text-[9px] font-black tracking-widest uppercase flex items-center gap-1.5 relative z-10" style={{ color: `rgb(${glowRGB})` }}>
-                        <div className={`w-1 h-1 rounded-full shadow-[0_0_6px_rgba(${glowRGB},1)]`} style={{ backgroundColor: `rgb(${glowRGB})` }} />
-                        NODE: {insight.activeNode}
-                      </div>
-                    )}
-                  </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-              
-              {aiLoading && (
-                <div className="flex items-center gap-2 p-2 opacity-50">
-                  <span className="w-1 h-1 bg-cyan-500 animate-ping rounded-full" />
-                  <span className="text-[9px] tracking-widest animate-pulse">SYNCING_TELEMETRY...</span>
-                </div>
-              )}
-
-              {aiInsights.length === 0 && !aiLoading && (
-                <div className="h-full flex flex-col items-center justify-center text-[#333] opacity-50 space-y-2">
-                  <Cpu className="w-8 h-8 animate-pulse" />
-                  <span className="text-[9px] tracking-[0.2em] font-black uppercase italic">Neural standby...</span>
-                </div>
-              )}
-            </div>
-
-            {/* Tactical Action Button */}
-            <div className="p-3 bg-[#0d0d0d] border-t border-[#222]">
-              <button 
-                onClick={handleIntervention}
-                disabled={aiInsights.length === 0 || isIntervening}
-                className={`w-full flex flex-col items-center justify-center p-3 rounded-sm font-black tracking-[0.2em] text-[9px] transition-all relative overflow-hidden uppercase
-                  ${aiInsights.length > 0 && !isIntervening ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] cursor-pointer' : 'bg-[#1a1a1a] text-[#444] cursor-not-allowed'}
-                `}
-              >
-                {isIntervening && <motion.div animate={{ x: ['-100%', '100%'] }} transition={{ duration: 1.5, repeat: Infinity }} className="absolute inset-0 bg-blue-400/20 skew-x-12" />}
-                <span className="relative z-10">{isIntervening ? 'SYNCHRONIZING_NODES...' : 'EXECUTE INTERVENTION'}</span>
-                {!isIntervening && aiInsights.length > 0 && <span className="text-[7px] opacity-60 mt-0.5 tracking-[0.1em]">Target: {aiInsights[aiInsights.length-1].activeNode}</span>}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* SECTION 2: GEOGRAPHY MATRIX (CENTER) */}
+        {/* SECTION 1: GEOGRAPHY MATRIX (LEFT - EXPANDED) */}
         <div className="flex-1 border-r border-[#222] flex flex-col bg-[#030303] relative overflow-hidden">
           <div className="absolute inset-0 opacity-[0.05] pointer-events-none" 
                style={{ backgroundImage: 'radial-gradient(circle, #333 1px, transparent 1px)', backgroundSize: '15px 15px' }} />
@@ -522,67 +421,107 @@ export function CommandCenterLayout({
           </div>
         </div>
 
-        {/* SECTION 3: AI BRIEF (RIGHT) */}
-        <div className="w-[260px] flex flex-col bg-[#0d0d0d] relative overflow-hidden group">
-          <div className="flex items-center justify-between p-3 border-b border-[#222] bg-[#161616] relative transition-colors group-hover:bg-[#1a1a1a]">
-            <div className="flex items-center gap-2">
-              <span className="text-cyan-400 tracking-[0.3em] font-black drop-shadow-[0_0_15px_rgba(34,211,238,0.6)] animate-pulse uppercase">AI BRIEF</span>
-              <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
+        {/* SECTION 2: AI BRIEF (RIGHT) - NOVA NEON */}
+        <div className="w-[260px] flex flex-col bg-[#0a0a0a] relative group/ai">
+          <div className="absolute inset-y-0 left-0 w-[1px] bg-gradient-to-b from-transparent via-cyan-500 to-transparent opacity-20" />
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.02] via-transparent to-transparent pointer-events-none" />
+          
+          <div className="flex items-center justify-between p-3 border-b border-[#222] bg-[#161616] relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent opacity-0 group-hover/ai:opacity-100 transition-opacity duration-700" />
+            <div className="flex items-center gap-2 relative z-10">
+              <span className="text-white tracking-[0.3em] font-black drop-shadow-[0_0_20px_rgba(6,182,212,0.8)] uppercase animate-pulse">AI BRIEF</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-emerald-400 border border-emerald-500/50 px-2 py-0.5 rounded-full bg-emerald-950/40 tracking-widest shadow-[0_0_25px_rgba(16,185,129,0.5)] font-black text-[8px] relative z-10 backdrop-blur-sm">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,1)]" />
+              NEURAL
             </div>
           </div>
           
-          <div className="flex-1 overflow-hidden relative">
-            <div className="h-full overflow-y-auto custom-dark-scrollbar p-3 space-y-3">
-              <AnimatePresence>
-                {aiInsights.length > 0 ? (
-                  aiInsights.slice(-3).map((insight, idx) => (
-                    <motion.div 
-                      key={idx}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="border border-cyan-500/30 bg-cyan-950/20 p-3 rounded-sm"
-                    >
-                      <div className="flex items-start gap-2">
-                        <Cpu className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-[10px] text-cyan-100 leading-relaxed">{insight.insightText}</p>
-                          <span className="text-[8px] text-cyan-500/60 mt-1 block">
-                            {new Date(insight.timestamp).toLocaleTimeString()}
-                          </span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))
-                ) : (
+          <div className="flex-1 flex flex-col overflow-hidden bg-[#0a0a0a] relative">
+            {/* Functional Telemetry Layer */}
+            <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none overflow-hidden font-mono text-[6px] text-cyan-500 break-all leading-none transition-opacity group-hover:opacity-[0.07]">
+              {Array.from({ length: 40 }).map((_, i) => (
+                <div key={i} className="whitespace-nowrap animate-pulse" style={{ animationDelay: `${i * 0.1}s` }}>
+                  {Math.random().toString(16).repeat(10)}
+                </div>
+              ))}
+            </div>
+
+            {/* Notification Stream - NOVA NEON */}
+            <div ref={aiFeedRef} className="flex-1 overflow-y-auto custom-dark-scrollbar p-3 space-y-3 relative z-10">
+              <AnimatePresence initial={false}>
+                {aiInsights.map((insight, idx) => {
+                  const isCommand = insight.insightText.includes('COMMAND');
+                  const isAlert = insight.insightText.includes('CRITICAL') || insight.insightText.includes('BREACH');
+                  const spectralColor = isCommand ? 'blue' : isAlert ? 'red' : 'cyan';
+                  const glowRGB = isCommand ? '37,99,235' : isAlert ? '239,68,68' : '6,182,212';
+                  
+                  return (
                   <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="h-full flex flex-col items-center justify-center text-[#444] space-y-2"
+                    key={insight.timestamp}
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    className={`border p-3 rounded-sm relative overflow-hidden group/card shadow-[0_0_25px_rgba(${glowRGB},0.15)] hover:shadow-[0_0_40px_rgba(${glowRGB},0.3)] transition-all duration-500 backdrop-blur-xl bg-white/[0.02]`}
+                    style={{ borderColor: `rgba(${glowRGB}, 0.3)` }}
                   >
-                    <Brain className="w-8 h-8 animate-pulse" />
-                    <span className="text-[9px] tracking-[0.2em] font-black uppercase">Awaiting intelligence...</span>
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent pointer-events-none" />
+                    <div className={`absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[rgb(${glowRGB})] to-transparent opacity-50`} />
+                    <div className={`absolute bottom-0 right-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[rgb(${glowRGB})] to-transparent opacity-50`} />
+                    
+                    <div className="flex items-center justify-between mb-2 opacity-60 text-[8px] font-black tracking-widest uppercase relative z-10">
+                      <span className="flex items-center gap-1.5">
+                        <div className={`w-1 h-1 rounded-full bg-[rgb(${glowRGB})] shadow-[0_0_6px_rgba(${glowRGB},1)] animate-pulse`} />
+                        <Globe className="w-2.5 h-2.5" style={{ color: `rgb(${glowRGB})` }} /> 
+                        <span style={{ color: `rgb(${glowRGB})` }}>{isCommand ? 'SECURE_CMD' : isAlert ? 'ALERT' : 'INTEL'}</span>
+                      </span>
+                      <span className="text-[#666]">{new Date(insight.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                    </div>
+                    <p className="text-[10px] text-[#aaa] leading-relaxed normal-case font-medium tracking-tight relative z-10 group-hover/card:text-white transition-colors">
+                      {insight.insightText}
+                    </p>
+                    {insight.activeNode && !isCommand && (
+                      <div className="mt-2 text-[9px] font-black tracking-widest uppercase flex items-center gap-1.5 relative z-10" style={{ color: `rgb(${glowRGB})` }}>
+                        <div className={`w-1 h-1 rounded-full shadow-[0_0_6px_rgba(${glowRGB},1)]`} style={{ backgroundColor: `rgb(${glowRGB})` }} />
+                        NODE: {insight.activeNode}
+                      </div>
+                    )}
                   </motion.div>
-                )}
+                  );
+                })}
               </AnimatePresence>
               
-              {/* Quick Stats */}
-              <div className="border-t border-[#222] pt-3 mt-3 space-y-2">
-                <div className="flex justify-between items-center text-[9px]">
-                  <span className="text-[#666] uppercase tracking-wider">Risk Zones</span>
-                  <span className="text-amber-400 font-black">{topDistricts.length}</span>
+              {aiLoading && (
+                <div className="flex items-center gap-2 p-2 opacity-50">
+                  <span className="w-1 h-1 bg-cyan-500 animate-ping rounded-full" />
+                  <span className="text-[9px] tracking-widest animate-pulse">SYNCING_TELEMETRY...</span>
                 </div>
-                <div className="flex justify-between items-center text-[9px]">
-                  <span className="text-[#666] uppercase tracking-wider">Flagged Patients</span>
-                  <span className="text-red-400 font-black">{highRiskPatients}</span>
+              )}
+
+              {aiInsights.length === 0 && !aiLoading && (
+                <div className="h-full flex flex-col items-center justify-center text-[#333] opacity-50 space-y-2">
+                  <Cpu className="w-8 h-8 animate-pulse" />
+                  <span className="text-[9px] tracking-[0.2em] font-black uppercase italic">Neural standby...</span>
                 </div>
-                <div className="flex justify-between items-center text-[9px]">
-                  <span className="text-[#666] uppercase tracking-wider">Total Active</span>
-                  <span className="text-cyan-400 font-black">{filteredPatients.length}</span>
-                </div>
-              </div>
+              )}
+            </div>
+
+            {/* Tactical Action Button */}
+            <div className="p-3 bg-[#0d0d0d] border-t border-[#222]">
+              <button 
+                onClick={handleIntervention}
+                disabled={aiInsights.length === 0 || isIntervening}
+                className={`w-full flex flex-col items-center justify-center p-3 rounded-sm font-black tracking-[0.2em] text-[9px] transition-all relative overflow-hidden uppercase
+                  ${aiInsights.length > 0 && !isIntervening ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] cursor-pointer' : 'bg-[#1a1a1a] text-[#444] cursor-not-allowed'}
+                `}
+              >
+                {isIntervening && <motion.div animate={{ x: ['-100%', '100%'] }} transition={{ duration: 1.5, repeat: Infinity }} className="absolute inset-0 bg-blue-400/20 skew-x-12" />}
+                <span className="relative z-10">{isIntervening ? 'SYNCHRONIZING_NODES...' : 'EXECUTE INTERVENTION'}</span>
+                {!isIntervening && aiInsights.length > 0 && <span className="text-[7px] opacity-60 mt-0.5 tracking-[0.1em]">Target: {aiInsights[aiInsights.length-1].activeNode}</span>}
+              </button>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );
