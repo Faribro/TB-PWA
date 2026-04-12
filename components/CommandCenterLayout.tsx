@@ -211,64 +211,77 @@ export function CommandCenterLayout({
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#0a0a0a] text-slate-300 font-mono overflow-hidden uppercase">
+    <div className="flex flex-col h-screen w-full bg-[#050505] text-slate-300 font-mono overflow-hidden uppercase">
       {/* ───────────────────────────────────────────────────────── */}
-      {/* TOP HEADER */}
+      {/* PREMIUM TOP HEADER - Award Winning Aesthetic */}
       {/* ───────────────────────────────────────────────────────── */}
-      <header className="h-[44px] bg-[#121212] flex items-center justify-between border-b border-[#222] px-3 shrink-0 relative z-50">
+      <header className="h-[52px] bg-gradient-to-r from-[#0a0a0a] via-[#111111] to-[#0a0a0a] flex items-center justify-between border-b border-white/5 px-4 shrink-0 relative z-50 backdrop-blur-2xl">
+        {/* Subtle gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
         
-        <div className="flex items-center gap-4 text-[10px] font-bold tracking-[0.15em] text-[#777]">
-          <div className="flex items-center gap-2 text-cyan-400 bg-cyan-950/40 px-2.5 py-1 rounded-sm border border-cyan-500/30 shadow-[0_0_10px_rgba(34,211,238,0.2)]">
-            <Database className="w-3 h-3 text-cyan-400" />
-            MADHYA PRADESH
+        {/* Animated top line */}
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
+        
+        <div className="flex items-center gap-4 text-[10px] font-bold tracking-[0.15em] text-[#777] relative">
+          {/* Premium Location Badge */}
+          <div className="flex items-center gap-2.5 text-cyan-400 bg-gradient-to-r from-cyan-950/60 to-cyan-900/30 px-3 py-1.5 rounded-lg border border-cyan-500/40 shadow-[0_0_20px_rgba(34,211,238,0.15),inset_0_1px_0_rgba(255,255,255,0.1)] group hover:shadow-[0_0_30px_rgba(34,211,238,0.3)] transition-all duration-500">
+            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
+            <Database className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+            <span className="text-cyan-100 font-black tracking-[0.2em]">MADHYA PRADESH</span>
           </div>
         </div>
 
-        {/* Vertex-Style State/District Filters */}
-        <div className="absolute left-1/2 -translate-x-1/2 hidden xl:flex items-center gap-3 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] px-4 py-2 rounded-lg shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+        {/* Premium Vertex-Style State/District Filters */}
+        <div className="absolute left-1/2 -translate-x-1/2 hidden xl:flex items-center gap-4 bg-gradient-to-r from-[#111]/90 via-[#0f0f0f]/95 to-[#111]/90 backdrop-blur-2xl border border-white/10 px-5 py-2.5 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.05)]">
           {/* State Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] font-bold tracking-widest text-[#666] uppercase">State</span>
-            <select
-              value={filter.state || ''}
-              onChange={(e) => {
-                playSonarBeep();
-                setState(e.target.value || null);
-              }}
-              className="bg-[#111] border border-[#333] text-white text-[10px] font-bold tracking-wider uppercase px-3 py-1.5 rounded-sm focus:outline-none focus:border-cyan-500/50 focus:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all cursor-pointer hover:border-[#444] min-w-[140px]"
-            >
-              <option value="">All States</option>
-              <option value="Madhya Pradesh">Madhya Pradesh</option>
-              <option value="Maharashtra">Maharashtra</option>
-              <option value="Rajasthan">Rajasthan</option>
-              <option value="Uttar Pradesh">Uttar Pradesh</option>
-              <option value="Gujarat">Gujarat</option>
-              <option value="Karnataka">Karnataka</option>
-              <option value="Delhi">Delhi</option>
-            </select>
+          <div className="flex items-center gap-2.5">
+            <span className="text-[9px] font-bold tracking-[0.2em] text-[#888] uppercase">State</span>
+            <div className="relative group">
+              <select
+                value={filter.state || ''}
+                onChange={(e) => {
+                  playSonarBeep();
+                  setState(e.target.value || null);
+                }}
+                className="appearance-none bg-gradient-to-b from-[#1a1a1a] to-[#111] border border-white/10 text-white text-[10px] font-bold tracking-wider uppercase pl-3 pr-8 py-2 rounded-lg focus:outline-none focus:border-cyan-500/50 focus:shadow-[0_0_20px_rgba(34,211,238,0.2)] transition-all cursor-pointer hover:border-white/20 min-w-[150px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+              >
+                <option value="">All States</option>
+                <option value="Madhya Pradesh">Madhya Pradesh</option>
+                <option value="Maharashtra">Maharashtra</option>
+                <option value="Rajasthan">Rajasthan</option>
+                <option value="Uttar Pradesh">Uttar Pradesh</option>
+                <option value="Gujarat">Gujarat</option>
+                <option value="Karnataka">Karnataka</option>
+                <option value="Delhi">Delhi</option>
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#666] pointer-events-none group-hover:text-cyan-400 transition-colors" />
+            </div>
           </div>
           
-          <div className="w-px h-4 bg-[#333]" />
+          <div className="w-px h-5 bg-gradient-to-b from-transparent via-white/20 to-transparent" />
           
           {/* District Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] font-bold tracking-widest text-[#666] uppercase">District</span>
-            <select
-              value={filter.district || ''}
-              onChange={(e) => {
-                playSonarBeep();
-                setDistrict(e.target.value || null);
-              }}
-              className="bg-[#111] border border-[#333] text-white text-[10px] font-bold tracking-wider uppercase px-3 py-1.5 rounded-sm focus:outline-none focus:border-cyan-500/50 focus:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all cursor-pointer hover:border-[#444] min-w-[140px]"
-            >
-              <option value="">All Districts</option>
-              {topDistricts.map((d: string) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
+          <div className="flex items-center gap-2.5">
+            <span className="text-[9px] font-bold tracking-[0.2em] text-[#888] uppercase">District</span>
+            <div className="relative group">
+              <select
+                value={filter.district || ''}
+                onChange={(e) => {
+                  playSonarBeep();
+                  setDistrict(e.target.value || null);
+                }}
+                className="appearance-none bg-gradient-to-b from-[#1a1a1a] to-[#111] border border-white/10 text-white text-[10px] font-bold tracking-wider uppercase pl-3 pr-8 py-2 rounded-lg focus:outline-none focus:border-cyan-500/50 focus:shadow-[0_0_20px_rgba(34,211,238,0.2)] transition-all cursor-pointer hover:border-white/20 min-w-[150px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+              >
+                <option value="">All Districts</option>
+                {topDistricts.map((d: string) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#666] pointer-events-none group-hover:text-cyan-400 transition-colors" />
+            </div>
           </div>
           
-          {/* Clear Filters */}
+          {/* Clear Filters - Premium Button */}
           {(filter.state || filter.district) && (
             <button
               onClick={() => {
@@ -276,28 +289,60 @@ export function CommandCenterLayout({
                 setState(null);
                 setDistrict(null);
               }}
-              className="flex items-center gap-1 text-[9px] text-cyan-400 hover:text-white transition-colors ml-2"
+              className="flex items-center gap-1.5 text-[9px] text-cyan-400 hover:text-white transition-all ml-2 px-2.5 py-1.5 rounded-lg hover:bg-cyan-950/30 border border-transparent hover:border-cyan-500/30"
             >
-              <X className="w-3 h-3" />
-              Clear
+              <X className="w-3.5 h-3.5" />
+              <span className="font-bold tracking-wider">Clear</span>
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-4 text-[10px] font-bold tracking-[0.1em] text-[#777]">
-          <button className="flex items-center gap-1.5 hover:text-white transition-colors hover:drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]" onClick={onZoomToFit}>
-            <Maximize2 className="w-3 h-3" /> <span className="drop-shadow-[0_0_4px_rgba(255,255,255,0.3)]">FIT</span>
+        {/* Premium Action Buttons */}
+        <div className="flex items-center gap-3 text-[10px] font-bold tracking-[0.15em] relative">
+          {/* FIT Button */}
+          <button 
+            onClick={onZoomToFit}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-b from-white/5 to-transparent border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all duration-300 group"
+          >
+            <Maximize2 className="w-3.5 h-3.5 text-[#888] group-hover:text-white transition-colors" />
+            <span className="text-[#888] group-hover:text-white transition-colors tracking-wider">FIT</span>
           </button>
-          <div className="w-px h-3 bg-[#333]" />
-          <button className={`flex items-center gap-1.5 transition-colors hover:drop-shadow-[0_0_8px_currentColor] ${showCascade ? 'text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.8)]' : 'hover:text-white'}`} onClick={onShowCascade}>
-            <BarChart3 className="w-3 h-3" /> <span className="drop-shadow-[0_0_4px_currentColor]">CASCADE</span>
+          
+          {/* CASCADE Button */}
+          <button 
+            onClick={onShowCascade}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-300 group ${
+              showCascade 
+                ? 'bg-blue-500/10 border-blue-500/50 text-blue-400 shadow-[0_0_15px_rgba(96,165,250,0.3)]' 
+                : 'bg-gradient-to-b from-white/5 to-transparent border-white/10 hover:border-blue-500/30 text-[#888] hover:text-blue-400'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span className="tracking-wider">CASCADE</span>
           </button>
-          <button className={`flex items-center gap-1.5 transition-colors hover:drop-shadow-[0_0_8px_currentColor] ${showLeaderboard ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]' : 'hover:text-white'}`} onClick={onShowLeaderboard}>
-            <Trophy className="w-3 h-3" /> <span className="drop-shadow-[0_0_4px_currentColor]">RANK</span>
+          
+          {/* RANK Button */}
+          <button 
+            onClick={onShowLeaderboard}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-300 group ${
+              showLeaderboard 
+                ? 'bg-amber-500/10 border-amber-500/50 text-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.3)]' 
+                : 'bg-gradient-to-b from-white/5 to-transparent border-white/10 hover:border-amber-500/30 text-[#888] hover:text-amber-400'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            <span className="tracking-wider">RANK</span>
           </button>
-          <div className="w-px h-3 bg-[#333]" />
-          <button className="hover:text-white transition-colors border border-[#333] bg-[#1a1a1a] hover:bg-[#222] p-1.5 rounded-sm"><Search className="w-3 h-3" /></button>
-          <button className="hover:text-white transition-colors border border-[#333] bg-[#1a1a1a] hover:bg-[#222] p-1.5 rounded-sm"><Settings className="w-3 h-3" /></button>
+          
+          <div className="w-px h-6 bg-gradient-to-b from-transparent via-white/20 to-transparent mx-1" />
+          
+          {/* Icon Buttons */}
+          <button className="p-2.5 rounded-lg bg-gradient-to-b from-white/5 to-transparent border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all duration-300 group">
+            <Search className="w-3.5 h-3.5 text-[#888] group-hover:text-white transition-colors" />
+          </button>
+          <button className="p-2.5 rounded-lg bg-gradient-to-b from-white/5 to-transparent border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all duration-300 group">
+            <Settings className="w-3.5 h-3.5 text-[#888] group-hover:text-white transition-colors" />
+          </button>
         </div>
       </header>
 
@@ -312,24 +357,40 @@ export function CommandCenterLayout({
         }
       `}</style>
 
-      <div className="flex flex-1 overflow-hidden">
-        <div className="w-[280px] border-r border-[#222] bg-[#0a0a0a] overflow-hidden shrink-0 flex flex-col">
+      {/* Premium Main Layout */}
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Subtle ambient background glow */}
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.02] via-transparent to-purple-500/[0.02] pointer-events-none" />
+        
+        {/* Premium Sidebar */}
+        <div className="w-[280px] border-r border-white/5 bg-gradient-to-b from-[#0a0a0a] to-[#050505] overflow-hidden shrink-0 flex flex-col relative backdrop-blur-xl">
+          {/* Sidebar top line accent */}
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+          
+          {/* Sidebar header */}
+          <div className="h-10 border-b border-white/5 flex items-center px-4 bg-gradient-to-r from-white/[0.02] to-transparent">
+            <span className="text-[9px] font-bold tracking-[0.3em] text-[#666] uppercase">Situation</span>
+          </div>
+          
           <div className="flex-1 overflow-y-auto p-4">
             <KPIRibbon filteredPatients={globalPatients || filteredPatients} compact />
           </div>
         </div>
         
-        <main className="flex-1 relative z-0 bg-[#050505]">
+        {/* Premium Main Map Area */}
+        <main className="flex-1 relative z-0 bg-gradient-to-br from-[#050505] to-[#0a0a0a]">
           {children}
 
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center gap-3">
+          {/* Premium Floating Legend Control */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center gap-3">
             <AnimatePresence>
               {isLegendOpen && (
                 <motion.div
-                  initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 15, scale: 0.95 }}
-                  className="bg-[#111111]/95 backdrop-blur-xl border border-[#333] rounded-sm p-3 pointer-events-auto shadow-[0_0_30px_rgba(6,182,212,0.15)] origin-bottom"
+                  exit={{ opacity: 0, y: 20, scale: 0.9 }}
+                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                  className="bg-gradient-to-b from-[#111111]/95 to-[#0a0a0a]/95 backdrop-blur-2xl border border-white/10 rounded-xl p-4 pointer-events-auto shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_30px_rgba(34,211,238,0.1)] origin-bottom"
                 >
                   <ColorLegend className="bg-transparent border-none p-0 !shadow-none" />
                 </motion.div>
@@ -337,32 +398,43 @@ export function CommandCenterLayout({
             </AnimatePresence>
             <button 
               onClick={() => setIsLegendOpen(!isLegendOpen)}
-              className="bg-[#111111]/90 backdrop-blur-xl border border-[#333] hover:border-cyan-500 hover:text-cyan-400 hover:shadow-[0_0_15px_rgba(6,182,212,0.4)] rounded-sm px-6 py-2 transition-all flex items-center gap-2 pointer-events-auto text-[10px] font-black tracking-[0.2em] uppercase origin-bottom group"
+              className="bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-2xl border border-white/10 hover:border-cyan-500/50 hover:text-cyan-400 rounded-xl px-6 py-2.5 transition-all duration-300 flex items-center gap-2.5 pointer-events-auto text-[10px] font-black tracking-[0.2em] uppercase shadow-[0_8px_32px_rgba(0,0,0,0.4)] hover:shadow-[0_0_30px_rgba(34,211,238,0.3)] group"
             >
-              <Layers className="w-3 h-3 group-hover:drop-shadow-[0_0_5px_currentColor]" /> {isLegendOpen ? 'CLOSE LEGEND' : 'OPEN LEGEND'}
+              <Layers className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" /> 
+              {isLegendOpen ? 'Close Legend' : 'Open Legend'}
             </button>
           </div>
         </main>
       </div>
 
       {/* ───────────────────────────────────────────────────────── */}
-      {/* BOTTOM PANEL: NEURAL CONSOLE (ENHANCED & EXPANDED) */}
+      {/* BOTTOM PANEL: PREMIUM NEURAL CONSOLE */}
       {/* ───────────────────────────────────────────────────────── */}
-      <div className="h-[340px] bg-[#0a0a0a] border-t border-[#222] shrink-0 flex text-[10px] font-bold tracking-widest text-[#777] z-50">
+      <div className="h-[340px] bg-gradient-to-b from-[#0a0a0a] to-[#050505] border-t border-white/5 shrink-0 flex text-[10px] font-bold tracking-widest text-[#777] z-50 relative">
+        {/* Panel top line accent */}
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
         
         {/* SECTION 1: GEOGRAPHY MATRIX (LEFT - EXPANDED) */}
-        <div className="flex-1 border-r border-[#222] flex flex-col bg-[#030303] relative overflow-hidden">
-          <div className="absolute inset-0 opacity-[0.05] pointer-events-none" 
-               style={{ backgroundImage: 'radial-gradient(circle, #333 1px, transparent 1px)', backgroundSize: '15px 15px' }} />
+        <div className="flex-1 border-r border-white/5 flex flex-col bg-gradient-to-b from-[#080808] to-[#030303] relative overflow-hidden">
+          {/* Subtle dot pattern */}
+          <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+               style={{ backgroundImage: 'radial-gradient(circle, #444 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
                
-          <div className="flex items-center justify-between p-3 border-b border-[#222] bg-[#0a0a0a] shadow-2xl z-10">
-            <div className="flex items-center gap-2">
-              <span className="text-white tracking-[0.3em] font-black drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] uppercase animate-pulse">GEOGRAPHY MATRIX</span>
-              <div className="h-1 w-12 bg-gradient-to-r from-cyan-500 to-transparent rounded-full ml-4 opacity-50" />
+          {/* Premium Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white/5 bg-gradient-to-r from-white/[0.02] via-transparent to-transparent z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 border border-cyan-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(34,211,238,0.2)]">
+                <Globe className="w-4 h-4 text-cyan-400" />
+              </div>
+              <div>
+                <span className="text-white tracking-[0.25em] font-black text-[11px] uppercase block">Geography Matrix</span>
+                <span className="text-[8px] text-[#555] tracking-wider uppercase">District Intelligence</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-[#555]">
-              <span className="cursor-pointer bg-red-500/10 px-3 py-1 rounded-sm text-red-500 border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)] font-black hover:text-white transition-all">HIGH YIELD</span>
-              <span className="cursor-pointer px-2 py-1 hover:text-white transition-all uppercase tracking-tighter">Volumetric Nodes</span>
+            <div className="flex items-center gap-3">
+              <span className="px-3 py-1.5 rounded-full bg-gradient-to-r from-red-500/10 to-red-600/5 border border-red-500/30 text-red-400 text-[9px] font-black tracking-wider shadow-[0_0_15px_rgba(239,68,68,0.15)]">
+                High Yield
+              </span>
             </div>
           </div>
           
@@ -514,19 +586,28 @@ export function CommandCenterLayout({
           </div>
         </div>
 
-        {/* SECTION 2: AI BRIEF (RIGHT) - NOVA NEON */}
-        <div className="w-[260px] flex flex-col bg-[#0a0a0a] relative group/ai">
-          <div className="absolute inset-y-0 left-0 w-[1px] bg-gradient-to-b from-transparent via-cyan-500 to-transparent opacity-20" />
+        {/* SECTION 2: AI BRIEF - Premium Neural Intelligence Panel */}
+        <div className="w-[280px] flex flex-col bg-gradient-to-b from-[#080808] to-[#030303] relative group/ai overflow-hidden">
+          {/* Left accent line */}
+          <div className="absolute inset-y-0 left-0 w-[2px] bg-gradient-to-b from-cyan-500/0 via-cyan-500/50 to-cyan-500/0" />
+          
+          {/* Subtle ambient glow */}
           <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.02] via-transparent to-transparent pointer-events-none" />
           
-          <div className="flex items-center justify-between p-3 border-b border-[#222] bg-[#161616] relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent opacity-0 group-hover/ai:opacity-100 transition-opacity duration-700" />
-            <div className="flex items-center gap-2 relative z-10">
-              <span className="text-white tracking-[0.3em] font-black drop-shadow-[0_0_20px_rgba(6,182,212,0.8)] uppercase animate-pulse">AI BRIEF</span>
+          {/* Premium Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white/5 bg-gradient-to-r from-white/[0.02] via-transparent to-transparent relative overflow-hidden">
+            <div className="flex items-center gap-3 relative z-10">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-600/10 border border-cyan-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(34,211,238,0.2)]">
+                <Sparkles className="w-4 h-4 text-cyan-400" />
+              </div>
+              <div>
+                <span className="text-white tracking-[0.25em] font-black text-[11px] uppercase block">AI Brief</span>
+                <span className="text-[8px] text-[#555] tracking-wider uppercase">Neural Intelligence</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 text-emerald-400 border border-emerald-500/50 px-2 py-0.5 rounded-full bg-emerald-950/40 tracking-widest shadow-[0_0_25px_rgba(16,185,129,0.5)] font-black text-[8px] relative z-10 backdrop-blur-sm">
+            <div className="flex items-center gap-1.5 text-emerald-400 px-2.5 py-1 rounded-full bg-gradient-to-r from-emerald-500/10 to-emerald-600/5 border border-emerald-500/30 tracking-widest shadow-[0_0_20px_rgba(16,185,129,0.15)] font-black text-[8px] relative z-10 backdrop-blur-sm">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,1)]" />
-              NEURAL
+              ACTIVE
             </div>
           </div>
           
