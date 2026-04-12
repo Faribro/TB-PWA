@@ -79,11 +79,49 @@ export function CommandCenterLayout({
     };
   }, [topDistricts.length]);
 
+  // Shuffling sound effect for card navigation
+  const playShuffleSound = useCallback(() => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      
+      // Create noise buffer for shuffle sound
+      const bufferSize = ctx.sampleRate * 0.1;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+      }
+      
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 800;
+      
+      const gain = ctx.createGain();
+      gain.gain.value = 0.15;
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+      
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      
+      noise.start();
+      noise.stop(ctx.currentTime + 0.1);
+    } catch (e) {
+      // Audio play failed, ignore
+    }
+  }, []);
+
   const scrollMatrix = (dir: 'L' | 'R') => {
     if (!matrixRef.current) return;
-    const scrollAmount = matrixRef.current.clientWidth * 0.4;
+    // Scroll by card width (180px) + gap (16px)
+    const scrollAmount = 196;
     matrixRef.current.scrollBy({ left: dir === 'L' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
-    playSonarBeep();
+    playShuffleSound();
   };
 
   const playSonarBeep = useCallback(() => {
@@ -299,22 +337,25 @@ export function CommandCenterLayout({
           </div>
           
           <div className="flex-1 relative group/matrix overflow-hidden">
+            {/* Navigation Arrows - Always Visible */}
             <button 
               onClick={() => scrollMatrix('L')}
-              className="absolute left-0 inset-y-0 w-10 z-20 bg-gradient-to-r from-black to-transparent opacity-0 group-hover/matrix:opacity-100 transition-opacity flex items-center justify-center text-cyan-500 hover:text-white"
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-black/80 border border-cyan-500/50 backdrop-blur-xl flex items-center justify-center text-cyan-400 hover:text-white hover:border-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.6)] transition-all duration-300 group/nav"
             >
-              <ChevronLeft className="w-8 h-8 drop-shadow-[0_0_8px_currentColor]" />
+              <ChevronLeft className="w-6 h-6 group-hover/nav:drop-shadow-[0_0_8px_currentColor]" />
             </button>
             <button 
               onClick={() => scrollMatrix('R')}
-              className="absolute right-0 inset-y-0 w-10 z-20 bg-gradient-to-l from-black to-transparent opacity-0 group-hover/matrix:opacity-100 transition-opacity flex items-center justify-center text-cyan-500 hover:text-white"
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-black/80 border border-cyan-500/50 backdrop-blur-xl flex items-center justify-center text-cyan-400 hover:text-white hover:border-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.6)] transition-all duration-300 group/nav"
             >
-              <ChevronRight className="w-8 h-8 drop-shadow-[0_0_8px_currentColor]" />
+              <ChevronRight className="w-6 h-6 group-hover/nav:drop-shadow-[0_0_8px_currentColor]" />
             </button>
 
+            {/* Scrollable Container with Snap */}
             <div 
               ref={matrixRef}
-              className="w-full h-full grid grid-cols-6 gap-2 bg-[#0a0a0a] p-3 overflow-hidden"
+              className="w-full h-full flex gap-4 bg-[#0a0a0a] p-4 overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide scroll-smooth"
+              style={{ scrollBehavior: 'smooth' }}
             >
                {topDistricts.map((dist:any, i) => {
                  const districtPatients = activePool.filter((p: any) => p.screening_district === dist);
@@ -347,7 +388,7 @@ export function CommandCenterLayout({
                       playSonarBeep();
                       setDistrict(isSelected ? null : dist);
                     }}
-                    className={`shrink-0 aspect-square relative group/tile transition-all cursor-crosshair transform-gpu ${isSelected ? 'z-30' : 'z-10'}`}
+                    className={`shrink-0 w-[180px] h-full snap-center snap-always relative group/tile transition-all duration-500 cursor-crosshair transform-gpu hover:scale-[1.02] ${isSelected ? 'z-30' : 'z-10'}`}
                   >
                     <AnimatePresence>
                       {isSelected && (
@@ -362,44 +403,51 @@ export function CommandCenterLayout({
                     </AnimatePresence>
 
                     <div 
-                      className="w-full h-full bg-[#0a0a0a]/95 backdrop-blur-xl border-[2px] rounded-lg transition-all duration-500 flex flex-col overflow-hidden relative transform-gpu p-2"
+                      className="w-full h-full bg-gradient-to-br from-[#0f0f0f] to-[#0a0a0a] backdrop-blur-2xl border-[1.5px] rounded-xl transition-all duration-500 flex flex-col overflow-hidden relative transform-gpu p-3 group-hover/tile:shadow-[0_0_40px_rgba(34,211,238,0.3)]"
                       style={{
-                        borderColor: isSelected ? 'rgba(255,255,255,0.8)' : `rgba(${glowColor}, 0.4)`,
+                        borderColor: isSelected ? 'rgba(255,255,255,0.9)' : `rgba(${glowColor}, 0.5)`,
                         boxShadow: isSelected 
-                          ? `0 0 60px rgba(${glowColor}, 0.6), inset 0 0 30px rgba(${glowColor}, 0.1)` 
-                          : `0 0 25px rgba(${glowColor}, 0.2), inset 0 0 15px rgba(${glowColor}, 0.05)`
+                          ? `0 0 50px rgba(${glowColor}, 0.5), inset 0 1px 0 rgba(255,255,255,0.1)` 
+                          : `0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)`
                       }}
                     >
+                       {/* Premium glass overlay */}
+                       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] via-transparent to-transparent pointer-events-none" />
+                       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                       
                        {/* District Header */}
-                       <div className="flex items-center justify-between mb-1 pb-1 border-b border-[#333]">
-                         <span className={`text-[7px] font-black tracking-[0.1em] truncate ${isSelected ? 'text-white' : textColor}`}>{dist}</span>
-                         <span className="text-[9px] font-black text-white">{vol}</span>
+                       <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
+                         <div className="flex items-center gap-2">
+                           <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: `rgb(${glowColor})`, boxShadow: `0 0 10px rgba(${glowColor}, 0.8)` }} />
+                           <span className={`text-[8px] font-black tracking-[0.15em] truncate uppercase ${isSelected ? 'text-white' : textColor}`}>{dist}</span>
+                         </div>
+                         <span className="text-[10px] font-black text-white tabular-nums">{vol.toLocaleString()}</span>
                        </div>
                        
-                       {/* Metrics Grid */}
-                       <div className="flex-1 grid grid-cols-2 gap-1 text-[7px]">
-                         <div className="flex flex-col bg-red-950/30 rounded p-1 border border-red-500/20">
-                           <span className="text-red-400 font-bold">SUSPECTED</span>
-                           <span className="text-white font-black text-[10px]">{suspected}</span>
+                       {/* Premium Metrics Grid */}
+                       <div className="flex-1 grid grid-cols-2 gap-2">
+                         <div className="flex flex-col bg-gradient-to-br from-red-950/40 to-red-900/20 rounded-lg p-2 border border-red-500/30 backdrop-blur-sm group-hover/tile:border-red-500/50 transition-colors">
+                           <span className="text-red-400 font-bold text-[7px] tracking-wider uppercase mb-1">Suspected</span>
+                           <span className="text-white font-black text-[14px] tabular-nums leading-none">{suspected}</span>
                          </div>
-                         <div className="flex flex-col bg-emerald-950/30 rounded p-1 border border-emerald-500/20">
-                           <span className="text-emerald-400 font-bold">CLEAR</span>
-                           <span className="text-white font-black text-[10px]">{notSuspected}</span>
+                         <div className="flex flex-col bg-gradient-to-br from-emerald-950/40 to-emerald-900/20 rounded-lg p-2 border border-emerald-500/30 backdrop-blur-sm group-hover/tile:border-emerald-500/50 transition-colors">
+                           <span className="text-emerald-400 font-bold text-[7px] tracking-wider uppercase mb-1">Clear</span>
+                           <span className="text-white font-black text-[14px] tabular-nums leading-none">{notSuspected}</span>
                          </div>
-                         <div className="flex flex-col bg-amber-950/30 rounded p-1 border border-amber-500/20">
-                           <span className="text-amber-400 font-bold">DIAGNOSED</span>
-                           <span className="text-white font-black text-[10px]">{diagnosed}</span>
+                         <div className="flex flex-col bg-gradient-to-br from-amber-950/40 to-amber-900/20 rounded-lg p-2 border border-amber-500/30 backdrop-blur-sm group-hover/tile:border-amber-500/50 transition-colors">
+                           <span className="text-amber-400 font-bold text-[7px] tracking-wider uppercase mb-1">Diagnosed</span>
+                           <span className="text-white font-black text-[14px] tabular-nums leading-none">{diagnosed}</span>
                          </div>
-                         <div className="flex flex-col bg-purple-950/30 rounded p-1 border border-purple-500/20">
-                           <span className="text-purple-400 font-bold">ON ATT</span>
-                           <span className="text-white font-black text-[10px]">{treatmentInitiated}</span>
+                         <div className="flex flex-col bg-gradient-to-br from-purple-950/40 to-purple-900/20 rounded-lg p-2 border border-purple-500/30 backdrop-blur-sm group-hover/tile:border-purple-500/50 transition-colors">
+                           <span className="text-purple-400 font-bold text-[7px] tracking-wider uppercase mb-1">On ATT</span>
+                           <span className="text-white font-black text-[14px] tabular-nums leading-none">{treatmentInitiated}</span>
                          </div>
                        </div>
                        
-                       {/* Treated count at bottom */}
-                       <div className="mt-1 pt-1 border-t border-[#333] flex items-center justify-between">
-                         <span className="text-[7px] text-[#666] font-bold">TREATED</span>
-                         <span className="text-[9px] font-black text-cyan-400">{treated}</span>
+                       {/* Premium Treated Footer */}
+                       <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between bg-gradient-to-r from-cyan-950/30 to-transparent rounded-lg px-2 py-1">
+                         <span className="text-[7px] text-cyan-300/70 font-bold tracking-wider uppercase">Treated</span>
+                         <span className="text-[12px] font-black text-cyan-400 tabular-nums">{treated}</span>
                        </div>
                     </div>
                   </div>
