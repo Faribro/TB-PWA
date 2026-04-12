@@ -196,19 +196,6 @@ export function KPIRibbon({ filteredPatients, compact = false }: KPIRibbonProps)
             scrollbar-width: none;
           }
         `}</style>
-        <div className="flex items-center justify-between text-[#666] mb-2 px-1">
-          <span>LAYERS</span>
-          <span className="cursor-pointer hover:text-white pb-1">?</span>
-        </div>
-        
-        {/* Search */}
-        <div className="mb-4 relative">
-          <input
-            type="text"
-            placeholder="Search layers..."
-            className="w-full bg-[#1a1a1a] border border-[#333] text-white px-3 py-1.5 focus:outline-none focus:border-[#555] rounded-sm placeholder-[#555]"
-          />
-        </div>
 
         {/* Metrics mapped to layers */}
         <div className="space-y-[2px]">

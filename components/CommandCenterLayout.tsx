@@ -319,15 +319,22 @@ export function CommandCenterLayout({
                {topDistricts.map((dist:any, i) => {
                  const districtPatients = activePool.filter((p: any) => p.screening_district === dist);
                  const vol = districtPatients.length;
-                 const breaches = districtPatients.filter((p: any) => !p.referral_date && (Date.now() - new Date(p.screening_date).getTime())/(1000*3600*24) > 7).length;
-                 const breachRate = vol > 0 ? (breaches / vol) * 100 : 0;
                  
+                 // Detailed metrics
+                 const suspected = districtPatients.filter((p: any) => p.xray_result === 'Suspected TB Case').length;
+                 const notSuspected = vol - suspected;
+                 const diagnosed = districtPatients.filter((p: any) => p.tb_diagnosed === 'Y').length;
+                 const treatmentInitiated = districtPatients.filter((p: any) => p.att_start_date != null).length;
+                 const treated = districtPatients.filter((p: any) => p.att_completion_date != null).length;
+                 
+                 // Determine glow color based on suspected rate
+                 const suspectedRate = vol > 0 ? (suspected / vol) * 100 : 0;
                  let glowColor = '6,182,212'; 
                  let textColor = 'text-cyan-400';
-                 if (breachRate > 70) {
+                 if (suspectedRate > 30) {
                    glowColor = '239,68,68';
                    textColor = 'text-red-400';
-                 } else if (breachRate > 30) {
+                 } else if (suspectedRate > 15) {
                    glowColor = '245,158,11';
                    textColor = 'text-amber-400';
                  }
@@ -340,7 +347,7 @@ export function CommandCenterLayout({
                       playSonarBeep();
                       setDistrict(isSelected ? null : dist);
                     }}
-                    className={`shrink-0 aspect-square h-[85%] my-auto relative group/tile transition-all cursor-crosshair transform-gpu ${isSelected ? 'z-30' : 'z-10'}`}
+                    className={`shrink-0 aspect-square relative group/tile transition-all cursor-crosshair transform-gpu ${isSelected ? 'z-30' : 'z-10'}`}
                   >
                     <AnimatePresence>
                       {isSelected && (
@@ -355,7 +362,7 @@ export function CommandCenterLayout({
                     </AnimatePresence>
 
                     <div 
-                      className="w-full h-full bg-[#0a0a0a]/95 backdrop-blur-xl border-[2px] rounded-lg transition-all duration-500 flex flex-col items-center justify-center overflow-hidden relative transform-gpu"
+                      className="w-full h-full bg-[#0a0a0a]/95 backdrop-blur-xl border-[2px] rounded-lg transition-all duration-500 flex flex-col overflow-hidden relative transform-gpu p-2"
                       style={{
                         borderColor: isSelected ? 'rgba(255,255,255,0.8)' : `rgba(${glowColor}, 0.4)`,
                         boxShadow: isSelected 
@@ -363,44 +370,37 @@ export function CommandCenterLayout({
                           : `0 0 25px rgba(${glowColor}, 0.2), inset 0 0 15px rgba(${glowColor}, 0.05)`
                       }}
                     >
-                       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-transparent pointer-events-none" />
-                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
-                       
-                       <div className="absolute top-0 left-0 w-4 h-4 border-t-[2px] border-l-[2px] transition-all duration-500" style={{ borderColor: isSelected ? 'rgba(255,255,255,0.9)' : `rgba(${glowColor}, 0.5)` }} />
-                       <div className="absolute bottom-0 right-0 w-4 h-4 border-b-[2px] border-r-[2px] transition-all duration-500" style={{ borderColor: isSelected ? 'rgba(255,255,255,0.9)' : `rgba(${glowColor}, 0.5)` }} />
-
-                       <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10 bg-black/70 backdrop-blur-sm px-2 py-0.5 rounded-full border" style={{ borderColor: `rgba(${glowColor}, 0.3)` }}>
-                         <div className="w-1 h-1 rounded-full animate-pulse" style={{ backgroundColor: `rgb(${glowColor})`, boxShadow: `0 0 8px rgba(${glowColor}, 1)` }} />
-                         <span className={`text-[8px] font-black tracking-[0.1em] ${isSelected ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : textColor}`}>{dist}</span>
+                       {/* District Header */}
+                       <div className="flex items-center justify-between mb-1 pb-1 border-b border-[#333]">
+                         <span className={`text-[7px] font-black tracking-[0.1em] truncate ${isSelected ? 'text-white' : textColor}`}>{dist}</span>
+                         <span className="text-[9px] font-black text-white">{vol}</span>
                        </div>
-
-                       <div className="w-full h-full flex flex-col items-center justify-center relative">
-                         <div className="absolute inset-0 opacity-20 mix-blend-screen transition-opacity group-hover/tile:opacity-40" style={{ background: `radial-gradient(circle at 50% 80%, rgba(${glowColor}, 0.3), transparent 70%)` }} />
-                         
-                         <dt className={`text-[32px] font-black tracking-tighter transition-all z-10 tabular-nums leading-none select-none ${isSelected ? 'text-white' : textColor}`}
-                             style={{ 
-                               textShadow: isSelected 
-                                 ? `0 0 30px rgba(255,255,255,0.8), 0 0 60px rgba(${glowColor},0.6)` 
-                                 : `0 0 20px rgba(${glowColor},0.8)` 
-                             }}>
-                           {vol}
-                         </dt>
-                         
-                         {/* Holographic Bar Chart */}
-                         <div className="absolute bottom-4 left-4 right-4 h-1 bg-black/40 rounded-full overflow-hidden">
-                           <motion.div 
-                             initial={{ width: 0 }}
-                             animate={{ width: `${Math.min(breachRate, 100)}%` }}
-                             transition={{ duration: 1, ease: "easeOut" }}
-                             className="h-full rounded-full"
-                             style={{ 
-                               backgroundColor: `rgb(${glowColor})`,
-                               boxShadow: `0 0 10px rgba(${glowColor}, 0.8)`
-                             }}
-                           />
+                       
+                       {/* Metrics Grid */}
+                       <div className="flex-1 grid grid-cols-2 gap-1 text-[7px]">
+                         <div className="flex flex-col bg-red-950/30 rounded p-1 border border-red-500/20">
+                           <span className="text-red-400 font-bold">SUSPECTED</span>
+                           <span className="text-white font-black text-[10px]">{suspected}</span>
+                         </div>
+                         <div className="flex flex-col bg-emerald-950/30 rounded p-1 border border-emerald-500/20">
+                           <span className="text-emerald-400 font-bold">CLEAR</span>
+                           <span className="text-white font-black text-[10px]">{notSuspected}</span>
+                         </div>
+                         <div className="flex flex-col bg-amber-950/30 rounded p-1 border border-amber-500/20">
+                           <span className="text-amber-400 font-bold">DIAGNOSED</span>
+                           <span className="text-white font-black text-[10px]">{diagnosed}</span>
+                         </div>
+                         <div className="flex flex-col bg-purple-950/30 rounded p-1 border border-purple-500/20">
+                           <span className="text-purple-400 font-bold">ON ATT</span>
+                           <span className="text-white font-black text-[10px]">{treatmentInitiated}</span>
                          </div>
                        </div>
-
+                       
+                       {/* Treated count at bottom */}
+                       <div className="mt-1 pt-1 border-t border-[#333] flex items-center justify-between">
+                         <span className="text-[7px] text-[#666] font-bold">TREATED</span>
+                         <span className="text-[9px] font-black text-cyan-400">{treated}</span>
+                       </div>
                     </div>
                   </div>
                  );
