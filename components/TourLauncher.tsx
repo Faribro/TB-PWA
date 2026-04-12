@@ -134,7 +134,6 @@ export default function TourLauncher() {
         }}
         suppressHydrationWarning
       >
-        LINK
       </div>
 
       {/* Tour Picker Panel */}

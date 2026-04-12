@@ -426,10 +426,7 @@ export function CommandCenterLayout({
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 border border-cyan-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(34,211,238,0.2)]">
                 <Globe className="w-4 h-4 text-cyan-400" />
               </div>
-              <div>
-                <span className="text-white tracking-[0.25em] font-black text-[11px] uppercase block">Geography Matrix</span>
-                <span className="text-[8px] text-[#555] tracking-wider uppercase">District Intelligence</span>
-              </div>
+              <span className="text-white tracking-[0.25em] font-black text-[11px] uppercase">Geography Matrix</span>
             </div>
             <div className="flex items-center gap-3">
               <span className="px-3 py-1.5 rounded-full bg-gradient-to-r from-red-500/10 to-red-600/5 border border-red-500/30 text-red-400 text-[9px] font-black tracking-wider shadow-[0_0_15px_rgba(239,68,68,0.15)]">
@@ -438,25 +435,19 @@ export function CommandCenterLayout({
             </div>
           </div>
           
-          <div className="flex-1 relative group/matrix overflow-hidden">
-            {/* Navigation Arrows - Always Visible */}
+          <div className="flex-1 relative flex items-center px-4">
+            {/* Left Arrow */}
             <button 
               onClick={() => scrollMatrix('L')}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-black/80 border border-cyan-500/50 backdrop-blur-xl flex items-center justify-center text-cyan-400 hover:text-white hover:border-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.6)] transition-all duration-300 group/nav"
+              className="absolute left-2 z-30 w-10 h-10 rounded-full bg-black/60 border border-white/20 backdrop-blur flex items-center justify-center text-cyan-400 hover:text-white hover:border-cyan-400 hover:bg-black/80 transition-all duration-300 shrink-0"
             >
-              <ChevronLeft className="w-6 h-6 group-hover/nav:drop-shadow-[0_0_8px_currentColor]" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
-            <button 
-              onClick={() => scrollMatrix('R')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-black/80 border border-cyan-500/50 backdrop-blur-xl flex items-center justify-center text-cyan-400 hover:text-white hover:border-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.6)] transition-all duration-300 group/nav"
-            >
-              <ChevronRight className="w-6 h-6 group-hover/nav:drop-shadow-[0_0_8px_currentColor]" />
-            </button>
-
-            {/* Scrollable Container with Snap */}
+            
+            {/* Scrollable Container */}
             <div 
               ref={matrixRef}
-              className="w-full h-full flex gap-4 bg-[#0a0a0a] p-4 overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide scroll-smooth"
+              className="flex-1 h-full flex gap-3 overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide px-12"
               style={{ scrollBehavior: 'smooth' }}
             >
                {topDistricts.map((dist:any, i) => {
@@ -583,6 +574,14 @@ export function CommandCenterLayout({
                  );
                })}
             </div>
+            
+            {/* Right Arrow */}
+            <button 
+              onClick={() => scrollMatrix('R')}
+              className="absolute right-2 z-30 w-10 h-10 rounded-full bg-black/60 border border-white/20 backdrop-blur flex items-center justify-center text-cyan-400 hover:text-white hover:border-cyan-400 hover:bg-black/80 transition-all duration-300 shrink-0"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
@@ -600,10 +599,7 @@ export function CommandCenterLayout({
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-600/10 border border-cyan-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(34,211,238,0.2)]">
                 <Sparkles className="w-4 h-4 text-cyan-400" />
               </div>
-              <div>
-                <span className="text-white tracking-[0.25em] font-black text-[11px] uppercase block">AI Brief</span>
-                <span className="text-[8px] text-[#555] tracking-wider uppercase">Neural Intelligence</span>
-              </div>
+              <span className="text-white tracking-[0.25em] font-black text-[11px] uppercase">AI Brief</span>
             </div>
             <div className="flex items-center gap-1.5 text-emerald-400 px-2.5 py-1 rounded-full bg-gradient-to-r from-emerald-500/10 to-emerald-600/5 border border-emerald-500/30 tracking-widest shadow-[0_0_20px_rgba(16,185,129,0.15)] font-black text-[8px] relative z-10 backdrop-blur-sm">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,1)]" />
