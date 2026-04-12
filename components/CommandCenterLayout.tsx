@@ -282,6 +282,17 @@ export function CommandCenterLayout({
         </div>
       </header>
 
+      {/* Global shimmer animation */}
+      <style jsx global>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .animate-shimmer {
+          animation: shimmer 2s infinite;
+        }
+      `}</style>
+
       <div className="flex flex-1 overflow-hidden">
         <div className="w-[280px] border-r border-[#222] bg-[#0a0a0a] overflow-hidden shrink-0 flex flex-col">
           <div className="flex-1 overflow-y-auto p-4">
@@ -441,6 +452,28 @@ export function CommandCenterLayout({
                          <div className="flex flex-col bg-gradient-to-br from-purple-950/40 to-purple-900/20 rounded-lg p-2 border border-purple-500/30 backdrop-blur-sm group-hover/tile:border-purple-500/50 transition-colors">
                            <span className="text-purple-400 font-bold text-[7px] tracking-wider uppercase mb-1">On ATT</span>
                            <span className="text-white font-black text-[14px] tabular-nums leading-none">{treatmentInitiated}</span>
+                         </div>
+                       </div>
+                       
+                       {/* Progress Bar - Suspected Rate */}
+                       <div className="mt-2 space-y-1">
+                         <div className="flex items-center justify-between text-[6px] uppercase tracking-wider">
+                           <span className="text-[#666] font-bold">Risk Level</span>
+                           <span className="font-black" style={{ color: `rgb(${glowColor})` }}>{suspectedRate.toFixed(1)}%</span>
+                         </div>
+                         <div className="h-1.5 bg-black/50 rounded-full overflow-hidden border border-white/5">
+                           <motion.div 
+                             initial={{ width: 0 }}
+                             animate={{ width: `${Math.min(suspectedRate, 100)}%` }}
+                             transition={{ duration: 0.8, ease: "easeOut" }}
+                             className="h-full rounded-full relative"
+                             style={{ 
+                               backgroundColor: `rgb(${glowColor})`,
+                               boxShadow: `0 0 8px rgba(${glowColor}, 0.8), 0 0 20px rgba(${glowColor}, 0.4)`
+                             }}
+                           >
+                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                           </motion.div>
                          </div>
                        </div>
                        
