@@ -27,7 +27,7 @@ import PipelineDashboardEmbed from '@/components/PipelineDashboardEmbed';
 import CommandFooter from '@/components/CommandFooter';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope } from '@/hooks/useSessionScope';
-import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Activity, Target, Shield, Clock, BarChart3, Sparkles } from 'lucide-react';
 
 const BackgroundGrid = memo(() => (
   <div 
@@ -197,165 +197,222 @@ export default function CommandHubPage() {
           className="w-full max-w-[1400px] mx-auto px-6 mt-2 mb-8"
           data-tour-id="kpi-dashboard-bar"
         >
-          <div className="rounded-2xl border border-white/60 bg-white/70 backdrop-blur-md shadow-[0_8px_35px_rgba(15,23,42,0.06)] p-4 md:p-5">
-            <div className="flex flex-wrap items-center gap-4 md:gap-6">
-              {/* Screened - Today vs Total */}
-              <div className="min-w-[180px] flex-1" data-tour-id="kpi-screened">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Screened</p>
-                  <div className="h-px flex-1 bg-slate-200" />
-                </div>
-                <div className="flex items-baseline gap-3">
-                  <div>
-                    <p className="text-[8px] text-slate-400 uppercase tracking-wider">Today</p>
-                    <motion.p 
-                      key={`today-screened-${metrics?.todayScreened}`}
-                      initial={{ scale: 0.8 }}
-                      animate={{ scale: 1 }}
-                      className="text-2xl font-black text-slate-900 tabular-nums"
-                    >
-                      {metrics?.todayScreened?.toLocaleString() || '0'}
-                    </motion.p>
-                  </div>
-                  <span className="text-slate-300 text-sm">/</span>
-                  <div>
-                    <p className="text-[8px] text-slate-400 uppercase tracking-wider">Total</p>
-                    <motion.p 
-                      key={`total-screened-${metrics?.totalScreened}`}
-                      initial={{ scale: 0.8 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.1 }}
-                      className="text-xl font-bold text-slate-600 tabular-nums"
-                    >
-                      {metrics?.totalScreened?.toLocaleString() || '0'}
-                    </motion.p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Suspected - Today vs Total */}
-              <div className="min-w-[180px] flex-1" data-tour-id="kpi-flagged">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Suspected</p>
-                  <div className="h-px flex-1 bg-slate-200" />
-                </div>
-                <div className="flex items-baseline gap-3">
-                  <div>
-                    <p className="text-[8px] text-slate-400 uppercase tracking-wider">Today</p>
-                    <motion.p 
-                      key={`today-suspected-${metrics?.todaySuspected}`}
-                      initial={{ scale: 0.8 }}
-                      animate={{ scale: 1 }}
-                      className="text-2xl font-black text-amber-600 tabular-nums"
-                    >
-                      {metrics?.todaySuspected?.toLocaleString() || '0'}
-                    </motion.p>
-                  </div>
-                  <span className="text-slate-300 text-sm">/</span>
-                  <div>
-                    <p className="text-[8px] text-slate-400 uppercase tracking-wider">Total</p>
-                    <motion.p 
-                      key={`total-suspected-${metrics?.totalSuspected}`}
-                      initial={{ scale: 0.8 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.1 }}
-                      className="text-xl font-bold text-amber-500/70 tabular-nums"
-                    >
-                      {metrics?.totalSuspected?.toLocaleString() || '0'}
-                    </motion.p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Diagnosed - Today vs Total */}
-              <div className="min-w-[180px] flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Diagnosed</p>
-                  <div className="h-px flex-1 bg-slate-200" />
-                </div>
-                <div className="flex items-baseline gap-3">
-                  <div>
-                    <p className="text-[8px] text-slate-400 uppercase tracking-wider">Today</p>
-                    <motion.p 
-                      key={`today-diagnosed-${metrics?.todayDiagnosed}`}
-                      initial={{ scale: 0.8 }}
-                      animate={{ scale: 1 }}
-                      className="text-2xl font-black text-emerald-600 tabular-nums"
-                    >
-                      {metrics?.todayDiagnosed?.toLocaleString() || '0'}
-                    </motion.p>
-                  </div>
-                  <span className="text-slate-300 text-sm">/</span>
-                  <div>
-                    <p className="text-[8px] text-slate-400 uppercase tracking-wider">Total</p>
-                    <motion.p 
-                      key={`total-diagnosed-${metrics?.totalDiagnosed}`}
-                      initial={{ scale: 0.8 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.1 }}
-                      className="text-xl font-bold text-emerald-500/70 tabular-nums"
-                    >
-                      {metrics?.totalDiagnosed?.toLocaleString() || '0'}
-                    </motion.p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Pending - Today vs Total */}
-              <div className="min-w-[180px] flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Pending</p>
-                  <div className="h-px flex-1 bg-slate-200" />
-                </div>
-                <div className="flex items-baseline gap-3">
-                  <div>
-                    <p className="text-[8px] text-slate-400 uppercase tracking-wider">Today</p>
-                    <motion.p 
-                      key={`today-pending-${metrics?.todayPending}`}
-                      initial={{ scale: 0.8 }}
-                      animate={{ scale: 1 }}
-                      className="text-2xl font-black text-blue-600 tabular-nums"
-                    >
-                      {metrics?.todayPending?.toLocaleString() || '0'}
-                    </motion.p>
-                  </div>
-                  <span className="text-slate-300 text-sm">/</span>
-                  <div>
-                    <p className="text-[8px] text-slate-400 uppercase tracking-wider">Total</p>
-                    <motion.p 
-                      key={`total-pending-${metrics?.totalPending}`}
-                      initial={{ scale: 0.8 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.1 }}
-                      className="text-xl font-bold text-blue-500/70 tabular-nums"
-                    >
-                      {metrics?.totalPending?.toLocaleString() || '0'}
-                    </motion.p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="h-12 w-px bg-slate-200/70 hidden lg:block" />
-              
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  href="/dashboard/mande"
-                  className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50/80 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-indigo-700 hover:bg-indigo-100 transition-colors"
+          {/* Premium Metrics Bar with Glassmorphism */}
+          <div className="relative rounded-2xl overflow-hidden">
+            {/* Animated gradient background */}
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+            
+            {/* Glassmorphism card */}
+            <div className="relative bg-white/80 backdrop-blur-xl border border-white/60 shadow-[0_8px_40px_rgba(15,23,42,0.1)] p-5">
+              <div className="flex flex-wrap items-center gap-5 md:gap-8">
+                {/* Screened - Premium Card */}
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.1 }}
+                  className="relative group min-w-[200px] flex-1"
+                  data-tour-id="kpi-screened"
                 >
-                  View M&E Tools
-                </Link>
-                <Link
-                  href="/dashboard/vertex"
-                  className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50/80 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-indigo-700 hover:bg-indigo-100 transition-colors"
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative p-4 rounded-xl border border-blue-100/50 bg-gradient-to-br from-blue-50/50 to-transparent hover:from-blue-50/70 transition-all">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg">
+                        <Activity className="w-4 h-4 text-white" />
+                      </div>
+                      <p className="text-[10px] uppercase tracking-[0.15em] text-blue-600 font-bold">Screened</p>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[8px] text-blue-400/70 uppercase tracking-wider">Today</span>
+                        <motion.span 
+                          key={`today-screened-${metrics?.todayScreened}`}
+                          initial={{ y: -10, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          className="text-2xl font-black text-blue-700 tabular-nums"
+                        >
+                          {metrics?.todayScreened?.toLocaleString() || '0'}
+                        </motion.span>
+                      </div>
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[8px] text-blue-400/70 uppercase tracking-wider">Total</span>
+                        <motion.span 
+                          key={`total-screened-${metrics?.totalScreened}`}
+                          initial={{ y: -10, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.05 }}
+                          className="text-lg font-bold text-blue-500/80 tabular-nums"
+                        >
+                          {metrics?.totalScreened?.toLocaleString() || '0'}
+                        </motion.span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Suspected - Premium Card */}
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="relative group min-w-[200px] flex-1"
+                  data-tour-id="kpi-flagged"
                 >
-                  Review Analytics
-                </Link>
-                <Link
-                  href="/docs"
-                  className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50/80 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-indigo-700 hover:bg-indigo-100 transition-colors"
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 to-amber-500/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative p-4 rounded-xl border border-amber-100/50 bg-gradient-to-br from-amber-50/50 to-transparent hover:from-amber-50/70 transition-all">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-400 flex items-center justify-center shadow-lg">
+                        <Target className="w-4 h-4 text-white" />
+                      </div>
+                      <p className="text-[10px] uppercase tracking-[0.15em] text-amber-600 font-bold">Suspected</p>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[8px] text-amber-400/70 uppercase tracking-wider">Today</span>
+                        <motion.span 
+                          key={`today-suspected-${metrics?.todaySuspected}`}
+                          initial={{ y: -10, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          className="text-2xl font-black text-amber-700 tabular-nums"
+                        >
+                          {metrics?.todaySuspected?.toLocaleString() || '0'}
+                        </motion.span>
+                      </div>
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[8px] text-amber-400/70 uppercase tracking-wider">Total</span>
+                        <motion.span 
+                          key={`total-suspected-${metrics?.totalSuspected}`}
+                          initial={{ y: -10, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.05 }}
+                          className="text-lg font-bold text-amber-500/80 tabular-nums"
+                        >
+                          {metrics?.totalSuspected?.toLocaleString() || '0'}
+                        </motion.span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Diagnosed - Premium Card */}
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="relative group min-w-[200px] flex-1"
                 >
-                  Knowledge Vault
-                </Link>
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 to-emerald-500/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative p-4 rounded-xl border border-emerald-100/50 bg-gradient-to-br from-emerald-50/50 to-transparent hover:from-emerald-50/70 transition-all">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-green-400 flex items-center justify-center shadow-lg">
+                        <Shield className="w-4 h-4 text-white" />
+                      </div>
+                      <p className="text-[10px] uppercase tracking-[0.15em] text-emerald-600 font-bold">Diagnosed</p>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[8px] text-emerald-400/70 uppercase tracking-wider">Today</span>
+                        <motion.span 
+                          key={`today-diagnosed-${metrics?.todayDiagnosed}`}
+                          initial={{ y: -10, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          className="text-2xl font-black text-emerald-700 tabular-nums"
+                        >
+                          {metrics?.todayDiagnosed?.toLocaleString() || '0'}
+                        </motion.span>
+                      </div>
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[8px] text-emerald-400/70 uppercase tracking-wider">Total</span>
+                        <motion.span 
+                          key={`total-diagnosed-${metrics?.totalDiagnosed}`}
+                          initial={{ y: -10, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.05 }}
+                          className="text-lg font-bold text-emerald-500/80 tabular-nums"
+                        >
+                          {metrics?.totalDiagnosed?.toLocaleString() || '0'}
+                        </motion.span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Pending - Premium Card */}
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="relative group min-w-[200px] flex-1"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative p-4 rounded-xl border border-blue-100/50 bg-gradient-to-br from-blue-50/50 to-transparent hover:from-blue-50/70 transition-all">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-400 flex items-center justify-center shadow-lg">
+                        <Clock className="w-4 h-4 text-white" />
+                      </div>
+                      <p className="text-[10px] uppercase tracking-[0.15em] text-blue-600 font-bold">Pending</p>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[8px] text-blue-400/70 uppercase tracking-wider">Today</span>
+                        <motion.span 
+                          key={`today-pending-${metrics?.todayPending}`}
+                          initial={{ y: -10, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          className="text-2xl font-black text-blue-700 tabular-nums"
+                        >
+                          {metrics?.todayPending?.toLocaleString() || '0'}
+                        </motion.span>
+                      </div>
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[8px] text-blue-400/70 uppercase tracking-wider">Total</span>
+                        <motion.span 
+                          key={`total-pending-${metrics?.totalPending}`}
+                          initial={{ y: -10, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.05 }}
+                          className="text-lg font-bold text-blue-500/80 tabular-nums"
+                        >
+                          {metrics?.totalPending?.toLocaleString() || '0'}
+                        </motion.span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+
+                <div className="h-14 w-px bg-gradient-to-b from-transparent via-slate-200 to-transparent hidden lg:block" />
+                
+                <div className="flex flex-wrap gap-2 items-center">
+                  <Link
+                    href="/dashboard/mande"
+                    className="group relative px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[11px] font-semibold tracking-wide shadow-lg hover:shadow-xl hover:scale-105 transition-all overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                    <span className="relative flex items-center gap-2">
+                      <TrendingUp className="w-3.5 h-3.5" />
+                      M&E Tools
+                    </span>
+                  </Link>
+                  <Link
+                    href="/dashboard/vertex"
+                    className="group relative px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-[11px] font-semibold tracking-wide shadow-lg hover:shadow-xl hover:scale-105 transition-all overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                    <span className="relative flex items-center gap-2">
+                      <BarChart3 className="w-3.5 h-3.5" />
+                      Analytics
+                    </span>
+                  </Link>
+                  <Link
+                    href="/docs"
+                    className="group relative px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-[11px] font-semibold tracking-wide hover:border-slate-300 hover:bg-slate-50 transition-all"
+                  >
+                    <span className="relative flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      Knowledge
+                    </span>
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
