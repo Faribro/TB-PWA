@@ -143,7 +143,7 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
   );
 
   // Realtime subscription — live patient list updates
-  useRealtimePatients({
+  const realtimeStatus = useRealtimePatients({
     showToasts: true,
     filterState: activeFilters?.state,
     onInsert: (newPatient) => {
@@ -402,6 +402,33 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
               className="h-8 flex items-center text-xs font-bold text-slate-700 bg-gradient-to-br from-slate-100 to-slate-200 px-3 rounded-md shadow-sm border border-slate-300/50"
             >
               {filteredPatients.length.toLocaleString()} {hasActiveFilter ? 'filtered' : 'total'}
+            </motion.div>
+            {/* Realtime Connection Status */}
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className={`h-8 flex items-center gap-1.5 px-2.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                realtimeStatus.status === 'connected'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : realtimeStatus.status === 'connecting'
+                  ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                  : 'bg-red-50 text-red-700 border border-red-200'
+              }`}
+              title={`${realtimeStatus.activeUsers} active users • Last update: ${realtimeStatus.lastHeartbeat ? new Date(realtimeStatus.lastHeartbeat).toLocaleTimeString() : 'Never'}`}
+            >
+              <div className={`w-1.5 h-1.5 rounded-full ${
+                realtimeStatus.status === 'connected' ? 'bg-emerald-500 animate-pulse' :
+                realtimeStatus.status === 'connecting' ? 'bg-amber-500 animate-pulse' :
+                'bg-red-500'
+              }`} />
+              <span>
+                {realtimeStatus.status === 'connected' ? 'Live' :
+                 realtimeStatus.status === 'connecting' ? 'Connecting' :
+                 'Offline'}
+              </span>
+              {realtimeStatus.status === 'connected' && realtimeStatus.activeUsers > 1 && (
+                <span className="ml-1 text-emerald-600">• {realtimeStatus.activeUsers}</span>
+              )}
             </motion.div>
             {onUploadRegister && (
               <motion.button

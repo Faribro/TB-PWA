@@ -28,7 +28,7 @@ export function SyncStatusBadge({ state, message, lastSyncedAt }: SyncStatusBadg
     return null
   }
 
-  let content: JSX.Element
+  let content: React.ReactNode
 
   switch (state) {
     case 'saving':

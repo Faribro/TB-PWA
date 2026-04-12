@@ -132,10 +132,7 @@ export async function POST(request: NextRequest) {
     });
 
     // STEP 3: Fire-and-forget Sheets sync (non-blocking)
-    const sheetsSync = updatePatientInSheets(
-      updatedPatient,
-      updatedPatient.kobo_uuid
-    ).then(async (result) => {
+    const sheetsSync = updatePatientInSheets(updatedPatient).then(async (result) => {
       if (result.success) {
         await supabase
           .from('patients')

@@ -1,4 +1,4 @@
-const CACHE = 'samadhaan-v2'
+const CACHE = 'samadhaan-v3'
 const PRECACHE = [
   '/dashboard/submit-new',
   '/dashboard/my-submissions',
@@ -21,19 +21,25 @@ self.addEventListener('activate', e => {
 })
 
 self.addEventListener('fetch', e => {
+  // Skip non-GET requests
   if (e.request.method !== 'GET') return
+  
+  // Skip auth routes
   if (e.request.url.includes('/api/auth')) return
   
-  // Skip service worker for navigation requests to allow middleware redirects
+  // Skip navigation requests to allow middleware redirects
   if (e.request.mode === 'navigate') return
+  
+  // Skip API routes (let them go through normally)
+  if (e.request.url.includes('/api/')) return
   
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached
-      return fetch(e.request, { redirect: 'follow' }).catch((err) => {
-        console.debug('[SW] Fetch failed natively (likely network/aborted):', e.request.url);
-        throw err;
-      });
+      return fetch(e.request).catch(() => {
+        // Silently fail for offline scenarios
+        return new Response('Offline', { status: 503 })
+      })
     })
   )
 })

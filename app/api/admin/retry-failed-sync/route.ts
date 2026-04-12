@@ -36,9 +36,7 @@ export async function POST(request: NextRequest) {
 
   for (const patient of stuckPatients) {
     try {
-      const result = await updatePatientInSheets(
-        patient, patient.kobo_uuid
-      );
+      const result = await updatePatientInSheets(patient);
       if (result.success) {
         await adminSupabase
           .from('patients')

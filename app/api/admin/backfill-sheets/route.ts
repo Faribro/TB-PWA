@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
           updateData.sheets_sync_error = syncResult.error;
           results.failed++;
           results.failures.push({
-            id: patient.id as number,
+            id: Number(patient.id),
             inmate_name: patient.inmate_name || 'Unknown',
             error: syncResult.error || 'Unknown error'
           });
@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
         console.error(`[backfill] Error processing patient ${patient.id}:`, error);
         results.failed++;
         results.failures.push({
-          id: patient.id as number,
+          id: Number(patient.id),
           inmate_name: patient.inmate_name || 'Unknown',
           error: error.message
         });
