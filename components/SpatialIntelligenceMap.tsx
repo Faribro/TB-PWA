@@ -390,9 +390,14 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
     }
 
     const value = metrics[metric] || 0;
-    const percentage = (value / metrics.screened) * 100;
-    const yieldPercent = (metrics.diagnosed || 0) / (metrics.screened || 1) * 100;
-    const breachPercent = (metrics.breaches || 0) / (metrics.screened || 1) * 100;
+    const screened = metrics.screened || 1; // Prevent division by zero
+    const diagnosed = metrics.diagnosed || 0;
+    const breaches = metrics.breaches || 0;
+    
+    // Safe percentage calculations with guards
+    const percentage = Math.min(Math.max((value / screened) * 100, 0), 100);
+    const yieldPercent = Math.min(Math.max((diagnosed / screened) * 100, 0), 100);
+    const breachPercent = Math.min(Math.max((breaches / screened) * 100, 0), 100);
 
     // Breach metric: Red scale (high = bad) - Legend-aligned
     if (metric === 'breaches') {
@@ -406,7 +411,7 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
     // Screened metric: Volume-based Cyan/Indigo scale
     if (metric === 'screened') {
       const maxScreened = 500; // Adjust based on your data range
-      const intensity = Math.min(value / maxScreened, 1);
+      const intensity = Math.min(Math.max(value / maxScreened, 0), 1);
       
       if (intensity > 0.8) return [79, 70, 229, 220];    // Deep indigo (very high volume)
       if (intensity > 0.6) return [99, 102, 241, 200];   // Indigo
@@ -542,9 +547,13 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
             return 1000;
           }
           const val = metrics[activeMetric] || 0;
-          // Guard against NaN or non-numeric values which crash deck.gl assertions
-          const safeVal = isNaN(val) ? 0 : val;
-          return Math.max(safeVal * 150, 1000);
+          // Guard against NaN, Infinity, or non-numeric values which crash deck.gl
+          if (!Number.isFinite(val) || isNaN(val)) {
+            return 1000;
+          }
+          const elevation = Math.max(val * 150, 1000);
+          // Final safety check
+          return Number.isFinite(elevation) ? elevation : 1000;
         },
         getFillColor: (d: any, { index }: { index: number }) => {
           if (!d || !d.properties) return [30, 41, 59, 100];
