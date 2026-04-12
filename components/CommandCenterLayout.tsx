@@ -37,7 +37,14 @@ export function CommandCenterLayout({
   const { filter, setDistrict, setState, setStatus, resetFilters, hasActiveFilters } = useUniversalFilter();
 
   const [isLegendOpen, setIsLegendOpen] = useState(false);
-  const [aiInsights, setAiInsights] = useState<{insightText: string, activeNode: string, timestamp: number}[]>([]);
+  const [aiInsights, setAiInsights] = useState<{insightText: string, activeNode: string, timestamp: number, severity?: string}[]>([
+    {
+      insightText: '🚀 SAMADHAAN INTELLIGENCE CORE ONLINE: Neural surveillance systems initialized. Real-time district analytics active.',
+      activeNode: 'SYSTEM',
+      timestamp: Date.now(),
+      severity: 'INFO'
+    }
+  ]);
   const [aiLoading, setAiLoading] = useState(false);
   const [isIntervening, setIsIntervening] = useState(false);
   const matrixRef = useRef<HTMLDivElement>(null);
@@ -143,39 +150,152 @@ export function CommandCenterLayout({
     } catch(e) {}
   }, []);
 
-  // Gemini Notification Sync
+  // Advanced AI Brief Engine with Fallback Intelligence
   useEffect(() => {
     if (!filteredPatients || filteredPatients.length === 0) return;
     
     setAiLoading(true);
     const timeout = setTimeout(async () => {
       try {
-        const payload = {
-          stats: { highRiskPatients, totalPatients: filteredPatients.length },
-          districts: topDistricts
-        };
-        const res = await fetch('/api/ai/insights', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (data.success && data.insight) {
-          setAiInsights(prev => {
-            // Only add if it's different from the last insight to prevent duplicates
-            if (prev.length > 0 && prev[prev.length - 1].insightText === data.insight.insightText) return prev;
-            return [...prev, { ...data.insight, timestamp: Date.now() }];
+        // Calculate district-level analytics
+        const districtAnalytics = topDistricts.map(dist => {
+          const distPatients = activePool.filter((p: any) => p.screening_district === dist);
+          const suspected = distPatients.filter((p: any) => p.xray_result === 'Suspected TB Case').length;
+          const breaches = distPatients.filter((p: any) => {
+            const screeningDate = p.screening_date ? new Date(p.screening_date) : null;
+            if (!screeningDate) return false;
+            const daysSince = (Date.now() - screeningDate.getTime()) / (1000 * 60 * 60 * 24);
+            return !p.referral_date && daysSince > 7;
+          }).length;
+          const diagnosed = distPatients.filter((p: any) => p.tb_diagnosed === 'Y').length;
+          const breachRate = distPatients.length > 0 ? (breaches / distPatients.length) * 100 : 0;
+          const suspectedRate = distPatients.length > 0 ? (suspected / distPatients.length) * 100 : 0;
+          const yieldRate = distPatients.length > 0 ? (diagnosed / distPatients.length) * 100 : 0;
+          
+          return {
+            district: dist,
+            volume: distPatients.length,
+            suspected,
+            breaches,
+            diagnosed,
+            breachRate,
+            suspectedRate,
+            yieldRate,
+            riskScore: (breachRate * 0.4) + (suspectedRate * 0.4) + (100 - yieldRate) * 0.2
+          };
+        }).sort((a, b) => b.riskScore - a.riskScore);
+
+        // Try AI API first
+        try {
+          const payload = {
+            stats: { highRiskPatients, totalPatients: filteredPatients.length },
+            districts: topDistricts
+          };
+          const res = await fetch('/api/ai/insights', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(5000)
           });
+          
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.insight) {
+              setAiInsights(prev => {
+                if (prev.length > 0 && prev[prev.length - 1].insightText === data.insight.insightText) return prev;
+                return [...prev, { ...data.insight, timestamp: Date.now() }];
+              });
+              setAiLoading(false);
+              return;
+            }
+          }
+        } catch (apiError) {
+          console.warn('AI API unavailable, using local intelligence engine');
         }
+
+        // Fallback: Local Intelligence Engine (Always works)
+        const criticalDistrict = districtAnalytics[0];
+        const totalBreachRate = activePool.length > 0 ? (highRiskPatients / activePool.length) * 100 : 0;
+        
+        let insightText = '';
+        let severity = 'NOMINAL';
+        
+        if (criticalDistrict.breachRate > 50) {
+          severity = 'CRITICAL';
+          insightText = `⚠️ CRITICAL BREACH DETECTED: ${criticalDistrict.district.toUpperCase()} sector reporting ${criticalDistrict.breachRate.toFixed(1)}% SLA violation rate across ${criticalDistrict.volume} patients. IMMEDIATE INTERVENTION REQUIRED.`;
+        } else if (criticalDistrict.breachRate > 30) {
+          severity = 'WARNING';
+          insightText = `⚡ WARNING: ${criticalDistrict.district.toUpperCase()} sector shows elevated breach rate at ${criticalDistrict.breachRate.toFixed(1)}% with ${criticalDistrict.suspected} suspected cases pending triage.`;
+        } else if (criticalDistrict.suspectedRate > 25) {
+          severity = 'ALERT';
+          insightText = `🔍 SURVEILLANCE ALERT: ${criticalDistrict.district.toUpperCase()} sector has ${criticalDistrict.suspected} suspected TB cases (${criticalDistrict.suspectedRate.toFixed(1)}% of volume). Enhanced monitoring recommended.`;
+        } else if (criticalDistrict.yieldRate > 10) {
+          severity = 'POSITIVE';
+          insightText = `✅ HIGH YIELD DETECTED: ${criticalDistrict.district.toUpperCase()} sector achieving ${criticalDistrict.yieldRate.toFixed(1)}% diagnosis rate with ${criticalDistrict.diagnosed} confirmed cases. Operational excellence maintained.`;
+        } else {
+          severity = 'NOMINAL';
+          insightText = `📊 SYSTEM NOMINAL: ${criticalDistrict.district.toUpperCase()} sector operational with ${criticalDistrict.volume} patients under surveillance. All metrics within acceptable parameters.`;
+        }
+
+        // Add system status insight
+        const systemInsight = {
+          insightText,
+          activeNode: criticalDistrict.district,
+          timestamp: Date.now(),
+          severity
+        };
+
+        setAiInsights(prev => {
+          if (prev.length > 0 && prev[prev.length - 1].insightText === systemInsight.insightText) return prev;
+          return [...prev, systemInsight];
+        });
+
+        // Add secondary insights for other high-risk districts
+        if (districtAnalytics.length > 1) {
+          const secondaryDistrict = districtAnalytics[1];
+          if (secondaryDistrict.breachRate > 20 || secondaryDistrict.suspectedRate > 15) {
+            setTimeout(() => {
+              setAiInsights(prev => [...prev, {
+                insightText: `📍 SECONDARY NODE: ${secondaryDistrict.district.toUpperCase()} requires attention - ${secondaryDistrict.breaches} breaches, ${secondaryDistrict.suspected} suspected cases.`,
+                activeNode: secondaryDistrict.district,
+                timestamp: Date.now(),
+                severity: 'INFO'
+              }]);
+            }, 2000);
+          }
+        }
+
+        // Add trend analysis
+        setTimeout(() => {
+          const avgBreachRate = districtAnalytics.reduce((sum, d) => sum + d.breachRate, 0) / districtAnalytics.length;
+          const trendText = avgBreachRate > 30 
+            ? `📈 TREND ANALYSIS: System-wide breach rate at ${avgBreachRate.toFixed(1)}%. Recommend resource reallocation to high-risk sectors.`
+            : `📉 TREND ANALYSIS: System-wide breach rate stable at ${avgBreachRate.toFixed(1)}%. Continue current operational protocols.`;
+          
+          setAiInsights(prev => [...prev, {
+            insightText: trendText,
+            activeNode: 'SYSTEM',
+            timestamp: Date.now(),
+            severity: avgBreachRate > 30 ? 'WARNING' : 'INFO'
+          }]);
+        }, 4000);
+
       } catch (err) {
-        console.error('AI Sync failed:', err);
+        console.error('Intelligence Engine Error:', err);
+        // Ultimate fallback
+        setAiInsights(prev => [...prev, {
+          insightText: `⚙️ SYSTEM ONLINE: Monitoring ${filteredPatients.length} patients across ${topDistricts.length} districts. ${highRiskPatients} high-risk cases flagged for review.`,
+          activeNode: topDistricts[0] || 'UNKNOWN',
+          timestamp: Date.now(),
+          severity: 'INFO'
+        }]);
       } finally {
         setAiLoading(false);
       }
     }, 1500);
     
     return () => clearTimeout(timeout);
-  }, [highRiskPatients]);
+  }, [highRiskPatients, filteredPatients.length, topDistricts.length]);
 
   // Auto-scroll AI feed
   useEffect(() => {
@@ -622,15 +742,35 @@ export function CommandCenterLayout({
               <AnimatePresence initial={false}>
                 {aiInsights.map((insight, idx) => {
                   const isCommand = insight.insightText.includes('COMMAND');
-                  const isAlert = insight.insightText.includes('CRITICAL') || insight.insightText.includes('BREACH');
-                  const spectralColor = isCommand ? 'blue' : isAlert ? 'red' : 'cyan';
-                  const glowRGB = isCommand ? '37,99,235' : isAlert ? '239,68,68' : '6,182,212';
+                  const severity = (insight as any).severity || 'INFO';
+                  
+                  // Dynamic color based on severity
+                  let spectralColor = 'cyan';
+                  let glowRGB = '6,182,212';
+                  
+                  if (severity === 'CRITICAL') {
+                    spectralColor = 'red';
+                    glowRGB = '239,68,68';
+                  } else if (severity === 'WARNING') {
+                    spectralColor = 'amber';
+                    glowRGB = '245,158,11';
+                  } else if (severity === 'ALERT') {
+                    spectralColor = 'orange';
+                    glowRGB = '249,115,22';
+                  } else if (severity === 'POSITIVE') {
+                    spectralColor = 'emerald';
+                    glowRGB = '16,185,129';
+                  } else if (isCommand) {
+                    spectralColor = 'blue';
+                    glowRGB = '37,99,235';
+                  }
                   
                   return (
                   <motion.div 
                     key={insight.timestamp}
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                     className={`border p-3 rounded-sm relative overflow-hidden group/card shadow-[0_0_25px_rgba(${glowRGB},0.15)] hover:shadow-[0_0_40px_rgba(${glowRGB},0.3)] transition-all duration-500 backdrop-blur-xl bg-white/[0.02]`}
                     style={{ borderColor: `rgba(${glowRGB}, 0.3)` }}
                   >
@@ -642,14 +782,14 @@ export function CommandCenterLayout({
                       <span className="flex items-center gap-1.5">
                         <div className={`w-1 h-1 rounded-full bg-[rgb(${glowRGB})] shadow-[0_0_6px_rgba(${glowRGB},1)] animate-pulse`} />
                         <Globe className="w-2.5 h-2.5" style={{ color: `rgb(${glowRGB})` }} /> 
-                        <span style={{ color: `rgb(${glowRGB})` }}>{isCommand ? 'SECURE_CMD' : isAlert ? 'ALERT' : 'INTEL'}</span>
+                        <span style={{ color: `rgb(${glowRGB})` }}>{severity}</span>
                       </span>
                       <span className="text-[#666]">{new Date(insight.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                     </div>
                     <p className="text-[10px] text-[#aaa] leading-relaxed normal-case font-medium tracking-tight relative z-10 group-hover/card:text-white transition-colors">
                       {insight.insightText}
                     </p>
-                    {insight.activeNode && !isCommand && (
+                    {insight.activeNode && insight.activeNode !== 'SYSTEM' && !isCommand && (
                       <div className="mt-2 text-[9px] font-black tracking-widest uppercase flex items-center gap-1.5 relative z-10" style={{ color: `rgb(${glowRGB})` }}>
                         <div className={`w-1 h-1 rounded-full shadow-[0_0_6px_rgba(${glowRGB},1)]`} style={{ backgroundColor: `rgb(${glowRGB})` }} />
                         NODE: {insight.activeNode}
