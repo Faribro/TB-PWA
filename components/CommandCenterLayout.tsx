@@ -150,6 +150,124 @@ export function CommandCenterLayout({
     } catch(e) {}
   }, []);
 
+  // Critical Alert Sound (Red Alert)
+  const playCriticalAlert = useCallback(() => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      
+      // Create pulsing alarm sound
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
+      osc.frequency.setValueAtTime(440, ctx.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
+    } catch(e) {}
+  }, []);
+
+  // Warning Sound (Amber Alert)
+  const playWarningBeep = useCallback(() => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(660, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.05, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
+    } catch(e) {}
+  }, []);
+
+  // Success Chime (Positive)
+  const playSuccessChime = useCallback(() => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      
+      // Create ascending chord
+      [523.25, 659.25, 783.99].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.03, ctx.currentTime + i * 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.05 + 0.3);
+        osc.start(ctx.currentTime + i * 0.05);
+        osc.stop(ctx.currentTime + i * 0.05 + 0.3);
+      });
+    } catch(e) {}
+  }, []);
+
+  // Data Sync Sound (Info)
+  const playDataSync = useCallback(() => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1200, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1600, ctx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.03, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.08);
+    } catch(e) {}
+  }, []);
+
+  // Intervention Activation Sound
+  const playInterventionActivation = useCallback(() => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      
+      // Create power-up sound
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.type = 'sawtooth';
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(200, ctx.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(2000, ctx.currentTime + 0.4);
+      
+      osc.frequency.setValueAtTime(100, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.4);
+      
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      
+      osc.start();
+      osc.stop(ctx.currentTime + 0.4);
+    } catch(e) {}
+  }, []);
+
   // Advanced AI Brief Engine with Fallback Intelligence
   useEffect(() => {
     if (!filteredPatients || filteredPatients.length === 0) return;
@@ -249,6 +367,19 @@ export function CommandCenterLayout({
           if (prev.length > 0 && prev[prev.length - 1].insightText === systemInsight.insightText) return prev;
           return [...prev, systemInsight];
         });
+        
+        // Play sound based on severity
+        setTimeout(() => {
+          if (severity === 'CRITICAL') {
+            playCriticalAlert();
+          } else if (severity === 'WARNING') {
+            playWarningBeep();
+          } else if (severity === 'POSITIVE') {
+            playSuccessChime();
+          } else {
+            playDataSync();
+          }
+        }, 100);
 
         // Add secondary insights for other high-risk districts
         if (districtAnalytics.length > 1) {
@@ -261,6 +392,7 @@ export function CommandCenterLayout({
                 timestamp: Date.now(),
                 severity: 'INFO'
               }]);
+              playDataSync();
             }, 2000);
           }
         }
@@ -278,6 +410,12 @@ export function CommandCenterLayout({
             timestamp: Date.now(),
             severity: avgBreachRate > 30 ? 'WARNING' : 'INFO'
           }]);
+          
+          if (avgBreachRate > 30) {
+            playWarningBeep();
+          } else {
+            playDataSync();
+          }
         }, 4000);
 
       } catch (err) {
@@ -307,7 +445,7 @@ export function CommandCenterLayout({
   const handleIntervention = async () => {
     if (aiInsights.length === 0 || isIntervening) return;
     
-    playSonarBeep();
+    playInterventionActivation();
     setIsIntervening(true);
     
     // Get the last insight's active node
@@ -326,6 +464,7 @@ export function CommandCenterLayout({
       timestamp: Date.now(),
       severity: 'INFO'
     }]);
+    playDataSync();
 
     // Simulate processing
     await new Promise(r => setTimeout(r, 1500));
@@ -342,7 +481,7 @@ export function CommandCenterLayout({
     }]);
     
     // Play success sound
-    playSonarBeep();
+    playSuccessChime();
     
     // Add tactical analysis after intervention
     setTimeout(() => {
@@ -360,6 +499,7 @@ export function CommandCenterLayout({
         timestamp: Date.now(),
         severity: 'INFO'
       }]);
+      playDataSync();
     }, 2500);
     
     setIsIntervening(false);
@@ -806,7 +946,25 @@ export function CommandCenterLayout({
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                    className={`border p-3 rounded-sm relative overflow-hidden group/card shadow-[0_0_25px_rgba(${glowRGB},0.15)] hover:shadow-[0_0_40px_rgba(${glowRGB},0.3)] transition-all duration-500 backdrop-blur-xl bg-white/[0.02]`}
+                    onMouseEnter={() => {
+                      // Subtle hover sound
+                      try {
+                        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+                        if (!AudioContext) return;
+                        const ctx = new AudioContext();
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.type = 'sine';
+                        osc.frequency.value = 1400;
+                        gain.gain.setValueAtTime(0.01, ctx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+                        osc.start();
+                        osc.stop(ctx.currentTime + 0.05);
+                      } catch(e) {}
+                    }}
+                    className={`border p-3 rounded-sm relative overflow-hidden group/card shadow-[0_0_25px_rgba(${glowRGB},0.15)] hover:shadow-[0_0_40px_rgba(${glowRGB},0.3)] transition-all duration-500 backdrop-blur-xl bg-white/[0.02] cursor-pointer`}
                     style={{ borderColor: `rgba(${glowRGB}, 0.3)` }}
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent pointer-events-none" />

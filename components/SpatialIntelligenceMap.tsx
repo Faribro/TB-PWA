@@ -130,6 +130,7 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
   });
   const [isClient, setIsClient] = useState(false);
   const [webGLSupported, setWebGLSupported] = useState(false);
+  const [webGLError, setWebGLError] = useState<string | null>(null);
   const [showCascade, setShowCascade] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [heatmapMode, setHeatmapMode] = useState<'auto' | 'state' | 'district' | 'facility'>('district');
@@ -538,6 +539,14 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
         extruded: true,
         wireframe: false,
         lineWidthMinPixels: 2,
+        // Disable problematic features that might cause WebGL errors
+        parameters: {
+          depthTest: true,
+          depthMask: true,
+          blend: true,
+          blendFunc: [770, 771, 1, 771],
+          blendEquation: 32774
+        },
         getElevation: (d: any) => {
           if (!d || !d.properties) return 1000;
           const name = d.properties.district || d.properties.st_nm || '';
@@ -1244,8 +1253,20 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
     return (
       <div className="relative w-full h-full bg-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-2xl font-bold text-white mb-2">Loading 3D Visualization...</div>
-          <div className="text-slate-400">Initializing WebGL Engine</div>
+          <div className="text-2xl font-bold text-white mb-2">
+            {webGLError ? 'WebGL Error' : 'Loading 3D Visualization...'}
+          </div>
+          <div className="text-slate-400">
+            {webGLError || 'Initializing WebGL Engine'}
+          </div>
+          {webGLError && (
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition-colors"
+            >
+              Reload Page
+            </button>
+          )}
         </div>
       </div>
     );
@@ -1284,16 +1305,29 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
             onWebGLInitialized={(gl: any) => {
               try {
                 if (gl && gl.getParameter) {
+                  // Enable depth testing
                   gl.enable(gl.DEPTH_TEST);
                   gl.depthFunc(gl.LEQUAL);
+                  
+                  // Enable blending
+                  gl.enable(gl.BLEND);
+                  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+                  
+                  // Check for WebGL2 features
+                  const isWebGL2 = gl instanceof WebGL2RenderingContext;
+                  if (!isWebGL2) {
+                    console.warn('WebGL2 not available, some features may be limited');
+                  }
                 }
               } catch (error) {
                 console.error('WebGL initialization error:', error);
+                setWebGLError('WebGL initialization failed');
                 setWebGLSupported(false);
               }
             }}
             onError={(error: any) => {
               console.error('DeckGL error:', error);
+              setWebGLError(error?.message || 'Rendering error');
             }}
           >
             <Map 
