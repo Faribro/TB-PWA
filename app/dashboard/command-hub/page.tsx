@@ -25,6 +25,9 @@ import SectionDivider from '@/components/SectionDivider';
 import StatsTicker from '@/components/StatsTicker';
 import PipelineDashboardEmbed from '@/components/PipelineDashboardEmbed';
 import CommandFooter from '@/components/CommandFooter';
+import { useSWRAllPatients } from '@/hooks/useSWRPatients';
+import { useSessionScope } from '@/hooks/useSessionScope';
+import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 const BackgroundGrid = memo(() => (
   <div 
@@ -118,21 +121,10 @@ const Header = memo<HeaderProps>(({ firstName, userRole }) => {
 
 Header.displayName = 'Header';
 
-const HOME_PULSE = [
-  { label: 'Today Screened', value: '12,847' },
-  { label: 'AI Flagged', value: '342' },
-  { label: 'Confirmed', value: '89' },
-  { label: 'Pending Follow-up', value: '56' },
-] as const;
-
-const QUICK_ACTIONS = [
-  { href: '/dashboard/mande', label: 'View M&E Tools' },
-  { href: '/dashboard/vertex', label: 'Review Analytics' },
-  { href: '/docs', label: 'Open Knowledge Vault' },
-] as const;
-
 export default function CommandHubPage() {
   const { data: session, status } = useSession();
+  const scope = useSessionScope();
+  const { patients } = useSWRAllPatients(scope);
 
   const firstName = useMemo(
     () => session?.user?.name?.split(' ')[0] || 'Officer',
@@ -140,6 +132,36 @@ export default function CommandHubPage() {
   );
   
   const userRole = session?.user?.role || 'User';
+
+  // Calculate dynamic metrics
+  const metrics = useMemo(() => {
+    if (!patients) return null;
+    
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    // Today's stats
+    const todayScreened = patients.filter(p => p.screening_date === todayStr).length;
+    const todaySuspected = patients.filter(p => p.screening_date === todayStr && p.xray_result === 'Suspected TB Case').length;
+    const todayDiagnosed = patients.filter(p => p.screening_date === todayStr && p.tb_diagnosed === 'Y').length;
+    const todayPending = patients.filter(p => p.screening_date === todayStr && !p.referral_date && p.tb_diagnosed !== 'Y').length;
+
+    // Total stats
+    const totalScreened = patients.length;
+    const totalSuspected = patients.filter(p => p.xray_result === 'Suspected TB Case').length;
+    const totalDiagnosed = patients.filter(p => p.tb_diagnosed === 'Y').length;
+    const totalPending = patients.filter(p => !p.referral_date && p.tb_diagnosed !== 'Y').length;
+
+    return {
+      todayScreened,
+      todaySuspected,
+      todayDiagnosed,
+      todayPending,
+      totalScreened,
+      totalSuspected,
+      totalDiagnosed,
+      totalPending
+    };
+  }, [patients]);
 
   // Show loading state while session is loading
   if (status === 'loading') {
@@ -176,24 +198,164 @@ export default function CommandHubPage() {
           data-tour-id="kpi-dashboard-bar"
         >
           <div className="rounded-2xl border border-white/60 bg-white/70 backdrop-blur-md shadow-[0_8px_35px_rgba(15,23,42,0.06)] p-4 md:p-5">
-            <div className="flex flex-wrap items-center gap-3 md:gap-4">
-              {HOME_PULSE.map((item, index) => (
-                <div key={item.label} className="min-w-[145px] flex-1" data-tour-id={index === 0 ? "kpi-screened" : index === 1 ? "kpi-flagged" : undefined}>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
-                  <p className="mt-1 text-2xl font-black text-slate-900 tabular-nums">{item.value}</p>
+            <div className="flex flex-wrap items-center gap-4 md:gap-6">
+              {/* Screened - Today vs Total */}
+              <div className="min-w-[180px] flex-1" data-tour-id="kpi-screened">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Screened</p>
+                  <div className="h-px flex-1 bg-slate-200" />
                 </div>
-              ))}
-              <div className="h-10 w-px bg-slate-200/70 hidden lg:block" />
+                <div className="flex items-baseline gap-3">
+                  <div>
+                    <p className="text-[8px] text-slate-400 uppercase tracking-wider">Today</p>
+                    <motion.p 
+                      key={`today-screened-${metrics?.todayScreened}`}
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      className="text-2xl font-black text-slate-900 tabular-nums"
+                    >
+                      {metrics?.todayScreened?.toLocaleString() || '0'}
+                    </motion.p>
+                  </div>
+                  <span className="text-slate-300 text-sm">/</span>
+                  <div>
+                    <p className="text-[8px] text-slate-400 uppercase tracking-wider">Total</p>
+                    <motion.p 
+                      key={`total-screened-${metrics?.totalScreened}`}
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.1 }}
+                      className="text-xl font-bold text-slate-600 tabular-nums"
+                    >
+                      {metrics?.totalScreened?.toLocaleString() || '0'}
+                    </motion.p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Suspected - Today vs Total */}
+              <div className="min-w-[180px] flex-1" data-tour-id="kpi-flagged">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Suspected</p>
+                  <div className="h-px flex-1 bg-slate-200" />
+                </div>
+                <div className="flex items-baseline gap-3">
+                  <div>
+                    <p className="text-[8px] text-slate-400 uppercase tracking-wider">Today</p>
+                    <motion.p 
+                      key={`today-suspected-${metrics?.todaySuspected}`}
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      className="text-2xl font-black text-amber-600 tabular-nums"
+                    >
+                      {metrics?.todaySuspected?.toLocaleString() || '0'}
+                    </motion.p>
+                  </div>
+                  <span className="text-slate-300 text-sm">/</span>
+                  <div>
+                    <p className="text-[8px] text-slate-400 uppercase tracking-wider">Total</p>
+                    <motion.p 
+                      key={`total-suspected-${metrics?.totalSuspected}`}
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.1 }}
+                      className="text-xl font-bold text-amber-500/70 tabular-nums"
+                    >
+                      {metrics?.totalSuspected?.toLocaleString() || '0'}
+                    </motion.p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Diagnosed - Today vs Total */}
+              <div className="min-w-[180px] flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Diagnosed</p>
+                  <div className="h-px flex-1 bg-slate-200" />
+                </div>
+                <div className="flex items-baseline gap-3">
+                  <div>
+                    <p className="text-[8px] text-slate-400 uppercase tracking-wider">Today</p>
+                    <motion.p 
+                      key={`today-diagnosed-${metrics?.todayDiagnosed}`}
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      className="text-2xl font-black text-emerald-600 tabular-nums"
+                    >
+                      {metrics?.todayDiagnosed?.toLocaleString() || '0'}
+                    </motion.p>
+                  </div>
+                  <span className="text-slate-300 text-sm">/</span>
+                  <div>
+                    <p className="text-[8px] text-slate-400 uppercase tracking-wider">Total</p>
+                    <motion.p 
+                      key={`total-diagnosed-${metrics?.totalDiagnosed}`}
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.1 }}
+                      className="text-xl font-bold text-emerald-500/70 tabular-nums"
+                    >
+                      {metrics?.totalDiagnosed?.toLocaleString() || '0'}
+                    </motion.p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pending - Today vs Total */}
+              <div className="min-w-[180px] flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Pending</p>
+                  <div className="h-px flex-1 bg-slate-200" />
+                </div>
+                <div className="flex items-baseline gap-3">
+                  <div>
+                    <p className="text-[8px] text-slate-400 uppercase tracking-wider">Today</p>
+                    <motion.p 
+                      key={`today-pending-${metrics?.todayPending}`}
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      className="text-2xl font-black text-blue-600 tabular-nums"
+                    >
+                      {metrics?.todayPending?.toLocaleString() || '0'}
+                    </motion.p>
+                  </div>
+                  <span className="text-slate-300 text-sm">/</span>
+                  <div>
+                    <p className="text-[8px] text-slate-400 uppercase tracking-wider">Total</p>
+                    <motion.p 
+                      key={`total-pending-${metrics?.totalPending}`}
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.1 }}
+                      className="text-xl font-bold text-blue-500/70 tabular-nums"
+                    >
+                      {metrics?.totalPending?.toLocaleString() || '0'}
+                    </motion.p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-12 w-px bg-slate-200/70 hidden lg:block" />
+              
               <div className="flex flex-wrap gap-2">
-                {QUICK_ACTIONS.map((action) => (
-                  <Link
-                    key={action.href}
-                    href={action.href}
-                    className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50/80 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-indigo-700 hover:bg-indigo-100 transition-colors"
-                  >
-                    {action.label}
-                  </Link>
-                ))}
+                <Link
+                  href="/dashboard/mande"
+                  className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50/80 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-indigo-700 hover:bg-indigo-100 transition-colors"
+                >
+                  View M&E Tools
+                </Link>
+                <Link
+                  href="/dashboard/vertex"
+                  className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50/80 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-indigo-700 hover:bg-indigo-100 transition-colors"
+                >
+                  Review Analytics
+                </Link>
+                <Link
+                  href="/docs"
+                  className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50/80 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-indigo-700 hover:bg-indigo-100 transition-colors"
+                >
+                  Knowledge Vault
+                </Link>
               </div>
             </div>
           </div>
