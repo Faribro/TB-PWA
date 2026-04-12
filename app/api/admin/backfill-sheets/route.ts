@@ -145,7 +145,8 @@ export async function POST(req: NextRequest) {
         const currentAttempts = patient.sheets_sync_attempts || 0;
         const updateData: any = {
           synced_to_sheets: syncResult.success,
-          sheets_sync_attempts: currentAttempts + 1
+          // Reset attempts to 1 if this was a stuck record retry, otherwise increment
+          sheets_sync_attempts: (retryStuck && syncResult.success) ? 0 : currentAttempts + 1
         };
 
         if (syncResult.success) {
