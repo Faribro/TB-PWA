@@ -52,8 +52,8 @@ export function CommandCenterLayout({
 
   // Quick stats extraction
   const highRiskPatients = filteredPatients.filter(p => !p.referral_date).length;
-  // Use filteredPatients so cards respond to filter changes
-  const activePool = filteredPatients;
+  // Pin matrix to global nodes so it doesn't collapse when the user zeroes in on a single node
+  const activePool = (globalPatients && globalPatients.length > 0) ? globalPatients : filteredPatients;
   const topDistricts = [...new Set(activePool.map((p: any) => p.screening_district))].slice(0, 6);
 
   // Auto-scroll logic for Geography Matrix
