@@ -1,51 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getSessionScope } from '@/lib/session-scope';
+import { updatePatientInSheets, PatientRecord } from '@/lib/sheetsSync';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
-// Google Apps Script Web App URL (set this in your .env.local)
-const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_WEBHOOK_URL || '';
 
-// Definitive list of 32 Google Sheet column headers (EXACT match required)
-const GOOGLE_SHEET_HEADERS = [
-  'Serial Number',
-  'KoboUUID',
-  'KoboID',
-  'Name of the staff',
-  'State',
-  'District',
-  'Name of the facility',
-  'Type of facility',
-  'Type of inmate',
-  'Name of the inmate',
-  'Father/Husband Name',
-  'Age',
-  'Sex',
-  'Date of Birth (dd/mm/yyyy)',
-  'Contact Number',
-  'Address',
-  'Date of Screening (dd/mm/yyyy)',
-  'Chest X-ray Result',
-  '10s Symptoms Present',
-  'Past TB History',
-  'Date of referral for TB Examination (sputum) (dd/mm/yy)',
-  'Name of facility where referred to (Give code/name of all facilities)',
-  'TB diagnosed (Y/N)',
-  'Date of TB Diagnosed (dd/mm/yy)',
-  'Type of TB Diagnosed (P/EP)',
-  'Date of starting ATT (dd/mm/yyyy)',
-  'Date of Treatment Completion (dd/mm/yyyy)',
-  'HIV Status (Positive/Negative/Unknown)',
-  'Status at the time of referral (Pre ART/On ART) [If on ART at time of referral]',
-  'ART Number (if on ART at the time of referral)',
-  'NIKSHAY/ABHA ID',
-  'Date of registration (dd/mm/yyyy)',
-  'Remarks'
-];
 
 export async function POST(request: NextRequest) {
   try {
@@ -138,20 +101,12 @@ export async function POST(request: NextRequest) {
     const clientTimestamp = updates.client_timestamp;
     delete supabaseUpdates.client_timestamp; // Remove from specific fields
 
-    // ✅ FIX: Use updated_at optimistic lock
-    supabaseUpdates.updated_at = new Date().toISOString();
-
     console.log('[patient-sync] Supabase updates:', supabaseUpdates);
 
     let updateQuery = supabase
       .from('patients')
       .update(supabaseUpdates)
       .eq('id', patientId);
-
-    // Only update if server is older (optimistic locking)
-    if (clientTimestamp) {
-      updateQuery = updateQuery.lt('updated_at', clientTimestamp);
-    }
 
     // Ownership guard: non-admins can only update patients in their own state
     // Skip ownership check for service role authentication
@@ -192,123 +147,68 @@ export async function POST(request: NextRequest) {
 
     console.log('[patient-sync] Supabase success, updated patient:', updatedPatient?.id);
 
-    // Step B: Forward to Google Apps Script (with timeout handling)
+    // Step B: Sync to Google Sheets via direct API
     let googleSheetsResult: { success: boolean; message: string; data?: any } = { 
       success: false, 
-      message: 'Webhook not configured' 
+      message: 'Google Sheets not configured' 
     };
     
-    // Determine the UUID to use for Google Sheets lookup (priority: provided koboUuid > patient's kobo_uuid > patient's unique_id)
     const sheetsLookupId = koboUuid || updatedPatient.kobo_uuid || updatedPatient.unique_id;
     
-    if (GOOGLE_SCRIPT_URL && sheetsLookupId) {
+    if (process.env.GOOGLE_SHEET_ID && process.env.GOOGLE_SERVICE_ACCOUNT_KEY && sheetsLookupId) {
       try {
-        // FUZZY KEY NORMALIZATION: Sanitize and filter keys
-        const normalizedUpdates: Record<string, any> = {};
+        console.log('[patient-sync] Syncing to Google Sheets via API:', sheetsLookupId);
         
-        Object.keys(updates).forEach(key => {
-          // Step 1: Trim whitespace
-          const trimmedKey = key.trim();
-          
-          // Step 2: Fuzzy match - treat (dd/mm/yyyy) and (dd/mm/yy) as identical
-          let matchedKey = trimmedKey;
-          
-          // Check if key exists in allowed headers (exact match first)
-          if (GOOGLE_SHEET_HEADERS.includes(trimmedKey)) {
-            matchedKey = trimmedKey;
-          } else {
-            // Try fuzzy matching for date format variations
-            const fuzzyMatch = GOOGLE_SHEET_HEADERS.find(header => {
-              const normalizedHeader = header.replace(/\(dd\/mm\/yyyy\)/g, '(dd/mm/yy)').replace(/\(dd\/mm\/yy\)/g, '(dd/mm/yyyy)');
-              const normalizedKey = trimmedKey.replace(/\(dd\/mm\/yyyy\)/g, '(dd/mm/yy)').replace(/\(dd\/mm\/yy\)/g, '(dd/mm/yyyy)');
-              return normalizedHeader === normalizedKey || header === trimmedKey;
-            });
-            
-            if (fuzzyMatch) {
-              matchedKey = fuzzyMatch; // Use the exact header name from sheet
-            } else {
-              // Step 3: Skip keys not in the 32-column list (local UI state)
-              console.log(`⚠️ Skipping key not in Google Sheet headers: "${trimmedKey}"`);
-              return;
-            }
-          }
-          
-          // Only add non-empty values
-          if (updates[key] !== undefined && updates[key] !== null && updates[key] !== '') {
-            normalizedUpdates[matchedKey] = updates[key];
-          }
-        });
-
-        const webhookPayload = {
-          action: 'update_patient',
-          uuid: sheetsLookupId,
-          updates: normalizedUpdates
+        const patientRecord: PatientRecord = {
+          ...updatedPatient,
+          kobo_uuid: sheetsLookupId
         };
-
-        // CRITICAL DEBUG LOG: Print exact payload being sent
-        console.log('═══════════════════════════════════════════════════════════');
-        console.log('🚀 SENDING TO GOOGLE SHEETS:');
-        console.log('Lookup ID:', sheetsLookupId, '(source:', koboUuid ? 'provided' : updatedPatient.kobo_uuid ? 'patient.kobo_uuid' : 'patient.unique_id', ')');
-        console.log('Payload Keys:', Object.keys(normalizedUpdates));
-        console.log('Full Payload:', JSON.stringify(webhookPayload, null, 2));
-        console.log('═══════════════════════════════════════════════════════════');
-
-        const webhookResponse = await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(webhookPayload),
-          signal: AbortSignal.timeout(30000) // 30 second timeout
-        });
-
-        const responseText = await webhookResponse.text();
-        console.log('📥 Google Sheets Response:', responseText);
-
-        if (webhookResponse.ok) {
-          try {
-            const webhookData = JSON.parse(responseText);
-            
-            // Extract actual row count from response
-            const rowsUpdated = webhookData.rowsUpdated || webhookData.updated || 0;
-            const actualSuccess = webhookData.success !== false && rowsUpdated >= 0;
-            
-            googleSheetsResult = {
-              success: actualSuccess,
-              message: webhookData.message || `Google Sheets ${rowsUpdated > 0 ? 'updated' : 'processed'}: ${rowsUpdated} row(s)`,
-              data: {
-                ...webhookData,
-                rowsUpdated // Normalize the field name
-              }
-            };
-            
-            // Log warning if no rows were updated
-            if (rowsUpdated === 0) {
-              console.warn('⚠️ Google Sheets returned 0 rows updated - UUID may not exist in sheet');
-            }
-          } catch {
-            // Non-JSON response (likely plain text success message)
-            googleSheetsResult = {
-              success: true,
-              message: responseText || 'Google Sheets updated successfully',
-              data: { response: responseText, rowsUpdated: 1 }
-            };
-          }
+        
+        const syncResult = await updatePatientInSheets(patientRecord);
+        
+        googleSheetsResult = {
+          success: syncResult.success,
+          message: syncResult.message,
+          data: { rowsUpdated: syncResult.rowsAppended || 0 }
+        };
+        
+        if (syncResult.success) {
+          console.log('[patient-sync] ✅ Google Sheets sync successful');
         } else {
-          console.error('❌ Google Sheets Error:', webhookResponse.status, responseText);
-          googleSheetsResult = {
-            success: false,
-            message: `Webhook failed (${webhookResponse.status}): ${responseText}`
-          };
+          console.error('[patient-sync] ❌ Google Sheets sync failed:', syncResult.error);
         }
-      } catch (webhookError: any) {
-        console.error('❌ Google Sheets webhook failed:', webhookError);
+      } catch (error: any) {
+        console.error('[patient-sync] ❌ Google Sheets API error:', error);
         googleSheetsResult = {
           success: false,
-          message: webhookError.name === 'TimeoutError' 
-            ? 'Webhook timeout (Google Sheets may still update)' 
-            : `Webhook error: ${webhookError.message}`
+          message: `API error: ${error.message}`
         };
+      }
+    }
+
+    // Update Supabase with sync status
+    const syncStatusUpdate: any = {};
+    
+    if (googleSheetsResult.success) {
+      syncStatusUpdate.synced_to_sheets = true;
+      syncStatusUpdate.sheets_synced_at = new Date().toISOString();
+      syncStatusUpdate.sheets_sync_error = null;
+      console.log('✅ Marking patient as synced');
+    } else if (process.env.GOOGLE_SHEET_ID && sheetsLookupId) {
+      syncStatusUpdate.synced_to_sheets = false;
+      syncStatusUpdate.sheets_sync_error = googleSheetsResult.message;
+      console.log('❌ Marking patient as unsynced - will retry later');
+    }
+
+    // Apply sync status update if needed
+    if (Object.keys(syncStatusUpdate).length > 0) {
+      const { error: syncUpdateError } = await supabase
+        .from('patients')
+        .update(syncStatusUpdate)
+        .eq('id', patientId);
+
+      if (syncUpdateError) {
+        console.error('❌ Failed to update sync status:', syncUpdateError);
       }
     }
 

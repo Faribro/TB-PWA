@@ -45,81 +45,88 @@ export async function GET() {
  * Webhook receiver from Supabase Database Webhook
  */
 export async function POST(req: NextRequest) {
+  // ═══════════════════════════════════════════════════════════════════════
+  // STEP 1: Validate webhook secret
+  // ═══════════════════════════════════════════════════════════════════════
+  const secret = req.headers.get('x-webhook-secret') 
+    || req.headers.get('authorization')?.replace('Bearer ', '');
+  
+  if (!WEBHOOK_SECRET) {
+    console.error('[sync-to-sheets] SUPABASE_WEBHOOK_SECRET not configured');
+    return NextResponse.json(
+      { error: 'Server configuration error' },
+      { status: 500 }
+    );
+  }
+  
+  if (!secret || secret !== WEBHOOK_SECRET) {
+    console.error('[sync-to-sheets] Unauthorized webhook attempt');
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // STEP 2: Parse webhook payload
+  // ═══════════════════════════════════════════════════════════════════════
+  let payload: any;
+  try {
+    payload = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: 'Invalid JSON payload' },
+      { status: 400 }
+    );
+  }
+
+  console.log('[sync-to-sheets] Webhook received:', {
+    type: payload.type,
+    table: payload.table,
+    recordId: payload.record?.id
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // STEP 3: Return 200 IMMEDIATELY (Supabase pg_net 5s timeout)
+  // ═══════════════════════════════════════════════════════════════════════
+  const response = NextResponse.json({ status: 'queued' }, { status: 200 });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // STEP 4: Process in background using waitUntil
+  // ═══════════════════════════════════════════════════════════════════════
+  const ctx = (req as any)[Symbol.for('vercel.request.context')];
+  if (ctx?.waitUntil) {
+    ctx.waitUntil(processSheetSync(payload));
+  } else {
+    // Fallback for local dev (non-blocking)
+    processSheetSync(payload).catch(err => {
+      console.error('[sync-to-sheets] Background processing error:', err);
+    });
+  }
+
+  return response;
+}
+
+/**
+ * Background processing function for sheet sync
+ */
+async function processSheetSync(payload: any): Promise<void> {
   const startTime = Date.now();
   
   try {
-    // ═══════════════════════════════════════════════════════════════════════
-    // STEP 1: Validate webhook secret
-    // ═══════════════════════════════════════════════════════════════════════
-    const secret = req.headers.get('x-webhook-secret') 
-      || req.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (!WEBHOOK_SECRET) {
-      console.error('[sync-to-sheets] SUPABASE_WEBHOOK_SECRET not configured');
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      );
-    }
-    
-    if (!secret || secret !== WEBHOOK_SECRET) {
-      console.error('[sync-to-sheets] Unauthorized webhook attempt');
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // STEP 2: Parse webhook payload
-    // ═══════════════════════════════════════════════════════════════════════
-    let payload: any;
-    try {
-      payload = await req.json();
-    } catch {
-      return NextResponse.json(
-        { error: 'Invalid JSON payload' },
-        { status: 400 }
-      );
-    }
-
-    console.log('[sync-to-sheets] Webhook received:', {
-      type: payload.type,
-      table: payload.table,
-      recordId: payload.record?.id,
-      oldRecordId: payload.old_record?.id
-    });
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // STEP 3: Extract patient record
-    // ═══════════════════════════════════════════════════════════════════════
-    // Supabase webhook payload structure:
-    // {
-    //   type: 'INSERT' | 'UPDATE' | 'DELETE',
-    //   table: 'patients',
-    //   record: { ...patient data },
-    //   old_record: { ...old patient data } (for UPDATE only)
-    // }
-    
+    // Extract patient record
     const webhookType = payload.type;
     const patient: PatientRecord = payload.record;
     
     if (!patient || !patient.id) {
       console.error('[sync-to-sheets] Missing patient record in payload');
-      return NextResponse.json(
-        { error: 'Missing patient record' },
-        { status: 400 }
-      );
+      return;
     }
 
     // Skip if already synced (safety check)
     if (patient.synced_to_sheets === true) {
       console.log('[sync-to-sheets] Patient already synced, skipping:', patient.id);
-      return NextResponse.json({
-        success: true,
-        message: 'Patient already synced',
-        skipped: true
-      });
+      return;
     }
 
     console.log('[sync-to-sheets] Processing patient:', {
@@ -130,9 +137,7 @@ export async function POST(req: NextRequest) {
       webhookType
     });
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // STEP 4: Sync to Google Sheets with retry logic
-    // ═══════════════════════════════════════════════════════════════════════
+    // Sync to Google Sheets with retry logic
     let syncResult;
     let attempt = 0;
     let lastError: string | undefined;
@@ -172,9 +177,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // STEP 5: Update Supabase sync status
-    // ═══════════════════════════════════════════════════════════════════════
+    // Update Supabase sync status
     const syncSuccess = syncResult?.success || false;
     const currentAttempts = patient.sheets_sync_attempts || 0;
 
@@ -201,50 +204,12 @@ export async function POST(req: NextRequest) {
       console.log('[sync-to-sheets] Updated sync status in Supabase:', {
         patientId: patient.id,
         synced: syncSuccess,
-        attempts: updateData.sheets_sync_attempts
+        attempts: updateData.sheets_sync_attempts,
+        duration: `${Date.now() - startTime}ms`
       });
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // STEP 6: Return response
-    // ═══════════════════════════════════════════════════════════════════════
-    const duration = Date.now() - startTime;
-
-    if (syncSuccess) {
-      return NextResponse.json({
-        success: true,
-        message: 'Patient synced to Google Sheets',
-        data: {
-          patientId: patient.id,
-          koboUuid: patient.kobo_uuid,
-          rowsAppended: syncResult?.rowsAppended || 1,
-          attempts: attempt,
-          duration: `${duration}ms`
-        }
-      });
-    } else {
-      return NextResponse.json({
-        success: false,
-        message: 'Failed to sync to Google Sheets after max retries',
-        error: lastError,
-        data: {
-          patientId: patient.id,
-          attempts: attempt,
-          duration: `${duration}ms`
-        }
-      }, { status: 500 });
-    }
-
   } catch (error: any) {
-    const duration = Date.now() - startTime;
-    console.error('[sync-to-sheets] Unhandled error:', error);
-    
-    return NextResponse.json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message,
-      duration: `${duration}ms`
-    }, { status: 500 });
+    console.error('[sync-to-sheets] Background processing error:', error);
   }
 }
 

@@ -1357,17 +1357,17 @@ export default function Vertex({
             "flex flex-col h-full w-full origin-right transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
             selectedPatient && "scale-[0.94] opacity-50 blur-[2px] pointer-events-none bg-slate-100/50"
           )}>
-            <SheetHeader className="px-6 py-5 border-b border-white/30 bg-white/20 backdrop-blur-xl">
+            <SheetHeader className="px-4 py-3 border-b border-white/30 bg-white/20 backdrop-blur-xl">
               <div className="flex items-center justify-between">
                 <div>
-                  <SheetTitle className="text-2xl font-black text-slate-900 mb-1">
+                  <SheetTitle className="text-lg font-black text-slate-900 leading-tight">
                     {selectedFacility?.name}
                   </SheetTitle>
-                  <p className="text-sm font-medium text-slate-500">
+                  <p className="text-xs font-medium text-slate-500 mt-0.5">
                     {patientsForSelectedFacility.length} patients screened
                   </p>
                 </div>
-                <Badge variant="outline" className="text-slate-600 bg-slate-50 border-slate-200 text-sm font-bold px-3 py-1.5">
+                <Badge variant="outline" className="text-slate-600 bg-slate-50 border-slate-200 text-xs font-bold px-2.5 py-1">
                   {patientsForSelectedFacility.length} total
                 </Badge>
               </div>

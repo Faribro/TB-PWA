@@ -45,46 +45,54 @@ ON patients (sheets_synced_at);
 -- Enable pg_net extension (run as superuser)
 -- CREATE EXTENSION IF NOT EXISTS pg_net;
 
--- Create webhook function
+-- Create webhook function with double-write prevention
 CREATE OR REPLACE FUNCTION notify_sheets_sync()
 RETURNS TRIGGER AS $$
 DECLARE
-  webhook_url TEXT := 'https://your-vercel-domain.vercel.app/api/sync-to-sheets';
-  webhook_secret TEXT := 'your_webhook_secret_here';
+  webhook_url TEXT := 'https://hhxr-tb-engine.vercel.app/api/sync-to-sheets';
+  webhook_secret TEXT := current_setting('app.sheets_sync_secret', true);
   payload JSONB;
 BEGIN
-  -- Only trigger if not synced and attempts < 3
-  IF (NEW.synced_to_sheets = false OR NEW.synced_to_sheets IS NULL) 
-     AND (NEW.sheets_sync_attempts IS NULL OR NEW.sheets_sync_attempts < 3) THEN
-    
-    -- Build payload
-    payload := jsonb_build_object(
-      'type', TG_OP,
-      'table', TG_TABLE_NAME,
-      'record', row_to_json(NEW),
-      'old_record', CASE WHEN TG_OP = 'UPDATE' THEN row_to_json(OLD) ELSE NULL END
-    );
-    
-    -- Send webhook (requires pg_net extension)
-    -- PERFORM net.http_post(
-    --   url := webhook_url,
-    --   headers := jsonb_build_object(
-    --     'Content-Type', 'application/json',
-    --     'x-webhook-secret', webhook_secret
-    --   ),
-    --   body := payload
-    -- );
-    
+  -- GUARD: Skip if already synced (prevents double-write from PATH 3)
+  IF NEW.synced_to_sheets = true THEN
+    RETURN NEW;
   END IF;
-  
+
+  -- GUARD: Skip if too many failed attempts
+  IF COALESCE(NEW.sheets_sync_attempts, 0) >= 3 THEN
+    RETURN NEW;
+  END IF;
+
+  -- Build payload
+  payload := jsonb_build_object(
+    'type',   TG_OP,
+    'table',  TG_TABLE_NAME,
+    'record', row_to_json(NEW)::jsonb
+  );
+
+  -- Fire webhook (pg_net non-blocking)
+  PERFORM net.http_post(
+    url     := webhook_url,
+    headers := jsonb_build_object(
+      'Content-Type',    'application/json',
+      'x-webhook-secret', COALESCE(
+        webhook_secret,
+        'samadhaan_sheets_sync_secure_2026'
+      )
+    ),
+    body    := payload::text
+  );
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create trigger
+-- Drop old trigger if exists
 DROP TRIGGER IF EXISTS trigger_sheets_sync ON patients;
+
+-- Re-create: INSERT ONLY (not UPDATE — PATH 3 handles updates)
 CREATE TRIGGER trigger_sheets_sync
-  AFTER INSERT OR UPDATE ON patients
+  AFTER INSERT ON patients
   FOR EACH ROW
   EXECUTE FUNCTION notify_sheets_sync();
 

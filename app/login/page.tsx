@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";

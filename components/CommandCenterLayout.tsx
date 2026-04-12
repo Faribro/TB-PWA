@@ -35,6 +35,8 @@ export function CommandCenterLayout({
   onHeatmapModeChange,
 }: CommandCenterLayoutProps) {
   const { filter, setDistrict, setState, setStatus, resetFilters, hasActiveFilters } = useUniversalFilter();
+  const [selectedState, setSelectedState] = useState<string | null>(null);
+  const [showDistricts, setShowDistricts] = useState(false);
 
   const [isLegendOpen, setIsLegendOpen] = useState(false);
   const [aiInsights, setAiInsights] = useState<{insightText: string, activeNode: string, timestamp: number, severity?: string}[]>([
@@ -55,6 +57,14 @@ export function CommandCenterLayout({
   // Pin matrix to global nodes so it doesn't collapse when the user zeroes in on a single node
   const activePool = (globalPatients && globalPatients.length > 0) ? globalPatients : filteredPatients;
   const topDistricts = [...new Set(activePool.map((p: any) => p.screening_district))].slice(0, 6);
+
+  // Get unique states for state cards
+  const uniqueStates = [...new Set(activePool.map((p: any) => p.screening_state).filter(Boolean))].sort();
+  
+  // Get districts for selected state
+  const districtsForState = selectedState 
+    ? [...new Set(activePool.filter((p: any) => p.screening_state === selectedState).map((p: any) => p.screening_district))]
+    : [];
 
   // Auto-scroll logic for Geography Matrix
   useEffect(() => {
@@ -667,7 +677,111 @@ export function CommandCenterLayout({
             <span className="text-[9px] font-bold tracking-[0.3em] text-[#666] uppercase">Situation</span>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* State Cards for PM/Admin */}
+            {uniqueStates.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[8px] font-bold tracking-[0.2em] text-[#888] uppercase">States</span>
+                  {selectedState && (
+                    <button 
+                      onClick={() => {
+                        setSelectedState(null);
+                        setShowDistricts(false);
+                        setState(null);
+                      }}
+                      className="text-[7px] text-cyan-400 hover:text-cyan-300 transition-colors"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+                
+                {/* State Cards */}
+                <AnimatePresence mode="wait">
+                  {!showDistricts ? (
+                    <motion.div 
+                      key="states"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.3 }}
+                      className="grid grid-cols-2 gap-2"
+                    >
+                      {uniqueStates.map((state) => {
+                        const statePatients = activePool.filter((p: any) => p.screening_state === state);
+                        const isSelected = filter.state === state;
+                        
+                        return (
+                          <motion.button
+                            key={state}
+                            onClick={() => {
+                              setSelectedState(state);
+                              setShowDistricts(true);
+                              setState(state);
+                            }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className={`relative p-3 rounded-lg border transition-all ${
+                              isSelected 
+                                ? 'bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border-cyan-500/50 shadow-[0_0_20px_rgba(34,211,238,0.2)]' 
+                                : 'bg-white/[0.02] border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
+                            }`}
+                          >
+                            <p className="text-[9px] font-bold text-white/90 truncate">{state}</p>
+                            <p className="text-[7px] text-[#666] mt-1">{statePatients.length.toLocaleString()} patients</p>
+                          </motion.button>
+                        );
+                      })}
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key="districts"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-2"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <button 
+                          onClick={() => {
+                            setShowDistricts(false);
+                          }}
+                          className="text-[7px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                        >
+                          ← Back to States
+                        </button>
+                        <span className="text-[8px] font-bold text-white/90">{selectedState}</span>
+                      </div>
+                      
+                      {districtsForState.map((district) => {
+                        const districtPatients = activePool.filter((p: any) => p.screening_district === district);
+                        const isSelected = filter.district === district;
+                        
+                        return (
+                          <motion.button
+                            key={district}
+                            onClick={() => setDistrict(district)}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            className={`relative p-2.5 rounded-lg border transition-all ${
+                              isSelected 
+                                ? 'bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border-cyan-500/50 shadow-[0_0_15px_rgba(34,211,238,0.2)]' 
+                                : 'bg-white/[0.02] border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
+                            }`}
+                          >
+                            <p className="text-[8px] font-bold text-white/90 truncate">{district}</p>
+                            <p className="text-[6px] text-[#666] mt-0.5">{districtPatients.length.toLocaleString()} patients</p>
+                          </motion.button>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+            
             <KPIRibbon filteredPatients={globalPatients || filteredPatients} compact />
           </div>
         </div>

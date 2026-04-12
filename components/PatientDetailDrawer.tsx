@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
-import { User, FileText, Activity, Pill, Shield, ChevronDown, AlertCircle, CheckCircle2, Calendar, Sparkles, Lock, Unlock, Save } from 'lucide-react';
+import { User, FileText, Activity, Pill, Shield, ChevronDown, AlertCircle, CheckCircle2, Calendar, Sparkles, Lock, Unlock, Save, ClipboardList, X, MapPin, XCircle, Search, ArrowRightCircle, Settings2, AlertTriangle, Zap, TrendingUp, Award, Crown } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ClinicalAccordion } from './ui/ClinicalAccordion';
 import { type PatientFormData } from '@/lib/schemas';
 import { calculatePatientPhase } from '@/lib/phase-engine';
 import PatientHistory from './PatientHistory';
@@ -26,8 +28,8 @@ interface PatientDetailDrawerProps {
 
 const ReadOnlyField = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
   <div className="flex flex-col gap-0.5 group">
-    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest transition-colors group-hover:text-blue-500">{label}</label>
-    <div className="text-sm font-bold text-slate-800 bg-slate-50/50 p-2 rounded-lg border border-transparent transition-all group-hover:bg-white group-hover:border-slate-100 group-hover:shadow-sm">
+    <label className="block text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400 mb-1">{label}</label>
+    <div className="text-[13px] font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded-[10px] px-3 py-2.5 transition-all group-hover:bg-white group-hover:border-slate-300">
       {value || <span className="text-slate-300 font-normal italic">Not recorded</span>}
     </div>
   </div>
@@ -35,30 +37,30 @@ const ReadOnlyField = ({ label, value }: { label: string; value: string | number
 
 const EditableField = ({ label, value, onChange, type = 'text' }: { label: string; value: any; onChange: (val: string) => void; type?: string }) => (
   <div className="group">
-    <label className="block text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1.5 transition-colors group-focus-within:text-blue-700">{label}</label>
+    <label className="block text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400 mb-1">{label}</label>
     <Input
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-10 text-sm font-medium bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/60 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] rounded-xl transition-all duration-300"
+      className={`h-10 w-full text-[13px] font-medium rounded-[10px] border-[1.5px] px-3 transition-all duration-150 outline-none ${value ? 'border-green-200 bg-green-50/50' : 'border-slate-200 bg-slate-50'} hover:bg-white focus:bg-white focus:border-blue-400 focus:ring-[3px] focus:ring-blue-500/10`}
     />
   </div>
 );
 
 const EditableSelect = ({ label, value, onChange, options }: { label: string; value: any; onChange: (val: string) => void; options: { value: string; label: string }[] }) => (
   <div className="group">
-    <label className="block text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1.5">{label}</label>
+    <label className="block text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400 mb-1">{label}</label>
     <div className="relative">
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="flex h-10 w-full rounded-xl border border-slate-200/60 bg-slate-50/50 hover:bg-white focus:bg-white px-3 py-2 text-sm font-medium ring-offset-white appearance-none outline-none focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] transition-all duration-300 pr-10"
+        className={`flex h-10 w-full rounded-[10px] border-[1.5px] px-3 py-2 text-[13px] font-medium appearance-none outline-none transition-all duration-150 pr-10 ${value ? 'border-green-200 bg-green-50/50' : 'border-slate-200 bg-slate-50'} hover:bg-white focus:bg-white focus:border-blue-400 focus:ring-[3px] focus:ring-blue-500/10`}
       >
         {options.map(opt => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover:text-blue-500 transition-colors">
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
         <ChevronDown className="w-4 h-4" />
       </div>
     </div>
@@ -101,20 +103,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const [isEditingDemographics, setIsEditingDemographics] = useState(false);
   const [isSavingDemographics, setIsSavingDemographics] = useState(false);
 
-  useHotkeys({
-    'meta+s': (e) => {
-      e.preventDefault();
-      if (isOpen && !isSubmitting && !isSavingDemographics) {
-        if (isEditingDemographics) handleSaveDemographics();
-        else handleSaveClinical();
-      }
-    },
-    'escape': () => {
-      if (isOpen && !isSubmitting) onClose();
-    }
-  });
-
-  const { watch, getValues, reset } = useForm<PatientFormData>({
+  const { watch, getValues, reset, setValue, formState: { isDirty } } = useForm<PatientFormData>({
     defaultValues: {
       'Date of referral for TB Examination (sputum) (dd/mm/yy)': patient?.referral_date || '',
       'Name of facility where referred to (Give code/name of all facilities)': patient?.referred_facility || '',
@@ -128,19 +117,23 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   });
 
   useEffect(() => {
-    if (patient) {
+    if (localPatient) {
       reset({
-        'Date of referral for TB Examination (sputum) (dd/mm/yy)': patient.referral_date || '',
-        'Name of facility where referred to (Give code/name of all facilities)': patient.referred_facility || '',
-        'TB diagnosed (Y/N)': patient.tb_diagnosed || '',
-        'Date of TB Diagnosed (dd/mm/yy)': patient.tb_diagnosis_date || '',
-        'Date of starting ATT (dd/mm/yyyy)': patient.att_start_date || '',
-        'Date of Treatment Completion (dd/mm/yyyy)': patient.att_completion_date || '',
-        'NIKSHAY/ABHA ID': patient.nikshay_abha_id || '',
-        'Remarks': patient.remarks || ''
+        'Date of referral for TB Examination (sputum) (dd/mm/yy)': localPatient.referral_date || '',
+        'Name of facility where referred to (Give code/name of all facilities)': localPatient.referred_facility || '',
+        'TB diagnosed (Y/N)': localPatient.tb_diagnosed || '',
+        'Date of TB Diagnosed (dd/mm/yy)': localPatient.tb_diagnosis_date || '',
+        'Type of TB Diagnosed (P/EP)': localPatient.tb_type || '',
+        'Date of starting ATT (dd/mm/yyyy)': localPatient.att_start_date || '',
+        'Date of Treatment Completion (dd/mm/yyyy)': localPatient.att_completion_date || '',
+        'HIV Status (Positive/Negative/Unknown)': localPatient.hiv_status || '',
+        'Status at the time of referral (Pre ART/On ART)': localPatient.art_status || '',
+        'ART Number (if on ART at the time of referral)': localPatient.art_number || '',
+        'NIKSHAY/ABHA ID': localPatient.nikshay_abha_id || '',
+        'Remarks': localPatient.remarks || ''
       });
     }
-  }, [patient, reset]);
+  }, [localPatient, reset]);
 
   // ── Demographics State with Aggressive API Fallbacks ──
   const mapDemographics = (p: any) => ({
@@ -164,7 +157,28 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     }
   }, [localPatient]);
 
-  const { phase } = calculatePatientPhase(localPatient);
+  const handleClose = () => {
+    if (isDirty && !window.confirm('You have unsaved changes. Close anyway?')) return;
+    onClose();
+  };
+
+  const hotkeys = useMemo(() => ({
+    'meta+s': (e: KeyboardEvent) => {
+      e.preventDefault();
+      if (isOpen && !isSubmitting && !isSavingDemographics) {
+        if (isEditingDemographics) handleSaveDemographics();
+        else handleSaveClinical();
+      }
+    },
+    'escape': () => { if (isOpen && !isSubmitting) handleClose(); }
+  }), [isOpen, isSubmitting, isSavingDemographics, isEditingDemographics, isDirty]);
+
+  useHotkeys(hotkeys);
+
+  const { phase } = useMemo(
+    () => calculatePatientPhase(localPatient),
+    [localPatient]
+  );
   const isClosed = phase === 'Closed';
   const isAuthorized = !scope || !localPatient || isSuperuser(scope) || !scope.state || localPatient.screening_state === scope.state;
 
@@ -176,7 +190,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       const updates = {
         ...formData,
         'Serial Number': localPatient.serial_number || localPatient.id,
-        'KoboUUID': localPatient.kobo_uuid
+        'KoboUUID': localPatient.kobo_uuid,
+        client_timestamp: new Date().toISOString()
       };
 
       const res = await fetch('/api/patient-sync', {
@@ -192,8 +207,16 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       if (!res.ok) throw new Error('Sync failed');
 
       const result = await res.json();
-      
-      mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+
+      await mutate(
+        (key: unknown) => {
+          if (Array.isArray(key) &&
+              ['patients', 'allPatients', 'patient'].includes(key[0] as string)) return true;
+          return false;
+        },
+        undefined,
+        { revalidate: true }
+      );
       onUpdate();
       
       if (result.warnings?.length > 0) {
@@ -219,7 +242,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       const updates = {
         ...editedDemographics,
         'Serial Number': localPatient.serial_number || localPatient.id,
-        'KoboUUID': localPatient.kobo_uuid
+        'KoboUUID': localPatient.kobo_uuid,
+        client_timestamp: new Date().toISOString()
       };
 
       const res = await fetch('/api/patient-sync', {
@@ -235,8 +259,16 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       if (!res.ok) throw new Error('Sync failed');
 
       const result = await res.json();
-      
-      mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+
+      await mutate(
+        (key: unknown) => {
+          if (Array.isArray(key) &&
+              ['patients', 'allPatients', 'patient'].includes(key[0] as string)) return true;
+          return false;
+        },
+        undefined,
+        { revalidate: true }
+      );
       setLocalPatient(prev => ({ ...prev, ...editedDemographics }));
       setIsEditingDemographics(false);
       onUpdate();
@@ -263,10 +295,11 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     try {
       const updates = {
         'TB diagnosed (Y/N)': 'N',
-        'Reason for not diagnosing/starting ATT (If TB diagnosed is N)': reason,
+        'closure_reason': reason,
         'Remarks': `Loop closed: ${reason}`,
         'Serial Number': localPatient.serial_number || localPatient.id,
-        'KoboUUID': localPatient.kobo_uuid
+        'KoboUUID': localPatient.kobo_uuid,
+        client_timestamp: new Date().toISOString()
       };
 
       const res = await fetch('/api/patient-sync', {
@@ -282,8 +315,16 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       if (!res.ok) throw new Error('Sync failed');
 
       const result = await res.json();
-      
-      mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+
+      await mutate(
+        (key: unknown) => {
+          if (Array.isArray(key) &&
+              ['patients', 'allPatients', 'patient'].includes(key[0] as string)) return true;
+          return false;
+        },
+        undefined,
+        { revalidate: true }
+      );
       onUpdate();
       onClose();
 
@@ -300,12 +341,15 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     }
   };
 
-  const risk = calculatePatientRisk(localPatient);
+  const risk = useMemo(
+    () => calculatePatientRisk(localPatient),
+    [localPatient]
+  );
 
   if (!localPatient || !patient) return null;
 
   return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
+    <Sheet open={isOpen} onOpenChange={handleClose}>
       <SheetContent className="w-[95vw] sm:max-w-[650px] md:max-w-[750px] lg:max-w-[850px] !z-[500] p-0 flex flex-col overflow-hidden">
         {!isAuthorized ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
@@ -320,50 +364,61 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
           </div>
         ) : (
           <>
-            <SheetHeader className="px-6 py-6 border-b border-slate-100 shrink-0">
-              <div className="flex items-start justify-between">
-                <div>
-                  <SheetTitle className="text-2xl font-black text-slate-900 tracking-tighter uppercase flex items-center gap-3">
-                    {localPatient?.inmate_name || 'Loading...'}
+            {/* ── Compact 72px header ── */}
+            <SheetHeader className="shrink-0 p-0 border-0">
+              <div className="flex items-center gap-3 px-5 py-3 border-b border-black/[0.06] bg-white">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center flex-shrink-0 shadow-md shadow-slate-900/20">
+                  <span className="text-sm font-black text-white leading-none">
+                    {localPatient?.inmate_name?.charAt(0)?.toUpperCase() ?? '?'}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <SheetTitle className="text-[14px] font-black uppercase tracking-tight text-slate-900 leading-tight truncate">
+                      {localPatient?.inmate_name || 'Loading...'}
+                    </SheetTitle>
                     {risk.riskLevel === 'high' && (
-                      <div className="relative flex h-3 w-3 shrink-0" title={risk.reason}>
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-                      </div>
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0" title={risk.reason} />
                     )}
-                  </SheetTitle>
-                  <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mt-1 opacity-80">{localPatient?.unique_id || ''}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    <span className="text-[11px] font-bold text-blue-600 font-mono tracking-wide">{localPatient?.unique_id || ''}</span>
+                    <span className="w-0.5 h-0.5 rounded-full bg-slate-300 flex-shrink-0" />
+                    <span className="text-[11px] text-slate-400 font-medium truncate max-w-[120px]">{localPatient?.facility_name}</span>
+                    <span className="w-0.5 h-0.5 rounded-full bg-slate-300 flex-shrink-0" />
+                    <span className="inline-flex items-center gap-1 bg-slate-900 text-white rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest flex-shrink-0">
+                      <span className="w-1 h-1 rounded-full bg-white/50" />
+                      {phase ?? 'Screening'}
+                    </span>
+                  </div>
                 </div>
-              </div>
-
-              <div className="mt-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-black uppercase text-slate-700 tracking-wider">Clinical Phase: {phase}</span>
-                </div>
+                <button onClick={handleClose} className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center flex-shrink-0 transition-colors duration-150" aria-label="Close drawer">
+                  <X className="w-4 h-4 text-slate-500" />
+                </button>
               </div>
             </SheetHeader>
 
             <Tabs defaultValue="clinical" className="flex-1 flex flex-col min-h-0">
-              <div className="px-6 border-b border-slate-100">
-                <TabsList className="bg-transparent gap-6 h-12">
+              <div style={{ borderBottom: '1px solid rgba(0,0,0,0.07)', padding: '0 24px' }}>
+                <TabsList className="bg-transparent gap-0 h-10 w-full justify-start rounded-none p-0">
                   <TabsTrigger
                     value="clinical"
                     data-tour-id="clinical-tab"
-                    className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-full px-0 font-black uppercase text-[11px] tracking-widest"
+                    className="rounded-none h-10 px-1 mr-6 text-[12px] font-bold tracking-[0.04em] uppercase text-slate-400 border-b-2 border-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-gray-900 data-[state=active]:border-gray-900 hover:text-slate-600 transition-colors"
                   >
                     Clinical
                   </TabsTrigger>
                   <TabsTrigger
                     value="admin"
                     data-tour-id="admin-journey-tab"
-                    className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-full px-0 font-black uppercase text-[11px] tracking-widest"
+                    className="rounded-none h-10 px-1 mr-6 text-[12px] font-bold tracking-[0.04em] uppercase text-slate-400 border-b-2 border-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-gray-900 data-[state=active]:border-gray-900 hover:text-slate-600 transition-colors"
                   >
-                    Admin & Journey
+                    Inmate Journey
                   </TabsTrigger>
                   <TabsTrigger
                     value="demographics"
                     data-tour-id="demographics-tab"
-                    className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none h-full px-0 font-black uppercase text-[11px] tracking-widest"
+                    className="rounded-none h-10 px-1 mr-6 text-[12px] font-bold tracking-[0.04em] uppercase text-slate-400 border-b-2 border-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-gray-900 data-[state=active]:border-gray-900 hover:text-slate-600 transition-colors"
                   >
                     Demographics
                   </TabsTrigger>
@@ -372,138 +427,525 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
               <ScrollArea className="flex-1">
                 <div className="p-6">
-                  <TabsContent value="clinical" className="mt-0 space-y-6">
-                    <div data-tour-id="sputum-referral-section">
-                      <Section title="Sputum & Referral" icon={FileText} isCurrent={phase === 'Sputum Test'}>
-                        <EditableField label="Referral Date" value={watch('Date of referral for TB Examination (sputum) (dd/mm/yy)')} onChange={(val) => reset({ ...getValues(), 'Date of referral for TB Examination (sputum) (dd/mm/yy)': val })} type="date" />
-                        <EditableSelect 
-                          label="Referred Facility" 
-                          value={watch('Name of facility where referred to (Give code/name of all facilities)')} 
-                          onChange={(val) => reset({ ...getValues(), 'Name of facility where referred to (Give code/name of all facilities)': val })}
-                          options={[
-                            { value: '', label: 'Select facility' },
-                            { value: 'DMC-Designated microscopy Centre', label: 'DMC' },
-                            { value: 'CBNAAT', label: 'CBNAAT' },
-                            { value: 'Radiology', label: 'Radiology' }
-                          ]}
-                        />
-                      </Section>
+                  <TabsContent value="clinical" className="mt-0">
+                    {(() => {
+                      const watchedReferralDate = watch('Date of referral for TB Examination (sputum) (dd/mm/yy)');
+                      const watchedFacility = watch('Name of facility where referred to (Give code/name of all facilities)');
+                      const watchedTbDiagnosed = watch('TB diagnosed (Y/N)');
+                      const watchedDiagnosisDate = watch('Date of TB Diagnosed (dd/mm/yy)');
+                      const watchedAttStart = watch('Date of starting ATT (dd/mm/yyyy)');
+                      const watchedHivStatus = watch('HIV Status (Positive/Negative/Unknown)');
+                      const watchedNikshay = watch('NIKSHAY/ABHA ID');
+
+                      const isStale = phase !== 'Closed' && (() => {
+                        const sd = localPatient?.screening_date;
+                        if (!sd) return false;
+                        const d = new Date(sd);
+                        if (isNaN(d.getTime())) return false;
+                        return (Date.now() - d.getTime()) / 86400000 > 5;
+                      })();
+
+                      const clinicalSections = [
+                        {
+                          id: 'sputum',
+                          title: 'Sputum & Referral',
+                          icon: <FileText className="w-4 h-4" />,
+                          isComplete: Boolean(watchedReferralDate && watchedFacility),
+                          completionLabel: 'Referral details recorded',
+                          pendingLabel: 'Awaiting referral date & facility',
+                          isAttentionRequired: isStale && phase === 'Sputum Test',
+                        },
+                        {
+                          id: 'diagnosis',
+                          title: 'Diagnosis',
+                          icon: <Activity className="w-4 h-4" />,
+                          isComplete: Boolean(watchedTbDiagnosed && watchedDiagnosisDate),
+                          completionLabel: 'TB diagnosis recorded',
+                          pendingLabel: 'TB diagnosis pending',
+                          isAttentionRequired: isStale && phase === 'Diagnosis',
+                        },
+                        {
+                          id: 'treatment',
+                          title: 'Treatment',
+                          icon: <Pill className="w-4 h-4" />,
+                          isComplete: Boolean(watchedAttStart),
+                          completionLabel: 'ATT treatment started',
+                          pendingLabel: 'Treatment not yet initiated',
+                          isAttentionRequired: isStale && phase === 'ATT Initiation',
+                        },
+                        {
+                          id: 'hiv',
+                          title: 'HIV & ART Status',
+                          icon: <Shield className="w-4 h-4" />,
+                          isComplete: Boolean(watchedHivStatus),
+                          completionLabel: 'HIV status recorded',
+                          pendingLabel: 'HIV status not recorded',
+                        },
+                        {
+                          id: 'nikshay',
+                          title: 'Nikshay & Registration',
+                          icon: <ClipboardList className="w-4 h-4" />,
+                          isComplete: Boolean(watchedNikshay),
+                          completionLabel: 'Registered in Nikshay',
+                          pendingLabel: 'Nikshay registration pending',
+                        },
+                      ];
+
+                      // Auto-open the first incomplete section
+                      const firstIncompleteIdx = clinicalSections.findIndex(s => !s.isComplete);
+
+                      const completedCount = clinicalSections.filter(s => s.isComplete).length;
+                      const totalCount = clinicalSections.length;
+                      const pct = (completedCount / totalCount) * 100;
+
+                      return (
+                        <>
+                          {/* ── Premium Clinical Progress Card ── */}
+                          <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                            className="relative mt-2 mb-4"
+                          >
+                            {/* Glass morphism container */}
+                            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-white to-slate-50/80 border border-white/60 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08),0_2px_8px_-2px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-xl p-5">
+                              
+                              {/* Ambient gradient orb */}
+                              <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-emerald-400/20 via-teal-300/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+                              <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-gradient-to-tr from-blue-400/15 via-indigo-300/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+                              
+                              {/* Header */}
+                              <div className="relative flex items-center justify-between mb-5">
+                                <div className="flex items-center gap-3">
+                                  <motion.div 
+                                    whileHover={{ scale: 1.05, rotate: 5 }}
+                                    className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center shadow-lg shadow-slate-900/20"
+                                  >
+                                    <Zap className="w-5 h-5 text-white" strokeWidth={2} />
+                                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent" />
+                                  </motion.div>
+                                  <div>
+                                    <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Care Journey</span>
+                                    <span className="block text-sm font-black text-slate-800 tracking-tight">Clinical Progress</span>
+                                  </div>
+                                </div>
+                                
+                                {/* Completion badge */}
+                                <motion.div 
+                                  initial={{ scale: 0.8, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  transition={{ delay: 0.3 }}
+                                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${completedCount === totalCount ? 'bg-emerald-50/80 border-emerald-200/50' : 'bg-amber-50/80 border-amber-200/50'}`}
+                                >
+                                  {completedCount === totalCount ? (
+                                    <Award className="w-4 h-4 text-emerald-600" />
+                                  ) : (
+                                    <TrendingUp className="w-4 h-4 text-amber-600" />
+                                  )}
+                                  <span className={`text-sm font-black ${completedCount === totalCount ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                    {completedCount}<span className="text-xs font-medium text-slate-400">/{totalCount}</span>
+                                  </span>
+                                </motion.div>
+                              </div>
+                              
+                              {/* Premium segmented progress */}
+                              <div className="relative flex gap-2 mb-4">
+                                {clinicalSections.map((sec, i) => (
+                                  <motion.div 
+                                    key={sec.id} 
+                                    className="flex-1 group cursor-pointer"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: i * 0.1, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                                    whileHover={{ y: -2 }}
+                                  >
+                                    <div className="relative h-3 rounded-full overflow-hidden bg-slate-100/80 shadow-inner">
+                                      <motion.div 
+                                        className="h-full rounded-full relative"
+                                        initial={{ width: 0 }} 
+                                        animate={{ width: sec.isComplete ? '100%' : '0%' }} 
+                                        transition={{ delay: i * 0.1 + 0.3, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                                        style={{ 
+                                          background: sec.isComplete 
+                                            ? 'linear-gradient(90deg, #10B981 0%, #34D399 50%, #059669 100%)' 
+                                            : 'transparent',
+                                          boxShadow: sec.isComplete ? '0 0 20px rgba(16,185,129,0.4), inset 0 1px 0 rgba(255,255,255,0.3)' : 'none'
+                                        }}
+                                      >
+                                        {sec.isComplete && (
+                                          <motion.div 
+                                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                                            animate={{ x: ['-100%', '100%'] }}
+                                            transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
+                                          />
+                                        )}
+                                      </motion.div>
+                                    </div>
+                                    
+                                    {/* Label with icon */}
+                                    <div className="mt-2 flex flex-col items-center gap-1">
+                                      <motion.div 
+                                        className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all duration-300 ${sec.isComplete ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}
+                                        whileHover={{ scale: 1.1 }}
+                                      >
+                                        {sec.isComplete ? (
+                                          <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={2.5} />
+                                        ) : sec.isAttentionRequired ? (
+                                          <AlertCircle className="w-3.5 h-3.5" strokeWidth={2.5} />
+                                        ) : (
+                                          <div className="w-1.5 h-1.5 rounded-full bg-current" />
+                                        )}
+                                      </motion.div>
+                                      <span className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${sec.isComplete ? 'text-emerald-600' : sec.isAttentionRequired ? 'text-amber-500' : 'text-slate-400'}`}>
+                                        {sec.id === 'sputum' ? 'Sputum' : sec.id === 'diagnosis' ? 'Diagnosis' : sec.id === 'treatment' ? 'Treatment' : sec.id === 'hiv' ? 'HIV' : 'Nikshay'}
+                                      </span>
+                                    </div>
+                                  </motion.div>
+                                ))}
+                              </div>
+                              
+                              {/* Current status line */}
+                              <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.6 }}
+                                className="flex items-center gap-2 pt-3 border-t border-slate-100/80"
+                              >
+                                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 animate-pulse" />
+                                <span className="text-xs font-medium text-slate-500">
+                                  {firstIncompleteIdx >= 0 
+                                    ? `Next: ${clinicalSections[firstIncompleteIdx].title}` 
+                                    : 'All phases complete — Ready for discharge'}
+                                </span>
+                              </motion.div>
+                            </div>
+                          </motion.div>
+
+                          {/* ── Accordion sections ── */}
+                          <div className="space-y-0 pt-2">
+                            {clinicalSections.map((section, index) => (
+                              <div key={section.id}>
+                                <ClinicalAccordion
+                                  title={section.title}
+                                  icon={section.icon}
+                                  isComplete={section.isComplete}
+                                  isAttentionRequired={section.isAttentionRequired}
+                                  defaultOpen={firstIncompleteIdx === index || (firstIncompleteIdx === -1 && index === 0)}
+                                  completionLabel={section.completionLabel}
+                                  pendingLabel={section.pendingLabel}
+                                >
+                                  {section.id === 'sputum' && (
+                                    <div data-tour-id="sputum-referral-section" className="space-y-4">
+                                      <EditableField label="Referral Date" value={watchedReferralDate} onChange={(val) => setValue('Date of referral for TB Examination (sputum) (dd/mm/yy)', val, { shouldDirty: true })} type="date" />
+                                      <EditableSelect
+                                        label="Referred Facility"
+                                        value={watchedFacility}
+                                        onChange={(val) => setValue('Name of facility where referred to (Give code/name of all facilities)', val, { shouldDirty: true })}
+                                        options={[
+                                          { value: '', label: 'Select facility' },
+                                          { value: 'DMC-Designated microscopy Centre', label: 'DMC' },
+                                          { value: 'CBNAAT', label: 'CBNAAT' },
+                                          { value: 'Radiology', label: 'Radiology' }
+                                        ]}
+                                      />
+                                    </div>
+                                  )}
+                                  {section.id === 'diagnosis' && (
+                                    <div data-tour-id="diagnosis-section" className="space-y-4">
+                                      <EditableSelect
+                                        label="TB Diagnosed"
+                                        value={watchedTbDiagnosed}
+                                        onChange={(val) => setValue('TB diagnosed (Y/N)', val, { shouldDirty: true })}
+                                        options={[{ value: '', label: 'Select' }, { value: 'Y', label: 'Yes' }, { value: 'N', label: 'No' }]}
+                                      />
+                                      <EditableField label="Date of Diagnosis" value={watchedDiagnosisDate} onChange={(val) => setValue('Date of TB Diagnosed (dd/mm/yy)', val, { shouldDirty: true })} type="date" />
+                                      <EditableSelect
+                                        label="Type of TB"
+                                        value={watch('Type of TB Diagnosed (P/EP)')}
+                                        onChange={(val) => setValue('Type of TB Diagnosed (P/EP)', val, { shouldDirty: true })}
+                                        options={[
+                                          { value: '', label: 'Select' },
+                                          { value: 'P', label: 'Pulmonary (P)' },
+                                          { value: 'EP', label: 'Extra-Pulmonary (EP)' }
+                                        ]}
+                                      />
+                                    </div>
+                                  )}
+                                  {section.id === 'treatment' && (
+                                    <div data-tour-id="att-initiation-section" className="space-y-4">
+                                      <EditableField label="Start Date" value={watchedAttStart} onChange={(val) => setValue('Date of starting ATT (dd/mm/yyyy)', val, { shouldDirty: true })} type="date" />
+                                      <EditableField label="Completion Date" value={watch('Date of Treatment Completion (dd/mm/yyyy)')} onChange={(val) => setValue('Date of Treatment Completion (dd/mm/yyyy)', val, { shouldDirty: true })} type="date" />
+                                    </div>
+                                  )}
+                                  {section.id === 'hiv' && (
+                                    <div data-tour-id="hiv-art-section" className="space-y-4">
+                                      <EditableSelect
+                                        label="HIV Status"
+                                        value={watchedHivStatus}
+                                        onChange={(val) => setValue('HIV Status (Positive/Negative/Unknown)', val, { shouldDirty: true })}
+                                        options={[
+                                          { value: '', label: 'Select' },
+                                          { value: 'Positive', label: 'Positive' },
+                                          { value: 'Negative', label: 'Negative' },
+                                          { value: 'Unknown', label: 'Unknown' }
+                                        ]}
+                                      />
+                                      <EditableSelect
+                                        label="ART Status at Referral"
+                                        value={watch('Status at the time of referral (Pre ART/On ART)')}
+                                        onChange={(val) => setValue('Status at the time of referral (Pre ART/On ART)', val, { shouldDirty: true })}
+                                        options={[
+                                          { value: '', label: 'Select' },
+                                          { value: 'Pre ART', label: 'Pre ART' },
+                                          { value: 'On ART', label: 'On ART' }
+                                        ]}
+                                      />
+                                      <EditableField
+                                        label="ART Number"
+                                        value={watch('ART Number (if on ART at the time of referral)')}
+                                        onChange={(val) => setValue('ART Number (if on ART at the time of referral)', val, { shouldDirty: true })}
+                                      />
+                                    </div>
+                                  )}
+                                  {section.id === 'nikshay' && (
+                                    <div className="space-y-4">
+                                      <EditableField label="NIKSHAY/ABHA ID" value={watchedNikshay} onChange={(val) => setValue('NIKSHAY/ABHA ID', val, { shouldDirty: true })} />
+                                      <div>
+                                        <label className="block text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1.5">Remarks</label>
+                                        <VoiceInput
+                                          value={watch('Remarks')}
+                                          onChange={(val) => setValue('Remarks', val, { shouldDirty: true })}
+                                          className="w-full border-slate-200 rounded-xl"
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+                                </ClinicalAccordion>
+                                {index < clinicalSections.length - 1 && (
+                                  <div
+                                    style={{
+                                      width: 2,
+                                      height: 10,
+                                      margin: '0 auto',
+                                      borderRadius: 999,
+                                      opacity: clinicalSections[index].isComplete && !clinicalSections[index + 1]?.isComplete ? 1 : !clinicalSections[index].isComplete && !clinicalSections[index + 1]?.isComplete ? 0.3 : 1,
+                                      background: clinicalSections[index].isComplete && !clinicalSections[index + 1]?.isComplete
+                                        ? 'linear-gradient(to bottom, #10B981, #EF4444)'
+                                        : clinicalSections[index].isComplete && clinicalSections[index + 1]?.isComplete
+                                        ? 'linear-gradient(to bottom, #10B981, #10B981)'
+                                        : 'linear-gradient(to bottom, #EF4444, #EF4444)',
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </TabsContent>
+
+                  <TabsContent value="admin" className="mt-0">
+                    {/* ── Patient Journey Timeline ── */}
+                    <div className="bg-white border border-black/[0.06] rounded-2xl p-5 mx-0 mt-4">
+                      <div className="flex items-center gap-2 mb-5">
+                        <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center">
+                          <Activity className="w-3.5 h-3.5 text-slate-500" />
+                        </div>
+                        <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Patient Journey</span>
+                      </div>
+                      {(() => {
+                        const fmtDate = (d: string | null | undefined) => {
+                          if (!d) return null;
+                          try { const dt = new Date(d); return isNaN(dt.getTime()) ? null : dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); }
+                          catch { return null; }
+                        };
+                        const milestones = [
+                          { id: 'screened', label: 'Screened', sublabel: fmtDate(localPatient?.screening_date), icon: <Search className="w-3.5 h-3.5" />, isComplete: Boolean(localPatient?.screening_date), isActive: false },
+                          { id: 'xray', label: 'X-Ray Result', sublabel: localPatient?.xray_result || localPatient?.chest_x_ray_result || null, icon: <AlertCircle className="w-3.5 h-3.5" />, isComplete: Boolean(localPatient?.xray_result || localPatient?.chest_x_ray_result), isActive: false },
+                          { id: 'referred', label: 'Referred for Sputum', sublabel: fmtDate(localPatient?.referral_date) || 'Pending', icon: <ArrowRightCircle className="w-3.5 h-3.5" />, isComplete: Boolean(localPatient?.referral_date), isActive: !localPatient?.referral_date },
+                          { id: 'diagnosed', label: 'TB Diagnosed', sublabel: localPatient?.tb_diagnosed === 'Y' ? (fmtDate(localPatient?.tb_diagnosis_date) || 'Confirmed') : localPatient?.tb_diagnosed === 'N' ? 'Not Confirmed' : 'Pending', icon: <Activity className="w-3.5 h-3.5" />, isComplete: Boolean(localPatient?.tb_diagnosed), isActive: Boolean(localPatient?.referral_date) && !localPatient?.tb_diagnosed },
+                          { id: 'treatment', label: 'ATT Started', sublabel: fmtDate(localPatient?.att_start_date) || 'Pending', icon: <Pill className="w-3.5 h-3.5" />, isComplete: Boolean(localPatient?.att_start_date), isActive: Boolean(localPatient?.tb_diagnosed) && !localPatient?.att_start_date },
+                          { id: 'nikshay', label: 'Nikshay Registered', sublabel: localPatient?.nikshay_abha_id || 'Pending', icon: <ClipboardList className="w-3.5 h-3.5" />, isComplete: Boolean(localPatient?.nikshay_abha_id), isActive: Boolean(localPatient?.att_start_date) && !localPatient?.nikshay_abha_id },
+                          { id: 'completed', label: 'Treatment Complete', sublabel: fmtDate(localPatient?.att_completion_date) || 'Ongoing', icon: <CheckCircle2 className="w-3.5 h-3.5" />, isComplete: Boolean(localPatient?.att_completion_date), isActive: false },
+                        ];
+                        return milestones.map((m, idx) => (
+                          <div key={m.id} className="flex gap-3 relative">
+                            <div className="flex flex-col items-center">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 z-10 relative ${m.isComplete ? 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.15),0_0_10px_rgba(16,185,129,0.40)]' : m.isActive ? 'bg-amber-400 shadow-[0_0_0_3px_rgba(245,158,11,0.15),0_0_10px_rgba(245,158,11,0.40)] animate-pulse' : 'bg-slate-100 border-2 border-slate-200'}`}>
+                                <span className={m.isComplete ? 'text-white' : m.isActive ? 'text-white' : 'text-slate-400'}>{m.icon}</span>
+                              </div>
+                              {idx < milestones.length - 1 && (
+                                <div className={`w-0.5 flex-1 min-h-[24px] mt-1 rounded-full ${m.isComplete ? 'bg-gradient-to-b from-emerald-400 to-emerald-200' : 'bg-slate-100'}`} />
+                              )}
+                            </div>
+                            <div className="pb-5 pt-1 flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[13px] font-bold leading-tight ${m.isComplete ? 'text-slate-800' : m.isActive ? 'text-amber-600' : 'text-slate-400'}`}>{m.label}</span>
+                                {m.isActive && <span className="text-[9px] font-extrabold uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-200/60 rounded-full px-2 py-0.5">Current</span>}
+                              </div>
+                              {m.sublabel && <span className={`text-[11px] font-medium mt-0.5 block ${m.isComplete ? 'text-emerald-600' : m.isActive ? 'text-amber-500' : 'text-slate-400'}`}>{m.sublabel}</span>}
+                            </div>
+                          </div>
+                        ));
+                      })()}
                     </div>
 
-                    <div data-tour-id="diagnosis-section">
-                      <Section title="Diagnosis" icon={Activity} isCurrent={phase === 'Diagnosis'}>
-                        <EditableSelect 
-                          label="TB Diagnosed" 
-                          value={watch('TB diagnosed (Y/N)')} 
-                          onChange={(val) => reset({ ...getValues(), 'TB diagnosed (Y/N)': val })}
-                          options={[{ value: '', label: 'Select' }, { value: 'Y', label: 'Yes' }, { value: 'N', label: 'No' }]}
-                        />
-                        <EditableField label="Date of Diagnosis" value={watch('Date of TB Diagnosed (dd/mm/yy)')} onChange={(val) => reset({ ...getValues(), 'Date of TB Diagnosed (dd/mm/yy)': val })} type="date" />
-                      </Section>
-                    </div>
+                    {/* ── Administrative Record ── */}
+                    <div className="bg-white border border-black/[0.06] rounded-2xl p-5 mx-0 mt-3 mb-4">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center">
+                          <Settings2 className="w-3.5 h-3.5 text-slate-500" />
+                        </div>
+                        <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Administrative Record</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { label: 'Screening Date', value: localPatient?.screening_date },
+                          { label: 'Staff Name', value: localPatient?.staff_name || localPatient?.data_collector },
+                          { label: 'Inmate Type', value: localPatient?.inmate_type },
+                          { label: 'Facility Type', value: localPatient?.facility_type },
+                          { label: 'Facility Name', value: localPatient?.facility_name },
+                          { label: 'District', value: localPatient?.screening_district },
+                          { label: 'State', value: localPatient?.screening_state },
+                          { label: 'Kobo UUID', value: localPatient?.kobo_uuid?.substring(0, 12) },
+                          { label: 'Submitted On', value: localPatient?.submitted_on },
+                        ].map(f => (
+                          <div key={f.label} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{f.label}</p>
+                            <p className={`text-[13px] font-semibold text-slate-800 truncate ${f.label === 'Kobo UUID' ? 'font-mono' : ''}`}>{f.value || '—'}</p>
+                          </div>
+                        ))}
+                      </div>
 
-                    <div data-tour-id="att-initiation-section">
-                      <Section title="ATT Initiation" icon={Pill} isCurrent={phase === 'ATT Initiation'}>
-                        <EditableField label="Start Date" value={watch('Date of starting ATT (dd/mm/yyyy)')} onChange={(val) => reset({ ...getValues(), 'Date of starting ATT (dd/mm/yyyy)': val })} type="date" />
-                        <EditableField label="Completion Date" value={watch('Date of Treatment Completion (dd/mm/yyyy)')} onChange={(val) => reset({ ...getValues(), 'Date of Treatment Completion (dd/mm/yyyy)': val })} type="date" />
-                      </Section>
+                      {/* Remarks — editable */}
+                      <div className="mt-4">
+                        <label className="block text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400 mb-1">Remarks</label>
+                        <VoiceInput
+                          value={watch('Remarks')}
+                          onChange={(val) => setValue('Remarks', val, { shouldDirty: true })}
+                          className="w-full border-slate-200 rounded-[10px]"
+                        />
+                      </div>
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="admin" className="mt-0 space-y-6">
-                    <Section title="Patient Timeline" icon={Calendar}>
-                      <PatientHistory patient={localPatient} />
-                    </Section>
-                    <Section title="Administration" icon={Shield}>
-                      <EditableField label="NIKSHAY/ABHA ID" value={watch('NIKSHAY/ABHA ID')} onChange={(val) => reset({ ...getValues(), 'NIKSHAY/ABHA ID': val })} />
-                      <div>
-                        <label className="block text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1.5">Remarks</label>
-                        <VoiceInput 
-                          value={watch('Remarks')} 
-                          onChange={(val) => reset({ ...getValues(), Remarks: val })}
-                          className="w-full border-slate-200 rounded-xl"
-                        />
+                  <TabsContent value="demographics" className="mt-0">
+                    <div className="p-4">
+                      {/* Lock/Unlock Toggle — compact */}
+                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 mb-4">
+                        <div className="flex items-center gap-2">
+                          {isEditingDemographics ? <Unlock className="w-3.5 h-3.5 text-emerald-600" /> : <Lock className="w-3.5 h-3.5 text-slate-400" />}
+                          <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">{isEditingDemographics ? 'Editing' : 'Read-Only'}</span>
+                        </div>
+                        <button
+                          onClick={() => setIsEditingDemographics(!isEditingDemographics)}
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-widest transition-all ${isEditingDemographics ? 'bg-white text-slate-600 border border-slate-200 shadow-sm' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+                        >
+                          {isEditingDemographics ? 'Lock' : 'Unlock to Edit'}
+                        </button>
                       </div>
-                    </Section>
-                  </TabsContent>
 
-                  <TabsContent value="demographics" className="mt-0 space-y-6">
-                    {/* Lock/Unlock Toggle */}
-                    <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-                      <div className="flex items-center gap-2">
-                        {isEditingDemographics ? <Unlock className="w-4 h-4 text-emerald-600" /> : <Lock className="w-4 h-4 text-slate-400" />}
-                        <span className="text-xs font-black uppercase text-slate-700">{isEditingDemographics ? 'Edit Mode Active' : 'Read-Only Mode'}</span>
+                      {/* ── Section 1: Identity ── */}
+                      <div className="flex items-center gap-1.5 mb-3 mt-1">
+                        <User className="w-3 h-3 text-slate-400" />
+                        <span className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">Identity</span>
                       </div>
-                      <button 
-                        onClick={() => setIsEditingDemographics(!isEditingDemographics)}
-                        className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-tight transition-all ${isEditingDemographics ? 'bg-white text-slate-700 shadow-sm' : 'bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_0_#047857,0_8px_16px_rgba(16,185,129,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_0_#047857,0_10px_20px_rgba(16,185,129,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-2px_0_#047857] active:translate-y-1'}`}
-                      >
-                        {isEditingDemographics ? 'Lock & Cancel' : 'Unlock to Edit'}
-                      </button>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {isEditingDemographics ? (
+                          <>
+                            <div className="col-span-2"><EditableField label="Name" value={editedDemographics.inmate_name} onChange={(v) => setEditedDemographics({...editedDemographics, inmate_name: v})} /></div>
+                            <EditableField label="Date of Birth" value={editedDemographics.date_of_birth} onChange={(v) => setEditedDemographics({...editedDemographics, date_of_birth: v})} type="date" />
+                            <EditableField label="Age" value={editedDemographics.age} onChange={(v) => setEditedDemographics({...editedDemographics, age: v})} />
+                            <EditableSelect label="Sex" value={editedDemographics.sex} onChange={(v) => setEditedDemographics({...editedDemographics, sex: v})} options={[{value:'Male', label:'Male'}, {value:'Female', label:'Female'}, {value:'TG', label:'Transgender'}]} />
+                            <EditableField label="Contact Number" value={editedDemographics.contact_number} onChange={(v) => setEditedDemographics({...editedDemographics, contact_number: v})} />
+                          </>
+                        ) : (
+                          <>
+                            <div className="col-span-2"><ReadOnlyField label="Name" value={localPatient?.inmate_name || localPatient?.['Inmate Name'] || localPatient?.patient_name} /></div>
+                            <ReadOnlyField label="Date of Birth" value={localPatient?.date_of_birth || localPatient?.['Date of Birth'] || localPatient?.dob} />
+                            <ReadOnlyField label="Age" value={localPatient?.age || localPatient?.['Age']} />
+                            <ReadOnlyField label="Sex" value={localPatient?.sex || localPatient?.['Sex (Male/Female/TG)'] || localPatient?.gender} />
+                            <ReadOnlyField label="Contact" value={localPatient?.contact_number || localPatient?.['Contact Number'] || localPatient?.phone || localPatient?.mobile} />
+                          </>
+                        )}
+                      </div>
+
+                      <div className="h-px bg-slate-100 my-4" />
+
+                      {/* ── Section 2: Location ── */}
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <MapPin className="w-3 h-3 text-slate-400" />
+                        <span className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">Location</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {isEditingDemographics ? (
+                          <>
+                            <div className="col-span-2"><EditableField label="Address" value={editedDemographics.address} onChange={(v) => setEditedDemographics({...editedDemographics, address: v})} /></div>
+                            <div className="col-span-2"><EditableField label="Facility Name" value={editedDemographics.facility_name} onChange={(v) => setEditedDemographics({...editedDemographics, facility_name: v})} /></div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="col-span-2"><ReadOnlyField label="Address" value={localPatient?.address || localPatient?.['Address'] || localPatient?.residential_address} /></div>
+                            <ReadOnlyField label="Facility" value={localPatient?.facility_name || localPatient?.['Name of Facility']} />
+                            <ReadOnlyField label="Facility Type" value={localPatient?.facility_type || localPatient?.['Facility Type']} />
+                            <ReadOnlyField label="District" value={localPatient?.screening_district || localPatient?.['District']} />
+                            <ReadOnlyField label="State" value={localPatient?.screening_state || localPatient?.['State']} />
+                          </>
+                        )}
+                      </div>
+
+                      <div className="h-px bg-slate-100 my-4" />
+
+                      {/* ── Section 3: Screening & Clinical ── */}
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <Calendar className="w-3 h-3 text-slate-400" />
+                        <span className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">Screening Details</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <ReadOnlyField label="Screening Date" value={localPatient?.screening_date || localPatient?.submitted_on} />
+                        <ReadOnlyField label="Staff Name" value={localPatient?.staff_name || localPatient?.data_collector} />
+                        <ReadOnlyField label="Father/Husband" value={localPatient?.father_husband_name || localPatient?.father_name} />
+                        <ReadOnlyField label="Inmate Type" value={localPatient?.inmate_type} />
+                        <div className="col-span-2">
+                          <label className="block text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400 mb-1">X-Ray Result</label>
+                          <div className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[12px] font-bold ${
+                            (localPatient?.xray_result || localPatient?.chest_x_ray_result) === 'Suspected TB Case'
+                              ? 'bg-amber-50 border border-amber-200/60 text-amber-700'
+                              : (localPatient?.xray_result || localPatient?.chest_x_ray_result)
+                              ? 'bg-emerald-50 border border-emerald-200/60 text-emerald-700'
+                              : 'bg-slate-50 border border-slate-200 text-slate-400'
+                          }`}>
+                            {(localPatient?.xray_result || localPatient?.chest_x_ray_result) === 'Suspected TB Case' && <AlertTriangle className="w-3.5 h-3.5" />}
+                            {(localPatient?.xray_result || localPatient?.chest_x_ray_result) && (localPatient?.xray_result || localPatient?.chest_x_ray_result) !== 'Suspected TB Case' && <CheckCircle2 className="w-3.5 h-3.5" />}
+                            {localPatient?.xray_result || localPatient?.chest_x_ray_result || 'Not recorded'}
+                          </div>
+                        </div>
+                        <ReadOnlyField label="10s Symptoms" value={localPatient?.symptoms_present || localPatient?.symptoms_10s} />
+                        <ReadOnlyField label="Past TB History" value={localPatient?.past_tb_history || localPatient?.tb_history} />
+                      </div>
                     </div>
-
-                    {/* Editable / Read-Only Demographics Grid */}
-                    <div className="grid grid-cols-2 gap-4">
-                      {isEditingDemographics ? (
-                        <>
-                          <div className="col-span-2"><EditableField label="Name" value={editedDemographics.inmate_name} onChange={(v) => setEditedDemographics({...editedDemographics, inmate_name: v})} /></div>
-                          <EditableField label="Age" value={editedDemographics.age} onChange={(v) => setEditedDemographics({...editedDemographics, age: v})} />
-                          <EditableSelect label="Sex" value={editedDemographics.sex} onChange={(v) => setEditedDemographics({...editedDemographics, sex: v})} options={[{value:'Male', label:'Male'}, {value:'Female', label:'Female'}, {value:'TG', label:'Transgender'}]} />
-                          <EditableField label="Date of Birth" value={editedDemographics.date_of_birth} onChange={(v) => setEditedDemographics({...editedDemographics, date_of_birth: v})} type="date" />
-                          <EditableField label="Screening Date" value={editedDemographics.screening_date} onChange={(v) => setEditedDemographics({...editedDemographics, screening_date: v})} type="date" />
-                          <EditableField label="Contact Number" value={editedDemographics.contact_number} onChange={(v) => setEditedDemographics({...editedDemographics, contact_number: v})} />
-                          <div className="col-span-2"><EditableField label="Address" value={editedDemographics.address} onChange={(v) => setEditedDemographics({...editedDemographics, address: v})} /></div>
-                          <div className="col-span-2"><EditableField label="Facility Name" value={editedDemographics.facility_name} onChange={(v) => setEditedDemographics({...editedDemographics, facility_name: v})} /></div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="col-span-2"><ReadOnlyField label="Name" value={localPatient?.inmate_name || localPatient?.['Inmate Name'] || localPatient?.patient_name} /></div>
-                          <ReadOnlyField label="Age" value={localPatient?.age || localPatient?.['Age']} />
-                          <ReadOnlyField label="Sex" value={localPatient?.sex || localPatient?.['Sex (Male/Female/TG)'] || localPatient?.gender} />
-                          <ReadOnlyField label="Date of Birth" value={localPatient?.date_of_birth || localPatient?.['Date of Birth'] || localPatient?.dob} />
-                          <ReadOnlyField label="Screening Date" value={localPatient?.screening_date || localPatient?.['Date of Screening'] || localPatient?.submitted_on} />
-                          <ReadOnlyField label="Contact Number" value={localPatient?.contact_number || localPatient?.['Contact Number'] || localPatient?.phone || localPatient?.mobile} />
-                          <div className="col-span-2"><ReadOnlyField label="Address" value={localPatient?.address || localPatient?.['Address'] || localPatient?.residential_address} /></div>
-                          <div className="col-span-2"><ReadOnlyField label="Facility" value={localPatient?.facility_name || localPatient?.['Name of Facility'] || localPatient?.['Facility']} /></div>
-                        </>
-                      )}
-                    </div>
-
-                    {/* KoboCollect System Metadata — Always Read-Only */}
-                    <Section title="System Metadata" icon={AlertCircle}>
-                      <div className="grid grid-cols-2 gap-4">
-                        <ReadOnlyField label="Staff Name" value={localPatient?.staff_name || localPatient?.['Staff Name'] || localPatient?.data_collector} />
-                        <ReadOnlyField label="Submitted On" value={localPatient?.submitted_on || localPatient?.['Submitted On'] || localPatient?.submission_date} />
-                        <ReadOnlyField label="State" value={localPatient?.screening_state || localPatient?.['State'] || localPatient?.state} />
-                        <ReadOnlyField label="District" value={localPatient?.screening_district || localPatient?.['District'] || localPatient?.district} />
-                        <ReadOnlyField label="Facility Type" value={localPatient?.facility_type || localPatient?.['Facility Type']} />
-                        <ReadOnlyField label="Inmate Type" value={localPatient?.inmate_type || localPatient?.['Inmate Type']} />
-                        <div className="col-span-2"><ReadOnlyField label="Father/Husband Name" value={localPatient?.father_husband_name || localPatient?.['Father/Husband Name'] || localPatient?.father_name} /></div>
-                        <ReadOnlyField label="Chest X-ray Result" value={localPatient?.xray_result || localPatient?.chest_x_ray_result || localPatient?.['Chest X-ray Result']} />
-                        <ReadOnlyField label="10s Symptoms" value={localPatient?.symptoms_present || localPatient?.symptoms_10s || localPatient?.['10s Symptoms']} />
-                        <div className="col-span-2"><ReadOnlyField label="Past TB History" value={localPatient?.past_tb_history || localPatient?.['Past TB History'] || localPatient?.tb_history} /></div>
-                      </div>
-                    </Section>
                   </TabsContent>
                 </div>
               </ScrollArea>
 
-              <div className="px-6 py-4 border-t border-slate-100 bg-white/80 backdrop-blur-md flex flex-col gap-3 shrink-0">
+              <div className="px-5 py-3 border-t border-black/[0.06] bg-white flex flex-col gap-2 shrink-0">
                 {isEditingDemographics && (
-                  <button onClick={handleSaveDemographics} disabled={isSavingDemographics} className="w-full bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white font-black uppercase text-[11px] tracking-widest py-3 rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_10px_20px_rgba(16,185,129,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_0_#047857,0_12px_24px_rgba(16,185,129,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-3px_0_#047857] active:translate-y-1.5 transition-all flex items-center justify-center gap-2">
-                    {isSavingDemographics ? <Sparkles className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  <button onClick={handleSaveDemographics} disabled={isSavingDemographics} className="w-full h-[52px] rounded-[14px] text-[13px] font-extrabold uppercase tracking-[0.08em] text-white flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)', boxShadow: '0 4px 14px rgba(15,23,42,0.25), 0 1px 3px rgba(15,23,42,0.15)' }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(15,23,42,0.30)'; }} onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(15,23,42,0.25), 0 1px 3px rgba(15,23,42,0.15)'; }}>
+                    {isSavingDemographics ? <Sparkles className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 opacity-70" />}
                     Save Demographics
                   </button>
                 )}
-                
+
                 {!isEditingDemographics && phase !== 'Closed' && (
                   <button
                     data-tour-id="submit-clinical-update"
                     onClick={handleSaveClinical}
                     disabled={isSubmitting}
-                    className="w-full bg-slate-900 text-white font-black uppercase text-[11px] tracking-widest py-3 rounded-2xl shadow-lg shadow-slate-200 hover:bg-black transition-all flex items-center justify-center gap-2"
+                    className="w-full h-[52px] rounded-[14px] text-[13px] font-extrabold uppercase tracking-[0.08em] text-white flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-px active:translate-y-0"
+                    style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)', boxShadow: '0 4px 14px rgba(15,23,42,0.25), 0 1px 3px rgba(15,23,42,0.15)' }}
                   >
-                    {isSubmitting ? <Sparkles className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                    {isSubmitting ? <Sparkles className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 opacity-70" />}
                     Submit Clinical Update
                   </button>
                 )}
@@ -512,21 +954,31 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                   <button
                     data-tour-id="close-loop-button"
                     onClick={() => setShowCloseLoop(true)}
-                    className="w-full text-red-500 font-bold text-[10px] uppercase tracking-widest hover:bg-red-50 py-2 rounded-xl transition-colors"
+                    className="w-full h-[38px] rounded-[10px] text-[11px] font-bold uppercase tracking-[0.06em] text-red-600 flex items-center justify-center gap-1.5 mt-1 transition-all duration-150"
+                    style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.10)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.25)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.06)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)'; }}
                   >
+                    <XCircle className="w-3.5 h-3.5" />
                     Close Loop (Not TB)
                   </button>
                 )}
 
                 {showCloseLoop && (
-                  <div className="p-3 bg-red-50 rounded-2xl border border-red-100 space-y-2">
-                    <p className="text-[10px] font-black uppercase text-red-700 tracking-wider">Confirm Loop Closure</p>
-                    <select onChange={(e) => handleCloseLoop(e.target.value)} className="w-full text-xs p-2 rounded-xl border border-red-200">
+                  <div className="p-3 bg-red-50 rounded-xl border border-red-100 space-y-2">
+                    <p className="text-[10px] font-extrabold uppercase text-red-700 tracking-wider">Confirm Loop Closure</p>
+                    <select onChange={(e) => handleCloseLoop(e.target.value)} className="w-full text-[13px] font-medium p-2.5 rounded-[10px] border-[1.5px] border-red-200 bg-white outline-none focus:border-red-400 focus:ring-[3px] focus:ring-red-500/10">
                       <option value="">Select reason...</option>
                       <option value="Negative sputum">Negative sputum</option>
                       <option value="CXR Normal">CXR Normal</option>
+                      <option value="Not TB - Alternative diagnosis">Not TB - Alternative diagnosis</option>
+                      <option value="Patient declined treatment">Patient declined treatment</option>
+                      <option value="Transferred out">Transferred out</option>
+                      <option value="Lost to follow-up">Lost to follow-up</option>
+                      <option value="Died">Died</option>
+                      <option value="Other">Other</option>
                     </select>
-                    <button onClick={() => setShowCloseLoop(false)} className="text-[9px] font-bold text-red-400 uppercase">Cancel</button>
+                    <button onClick={() => setShowCloseLoop(false)} className="text-[9px] font-bold text-red-400 uppercase hover:text-red-600 transition-colors">Cancel</button>
                   </div>
                 )}
               </div>

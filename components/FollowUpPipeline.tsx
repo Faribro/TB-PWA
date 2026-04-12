@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, X, ChevronLeft, ChevronRight, AlertCircle, ClockAlert, MapPin, List, Grid3x3, Upload } from 'lucide-react';
+import { Filter, X, ChevronLeft, ChevronRight, AlertCircle, ClockAlert, MapPin, List, Grid3x3, Upload, AlertTriangle, ShieldCheck, Clock } from 'lucide-react';
+import { TBFilterToggle, type FilterMode, isSuspectedTB } from './ui/TBFilterToggle';
 import { useTreeFilter } from '@/contexts/TreeFilterContext';
 import { useEntityStore } from '@/stores/useEntityStore';
 import { normalizeGeographicKey } from '@/lib/normalizeGeographicKey';
@@ -131,6 +132,8 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
   const [isTriaging, setIsTriaging] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const [tbFilteredPatients, setTbFilteredPatients] = useState<Patient[]>([]);
   const ITEMS_PER_PAGE = 50;
   
   const patientData = globalPatients ?? patients ?? [];
@@ -221,14 +224,25 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
     return filtered;
   }, [patientData, treeFilter, activeFilters]);
 
+  // Sync TB filter when upstream filteredPatients change
+  useEffect(() => {
+    setTbFilteredPatients(filteredPatients);
+    setFilterMode('all');
+  }, [filteredPatients]);
+
+  // The source of truth for the patient list below the TB toggle
+  const displayPatients = tbFilteredPatients.length > 0 || filterMode !== 'all'
+    ? tbFilteredPatients
+    : filteredPatients;
+
   // Task 2: Paginate filtered results
   const paginatedPatients = useMemo(() => {
     const start = currentPage * ITEMS_PER_PAGE;
     const end = start + ITEMS_PER_PAGE;
-    return filteredPatients.slice(start, end);
-  }, [filteredPatients, currentPage]);
+    return displayPatients.slice(start, end);
+  }, [displayPatients, currentPage]);
 
-  const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(displayPatients.length / ITEMS_PER_PAGE);
 
   const hasActiveFilter = treeFilter.year || treeFilter.month !== undefined || treeFilter.district || treeFilter.date || treeFilter.actionType || activeFilters?.district || activeFilters?.state || activeFilters?.phase || activeFilters?.status !== 'All';
 
@@ -348,7 +362,51 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
 
   return (
     <div className="h-full flex flex-col glass-light relative">
-      <div className="p-6 border-b border-white/20 bg-white/10 backdrop-blur-md">
+      <div className="p-3 border-b border-white/20 bg-white/10 backdrop-blur-md">
+        {/* Inmate List Header — Compact */}
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xl font-black bg-gradient-to-r from-slate-900 to-blue-900 bg-clip-text text-transparent">
+            Inmate List
+          </h2>
+          <div className="flex items-center gap-1.5">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="h-8 flex items-center text-xs font-bold text-slate-700 bg-gradient-to-br from-slate-100 to-slate-200 px-3 rounded-md shadow-sm border border-slate-300/50"
+            >
+              {filteredPatients.length.toLocaleString()} {hasActiveFilter ? 'filtered' : 'total'}
+            </motion.div>
+            {onUploadRegister && (
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={onUploadRegister}
+                className="h-8 flex items-center gap-1.5 px-3 bg-gradient-to-br from-cyan-500 via-cyan-600 to-cyan-700 text-white rounded-md font-bold text-xs shadow-sm hover:shadow-md transition-all"
+                title="Upload handwritten register for OCR extraction"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                Upload
+              </motion.button>
+            )}
+            <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-md p-0.5 h-8">
+              <button
+                onClick={() => { sounds.toggle(); setViewMode('list'); }}
+                className={`w-6 h-6 flex items-center justify-center rounded transition-all duration-200 ${viewMode === 'list' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                aria-label="List view"
+              >
+                <List className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => { sounds.toggle(); setViewMode('grid'); }}
+                className={`w-6 h-6 flex items-center justify-center rounded transition-all duration-200 ${viewMode === 'grid' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                aria-label="Grid view"
+              >
+                <Grid3x3 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
         {hasActiveFilter && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -395,70 +453,27 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
             </button>
           </motion.div>
         )}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={triageIds.length > 0 && triageIds.length === eligibleCount && eligibleCount > 0}
-              onChange={toggleSelectAllEligible}
-              disabled={eligibleCount === 0}
-              aria-label={eligibleCount === 0 ? 'No eligible patients for bulk triage' : `Select all ${eligibleCount} eligible patients`}
-              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-30 disabled:cursor-not-allowed"
-              title={eligibleCount === 0 ? 'No eligible patients for bulk triage' : `Select all ${eligibleCount} eligible patients`}
-            />
-            <h2 className="text-2xl font-black bg-gradient-to-r from-slate-900 to-blue-900 bg-clip-text text-transparent">Patient List</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            {eligibleCount > 0 && (
-              <motion.div 
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="flex items-center gap-2 bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-white px-4 py-2 rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_0_#047857,0_8px_16px_rgba(16,185,129,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_0_#047857,0_10px_20px_rgba(16,185,129,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-2px_0_#047857] active:translate-y-1 transition-all"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                  <span className="text-sm font-black tracking-wide">
-                    {eligibleCount} eligible for triage
-                  </span>
-                </div>
-              </motion.div>
-            )}
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="text-sm font-black text-slate-700 bg-gradient-to-br from-slate-100 to-slate-200 px-4 py-2 rounded-xl shadow-sm border border-slate-300/50"
-            >
-              {filteredPatients.length.toLocaleString()} {hasActiveFilter ? 'filtered' : 'total'}
-            </motion.div>
-            {onUploadRegister && (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={onUploadRegister}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-br from-cyan-500 via-cyan-600 to-cyan-700 text-white rounded-xl font-bold text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_0_#0e7490,0_8px_16px_rgba(6,182,212,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_0_#0e7490,0_10px_20px_rgba(6,182,212,0.5)] active:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-2px_0_#0e7490] active:translate-y-1 transition-all"
-                title="Upload handwritten register for OCR extraction"
-              >
-                <Upload className="w-4 h-4" />
-                Upload Register
-              </motion.button>
-            )}
-            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1">
-              <button
-                onClick={() => { sounds.toggle(); setViewMode('list'); }}
-                className={`p-2 rounded transition-all duration-200 ${viewMode === 'list' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                aria-label="List view"
-              >
-                <List className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => { sounds.toggle(); setViewMode('grid'); }}
-                className={`p-2 rounded transition-all duration-200 ${viewMode === 'grid' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                aria-label="Grid view"
-              >
-                <Grid3x3 className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+        
+        {/* Filter Toggle + Checkbox Row — Compact */}
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={triageIds.length > 0 && triageIds.length === eligibleCount && eligibleCount > 0}
+            onChange={toggleSelectAllEligible}
+            disabled={eligibleCount === 0}
+            aria-label={eligibleCount === 0 ? 'No eligible patients for bulk triage' : `Select all ${eligibleCount} eligible patients`}
+            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
+            title={eligibleCount === 0 ? 'No eligible patients for bulk triage' : `Select all ${eligibleCount} eligible patients`}
+          />
+          <TBFilterToggle
+            patients={filteredPatients}
+            onFilterChange={(filtered, mode) => {
+              setTbFilteredPatients(filtered);
+              setFilterMode(mode);
+              setCurrentPage(0);
+            }}
+            className="mb-0 w-full max-w-[420px]"
+          />
         </div>
         
         <AnimatePresence>
@@ -466,7 +481,7 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
         </AnimatePresence>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 cyan-scrollbar">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 cyan-scrollbar">
         {paginatedPatients.length > 0 ? (
           viewMode === 'list' ? (
             <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
@@ -485,6 +500,8 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
               };
               const daysElapsed = calculateDaysElapsed(patient.screening_date);
               const isStalled = phase.phase !== 'Closed' && daysElapsed > 5;
+              const suspectedTB = isSuspectedTB(patient);
+              const normalTB = !suspectedTB;
 
               return (
                 <div
@@ -497,9 +514,49 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
                     padding: '4px 0',
                   }}
                 >
-                  <div className={`rounded-xl p-5 border shadow-sm transition-all duration-200 hover:-translate-y-0.5 group ${isStalled ? 'bg-amber-50/10 border-l-4 border-l-amber-500 border-amber-200/50 backdrop-blur-md hover:shadow-amber-500/10 hover:border-r-amber-400 hover:border-y-amber-400' : 'bg-white border-slate-100 hover:shadow-md hover:border-blue-300'}`}>
-                    <div className="flex items-start gap-4">
-                      <div className="pt-1" title={!canSelect ? 'Requires manual follow-up: Abnormal X-Ray or Symptoms Present' : 'Select for bulk triage'}>
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: virtualRow.index * 0.03 }}
+                    className={`relative rounded-xl p-4 cursor-pointer group overflow-hidden ${
+                      suspectedTB 
+                        ? 'bg-white border-2 border-rose-400/60 shadow-[0_0_20px_rgba(244,63,94,0.15),0_4px_20px_-4px_rgba(244,63,94,0.3)] hover:shadow-[0_0_30px_rgba(244,63,94,0.25),0_8px_30px_-4px_rgba(244,63,94,0.4)]' 
+                        : normalTB
+                          ? 'bg-white border-2 border-emerald-400/40 shadow-[0_0_15px_rgba(16,185,129,0.1),0_4px_15px_-4px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.2),0_8px_25px_-4px_rgba(16,185,129,0.3)]'
+                          : 'bg-white border border-slate-200/60 shadow-sm hover:shadow-md'
+                    } transition-all duration-300`}
+                  >
+                    {/* Animated gradient border glow for suspected TB */}
+                    {suspectedTB && (
+                      <motion.div
+                        className="absolute inset-0 rounded-xl pointer-events-none"
+                        animate={{ 
+                          boxShadow: ['inset 0 0 0 2px rgba(244,63,94,0.3)', 'inset 0 0 0 3px rgba(244,63,94,0.5)', 'inset 0 0 0 2px rgba(244,63,94,0.3)'] 
+                        }}
+                        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                      />
+                    )}
+                    {normalTB && !suspectedTB && (
+                      <motion.div
+                        className="absolute inset-0 rounded-xl pointer-events-none"
+                        animate={{ 
+                          boxShadow: ['inset 0 0 0 2px rgba(16,185,129,0.2)', 'inset 0 0 0 3px rgba(16,185,129,0.35)', 'inset 0 0 0 2px rgba(16,185,129,0.2)'] 
+                        }}
+                        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                      />
+                    )}
+                    
+                    {/* Left accent bar — dynamic by status */}
+                    <div 
+                      className={`absolute left-0 top-3 bottom-3 w-[4px] rounded-r-full ${
+                        suspectedTB ? 'bg-gradient-to-b from-rose-500 to-rose-600' : 
+                        normalTB ? 'bg-gradient-to-b from-emerald-500 to-emerald-600' : 
+                        isStalled ? 'bg-amber-500' : 'bg-slate-300'
+                      }`}
+                    />
+                    <div className="grid grid-cols-[20px_1fr_auto] gap-3 pl-3">
+                      {/* Checkbox */}
+                      <div className="flex items-center" title={!canSelect ? 'Requires manual follow-up: Abnormal X-Ray or Symptoms Present' : 'Select for bulk triage'}>
                         <input
                           type="checkbox"
                           checked={triageIds.includes(patient.id)}
@@ -507,65 +564,65 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
                           disabled={!canSelect}
                           aria-label={canSelect ? `Select ${patient.inmate_name} for triage` : 'Patient requires manual follow-up'}
                           className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                          onClick={(e) => e.stopPropagation()}
                         />
                       </div>
+                      
+                      {/* Main content */}
                       <div
-                        className="flex-1 cursor-pointer"
                         data-tour-id="patient-card"
                         onClick={() => onPatientClick?.(patient)}
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            {/* Data Hierarchy: Name > ID > Status */}
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <div className="text-slate-900 font-bold text-lg leading-tight group-hover:text-blue-700 transition-colors">{patient.inmate_name}</div>
-                                {isStalled && (
-                                  <div className="flex items-center gap-1 bg-amber-50 text-amber-600 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-200/50 shadow-sm backdrop-blur-sm">
-                                    <ClockAlert className="w-3 h-3" /> Stale ({daysElapsed}d)
-                                  </div>
-                                )}
-                              </div>
-                              <div className={`px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase shadow-sm ${
-                                phase.phase === 'Sputum Test' ? 'bg-amber-50 text-amber-700 border border-amber-200/50' :
-                                phase.phase === 'Diagnosis' ? 'bg-blue-50 text-blue-700 border border-blue-200/50' :
-                                phase.phase === 'ATT Initiation' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/50' :
-                                'bg-slate-50 text-slate-700 border border-slate-200/50'
-                              }`}>{phase.phase}</div>
+                        {/* Row 1: Name + Stale badge */}
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-[15px] font-bold text-gray-900 tracking-tight group-hover:text-blue-700 transition-colors">
+                            {patient.inmate_name}
+                          </h3>
+                          {isStalled && (
+                            <div className="flex items-center gap-1 h-5 px-[7px] bg-amber-50 text-amber-700 border border-amber-200/40 rounded-full">
+                              <Clock className="w-3 h-3" />
+                              <span className="text-[10px] font-bold tracking-wide">STALE ({daysElapsed}d)</span>
                             </div>
-                            
-                            <div className="flex flex-col gap-2">
-                              <div className="inline-flex items-center w-max">
-                                <span className="text-xs font-mono font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/50">
-                                  {patient.unique_id}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-3 text-xs font-medium text-slate-500">
-                                <span className="flex items-center gap-1 group-hover:text-slate-700 transition-colors">
-                                  {patient.facility_name}
-                                </span>
-                                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                <span className="flex items-center gap-1 group-hover:text-slate-700 transition-colors">
-                                  {patient.screening_district}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
-                              {(() => {
-                                const dateValue = patient.screening_date || patient.submitted_on;
-                                if (!dateValue) return 'N/A';
-                                const date = new Date(dateValue);
-                                if (isNaN(date.getTime())) return 'Invalid Date';
-                                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                              })()}
-                            </div>
-                          </div>
+                          )}
+                        </div>
+                        
+                        {/* Row 2: ID badge */}
+                        <div className="inline-flex items-center mb-1.5">
+                          <span className="bg-gray-100 text-gray-700 rounded-[5px] px-[7px] py-[2px] text-[11px] font-semibold font-mono tracking-wide">
+                            {patient.unique_id}
+                          </span>
+                        </div>
+                        
+                        {/* Row 3: Facility • District */}
+                        <div className="flex items-center gap-1 text-xs text-gray-400 font-medium">
+                          <span>{patient.facility_name}</span>
+                          <span className="w-1 h-1 rounded-full bg-gray-300" />
+                          <span>{patient.screening_district}</span>
                         </div>
                       </div>
+                      
+                      {/* Right column: Action badge + Date */}
+                      <div className="flex flex-col items-end gap-1.5">
+                        <span className={`h-[26px] px-2.5 flex items-center rounded-md text-[11px] font-bold tracking-wide uppercase ${
+                          phase.phase === 'Sputum Test' ? 'bg-blue-50 text-blue-700 border border-blue-200/30' :
+                          phase.phase === 'Diagnosis' ? 'bg-blue-50 text-blue-700 border border-blue-200/30' :
+                          phase.phase === 'ATT Initiation' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/30' :
+                          'bg-slate-50 text-slate-600 border border-slate-200/30'
+                        }`}>
+                          {phase.phase}
+                        </span>
+                        <span className="h-[22px] px-2 flex items-center bg-gray-50 text-gray-500 border border-gray-200/50 rounded-[5px] text-[11px] font-semibold">
+                          {(() => {
+                            const dateValue = patient.screening_date || patient.submitted_on;
+                            if (!dateValue) return 'N/A';
+                            const date = new Date(dateValue);
+                            if (isNaN(date.getTime())) return 'Invalid';
+                            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                          })()}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  </motion.div>
                 </div>
               );
             })}
@@ -600,6 +657,29 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
           )
         ) : null}
 
+        {/* Empty state for filter mode */}
+        {!isLoading && tbFilteredPatients.length === 0 && filterMode !== 'all' && patientData.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center justify-center py-16 px-8"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mb-4">
+              {filterMode === 'suspected' 
+                ? <AlertTriangle className="w-5 h-5 text-amber-400" />
+                : <ShieldCheck className="w-5 h-5 text-emerald-400" />}
+            </div>
+            <p className="text-sm font-semibold text-slate-700 mb-1">
+              No {filterMode === 'suspected' ? 'Suspected TB' : 'Normal'} patients
+            </p>
+            <p className="text-xs text-slate-400 text-center max-w-[200px]">
+              All patients in this facility fall under the 
+              {filterMode === 'suspected' ? ' normal' : ' suspected TB'} category
+            </p>
+          </motion.div>
+        )}
+
+        {/* Empty state — no patients at all */}
         {!isLoading && (!patientData || patientData.length === 0) && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -623,7 +703,7 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
       {filteredPatients.length > ITEMS_PER_PAGE && (
         <div className="border-t border-white/20 bg-white/10 backdrop-blur-md p-4 flex items-center justify-between">
           <div className="text-sm font-medium text-slate-600">
-            Page {currentPage + 1} of {totalPages} • Showing {paginatedPatients.length} of {filteredPatients.length}
+            Page {currentPage + 1} of {totalPages} • Showing {paginatedPatients.length} of {displayPatients.length}
           </div>
           <div className="flex items-center gap-2">
             <Button

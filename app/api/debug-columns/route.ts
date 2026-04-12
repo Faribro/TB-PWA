@@ -3,24 +3,30 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
 export async function GET() {
   try {
+    // Get first record to see actual column names
     const { data, error } = await supabase
       .from('patients')
       .select('*')
       .limit(1)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const columns = data ? Object.keys(data).sort() : [];
 
     return NextResponse.json({
-      columns: Object.keys(data || {}),
-      sampleData: data
+      totalColumns: columns.length,
+      columns: columns,
+      sampleRecord: data
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
