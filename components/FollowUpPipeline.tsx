@@ -14,6 +14,7 @@ import { Button } from './ui/button';
 import { createClient } from '@supabase/supabase-js';
 import { Z_INDEX } from '@/lib/zIndex';
 import { sounds } from '@/lib/sound';
+import { useRealtimePatients } from '@/lib/useRealtimePatients';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -125,7 +126,7 @@ const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelec
   );
 };
 
-export function FollowUpPipeline({ patients, globalPatients, isLoading = false, onPatientClick, onUploadRegister }: FollowUpPipelineProps) {
+export function FollowUpPipeline({ patients: initialPatients, globalPatients, isLoading = false, onPatientClick, onUploadRegister }: FollowUpPipelineProps) {
   const { filter: treeFilter, clearFilter: clearTreeFilter } = useTreeFilter();
   const activeFilters = useEntityStore(s => s.activeFilters);
   const [triageIds, setTriageIds] = useState<number[]>([]);
@@ -136,7 +137,33 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
   const [tbFilteredPatients, setTbFilteredPatients] = useState<Patient[]>([]);
   const ITEMS_PER_PAGE = 50;
   
-  const patientData = globalPatients ?? patients ?? [];
+  // Local state for patients (updated via realtime)
+  const [patients, setPatients] = useState<Patient[]>(
+    globalPatients ?? initialPatients ?? []
+  );
+
+  // Realtime subscription — live patient list updates
+  useRealtimePatients({
+    showToasts: true,
+    filterState: activeFilters?.state,
+    onInsert: (newPatient) => {
+      setPatients(prev => {
+        // Avoid duplicates
+        if (prev.some(p => p.id === newPatient.id)) return prev
+        return [newPatient, ...prev]
+      })
+    },
+    onUpdate: (updated) => {
+      setPatients(prev =>
+        prev.map(p => p.id === updated.id ? updated : p)
+      )
+    },
+    onDelete: (deletedId) => {
+      setPatients(prev => prev.filter(p => p.id !== Number(deletedId)))
+    }
+  });
+  
+  const patientData = patients;
 
   const filteredPatients = useMemo(() => {
     let filtered = patientData;
@@ -505,7 +532,7 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
 
               return (
                 <div
-                  key={`${patient.id}-${virtualRow.index}`}
+                  key={`${patient?.id || 'no-id'}-${virtualRow.index}`}
                   style={{
                     position: 'absolute',
                     top: virtualRow.start,

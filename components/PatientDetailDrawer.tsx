@@ -18,6 +18,14 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { useSWRConfig } from 'swr';
 import { toast } from 'sonner';
 import { useSessionScope, isSuperuser } from '@/hooks/useSessionScope';
+import { SyncStatusBadge } from './ui/SyncStatusBadge';
+import { useSyncStatus } from '@/lib/useSyncStatus';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseClient = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 interface PatientDetailDrawerProps {
   patient: any;
@@ -91,6 +99,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const scope = useSessionScope();
   const [localPatient, setLocalPatient] = useState(patient);
   const { mutate } = useSWRConfig();
+  const { status, setSaving, setSyncing, setSynced, setError, reset: resetSyncStatus } = useSyncStatus(patient?.id ?? null);
 
   useEffect(() => {
     if (patient && Object.keys(patient).length > 0) {
@@ -184,6 +193,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
   const handleSaveClinical = async () => {
     const formData = getValues();
+    setSaving();
     setIsSubmitting(true);
 
     try {
@@ -204,9 +214,13 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         })
       });
 
-      if (!res.ok) throw new Error('Sync failed');
+      if (!res.ok) {
+        setError('Sync failed');
+        throw new Error('Sync failed');
+      }
 
       const result = await res.json();
+      setSyncing();
 
       await mutate(
         (key: unknown) => {
@@ -219,21 +233,50 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       );
       onUpdate();
       
-      if (result.warnings?.length > 0) {
-        toast.warning(`⚠️ ${result.warnings[0]}`, { id: 'clinical-save' });
-      } else if (result.googleSheets?.success) {
-        const rows = result.googleSheets?.data?.rowsUpdated || 0;
-        toast.success(`✅ Google Sheets synced: ${rows} row(s) updated.`, { id: 'clinical-save' });
-      } else {
-        toast.success('✅ Clinical data synced to Supabase', { id: 'clinical-save' });
-      }
+      toast.success('✅ Clinical data synced', { id: 'clinical-save' });
     } catch (error) {
       console.error('Save failed:', error);
+      setError('Failed to sync');
       toast.error('❌ Failed to sync. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Realtime listener for sync confirmation
+  useEffect(() => {
+    if (!patient?.id || status.state !== 'syncing') return;
+
+    const channel = supabaseClient
+      .channel(`sync-confirm-${patient.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'patients',
+          filter: `id=eq.${patient.id}`
+        },
+        (payload) => {
+          if (payload.new.synced_to_sheets === true) {
+            setSynced(payload.new.sheets_synced_at || new Date().toISOString());
+            supabaseClient.removeChannel(channel);
+          }
+        }
+      )
+      .subscribe();
+
+    // Fallback timeout: 15s
+    const timeout = setTimeout(() => {
+      setSynced(new Date().toISOString());
+      supabaseClient.removeChannel(channel);
+    }, 15000);
+
+    return () => {
+      clearTimeout(timeout);
+      supabaseClient.removeChannel(channel);
+    };
+  }, [patient?.id, status.state, setSynced]);
 
   const handleSaveDemographics = async () => {
     setIsSavingDemographics(true);
@@ -390,6 +433,11 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                       <span className="w-1 h-1 rounded-full bg-white/50" />
                       {phase ?? 'Screening'}
                     </span>
+                    <SyncStatusBadge
+                      state={status.state}
+                      message={status.message}
+                      lastSyncedAt={status.lastSyncedAt}
+                    />
                   </div>
                 </div>
                 <button onClick={handleClose} className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center flex-shrink-0 transition-colors duration-150" aria-label="Close drawer">

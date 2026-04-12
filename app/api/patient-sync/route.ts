@@ -12,25 +12,22 @@ const supabase = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    // Auth + ownership check with Service Role Key bypass for server-to-server calls
+    // Auth + ownership check
     let scope;
     let isServiceRoleAuth = false;
     
-    // Check for Service Role Key in Authorization header (server-to-server bypass)
     const authHeader = request.headers.get('authorization');
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
     if (authHeader && serviceRoleKey && authHeader === `Bearer ${serviceRoleKey}`) {
-      // Service role authentication - bypass session check
       isServiceRoleAuth = true;
-      scope = { state: null, district: null, role: 'service' }; // No ownership restrictions
-      console.log('[patient-sync] Service role authentication - bypassing session check');
+      scope = { state: null, district: null, role: 'service' };
+      console.log('[patient-sync] Service role authentication');
     } else {
-      // Regular user authentication
       try {
         scope = await getSessionScope();
       } catch {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return NextResponse.json({ success: false, error: 'UNAUTHORIZED' }, { status: 401 });
       }
     }
 
@@ -39,18 +36,23 @@ export async function POST(request: NextRequest) {
 
     console.log('[patient-sync] Request received:', { patientId, koboUuid, updateKeys: Object.keys(updates) });
 
-    if (!patientId || !updates) {
+    if (!patientId) {
       return NextResponse.json(
-        { error: 'Missing required fields: patientId and updates' },
+        { success: false, error: 'MISSING_PATIENT_ID' },
         { status: 400 }
       );
     }
 
-    // Step A: Update Supabase (handle all fields dynamically)
-    const supabaseUpdates: any = {};
+    if (!updates) {
+      return NextResponse.json(
+        { success: false, error: 'MISSING_UPDATES' },
+        { status: 400 }
+      );
+    }
 
-    // Map form fields to database columns (using ACTUAL Supabase column names)
-    const fieldMapping: Record<string, string> = {
+    // Map form fields to database columns
+    const supabaseUpdates: any = {};
+    const fieldMapping: Record<string, string | null> = {
       'inmate_name': 'inmate_name',
       'age': 'age',
       'sex': 'sex',
@@ -74,168 +76,97 @@ export async function POST(request: NextRequest) {
       'Date of registration (dd/mm/yyyy)': 'registration_date',
       'Remarks': 'remarks',
       'closure_reason': 'closure_reason',
-      // Google Sheets identifiers - skip for Supabase
       'Serial Number': null,
       'KoboUUID': null,
       'KoboID': null
     };
 
-    // Map updates to database columns (skip null mappings)
     Object.keys(updates).forEach(key => {
       const dbColumn = fieldMapping[key];
-      
-      // Skip if mapping is explicitly null (Google Sheets only fields)
-      if (dbColumn === null) {
-        return;
-      }
-      
-      // Use mapped column or original key
+      if (dbColumn === null) return;
       const columnName = dbColumn || key;
-      
       if (updates[key] !== undefined && updates[key] !== null && updates[key] !== '') {
         supabaseUpdates[columnName] = updates[key];
       }
     });
 
-    // Get timestamp constraint if provided by client
-    const clientTimestamp = updates.client_timestamp;
-    delete supabaseUpdates.client_timestamp; // Remove from specific fields
-
-    console.log('[patient-sync] Supabase updates:', supabaseUpdates);
-
+    // STEP 1: Write to Supabase (blocking — source of truth)
     let updateQuery = supabase
       .from('patients')
-      .update(supabaseUpdates)
+      .update({
+        ...supabaseUpdates,
+        updated_at: new Date().toISOString(),
+        synced_to_sheets: false,   // mark as needing sync
+        sheets_sync_attempts: 0    // reset retry counter
+      })
       .eq('id', patientId);
 
-    // Ownership guard: non-admins can only update patients in their own state
-    // Skip ownership check for service role authentication
     if (!isServiceRoleAuth && scope.state) {
       updateQuery = updateQuery.eq('screening_state', scope.state);
     }
 
-    const { data: supabaseData, error: supabaseError } = await updateQuery
-      .select();
+    const { data: updatedPatient, error: dbError } = await updateQuery.select().single();
 
-    if (supabaseError) {
-      console.error('[patient-sync] Supabase error:', supabaseError);
-      
-      // Handle optimistic locking conflict code
-      if (supabaseError.code === 'PGRST116') {
-        return NextResponse.json(
-          { error: 'Conflict: record updated by another process' },
-          { status: 409 }
-        );
-      }
-
+    if (dbError) {
+      console.error('[patient-sync] Supabase error:', dbError);
       return NextResponse.json(
-        { error: 'Failed to update Supabase', details: supabaseError.message },
+        { success: false, error: 'DB_WRITE_FAILED', detail: dbError.message },
         { status: 500 }
       );
     }
 
-    // Check if any rows were updated
-    if (!supabaseData || supabaseData.length === 0) {
-      console.error('[patient-sync] No rows updated - patient not found, access denied, or update conflict');
+    if (!updatedPatient) {
       return NextResponse.json(
-        { error: 'Conflict or access denied', details: 'No matching patient record or record updated by another process' },
-        { status: 409 } // Changed to 409 to reflect potential lock conflict
+        { success: false, error: 'PATIENT_NOT_FOUND' },
+        { status: 404 }
       );
     }
 
-    const updatedPatient = supabaseData[0];
+    console.log('[patient-sync] Supabase success:', updatedPatient.id);
 
-    console.log('[patient-sync] Supabase success, updated patient:', updatedPatient?.id);
-
-    // Step B: Sync to Google Sheets via direct API
-    let googleSheetsResult: { success: boolean; message: string; data?: any } = { 
-      success: false, 
-      message: 'Google Sheets not configured' 
-    };
-    
-    const sheetsLookupId = koboUuid || updatedPatient.kobo_uuid || updatedPatient.unique_id;
-    
-    if (process.env.GOOGLE_SHEET_ID && process.env.GOOGLE_SERVICE_ACCOUNT_KEY && sheetsLookupId) {
-      try {
-        console.log('[patient-sync] Syncing to Google Sheets via API:', sheetsLookupId);
-        
-        const patientRecord: PatientRecord = {
-          ...updatedPatient,
-          kobo_uuid: sheetsLookupId
-        };
-        
-        const syncResult = await updatePatientInSheets(patientRecord);
-        
-        googleSheetsResult = {
-          success: syncResult.success,
-          message: syncResult.message,
-          data: { rowsUpdated: syncResult.rowsAppended || 0 }
-        };
-        
-        if (syncResult.success) {
-          console.log('[patient-sync] ✅ Google Sheets sync successful');
-        } else {
-          console.error('[patient-sync] ❌ Google Sheets sync failed:', syncResult.error);
-        }
-      } catch (error: any) {
-        console.error('[patient-sync] ❌ Google Sheets API error:', error);
-        googleSheetsResult = {
-          success: false,
-          message: `API error: ${error.message}`
-        };
-      }
-    }
-
-    // Update Supabase with sync status
-    const syncStatusUpdate: any = {};
-    
-    if (googleSheetsResult.success) {
-      syncStatusUpdate.synced_to_sheets = true;
-      syncStatusUpdate.sheets_synced_at = new Date().toISOString();
-      syncStatusUpdate.sheets_sync_error = null;
-      console.log('✅ Marking patient as synced');
-    } else if (process.env.GOOGLE_SHEET_ID && sheetsLookupId) {
-      syncStatusUpdate.synced_to_sheets = false;
-      syncStatusUpdate.sheets_sync_error = googleSheetsResult.message;
-      console.log('❌ Marking patient as unsynced - will retry later');
-    }
-
-    // Apply sync status update if needed
-    if (Object.keys(syncStatusUpdate).length > 0) {
-      const { error: syncUpdateError } = await supabase
-        .from('patients')
-        .update(syncStatusUpdate)
-        .eq('id', patientId);
-
-      if (syncUpdateError) {
-        console.error('❌ Failed to update sync status:', syncUpdateError);
-      }
-    }
-
-    // Build warnings array
-    const warnings: string[] = [];
-    if (!sheetsLookupId) {
-      warnings.push('No Kobo UUID available for Google Sheets lookup. Patient may not exist in sheet yet.');
-    } else if (!googleSheetsResult.success) {
-      warnings.push('Google Sheets sync failed — data saved to Supabase only. Re-sync manually.');
-    }
-    
-    // Return success even if webhook fails (Supabase is the source of truth)
-    return NextResponse.json({
+    // STEP 2: Respond to client IMMEDIATELY
+    const response = NextResponse.json({
       success: true,
-      message: 'Patient data updated',
-      supabase: {
-        success: true,
-        data: updatedPatient
-      },
-      googleSheets: googleSheetsResult,
-      warnings
+      patient: updatedPatient,
+      syncStatus: 'queued'  // tells client Sheets sync is in-flight
     });
+
+    // STEP 3: Fire-and-forget Sheets sync (non-blocking)
+    const sheetsSync = updatePatientInSheets(
+      updatedPatient,
+      updatedPatient.kobo_uuid
+    ).then(async (result) => {
+      if (result.success) {
+        await supabase
+          .from('patients')
+          .update({
+            synced_to_sheets: true,
+            sheets_synced_at: new Date().toISOString(),
+            sheets_sync_error: null
+          })
+          .eq('id', patientId)
+      } else {
+        await supabase
+          .from('patients')
+          .update({
+            sheets_sync_attempts: (updatedPatient.sheets_sync_attempts ?? 0) + 1,
+            sheets_sync_error: result.error
+          })
+          .eq('id', patientId)
+      }
+    }).catch((err) => {
+      console.error('[patient-sync] Sheets fire-and-forget error:', err)
+    })
+
+    // On Vercel: context.waitUntil(sheetsSync) would be ideal
+    // For now, just let it run in background
+
+    return response
 
   } catch (error: any) {
     console.error('Patient sync error:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { success: false, error: 'INTERNAL_ERROR', details: error.message },
       { status: 500 }
     );
   }

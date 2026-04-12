@@ -6,6 +6,37 @@ import { google } from 'googleapis';
 
 const SHEET_NAME = 'Patient Linelist_TB';
 
+/**
+ * Retry wrapper for Google Sheets API calls
+ * Handles transient 429 quota and 503 errors
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 3,
+  baseDelay = 1000
+): Promise<T> {
+  let lastError: any
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn()
+    } catch (err: any) {
+      lastError = err
+      const isRetryable =
+        err?.code === 429 ||      // quota
+        err?.code === 503 ||      // service unavailable
+        err?.code === 'ECONNRESET' ||
+        err?.message?.includes('quota') ||
+        err?.message?.includes('rate limit')
+
+      if (!isRetryable || attempt === maxAttempts) break
+
+      const delay = baseDelay * Math.pow(2, attempt - 1) // 1s, 2s, 4s
+      await new Promise(r => setTimeout(r, delay))
+    }
+  }
+  throw lastError
+}
+
 // Exact 35-column order matching Google Sheets headers
 const COLUMN_ORDER = [
   'staff_name',
@@ -224,15 +255,17 @@ export async function appendPatientToSheets(
       rowLength: row.length
     });
 
-    const response = await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: `${SHEET_NAME}!A:AI`, // A to AI = 35 columns
-      valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
-      requestBody: {
-        values: [row]
-      }
-    });
+    const response = await withRetry(() =>
+      sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: `${SHEET_NAME}!A:AI`,
+        valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values: [row]
+        }
+      })
+    );
 
     const updatedRows = response.data.updates?.updatedRows || 0;
 
@@ -299,14 +332,16 @@ export async function updatePatientInSheets(
     const sheetRowNumber = rowIndex + 2; // +1 for 0-index, +1 for header
     const row = mapPatientToSheetRow(patient);
 
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `${SHEET_NAME}!A${sheetRowNumber}:AI${sheetRowNumber}`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: [row]
-      }
-    });
+    await withRetry(() =>
+      sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${SHEET_NAME}!A${sheetRowNumber}:AI${sheetRowNumber}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [row]
+        }
+      })
+    );
 
     console.log('[sheetsSync] ✅ Successfully updated row in Google Sheets:', {
       rowNumber: sheetRowNumber,
