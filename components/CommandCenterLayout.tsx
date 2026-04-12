@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, Layers, X, BarChart3, Trophy, Globe, Maximize2, Settings, Search, Cpu, Database, ChevronLeft, ChevronRight, Activity, AlertCircle, ChevronDown, Sparkles } from 'lucide-react';
+import { Filter, Layers, X, BarChart3, Trophy, Globe, Maximize2, Settings, Search, Cpu, Database, ChevronLeft, ChevronRight, Activity, AlertCircle, ChevronDown, Sparkles, Send } from 'lucide-react';
 import { useUniversalFilter } from '@/contexts/FilterContext';
 import { KPIRibbon } from './KPIRibbon';
 import { ColorLegend } from './ColorLegend';
@@ -310,23 +310,58 @@ export function CommandCenterLayout({
     playSonarBeep();
     setIsIntervening(true);
     
+    // Get the last insight's active node
+    const lastInsight = aiInsights[aiInsights.length - 1];
+    const activeNode = lastInsight.activeNode;
+    
+    if (!activeNode || activeNode === 'SYSTEM') {
+      setIsIntervening(false);
+      return;
+    }
+    
     // Add tactical notification
-    const activeNode = aiInsights[aiInsights.length - 1].activeNode;
     setAiInsights(prev => [...prev, {
-      insightText: `COMMAND TRANSMITTED: DEPLOYING RESOURCE SYNC TO ${activeNode.toUpperCase()} SECTOR.`,
+      insightText: `📡 COMMAND TRANSMITTED: Deploying resource sync to ${activeNode.toUpperCase()} sector. Initiating district-level deep scan...`,
       activeNode: activeNode,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      severity: 'INFO'
     }]);
 
-    // Simulate real-time execution
-    await new Promise(r => setTimeout(r, 2000));
+    // Simulate processing
+    await new Promise(r => setTimeout(r, 1500));
     
+    // Execute the actual intervention: Set district filter and fly to location
     setDistrict(activeNode);
+    
+    // Add success confirmation
     setAiInsights(prev => [...prev, {
-      insightText: `NODES SYNCHRONIZED: ${activeNode.toUpperCase()} SECTOR IS NOW UNDER ACTIVE SURVEILLANCE.`,
+      insightText: `✅ NODES SYNCHRONIZED: ${activeNode.toUpperCase()} sector is now under active surveillance. District filter applied, map view adjusted.`,
       activeNode: activeNode,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      severity: 'POSITIVE'
     }]);
+    
+    // Play success sound
+    playSonarBeep();
+    
+    // Add tactical analysis after intervention
+    setTimeout(() => {
+      const districtPatients = activePool.filter((p: any) => p.screening_district === activeNode);
+      const breaches = districtPatients.filter((p: any) => {
+        const screeningDate = p.screening_date ? new Date(p.screening_date) : null;
+        if (!screeningDate) return false;
+        const daysSince = (Date.now() - screeningDate.getTime()) / (1000 * 60 * 60 * 24);
+        return !p.referral_date && daysSince > 7;
+      }).length;
+      
+      setAiInsights(prev => [...prev, {
+        insightText: `📊 TACTICAL ANALYSIS: ${activeNode.toUpperCase()} sector contains ${districtPatients.length} patients with ${breaches} SLA breaches detected. Review Geography Matrix for detailed metrics.`,
+        activeNode: activeNode,
+        timestamp: Date.now(),
+        severity: 'INFO'
+      }]);
+    }, 2500);
+    
     setIsIntervening(false);
   };
 
@@ -819,14 +854,45 @@ export function CommandCenterLayout({
             <div className="p-3 bg-[#0d0d0d] border-t border-[#222]">
               <button 
                 onClick={handleIntervention}
-                disabled={aiInsights.length === 0 || isIntervening}
+                disabled={aiInsights.length === 0 || isIntervening || (aiInsights[aiInsights.length - 1]?.activeNode === 'SYSTEM')}
                 className={`w-full flex flex-col items-center justify-center p-3 rounded-sm font-black tracking-[0.2em] text-[9px] transition-all relative overflow-hidden uppercase
-                  ${aiInsights.length > 0 && !isIntervening ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] cursor-pointer' : 'bg-[#1a1a1a] text-[#444] cursor-not-allowed'}
+                  ${aiInsights.length > 0 && !isIntervening && aiInsights[aiInsights.length - 1]?.activeNode !== 'SYSTEM' 
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(37,99,235,0.6)] cursor-pointer' 
+                    : 'bg-[#1a1a1a] text-[#444] cursor-not-allowed'}
                 `}
               >
-                {isIntervening && <motion.div animate={{ x: ['-100%', '100%'] }} transition={{ duration: 1.5, repeat: Infinity }} className="absolute inset-0 bg-blue-400/20 skew-x-12" />}
-                <span className="relative z-10">{isIntervening ? 'SYNCHRONIZING_NODES...' : 'EXECUTE INTERVENTION'}</span>
-                {!isIntervening && aiInsights.length > 0 && <span className="text-[7px] opacity-60 mt-0.5 tracking-[0.1em]">Target: {aiInsights[aiInsights.length-1].activeNode}</span>}
+                {isIntervening && (
+                  <>
+                    <motion.div 
+                      animate={{ x: ['-100%', '100%'] }} 
+                      transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }} 
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-400/30 to-transparent skew-x-12" 
+                    />
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                      className="absolute top-2 right-2 w-2 h-2 border-2 border-blue-400 border-t-transparent rounded-full"
+                    />
+                  </>
+                )}
+                <span className="relative z-10 flex items-center gap-2">
+                  {isIntervening ? (
+                    <>
+                      <Activity className="w-3.5 h-3.5 animate-pulse" />
+                      SYNCHRONIZING NODES...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      EXECUTE INTERVENTION
+                    </>
+                  )}
+                </span>
+                {!isIntervening && aiInsights.length > 0 && aiInsights[aiInsights.length - 1]?.activeNode !== 'SYSTEM' && (
+                  <span className="text-[7px] opacity-60 mt-0.5 tracking-[0.1em] relative z-10">
+                    Target: {aiInsights[aiInsights.length - 1].activeNode}
+                  </span>
+                )}
               </button>
             </div>
           </div>
