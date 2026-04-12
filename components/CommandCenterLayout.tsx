@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, Layers, X, BarChart3, Trophy, Globe, Maximize2, Settings, Search, Cpu, Database, ChevronLeft, ChevronRight, Activity, AlertCircle } from 'lucide-react';
+import { Filter, Layers, X, BarChart3, Trophy, Globe, Maximize2, Settings, Search, Cpu, Database, ChevronLeft, ChevronRight, Activity, AlertCircle, Brain, Sparkles } from 'lucide-react';
 import { useUniversalFilter } from '@/contexts/FilterContext';
 import { KPIRibbon } from './KPIRibbon';
 import { ColorLegend } from './ColorLegend';
@@ -245,12 +245,10 @@ export function CommandCenterLayout({
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="w-[280px] border-r border-[#222] bg-[#0a0a0a] p-4 overflow-y-auto shrink-0">
-          <div className="mb-3 pb-3 border-b border-[#222]">
-            <h3 className="text-[10px] font-black tracking-[0.3em] text-white mb-1 uppercase">LAYERS</h3>
-            <p className="text-[8px] text-[#666] tracking-wider">Search layers...</p>
+        <div className="w-[280px] border-r border-[#222] bg-[#0a0a0a] overflow-hidden shrink-0 flex flex-col">
+          <div className="flex-1 overflow-y-auto p-4">
+            <KPIRibbon filteredPatients={globalPatients || filteredPatients} compact />
           </div>
-          <KPIRibbon filteredPatients={globalPatients || filteredPatients} compact />
         </div>
         
         <main className="flex-1 relative z-0 bg-[#050505]">
@@ -284,16 +282,18 @@ export function CommandCenterLayout({
       {/* ───────────────────────────────────────────────────────── */}
       <div className="h-[340px] bg-[#0a0a0a] border-t border-[#222] shrink-0 flex text-[10px] font-bold tracking-widest text-[#777] z-50">
         
-        {/* SECTION 1: AI INSIGHTS (LEFT) */}
-        <div className="w-[260px] border-r border-[#222] flex flex-col bg-[#0a0a0a] relative">
+        {/* SECTION 1: AI INSIGHTS (LEFT) - NOVA NEON */}
+        <div className="w-[260px] border-r border-[#222] flex flex-col bg-[#0a0a0a] relative group/ai">
           <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-cyan-500 to-transparent opacity-20" />
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.02] via-transparent to-transparent pointer-events-none" />
           
-          <div className="flex items-center justify-between p-3 border-b border-[#222] bg-[#161616]">
-            <div className="flex items-center gap-2">
-              <span className="text-white tracking-[0.3em] font-black drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] uppercase animate-pulse">AI BRIEF</span>
+          <div className="flex items-center justify-between p-3 border-b border-[#222] bg-[#161616] relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent opacity-0 group-hover/ai:opacity-100 transition-opacity duration-700" />
+            <div className="flex items-center gap-2 relative z-10">
+              <span className="text-white tracking-[0.3em] font-black drop-shadow-[0_0_20px_rgba(6,182,212,0.8)] uppercase animate-pulse">AI BRIEF</span>
             </div>
-            <div className="flex items-center gap-1.5 text-emerald-500 border border-emerald-500/40 px-2 py-0.5 rounded-full bg-emerald-950/30 tracking-widest shadow-[0_0_20px_rgba(16,185,129,0.3)] font-black text-[8px]">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="flex items-center gap-1.5 text-emerald-400 border border-emerald-500/50 px-2 py-0.5 rounded-full bg-emerald-950/40 tracking-widest shadow-[0_0_25px_rgba(16,185,129,0.5)] font-black text-[8px] relative z-10 backdrop-blur-sm">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,1)]" />
               NEURAL
             </div>
           </div>
@@ -308,33 +308,47 @@ export function CommandCenterLayout({
               ))}
             </div>
 
-            {/* Notification Stream */}
+            {/* Notification Stream - NOVA NEON */}
             <div ref={aiFeedRef} className="flex-1 overflow-y-auto custom-dark-scrollbar p-3 space-y-3 relative z-10">
               <AnimatePresence initial={false}>
-                {aiInsights.map((insight, idx) => (
+                {aiInsights.map((insight, idx) => {
+                  const isCommand = insight.insightText.includes('COMMAND');
+                  const isAlert = insight.insightText.includes('CRITICAL') || insight.insightText.includes('BREACH');
+                  const spectralColor = isCommand ? 'blue' : isAlert ? 'red' : 'cyan';
+                  const glowRGB = isCommand ? '37,99,235' : isAlert ? '239,68,68' : '6,182,212';
+                  
+                  return (
                   <motion.div 
                     key={insight.timestamp}
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    className={`border p-3 rounded-sm relative overflow-hidden group shadow-lg ${insight.insightText.includes('COMMAND') ? 'bg-blue-950/20 border-blue-500/30' : 'bg-[#111111] border-[#333]'}`}
+                    className={`border p-3 rounded-sm relative overflow-hidden group/card shadow-[0_0_25px_rgba(${glowRGB},0.15)] hover:shadow-[0_0_40px_rgba(${glowRGB},0.3)] transition-all duration-500 backdrop-blur-xl bg-white/[0.02]`}
+                    style={{ borderColor: `rgba(${glowRGB}, 0.3)` }}
                   >
-                    <div className="flex items-center justify-between mb-2 opacity-50 text-[8px] font-black tracking-widest uppercase">
-                      <span className="flex items-center gap-1">
-                        <Globe className="w-2.5 h-2.5" /> {insight.insightText.includes('COMMAND') ? 'SECURE_CMD' : 'GEMINI_REF'}
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent pointer-events-none" />
+                    <div className={`absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[rgb(${glowRGB})] to-transparent opacity-50`} />
+                    <div className={`absolute bottom-0 right-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[rgb(${glowRGB})] to-transparent opacity-50`} />
+                    
+                    <div className="flex items-center justify-between mb-2 opacity-60 text-[8px] font-black tracking-widest uppercase relative z-10">
+                      <span className="flex items-center gap-1.5">
+                        <div className={`w-1 h-1 rounded-full bg-[rgb(${glowRGB})] shadow-[0_0_6px_rgba(${glowRGB},1)] animate-pulse`} />
+                        <Globe className="w-2.5 h-2.5" style={{ color: `rgb(${glowRGB})` }} /> 
+                        <span style={{ color: `rgb(${glowRGB})` }}>{isCommand ? 'SECURE_CMD' : isAlert ? 'ALERT' : 'INTEL'}</span>
                       </span>
-                      <span>{new Date(insight.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                      <span className="text-[#666]">{new Date(insight.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                     </div>
-                    <p className="text-[10px] text-[#999] leading-relaxed normal-case font-medium tracking-tight">
+                    <p className="text-[10px] text-[#aaa] leading-relaxed normal-case font-medium tracking-tight relative z-10 group-hover/card:text-white transition-colors">
                       {insight.insightText}
                     </p>
-                    {insight.activeNode && !insight.insightText.includes('COMMAND') && (
-                      <div className="mt-2 text-[9px] text-cyan-500 font-black tracking-widest uppercase flex items-center gap-1">
-                        <div className="w-1 h-1 bg-cyan-500 rounded-full" />
+                    {insight.activeNode && !isCommand && (
+                      <div className="mt-2 text-[9px] font-black tracking-widest uppercase flex items-center gap-1.5 relative z-10" style={{ color: `rgb(${glowRGB})` }}>
+                        <div className={`w-1 h-1 rounded-full shadow-[0_0_6px_rgba(${glowRGB},1)]`} style={{ backgroundColor: `rgb(${glowRGB})` }} />
                         NODE: {insight.activeNode}
                       </div>
                     )}
                   </motion.div>
-                ))}
+                  );
+                })}
               </AnimatePresence>
               
               {aiLoading && (
@@ -410,15 +424,12 @@ export function CommandCenterLayout({
                  const breachRate = vol > 0 ? (breaches / vol) * 100 : 0;
                  
                  let glowColor = '6,182,212'; 
-                 let borderColor = 'border-cyan-500/30';
                  let textColor = 'text-cyan-400';
                  if (breachRate > 70) {
                    glowColor = '239,68,68';
-                   borderColor = 'border-red-500/50';
                    textColor = 'text-red-400';
                  } else if (breachRate > 30) {
                    glowColor = '245,158,11';
-                   borderColor = 'border-amber-500/50';
                    textColor = 'text-amber-400';
                  }
                  const isSelected = filter.district === dist;
@@ -430,40 +441,76 @@ export function CommandCenterLayout({
                       playSonarBeep();
                       setDistrict(isSelected ? null : dist);
                     }}
-                    className={`shrink-0 aspect-square h-[85%] my-auto relative group transition-all cursor-crosshair ${isSelected ? 'z-30' : 'z-10'}`}
+                    className={`shrink-0 aspect-square h-[85%] my-auto relative group/tile transition-all cursor-crosshair transform-gpu ${isSelected ? 'z-30' : 'z-10'}`}
                   >
                     <AnimatePresence>
                       {isSelected && (
                         <motion.div 
                           initial={{ opacity: 0 }}
-                          animate={{ opacity: [0.2, 0.4, 0.2] }}
+                          animate={{ opacity: [0.3, 0.6, 0.3] }}
                           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                          className="absolute -inset-4 rounded-xl blur-2xl pointer-events-none"
-                          style={{ backgroundColor: `rgba(${glowColor}, 0.5)` }}
+                          className="absolute -inset-6 rounded-xl blur-3xl pointer-events-none"
+                          style={{ backgroundColor: `rgba(${glowColor}, 0.4)` }}
                         />
                       )}
                     </AnimatePresence>
 
-                    <div className={`w-full h-full bg-[#0a0a0a]/90 backdrop-blur-md border-[2px] rounded-lg transition-all duration-500 flex flex-col items-center justify-center overflow-hidden relative shadow-2xl ${isSelected ? `border-white shadow-[0_0_60px_rgba(${glowColor},0.6)] scale-[1]` : `${borderColor} hover:border-gray-400`}`}>
-                       <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
-                       <div className={`absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 ${isSelected ? 'border-white' : `border-[rgb(${glowColor})]/40`}`} />
-                       <div className={`absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 ${isSelected ? 'border-white' : `border-[rgb(${glowColor})]/40`}`} />
+                    <div 
+                      className="w-full h-full bg-[#0a0a0a]/95 backdrop-blur-xl border-[2px] rounded-lg transition-all duration-500 flex flex-col items-center justify-center overflow-hidden relative transform-gpu"
+                      style={{
+                        borderColor: isSelected ? 'rgba(255,255,255,0.8)' : `rgba(${glowColor}, 0.4)`,
+                        boxShadow: isSelected 
+                          ? `0 0 60px rgba(${glowColor}, 0.6), inset 0 0 30px rgba(${glowColor}, 0.1)` 
+                          : `0 0 25px rgba(${glowColor}, 0.2), inset 0 0 15px rgba(${glowColor}, 0.05)`
+                      }}
+                    >
+                       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-transparent pointer-events-none" />
+                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+                       
+                       <div className="absolute top-0 left-0 w-4 h-4 border-t-[2px] border-l-[2px] transition-all duration-500" style={{ borderColor: isSelected ? 'rgba(255,255,255,0.9)' : `rgba(${glowColor}, 0.5)` }} />
+                       <div className="absolute bottom-0 right-0 w-4 h-4 border-b-[2px] border-r-[2px] transition-all duration-500" style={{ borderColor: isSelected ? 'rgba(255,255,255,0.9)' : `rgba(${glowColor}, 0.5)` }} />
 
-                       <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10 bg-black/60 px-2 py-0.5 rounded-full border border-white/5">
-                         <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : `bg-[rgb(${glowColor})] shadow-[0_0_8px_rgba(${glowColor},1)]`}`} />
-                         <span className={`text-[8px] font-black tracking-[0.1em] ${isSelected ? 'text-white' : textColor}`}>{dist}</span>
+                       <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10 bg-black/70 backdrop-blur-sm px-2 py-0.5 rounded-full border" style={{ borderColor: `rgba(${glowColor}, 0.3)` }}>
+                         <div className="w-1 h-1 rounded-full animate-pulse" style={{ backgroundColor: `rgb(${glowColor})`, boxShadow: `0 0 8px rgba(${glowColor}, 1)` }} />
+                         <span className={`text-[8px] font-black tracking-[0.1em] ${isSelected ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : textColor}`}>{dist}</span>
                        </div>
 
                        <div className="w-full h-full flex flex-col items-center justify-center relative">
-                         <div className={`absolute inset-0 bg-gradient-to-t from-[rgba(${glowColor},0.2)] via-transparent to-transparent opacity-30 mix-blend-screen transition-opacity`} />
-                         <dt className={`text-[44px] font-black tracking-tighter transition-all z-10 tabular-nums leading-none select-none ${isSelected ? 'text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.8)]' : `${textColor} drop-shadow-[0_0_15px_rgba(${glowColor},0.6)]`} `}>
+                         <div className="absolute inset-0 opacity-20 mix-blend-screen transition-opacity group-hover/tile:opacity-40" style={{ background: `radial-gradient(circle at 50% 80%, rgba(${glowColor}, 0.3), transparent 70%)` }} />
+                         
+                         <dt className={`text-[44px] font-black tracking-tighter transition-all z-10 tabular-nums leading-none select-none ${isSelected ? 'text-white' : textColor}`}
+                             style={{ 
+                               textShadow: isSelected 
+                                 ? `0 0 30px rgba(255,255,255,0.8), 0 0 60px rgba(${glowColor},0.6)` 
+                                 : `0 0 20px rgba(${glowColor},0.8)` 
+                             }}>
                            {vol}
                          </dt>
-                         <span className={`text-[8px] font-black mt-0.5 tracking-[0.3em] ${isSelected ? 'text-white/60' : 'text-[#444]'} transition-colors uppercase`}>T-VOL</span>
+                         <span className={`text-[8px] font-black mt-0.5 tracking-[0.3em] ${isSelected ? 'text-white/70' : 'text-[#555]'} transition-colors uppercase`}>T-VOL</span>
+                         
+                         {/* Holographic Bar Chart */}
+                         <div className="absolute bottom-4 left-4 right-4 h-1 bg-black/40 rounded-full overflow-hidden">
+                           <motion.div 
+                             initial={{ width: 0 }}
+                             animate={{ width: `${Math.min(breachRate, 100)}%` }}
+                             transition={{ duration: 1, ease: "easeOut" }}
+                             className="h-full rounded-full"
+                             style={{ 
+                               backgroundColor: `rgb(${glowColor})`,
+                               boxShadow: `0 0 10px rgba(${glowColor}, 0.8)`
+                             }}
+                           />
+                         </div>
                        </div>
 
                        <div className="absolute bottom-2 right-2 z-10 flex items-center gap-2">
-                         <span className={`px-1.5 py-0.5 border rounded-sm font-mono text-[7px] font-black ${isSelected ? 'bg-white text-black border-white' : `bg-black/60 border-white/10 ${textColor}`}`}>
+                         <span className="px-1.5 py-0.5 border rounded-sm font-mono text-[7px] font-black backdrop-blur-sm transition-all"
+                               style={{
+                                 backgroundColor: isSelected ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.7)',
+                                 color: isSelected ? '#000' : `rgb(${glowColor})`,
+                                 borderColor: isSelected ? 'rgba(255,255,255,0.9)' : `rgba(${glowColor}, 0.4)`,
+                                 boxShadow: isSelected ? `0 0 15px rgba(${glowColor}, 0.6)` : 'none'
+                               }}>
                            NX-{String(i+1).padStart(2, '0')}
                          </span>
                        </div>
@@ -475,42 +522,64 @@ export function CommandCenterLayout({
           </div>
         </div>
 
-        {/* SECTION 3: LIVE ALERTS (RIGHT) */}
+        {/* SECTION 3: AI BRIEF (RIGHT) */}
         <div className="w-[260px] flex flex-col bg-[#0d0d0d] relative overflow-hidden group">
           <div className="flex items-center justify-between p-3 border-b border-[#222] bg-[#161616] relative transition-colors group-hover:bg-[#1a1a1a]">
             <div className="flex items-center gap-2">
-              <span className="text-white tracking-[0.3em] font-black drop-shadow-[0_0_15px_rgba(255,255,255,0.6)] animate-pulse uppercase">LIVE ALERTS</span>
-              <div className="relative">
-                <div className="absolute inset-0 bg-red-600 blur-[6px] opacity-30 animate-pulse" />
-                <span className="relative text-red-500 border border-red-500/40 px-2 py-0.5 rounded-sm bg-red-950/20 font-black text-[10px] drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]">
-                  {highRiskPatients}
-                </span>
-              </div>
+              <span className="text-cyan-400 tracking-[0.3em] font-black drop-shadow-[0_0_15px_rgba(34,211,238,0.6)] animate-pulse uppercase">AI BRIEF</span>
+              <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
             </div>
           </div>
           
           <div className="flex-1 overflow-hidden relative">
-            <div className="h-full overflow-y-auto hidden-scrollbar py-2 space-y-1" onClick={playSonarBeep}>
+            <div className="h-full overflow-y-auto custom-dark-scrollbar p-3 space-y-3">
               <AnimatePresence>
-                {filteredPatients.slice(0, 15).map((p, i) => (
+                {aiInsights.length > 0 ? (
+                  aiInsights.slice(-3).map((insight, idx) => (
+                    <motion.div 
+                      key={idx}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="border border-cyan-500/30 bg-cyan-950/20 p-3 rounded-sm"
+                    >
+                      <div className="flex items-start gap-2">
+                        <Cpu className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-[10px] text-cyan-100 leading-relaxed">{insight.insightText}</p>
+                          <span className="text-[8px] text-cyan-500/60 mt-1 block">
+                            {new Date(insight.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                ) : (
                   <motion.div 
-                    key={p.patient_id || i}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="border border-[#222] bg-[#111111] p-2 flex justify-between items-center rounded-sm group hover:border-[#444] transition-all cursor-crosshair mx-2 hover:bg-[#161616] shadow-md shadow-black/40"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="h-full flex flex-col items-center justify-center text-[#444] space-y-2"
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
-                      <span className="text-[#999] group-hover:text-amber-500 font-bold tracking-widest text-[9px] transition-colors uppercase">
-                        {p.screening_district || 'UNKNOWN'}
-                      </span>
-                    </div>
-                    <span className="text-[#555] text-[8px] group-hover:text-white transition-colors font-bold tabular-nums">
-                      {p.screening_date ? new Date(p.screening_date).toLocaleDateString() : 'N/A'}
-                    </span>
+                    <Brain className="w-8 h-8 animate-pulse" />
+                    <span className="text-[9px] tracking-[0.2em] font-black uppercase">Awaiting intelligence...</span>
                   </motion.div>
-                ))}
+                )}
               </AnimatePresence>
+              
+              {/* Quick Stats */}
+              <div className="border-t border-[#222] pt-3 mt-3 space-y-2">
+                <div className="flex justify-between items-center text-[9px]">
+                  <span className="text-[#666] uppercase tracking-wider">Risk Zones</span>
+                  <span className="text-amber-400 font-black">{topDistricts.length}</span>
+                </div>
+                <div className="flex justify-between items-center text-[9px]">
+                  <span className="text-[#666] uppercase tracking-wider">Flagged Patients</span>
+                  <span className="text-red-400 font-black">{highRiskPatients}</span>
+                </div>
+                <div className="flex justify-between items-center text-[9px]">
+                  <span className="text-[#666] uppercase tracking-wider">Total Active</span>
+                  <span className="text-cyan-400 font-black">{filteredPatients.length}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

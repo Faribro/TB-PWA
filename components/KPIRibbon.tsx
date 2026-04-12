@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Users, AlertCircle, TrendingUp, CheckCircle, AlertTriangle, MapPin } from 'lucide-react';
+import { Users, AlertCircle, TrendingUp, CheckCircle, AlertTriangle, MapPin, Search } from 'lucide-react';
 import { useUniversalFilter, FilterStatus } from '@/contexts/FilterContext';
 
 interface Patient {
@@ -60,6 +60,11 @@ export function KPIRibbon({ filteredPatients, compact = false }: KPIRibbonProps)
   const metrics = useMemo((): KPIMetric[] => {
     const screened = filteredPatients.length;
     const diagnosed = filteredPatients.filter(p => p.tb_diagnosed === 'Yes' || p.tb_diagnosed === 'Y').length;
+    
+    // Categorical logic matching the engine
+    const suspected = filteredPatients.filter(p => !p.tb_diagnosed || (p.tb_diagnosed !== 'Yes' && p.tb_diagnosed !== 'Y' && p.tb_diagnosed !== 'No')).length;
+    const normal = filteredPatients.filter(p => p.tb_diagnosed === 'No' || p.tb_diagnosed === 'N').length;
+
     const initiated = filteredPatients.filter(p => p.att_start_date).length;
     const completed = filteredPatients.filter(p => p.att_completion_date).length;
     const breaches = filteredPatients.filter(isSLABreach).length;
@@ -92,6 +97,29 @@ export function KPIRibbon({ filteredPatients, compact = false }: KPIRibbonProps)
         color: 'text-amber-400',
         bgColor: 'bg-amber-500/20',
         borderColor: 'border-amber-500/60',
+        filterStatus: 'High Alert', // Fallback, we'll likely not uses status here if it overlaps
+      },
+      {
+        id: 'suspected',
+        label: 'Suspected',
+        value: suspected,
+        context: 'Awaiting diagnosis',
+        icon: <Search className={`w-5 h-5`} />,
+        color: 'text-yellow-500',
+        bgColor: 'bg-yellow-500/20',
+        borderColor: 'border-yellow-500/60',
+        filterStatus: 'Suspected',
+      },
+      {
+        id: 'normal',
+        label: 'Normal',
+        value: normal,
+        context: 'Confirmed Negative',
+        icon: <CheckCircle className={`w-5 h-5`} />,
+        color: 'text-emerald-500',
+        bgColor: 'bg-emerald-500/20',
+        borderColor: 'border-emerald-500/60',
+        filterStatus: 'Normal',
       },
       {
         id: 'initiated',
@@ -158,7 +186,16 @@ export function KPIRibbon({ filteredPatients, compact = false }: KPIRibbonProps)
         Situation
       </div>
       
-      <div className="flex-1 overflow-y-auto custom-dark-scrollbar p-3">
+      <div className="flex-1 overflow-y-auto scrollbar-hide p-3">
+        <style jsx>{`
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+          .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+        `}</style>
         <div className="flex items-center justify-between text-[#666] mb-2 px-1">
           <span>LAYERS</span>
           <span className="cursor-pointer hover:text-white pb-1">?</span>
