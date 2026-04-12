@@ -505,7 +505,7 @@ export function FollowUpPipeline({ patients, globalPatients, isLoading = false, 
 
               return (
                 <div
-                  key={patient.id}
+                  key={`${patient.id}-${virtualRow.index}`}
                   style={{
                     position: 'absolute',
                     top: virtualRow.start,

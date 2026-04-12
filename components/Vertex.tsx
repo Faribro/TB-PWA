@@ -717,9 +717,9 @@ export default function Vertex({
     const totalScreened = patientsForSelectedDate.length;
     const pendingSputum = patientsForSelectedDate.filter((p: any) => !p.referral_date).length;
     const diagnosed = patientsForSelectedDate.filter((p: any) => p.tb_diagnosed === 'Y').length;
-    const onTrack = totalScreened - pendingSputum;
+    const suspected = patientsForSelectedDate.filter((p: any) => p.xray_result === 'Suspected TB Case').length;
 
-    return { totalScreened, pendingSputum, diagnosed, onTrack };
+    return { totalScreened, pendingSputum, diagnosed, onTrack: suspected };
   }, [patientsForSelectedDate]);
 
   // Task 1: Data Aggregation - Grouped Geography (optimized)
@@ -1091,21 +1091,21 @@ export default function Vertex({
                         />
                         <SparkCard 
                           icon={CheckCircle2}
-                          label="On Track"
+                          label="Suspected TB"
                           value={dailySparks.onTrack}
-                          color="emerald"
-                        />
-                        <SparkCard 
-                          icon={AlertCircle}
-                          label="Follow-ups"
-                          value={dailySparks.pendingSputum}
                           color="amber"
                         />
                         <SparkCard 
-                          icon={Activity}
-                          label="Positive Diagnosed"
+                          icon={AlertCircle}
+                          label="TB Diagnosed"
                           value={dailySparks.diagnosed}
                           color="red"
+                        />
+                        <SparkCard 
+                          icon={Activity}
+                          label="Pending Sputum"
+                          value={dailySparks.pendingSputum}
+                          color="emerald"
                         />
                       </div>
 
