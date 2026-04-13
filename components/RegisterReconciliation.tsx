@@ -560,6 +560,7 @@ function ReviewPhase() {
     extractionError,
     reset,
     source,
+    setIsReviewOpen,
   } = useReconciliationStore();
 
   const [extractionMetadata, setExtractionMetadata] = useState<any>(null);
@@ -624,6 +625,15 @@ function ReviewPhase() {
                 Daily Register Reconciliation
               </span>
             </div>
+
+            {/* Close button */}
+            <button
+              onClick={() => setIsReviewOpen(false)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all text-[10px] font-bold uppercase tracking-wider"
+            >
+              <X className="w-3.5 h-3.5" />
+              Close
+            </button>
 
             {source && sourceConfig[source] && (
               <div className={cn(

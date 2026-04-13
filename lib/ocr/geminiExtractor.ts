@@ -260,9 +260,35 @@ function extractJsonArray(rawText: string): any[] {
   const end = cleaned.lastIndexOf(']');
 
   if (start === -1 || end === -1 || end <= start) {
+    // Try to salvage truncated response by adding closing bracket
+    if (start !== -1 && end === -1) {
+      console.warn('[extractJsonArray] Response truncated, attempting to salvage...');
+      const partial = cleaned.slice(start);
+      // Count open braces to determine how many closing braces needed
+      let openBraces = 0;
+      for (const char of partial) {
+        if (char === '{') openBraces++;
+        if (char === '}') openBraces--;
+      }
+      // Add missing closing braces and array bracket
+      const fixed = partial + '}'.repeat(Math.max(0, openBraces)) + ']';
+      try {
+        const parsed = JSON.parse(fixed);
+        if (!Array.isArray(parsed)) {
+          throw new Error('Parsed value is not an array');
+        }
+        console.log('[extractJsonArray] Successfully salvaged truncated response');
+        return parsed;
+      } catch (salvageErr: any) {
+        throw new Error(
+          `Gemini response contains no JSON array and salvage failed. ` +
+          `Raw: ${rawText.slice(0, 300)}`
+        );
+      }
+    }
     throw new Error(
       `Gemini response contains no JSON array. ` +
-      `Raw: ${rawText.slice(0, 200)}`
+      `Raw: ${rawText.slice(0, 300)}`
     );
   }
 
@@ -392,7 +418,7 @@ async function callGeminiExtract(
     temperature: 0.05,
     topP: 0.95,
     topK: 40,
-    maxOutputTokens: 8192,
+    maxOutputTokens: 16384, // Increased from 8192 to handle longer registers
     responseMimeType: 'application/json',
     responseSchema: RESPONSE_SCHEMA as any,
   };
