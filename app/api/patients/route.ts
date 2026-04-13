@@ -14,7 +14,11 @@ const SELECTED_COLUMNS = [
   'facility_type', 'xray_result', 'tb_diagnosed', 'tb_type',
   'att_start_date', 'referral_date', 'referred_facility',
   'hiv_status', 'sex', 'age', 'created_at', 'kobo_uuid',
-  'ai_link_status', 'nikshay_abha_id'
+  'ai_link_status', 'nikshay_abha_id',
+  // Additional columns for PatientDetailDrawer
+  'date_of_birth', 'contact_number', 'address',
+  'father_husband_name', 'inmate_type', 'staff_name',
+  'symptoms_10s', 'tb_past_history', 'remarks'
 ].join(',');
 
 interface PatientsResponse {

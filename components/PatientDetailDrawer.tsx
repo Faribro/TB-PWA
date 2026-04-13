@@ -153,7 +153,12 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     address: p?.address || p?.['Address'] || p?.residential_address || '',
     facility_name: p?.facility_name || p?.['Name of Facility'] || p?.['Facility'] || '',
     date_of_birth: p?.date_of_birth || p?.['Date of Birth'] || p?.dob || '',
-    screening_date: p?.screening_date || p?.['Date of Screening'] || p?.submitted_on || ''
+    screening_date: p?.screening_date || p?.['Date of Screening'] || p?.submitted_on || '',
+    father_husband_name: p?.father_husband_name || p?.['Father/Husband Name'] || p?.father_name || '',
+    inmate_type: p?.inmate_type || p?.['Inmate Type'] || '',
+    staff_name: p?.staff_name || p?.['Staff Name'] || p?.data_collector || '',
+    symptoms_10s: p?.symptoms_10s || p?.['Symptoms 10s'] || p?.symptoms_present || '',
+    tb_past_history: p?.tb_past_history || p?.['Past TB History'] || p?.past_tb_history || p?.tb_history || ''
   });
 
   const [editedDemographics, setEditedDemographics] = useState(mapDemographics(localPatient));
@@ -951,10 +956,21 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                         <span className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">Screening Details</span>
                       </div>
                       <div className="grid grid-cols-2 gap-2.5">
-                        <ReadOnlyField label="Screening Date" value={localPatient?.screening_date || localPatient?.submitted_on} />
-                        <ReadOnlyField label="Staff Name" value={localPatient?.staff_name || localPatient?.data_collector} />
-                        <ReadOnlyField label="Father/Husband" value={localPatient?.father_husband_name || localPatient?.father_name} />
-                        <ReadOnlyField label="Inmate Type" value={localPatient?.inmate_type} />
+                        {isEditingDemographics ? (
+                          <>
+                            <EditableField label="Screening Date" value={editedDemographics.screening_date} onChange={(v) => setEditedDemographics({...editedDemographics, screening_date: v})} type="date" />
+                            <EditableField label="Staff Name" value={editedDemographics.staff_name} onChange={(v) => setEditedDemographics({...editedDemographics, staff_name: v})} />
+                            <EditableField label="Father/Husband" value={editedDemographics.father_husband_name} onChange={(v) => setEditedDemographics({...editedDemographics, father_husband_name: v})} />
+                            <EditableField label="Inmate Type" value={editedDemographics.inmate_type} onChange={(v) => setEditedDemographics({...editedDemographics, inmate_type: v})} />
+                          </>
+                        ) : (
+                          <>
+                            <ReadOnlyField label="Screening Date" value={localPatient?.screening_date || localPatient?.submitted_on} />
+                            <ReadOnlyField label="Staff Name" value={localPatient?.staff_name || localPatient?.data_collector} />
+                            <ReadOnlyField label="Father/Husband" value={localPatient?.father_husband_name || localPatient?.father_name} />
+                            <ReadOnlyField label="Inmate Type" value={localPatient?.inmate_type} />
+                          </>
+                        )}
                         <div className="col-span-2">
                           <label className="block text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400 mb-1">X-Ray Result</label>
                           <div className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[12px] font-bold ${
@@ -970,7 +986,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                           </div>
                         </div>
                         <ReadOnlyField label="10s Symptoms" value={localPatient?.symptoms_present || localPatient?.symptoms_10s} />
-                        <ReadOnlyField label="Past TB History" value={localPatient?.past_tb_history || localPatient?.tb_history} />
+                        <ReadOnlyField label="Past TB History" value={localPatient?.tb_past_history || localPatient?.past_tb_history || localPatient?.tb_history} />
                       </div>
                     </div>
                   </TabsContent>
