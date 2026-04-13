@@ -117,13 +117,13 @@ export function applyOCRPenalty(
 
 /**
  * Maps a composite score to a confidence tier.
- *   ≥ 0.85 → auto_match   (system links; audit log — ~40% of volume)
- *   ≥ 0.55 → needs_review  (officer picks from top-3 — ~30%)
- *   <  0.55 → new_record   (no match; officer creates or confirms — ~30%)
+ *   ≥ 0.60 → auto_match   (system links; audit log — ~40% of volume)
+ *   ≥ 0.40 → needs_review  (officer picks from top-3 — ~30%)
+ *   <  0.40 → new_record   (no match; officer creates or confirms — ~30%)
  */
 export function toConfidenceTier(score: number): ConfidenceTier {
-  if (score >= 0.85) return "auto_match";
-  if (score >= 0.55) return "needs_review";
+  if (score >= 0.60) return "auto_match";
+  if (score >= 0.40) return "needs_review";
   return "new_record";
 }
 
@@ -379,12 +379,21 @@ function findCandidates(
         return { p, score: 0.85 };
       }
 
-      // Token overlap (handles "RAMESH KUMAR" vs "KUMAR RAMESH")
+      // Single-name match: if OCR extracted just "RAMESH" and DB has "RAMESH KUMAR"
       const searchTokens = searchName.split(/\s+/);
       const dbTokens     = dbName.split(/\s+/);
       const overlap = searchTokens.filter(
         t => dbTokens.includes(t) && t.length > 2
       ).length;
+
+      // If single name from OCR matches first name in DB, give good score
+      if (searchTokens.length === 1 && dbTokens.length > 1) {
+        if (dbTokens[0] === searchTokens[0]) {
+          return { p, score: 0.75 }; // High score for first-name match
+        }
+      }
+
+      // Token overlap (handles "RAMESH KUMAR" vs "KUMAR RAMESH")
       if (overlap > 0) {
         return {
           p,
@@ -404,7 +413,7 @@ function findCandidates(
       return null;
     })
     .filter((r): r is { p: PatientRow; score: number } =>
-      r !== null && r.score >= 0.50
+      r !== null && r.score >= 0.35  // Lowered from 0.50 to catch more matches
     )
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);  // top 5 candidates max
