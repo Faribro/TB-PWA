@@ -318,38 +318,105 @@ function validateRow(raw: any, index: number): ExtractedRow | null {
   };
 }
 
+const MODEL_FALLBACK_CHAIN = [
+  'gemini-2.5-flash-lite',   // Fastest, most budget-friendly 2.5 model
+  'gemini-2.5-flash',        // Latest generation
+  'gemini-2.0-flash',        // Deprecated but may have quota
+] as const;
+
+async function callGeminiWithFallback(
+  genAI: any,
+  parts: any[],
+  generationConfig: any,
+  systemInstruction: string
+): Promise<{ text: string; modelName: string }> {
+  let lastError: Error | null = null;
+
+  for (const modelName of MODEL_FALLBACK_CHAIN) {
+    try {
+      console.log(`[geminiExtractor] Trying model: ${modelName}`);
+
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: {
+          ...generationConfig,
+        },
+        systemInstruction,
+      });
+
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts }]
+      });
+      const text = result.response.text();
+      console.log(`[geminiExtractor] Success with: ${modelName}`);
+      return { text, modelName };
+
+    } catch (err: any) {
+      const status = err?.status ?? err?.message ?? '';
+      const isRetryable =
+        status === 503 ||
+        status === 429 ||
+        String(status).includes('503') ||
+        String(status).includes('429') ||
+        String(status).includes('overloaded') ||
+        String(status).includes('high demand') ||
+        String(status).includes('not found');
+
+      console.warn(
+        `[geminiExtractor] Model ${modelName} failed: ${err.message}`
+      );
+      lastError = err;
+
+      if (!isRetryable) {
+        // Non-retryable error (bad API key, bad request etc)
+        // Don't try fallbacks — throw immediately
+        throw err;
+      }
+
+      // Wait 1s before trying next model
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+
+  throw lastError ?? new Error('All Gemini models failed');
+}
+
 async function callGeminiExtract(
   buffer: Buffer,
   mimeType: string,
   acquired: any
-): Promise<{ rows: ExtractedRow[]; confidence: number }> {
+): Promise<{ rows: ExtractedRow[]; confidence: number; modelName: string }> {
   const genAI = new GoogleGenerativeAI(acquired.apiKey);
 
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash',
-    generationConfig: {
-      temperature: 0.05,
-      topP: 0.95,
-      topK: 40,
-      maxOutputTokens: 8192,
-      responseMimeType: 'application/json',
-      responseSchema: RESPONSE_SCHEMA as any,
-    },
-    systemInstruction: mimeType === 'application/pdf'
-      ? `This is a multi-page PDF register document from an Indian correctional facility or health camp. Extract ALL patient records across ALL pages. Use the exact formatting rules defined. Include every row — do not summarize or skip any records.\n${EXTRACTION_PROMPT}`
-      : EXTRACTION_PROMPT,
-  });
+  const generationConfig = {
+    temperature: 0.05,
+    topP: 0.95,
+    topK: 40,
+    maxOutputTokens: 8192,
+    responseMimeType: 'application/json',
+    responseSchema: RESPONSE_SCHEMA as any,
+  };
 
-  const result = await model.generateContent([
+  const systemInstruction = mimeType === 'application/pdf'
+    ? `This is a multi-page PDF register document from an Indian correctional facility or health camp. Extract ALL patient records across ALL pages. Use the exact formatting rules defined. Include every row — do not summarize or skip any records.\n${EXTRACTION_PROMPT}`
+    : EXTRACTION_PROMPT;
+
+  const parts = [
     {
       inlineData: {
         data: buffer.toString("base64"),
         mimeType: mimeType as any,
       },
     },
-  ]);
+  ];
 
-  const text = result.response.text();
+  const { text, modelName } = await callGeminiWithFallback(
+    genAI,
+    parts,
+    generationConfig,
+    systemInstruction
+  );
+
   const rawRows = extractJsonArray(text);
 
   const rows = rawRows
@@ -361,7 +428,7 @@ async function callGeminiExtract(
     ? rows.reduce((sum, r) => sum + r.confidence_score, 0) / rows.length
     : 0;
 
-  return { rows, confidence: avgConfidence };
+  return { rows, confidence: avgConfidence, modelName };
 }
 
 // ═══════════════════════════════════════════════════════
@@ -433,7 +500,7 @@ export async function extractRegisterImage(
 
       return {
         rows: pass1.rows,
-        modelVersion: "gemini-1.5-flash",
+        modelVersion: pass1.modelName,
         latencyMs: Date.now() - startTime,
         keyIndex: acquired.keyIndex,
         preprocessing: preprocessResult ? {
@@ -465,7 +532,7 @@ export async function extractRegisterImage(
 
       return {
         rows: pass2.rows,
-        modelVersion: "gemini-1.5-flash",
+        modelVersion: pass2.modelName,
         latencyMs: Date.now() - startTime,
         keyIndex: acquired.keyIndex,
         preprocessing: {
@@ -482,7 +549,7 @@ export async function extractRegisterImage(
 
     return {
       rows: pass1.rows,
-      modelVersion: "gemini-1.5-flash",
+      modelVersion: pass1.modelName,
       latencyMs: Date.now() - startTime,
       keyIndex: acquired.keyIndex,
       preprocessing: preprocessResult ? {
@@ -494,19 +561,33 @@ export async function extractRegisterImage(
       } : undefined,
     };
   } catch (error: any) {
-    // Check if this was a rate limit error (429)
+    // Check if this was a rate limit error (429) or service unavailable (503)
     const isRateLimit =
       error?.status === 429 ||
       error?.message?.includes("429") ||
       error?.message?.includes("RESOURCE_EXHAUSTED");
 
-    await acquired.release(isRateLimit);
+    const isServiceUnavailable =
+      error?.status === 503 ||
+      error?.message?.includes("503") ||
+      error?.message?.includes("Service Unavailable");
+
+    await acquired.release(isRateLimit || isServiceUnavailable);
 
     // If rate limited, retry once with a new key
     if (isRateLimit) {
       console.warn(
         `[geminiExtractor] Key ${acquired.keyIndex} rate-limited, retrying with next key...`
       );
+      return extractRegisterImage(buffer, mimeType);
+    }
+
+    // If service unavailable, wait 2s and retry
+    if (isServiceUnavailable) {
+      console.warn(
+        `[geminiExtractor] Service unavailable (503), waiting 2s and retrying...`
+      );
+      await new Promise(r => setTimeout(r, 2000));
       return extractRegisterImage(buffer, mimeType);
     }
 
