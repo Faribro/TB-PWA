@@ -104,15 +104,35 @@ const allPatientsFetcher = async (
     
     const url = `/api/patients?${params.toString()}`;
     console.log('[useSWRPatients] Fetching fresh data:', url);
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[useSWRPatients] API error:', response.status, errorText);
-      throw new Error(`API error: ${response.status}`);
+
+    // Retry logic for transient errors (502, 503, 504)
+    let response: Response;
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 1000; // 1 second
+
+    while (retryCount < maxRetries) {
+      response = await fetch(url);
+
+      if (response.ok) {
+        break;
+      }
+
+      // Retry on 502, 503, 504, 429 (rate limit)
+      const status = response.status;
+      const isTransientError = status === 502 || status === 503 || status === 504 || status === 429;
+
+      if (!isTransientError || retryCount === maxRetries - 1) {
+        const errorText = await response.text();
+        console.error('[useSWRPatients] API error:', status, errorText);
+        throw new Error(`API error: ${status}`);
+      }
+
+      retryCount++;
+      console.warn(`[useSWRPatients] Transient error ${status}, retry ${retryCount}/${maxRetries}...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay * retryCount));
     }
-    
+
     const result = await response.json();
     
     if (result.error) {
