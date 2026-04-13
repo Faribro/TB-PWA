@@ -320,14 +320,22 @@ export function RegisterUploadModal({ isOpen, onClose, onSuccess }: RegisterUplo
                       </p>
                     </div>
 
-                    {/* Elapsed timer + contextual note */}
+                    {/* Elapsed timer + progress percentage */}
                     <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-600 text-slate-600
+                       tabular-nums">
+                        {progress}%
+                      </span>
+                      <span className="w-0.5 h-0.5 rounded-full bg-slate-700" />
                       <span className="text-[11px] font-600 text-slate-600
                        tabular-nums">
                         {elapsedSeconds}s
                       </span>
-                      <span className="w-0.5 h-0.5 rounded-full bg-slate-700" />
-                      <span className="text-[11px] text-slate-600">
+                    </div>
+
+                    {/* Contextual note */}
+                    <div className="text-center">
+                      <p className="text-[11px] text-slate-600">
                         {elapsedSeconds < 5
                           ? 'Starting up…'
                           : elapsedSeconds < 15
@@ -335,14 +343,17 @@ export function RegisterUploadModal({ isOpen, onClose, onSuccess }: RegisterUplo
                           : elapsedSeconds < 25
                           ? 'Large document — this may take up to 30s'
                           : 'Complex handwriting detected — still working…'}
-                      </span>
+                      </p>
                     </div>
 
-                    {/* Thin animated progress bar (indeterminate) */}
-                    <div className="w-full max-w-[240px] h-0.5 bg-white/[0.06]
-                    rounded-full overflow-hidden">
-                      <div className="h-full w-1/3 bg-blue-500 rounded-full
-                      animate-[shimmerBar_2s_ease-in-out_infinite]" />
+                    {/* Progress bar */}
+                    <div className="w-full max-w-[240px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progress}%` }}
+                        transition={{ duration: 0.5 }}
+                        className="h-full bg-blue-600 rounded-full shadow-[0_0_8px_rgba(37,99,235,0.4)]"
+                      />
                     </div>
 
                   </div>

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getSupabaseClient } from "@/lib/supabase-server";
-import { matchPatient } from "@/lib/matching/patientMatcher";
-import type { HybridExtractionResult } from "@/lib/ocr/hybridExtractor";
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
 
 export async function POST(request: NextRequest) {
@@ -60,20 +58,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let extractionResult: HybridExtractionResult | any;
+    let extractionResult: any;
 
     if (isExcel || isCSV) {
       // Route to Excel/CSV extractor
       const { extractFromSpreadsheet } = await import('@/lib/ocr/excelExtractor');
       extractionResult = await extractFromSpreadsheet(buffer, filename);
-    } else if (isPDF) {
-      // Route directly to Gemini (skip Tesseract for PDFs)
-      const { extractRegisterImage: extractPDF } = await import('@/lib/ocr/geminiExtractor');
-      extractionResult = await extractPDF(buffer, 'application/pdf');
     } else {
-      // Route to hybrid extractor (Tesseract → Gemini fallback)
-      const { extractRegisterImage: extractHybrid } = await import('@/lib/ocr/hybridExtractor');
-      extractionResult = await extractHybrid(buffer, declaredMime);
+      // Route directly to Gemini Flash (skip Tesseract — not installed, too slow for handwritten registers)
+      const { extractRegisterImage: extractGemini } = await import('@/lib/ocr/geminiExtractor');
+      extractionResult = await extractGemini(buffer, isPDF ? 'application/pdf' : declaredMime);
     }
 
     const sanitizedRows = extractionResult.rows || [];
