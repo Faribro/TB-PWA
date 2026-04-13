@@ -609,7 +609,7 @@ function ReviewPhase() {
   };
 
   return (
-    <div className="flex flex-col gap-4 h-full relative">
+    <div className="flex flex-col gap-4 h-full relative overflow-x-hidden">
       {/* ── Streaming Progress ─────────────────────────── */}
       {isStreaming && <StreamProgressBar />}
 

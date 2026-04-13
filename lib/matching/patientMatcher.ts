@@ -390,6 +390,21 @@ async function matchRowInMemory(
   row: BulkMatchParams,
   allPatients: PatientRow[]
 ): Promise<BulkMatchResult> {
+  // Diagnostic logging for first few rows
+  if (row.sno === 1 || row.sno === 2) {
+    console.log('[matcher] Input row:', {
+      sno: row.sno,
+      name: row.name,
+      age: row.age,
+      mobile: row.mobile,
+      ocrConfidence: row.ocrConfidence
+    });
+    console.log('[matcher] allPatients count:', allPatients?.length ?? 0);
+    console.log('[matcher] First 3 patient names from DB:',
+      allPatients?.slice(0, 3).map(p => p.inmate_name)
+    );
+  }
+
   if (!row.name || row.name.trim().length === 0) {
     return {
       row,
@@ -399,6 +414,13 @@ async function matchRowInMemory(
   }
 
   const candidates = findCandidates(row.name, allPatients);
+
+  if (row.sno === 1 || row.sno === 2) {
+    console.log('[matcher] Candidates found for row', row.sno, ':', candidates.length);
+    console.log('[matcher] Candidate names:',
+      candidates.slice(0, 3).map(p => p.inmate_name)
+    );
+  }
 
   const matches: MatchResult[] = candidates.slice(0, 3).map(p => {
     const dbName = (p.inmate_name ?? '').toLowerCase();

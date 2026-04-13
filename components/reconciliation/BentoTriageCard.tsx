@@ -82,12 +82,12 @@ export default function BentoTriageCard({ row, index, source, preprocessing }: B
 
   const cardBorderClass =
     matchStatus === 'new_record'
-      ? 'border-violet-400/60 bg-slate-900 shadow-[0_0_20px_rgba(139,92,246,0.15),0_4px_20px_-4px_rgba(139,92,246,0.3)]'
+      ? 'border-violet-400/60 !bg-slate-900 shadow-[0_0_20px_rgba(139,92,246,0.15),0_4px_20px_-4px_rgba(139,92,246,0.3)]'
       : confidenceTier === 'high'
-        ? 'border-emerald-400/60 bg-slate-900 shadow-[0_0_15px_rgba(16,185,129,0.1),0_4px_15px_-4px_rgba(16,185,129,0.2)]'
+        ? 'border-emerald-400/60 !bg-slate-900 shadow-[0_0_15px_rgba(16,185,129,0.1),0_4px_15px_-4px_rgba(16,185,129,0.2)]'
         : confidenceTier === 'medium'
-        ? 'border-amber-400/60 bg-slate-900 shadow-[0_0_15px_rgba(245,158,11,0.1),0_4px_15px_-4px_rgba(245,158,11,0.2)]'
-        : 'border-slate-200/60 bg-slate-900 shadow-sm';
+        ? 'border-amber-400/60 !bg-slate-900 shadow-[0_0_15px_rgba(245,158,11,0.1),0_4px_15px_-4px_rgba(245,158,11,0.2)]'
+        : 'border-slate-200/60 !bg-slate-900 shadow-sm';
 
   return (
     <motion.div
@@ -100,7 +100,7 @@ export default function BentoTriageCard({ row, index, source, preprocessing }: B
         delay: index * 0.05,
         ease: [0.25, 0.46, 0.45, 0.94],
       }}
-      className={`relative bg-slate-900 border rounded-xl p-4 transition-all duration-200 hover:shadow-md cursor-pointer ${cardBorderClass}`}
+      className={`relative !bg-slate-900 border rounded-xl p-4 transition-all duration-200 hover:shadow-md cursor-pointer ${cardBorderClass}`}
     >
       {/* Left accent bar */}
       <div 
