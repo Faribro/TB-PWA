@@ -82,12 +82,12 @@ export default function BentoTriageCard({ row, index, source, preprocessing }: B
 
   const cardBorderClass =
     matchStatus === 'new_record'
-      ? 'border-violet-400/60 bg-white shadow-[0_0_20px_rgba(139,92,246,0.15),0_4px_20px_-4px_rgba(139,92,246,0.3)]'
+      ? 'border-violet-400/60 bg-slate-900 shadow-[0_0_20px_rgba(139,92,246,0.15),0_4px_20px_-4px_rgba(139,92,246,0.3)]'
       : confidenceTier === 'high'
-        ? 'border-emerald-400/60 bg-white shadow-[0_0_15px_rgba(16,185,129,0.1),0_4px_15px_-4px_rgba(16,185,129,0.2)]'
+        ? 'border-emerald-400/60 bg-slate-900 shadow-[0_0_15px_rgba(16,185,129,0.1),0_4px_15px_-4px_rgba(16,185,129,0.2)]'
         : confidenceTier === 'medium'
-        ? 'border-amber-400/60 bg-white shadow-[0_0_15px_rgba(245,158,11,0.1),0_4px_15px_-4px_rgba(245,158,11,0.2)]'
-        : 'border-slate-200/60 bg-white shadow-sm';
+        ? 'border-amber-400/60 bg-slate-900 shadow-[0_0_15px_rgba(245,158,11,0.1),0_4px_15px_-4px_rgba(245,158,11,0.2)]'
+        : 'border-slate-200/60 bg-slate-900 shadow-sm';
 
   return (
     <motion.div
@@ -100,7 +100,7 @@ export default function BentoTriageCard({ row, index, source, preprocessing }: B
         delay: index * 0.05,
         ease: [0.25, 0.46, 0.45, 0.94],
       }}
-      className={`relative bg-white border rounded-xl p-4 transition-all duration-200 hover:shadow-md cursor-pointer ${cardBorderClass}`}
+      className={`relative bg-slate-900 border rounded-xl p-4 transition-all duration-200 hover:shadow-md cursor-pointer ${cardBorderClass}`}
     >
       {/* Left accent bar */}
       <div 
@@ -112,80 +112,112 @@ export default function BentoTriageCard({ row, index, source, preprocessing }: B
         }`}
       />
       
-      <div className="grid grid-cols-[20px_1fr_auto] gap-3 pl-3">
-        {/* Row number */}
-        <div className="flex items-center">
-          <span className="text-xs font-bold text-slate-500">
-            {row.sno ?? '?'}
-          </span>
-        </div>
-        
-        {/* Main content */}
-        <div className="space-y-2">
-          {/* Row 1: Name + Status badges */}
-          <div className="flex items-center gap-2">
-            <h3 className="text-[15px] font-bold text-gray-900 tracking-tight">
+      <div className="flex flex-col gap-3 pl-3 w-full min-w-0">
+        {/* Header: Name prominently displayed */}
+        <div className="flex items-start justify-between gap-3 w-full min-w-0">
+          <div className="flex-1 min-w-0 overflow-visible">
+            {/* Patient Name - Large and prominent with full visibility */}
+            <h3 className="text-xl font-bold text-white leading-snug whitespace-normal overflow-visible">
               {row.name || 'Illegible'}
             </h3>
+            
+            {/* Father's name if available */}
             {row.father_name && (
-              <span className="text-xs text-slate-400">S/O {row.father_name}</span>
+              <p className="text-sm text-slate-400 mt-0.5">
+                S/O {row.father_name}
+              </p>
             )}
+          </div>
+          
+          {/* Status badges */}
+          <div className="flex-shrink-0">
             {matchStatus === 'new_record' && (
-              <Badge className="bg-violet-500/10 text-violet-400 border border-violet-500/20 text-[9px] font-black tracking-[0.1em] px-2 py-0.5">
+              <Badge className="bg-violet-500/10 text-violet-400 border border-violet-500/20 text-[10px] font-black tracking-[0.1em] px-2.5 py-1">
                 NEW
               </Badge>
             )}
             {matchStatus === 'auto_match' && (
-              <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black tracking-[0.1em] px-2 py-0.5">
+              <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-black tracking-[0.1em] px-2.5 py-1">
                 MATCH
               </Badge>
             )}
             {matchStatus === 'needs_review' && (
-              <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-black tracking-[0.1em] px-2 py-0.5">
+              <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-black tracking-[0.1em] px-2.5 py-1">
                 REVIEW
               </Badge>
             )}
           </div>
-          
-          {/* Row 2: Extracted data */}
-          <div className="flex items-center gap-4 text-xs text-gray-500">
-            {row.age != null && (
-              <span>{row.age} yrs</span>
-            )}
-            {row.mobile && (
-              <span className="font-mono">{row.mobile}</span>
-            )}
-            {row.ward && (
-              <span>{row.ward}</span>
-            )}
-            <span className="text-slate-400">• Extracted</span>
-          </div>
-
-          {/* Preprocessing telemetry for image sources */}
-          {source === 'image' && preprocessing && (
-            <div className="text-[10px] text-slate-500 mt-1">
-              Profile: {preprocessing.profile} ·
-              {preprocessing.scaleFactor > 1
-                ? ` ${preprocessing.scaleFactor.toFixed(1)}x upscaled ·`
-                : ''}
-              Pass {preprocessing.passUsed} ·
-              {preprocessing.processingMs}ms
-            </div>
-          )}
-          
-          {/* Row 3: Match info */}
-          {topMatch && (
-            <div className="flex items-center gap-4 text-xs">
-              <span className="text-indigo-600 font-semibold">{topMatch.patientName}</span>
-              {topMatch.patientAge && <span>{topMatch.patientAge} yrs</span>}
-              {topMatch.patientMobile && <span className="font-mono">{topMatch.patientMobile}</span>}
-              <span className="text-slate-400">• Database</span>
-            </div>
-          )}
         </div>
         
-        {/* Right column: Actions */}
-        <div className="flex flex-col items-end gap-1.5">
+        {/* Patient Details Grid */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-300">
+          {/* Age */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-slate-500 uppercase">Age</span>
+            <span className="font-bold text-slate-200">
+              {row.age ?? '—'}
+            </span>
+          </div>
+          
+          {/* Mobile */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-slate-500 uppercase">Mobile</span>
+            <span className="font-mono font-bold text-slate-200">
+              {row.mobile || 'Not found'}
+            </span>
+          </div>
+          
+          {/* Confidence */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-slate-500 uppercase">Confidence</span>
+            <span className={`font-bold ${
+              (row.confidence_score ?? 0) >= 0.8
+                ? 'text-emerald-400'
+                : (row.confidence_score ?? 0) >= 0.6
+                ? 'text-amber-400'
+                : 'text-red-400'
+            }`}>
+              {Math.round((row.confidence_score ?? 0) * 100)}%
+            </span>
+          </div>
+        </div>
+
+        {/* Preprocessing telemetry for image sources */}
+        {source === 'image' && preprocessing && (
+          <div className="text-[11px] text-slate-400 bg-slate-800 rounded-md px-2 py-1.5 inline-flex items-center gap-2 w-fit">
+            <Sparkles className="w-3 h-3" />
+            <span>Profile: {preprocessing.profile}</span>
+            {preprocessing.scaleFactor > 1 && (
+              <span>· {preprocessing.scaleFactor.toFixed(1)}x upscaled</span>
+            )}
+            <span>· Pass {preprocessing.passUsed}</span>
+            <span>· {preprocessing.processingMs}ms</span>
+          </div>
+        )}
+        
+        {/* Match info with database result */}
+        {topMatch && (
+          <div className="bg-indigo-900/30 rounded-lg p-3 border border-indigo-500/30">
+            <p className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider mb-2">
+              Database Match ({Math.round(topMatch.compositeScore * 100)}% confidence)
+            </p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              <span className="font-semibold text-indigo-300">{topMatch.patientName}</span>
+              {topMatch.patientAge && (
+                <span className="text-slate-400">{topMatch.patientAge} yrs</span>
+              )}
+              {topMatch.patientMobile && (
+                <span className="font-mono text-slate-400">{topMatch.patientMobile}</span>
+              )}
+              {topMatch.patientFacility && (
+                <span className="text-slate-500">{topMatch.patientFacility}</span>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Action buttons row */}
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-700">
           {/* Confidence badge */}
           {topMatch && (
             <span className="h-[26px] px-2.5 flex items-center rounded-md text-[11px] font-bold tracking-wide uppercase bg-indigo-50 text-indigo-700 border border-indigo-200/30">
@@ -218,9 +250,9 @@ export default function BentoTriageCard({ row, index, source, preprocessing }: B
           
           {/* Synced confirmation */}
           {decision?.notified && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded-md border border-emerald-200">
-              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-              <span className="text-[10px] font-bold text-emerald-700">Synced</span>
+            <div className="flex items-center gap-1 px-2 py-1 bg-emerald-900/30 rounded-md border border-emerald-500/30">
+              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+              <span className="text-[10px] font-bold text-emerald-400">Synced</span>
             </div>
           )}
         </div>
@@ -234,7 +266,7 @@ export default function BentoTriageCard({ row, index, source, preprocessing }: B
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="mt-3 pt-3 border-t border-slate-100 space-y-2 overflow-hidden"
+            className="mt-3 pt-3 border-t border-slate-700 space-y-2 overflow-hidden"
           >
             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
               Alternative Candidates
@@ -243,15 +275,15 @@ export default function BentoTriageCard({ row, index, source, preprocessing }: B
               <button
                 key={match.patientId}
                 onClick={() => handleConfirmMatch(match)}
-                className="w-full text-left p-3 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50/30 transition-all"
+                className="w-full text-left p-3 rounded-xl border border-slate-700 bg-slate-800 hover:border-indigo-500 hover:bg-indigo-900/20 transition-all"
               >
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs font-bold text-slate-900">
+                  <p className="text-xs font-bold text-slate-200">
                     {match.patientName}
                   </p>
                   <ConfidenceGauge score={match.compositeScore} label="" />
                 </div>
-                <p className="text-[9px] text-slate-500">{match.matchReason}</p>
+                <p className="text-[9px] text-slate-400">{match.matchReason}</p>
               </button>
             ))}
           </motion.div>

@@ -244,6 +244,22 @@ interface PatientRow {
   kobo_uuid: string | null;
   facility_name: string | null;
   screening_district: string | null;
+  screening_date: string | null;
+}
+
+/**
+ * Date proximity bonus for matching — prefer recent screenings
+ */
+function dateProximityBonus(screeningDate: string | null): number {
+  if (!screeningDate) return 0;
+  const daysDiff = Math.abs(
+    (Date.now() - new Date(screeningDate).getTime()) /
+    (1000 * 60 * 60 * 24)
+  );
+  if (daysDiff <= 30) return 0.10;   // same month
+  if (daysDiff <= 90) return 0.05;   // same quarter
+  if (daysDiff <= 365) return 0.02;  // same year
+  return 0;
 }
 
 const CONCURRENCY = 15;
@@ -277,7 +293,8 @@ export async function matchPatients(
         name_variants,
         kobo_uuid,
         facility_name,
-        screening_district
+        screening_district,
+        screening_date
       `)
       .order('created_at', { ascending: false });
 
@@ -289,8 +306,13 @@ export async function matchPatients(
 
   console.timeEnd('[patientMatcher] bulk fetch');
   console.log(
-    `[patientMatcher] Loaded ${allPatients.length} patients into memory`
+    '[patientMatcher] allPatients count:',
+    allPatients?.length ?? 0
   );
+
+  if (!allPatients || allPatients.length === 0) {
+    console.warn('[patientMatcher] WARNING: No patients found in database!');
+  }
 
   // Process rows in batches with concurrency limit
   const results: BulkMatchResult[] = [];
@@ -392,6 +414,9 @@ async function matchRowInMemory(
     else if (exactMatch) score = 0.95;
     else if (dbName.includes(searchName) || searchName.includes(dbName)) score = 0.85;
     else score = 0.6;
+
+    // Add date proximity bonus for recent screenings
+    score += dateProximityBonus(p.screening_date);
 
     const adjusted = applyOCRPenalty(score, row.ocrConfidence);
 

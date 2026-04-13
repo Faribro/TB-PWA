@@ -710,7 +710,7 @@ function ReviewPhase() {
       )}
 
       {/* ── Review Grid ─────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto min-h-0 px-1 pb-32">
+      <div className="flex-1 overflow-y-auto min-h-0 px-4 pb-32 pl-16 md:pl-20">
         {filteredRows.length > 0 ? (
           <div className="flex flex-col gap-3">
             <AnimatePresence mode="popLayout">
