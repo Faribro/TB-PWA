@@ -449,12 +449,31 @@ async function callGeminiExtract(
     .map((r, i) => validateRow(r, i))
     .filter((r): r is ExtractedRow => r !== null);
 
-  // Calculate average confidence
-  const avgConfidence = rows.length > 0
-    ? rows.reduce((sum, r) => sum + r.confidence_score, 0) / rows.length
+  // Deduplicate rows based on name + age combination
+  const seen = new Set<string>();
+  const deduplicatedRows = rows.filter(row => {
+    const key = `${row.name}-${row.age}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+
+  // Warn if significant deduplication occurred
+  if (deduplicatedRows.length < rows.length) {
+    console.warn(
+      `[geminiExtractor] Deduplicated ${rows.length - deduplicatedRows.length} duplicate rows. ` +
+      `Original: ${rows.length}, Deduplicated: ${deduplicatedRows.length}`
+    );
+  }
+
+  // Calculate average confidence using deduplicated rows
+  const avgConfidence = deduplicatedRows.length > 0
+    ? deduplicatedRows.reduce((sum, r) => sum + r.confidence_score, 0) / deduplicatedRows.length
     : 0;
 
-  return { rows, confidence: avgConfidence, modelName };
+  return { rows: deduplicatedRows, confidence: avgConfidence, modelName };
 }
 
 // ═══════════════════════════════════════════════════════
