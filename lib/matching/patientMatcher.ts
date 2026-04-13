@@ -264,6 +264,9 @@ function dateProximityBonus(screeningDate: string | null): number {
 
 const CONCURRENCY = 15;
 
+// Global counter for diagnostic logging
+let rowCounter = 0;
+
 /**
  * Bulk matches multiple extracted rows against all patients in memory.
  * Fetches all patients once, then performs in-memory candidate search.
@@ -273,9 +276,19 @@ export async function matchPatients(
   supabase: SupabaseClient,
   extractedRows: BulkMatchParams[]
 ): Promise<BulkMatchResult[]> {
+  // Reset counter for each bulk match
+  rowCounter = 0;
+
   if (!extractedRows || extractedRows.length === 0) {
     return [];
   }
+
+  console.log('[patientMatcher] Starting bulk match for', extractedRows.length, 'rows');
+  console.log('[patientMatcher] First 3 input rows:', extractedRows.slice(0, 3).map(r => ({
+    name: r.name,
+    age: r.age,
+    mobile: r.mobile
+  })));
 
   console.time('[patientMatcher] bulk fetch');
 
@@ -299,6 +312,7 @@ export async function matchPatients(
       .order('created_at', { ascending: false });
 
   if (fetchError || !allPatients) {
+    console.error('[patientMatcher] Bulk fetch error:', fetchError);
     throw new Error(
       `Failed to fetch patients for matching: ${fetchError?.message}`
     );
@@ -312,6 +326,10 @@ export async function matchPatients(
 
   if (!allPatients || allPatients.length === 0) {
     console.warn('[patientMatcher] WARNING: No patients found in database!');
+    console.warn('[patientMatcher] This could be due to:');
+    console.warn('[patientMatcher] - RLS policy blocking access');
+    console.warn('[patientMatcher] - Empty patients table');
+    console.warn('[patientMatcher] - Filter in query excluding all rows');
   }
 
   // Process rows in batches with concurrency limit
@@ -323,6 +341,17 @@ export async function matchPatients(
     );
     results.push(...batchResults);
   }
+
+  // Log match summary
+  const autoMatchCount = results.filter(r => r.matchStatus === 'auto_match').length;
+  const needsReviewCount = results.filter(r => r.matchStatus === 'needs_review').length;
+  const newRecordCount = results.filter(r => r.matchStatus === 'new_record').length;
+  console.log('[patientMatcher] Match summary:', {
+    total: results.length,
+    auto_match: autoMatchCount,
+    needs_review: needsReviewCount,
+    new_record: newRecordCount
+  });
 
   return results;
 }
@@ -380,7 +409,18 @@ function findCandidates(
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);  // top 5 candidates max
 
-  return scored.map(s => s.p);
+  const result = scored.map(s => s.p);
+
+  // Log if no candidates found
+  if (result.length === 0) {
+    console.warn('[findCandidates] No candidates found for:', searchName);
+    console.warn('[findCandidates] Searched against', allPatients.length, 'patients');
+  } else {
+    console.log('[findCandidates] Found', result.length, 'candidates for:', searchName);
+    console.log('[findCandidates] Candidate names:', result.slice(0, 3).map(p => p.inmate_name));
+  }
+
+  return result;
 }
 
 /**
@@ -390,19 +430,27 @@ async function matchRowInMemory(
   row: BulkMatchParams,
   allPatients: PatientRow[]
 ): Promise<BulkMatchResult> {
-  // Diagnostic logging for first few rows
-  if (row.sno === 1 || row.sno === 2) {
-    console.log('[matcher] Input row:', {
-      sno: row.sno,
+  const isFirstFew = rowCounter < 3;
+  const currentRow = rowCounter;
+  rowCounter++;
+
+  if (isFirstFew) {
+    console.log('[matcher] Processing row #' + currentRow + ':', {
       name: row.name,
       age: row.age,
       mobile: row.mobile,
-      ocrConfidence: row.ocrConfidence
+      sno: row.sno
     });
-    console.log('[matcher] allPatients count:', allPatients?.length ?? 0);
-    console.log('[matcher] First 3 patient names from DB:',
-      allPatients?.slice(0, 3).map(p => p.inmate_name)
-    );
+  }
+
+  // Warn if allPatients is empty
+  if (!allPatients || allPatients.length === 0) {
+    console.warn('[matcher] WARNING: allPatients is empty - no patients loaded from database!');
+    return {
+      row,
+      matches: [],
+      matchStatus: 'new_record',
+    };
   }
 
   if (!row.name || row.name.trim().length === 0) {
@@ -414,13 +462,6 @@ async function matchRowInMemory(
   }
 
   const candidates = findCandidates(row.name, allPatients);
-
-  if (row.sno === 1 || row.sno === 2) {
-    console.log('[matcher] Candidates found for row', row.sno, ':', candidates.length);
-    console.log('[matcher] Candidate names:',
-      candidates.slice(0, 3).map(p => p.inmate_name)
-    );
-  }
 
   const matches: MatchResult[] = candidates.slice(0, 3).map(p => {
     const dbName = (p.inmate_name ?? '').toLowerCase();
@@ -463,6 +504,16 @@ async function matchRowInMemory(
 
   const topMatch = matches[0];
   const matchStatus = topMatch?.confidenceTier ?? 'new_record';
+
+  // Log match result for first few rows
+  if (isFirstFew) {
+    console.log('[matcher] Match result for row #' + currentRow + ' (sno: ' + (row.sno ?? 'null') + '):', {
+      matchStatus,
+      topMatchScore: topMatch?.compositeScore ?? 0,
+      topMatchName: topMatch?.patientName ?? 'none',
+      topMatchReason: topMatch?.matchReason ?? 'none'
+    });
+  }
 
   return {
     row,
