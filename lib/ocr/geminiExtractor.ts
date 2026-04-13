@@ -2,7 +2,7 @@
  * lib/ocr/geminiExtractor.ts
  *
  * Production-grade VLM extraction engine for handwritten Indian health registers.
- * Uses Gemini 1.5 Pro with multi-pass extraction strategy for maximum accuracy.
+ * Uses Gemini 1.5 Flash with multi-pass extraction strategy for maximum speed.
  */
 
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
@@ -326,7 +326,7 @@ async function callGeminiExtract(
   const genAI = new GoogleGenerativeAI(acquired.apiKey);
 
   const model = genAI.getGenerativeModel({
-    model: 'gemini-1.5-pro',
+    model: 'gemini-1.5-flash',
     generationConfig: {
       temperature: 0.05,
       topP: 0.95,
@@ -433,7 +433,7 @@ export async function extractRegisterImage(
 
       return {
         rows: pass1.rows,
-        modelVersion: "gemini-1.5-pro",
+        modelVersion: "gemini-1.5-flash",
         latencyMs: Date.now() - startTime,
         keyIndex: acquired.keyIndex,
         preprocessing: preprocessResult ? {
@@ -465,7 +465,7 @@ export async function extractRegisterImage(
 
       return {
         rows: pass2.rows,
-        modelVersion: "gemini-1.5-pro",
+        modelVersion: "gemini-1.5-flash",
         latencyMs: Date.now() - startTime,
         keyIndex: acquired.keyIndex,
         preprocessing: {
@@ -482,7 +482,7 @@ export async function extractRegisterImage(
 
     return {
       rows: pass1.rows,
-      modelVersion: "gemini-1.5-pro",
+      modelVersion: "gemini-1.5-flash",
       latencyMs: Date.now() - startTime,
       keyIndex: acquired.keyIndex,
       preprocessing: preprocessResult ? {

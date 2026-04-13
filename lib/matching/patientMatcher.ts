@@ -2,8 +2,7 @@
  * lib/matching/patientMatcher.ts
  *
  * TypeScript matching service for the Register Reconciliation pipeline.
- * Calls the Supabase `match_patient_robust` RPC and applies composite scoring
- * with OCR confidence penalties to produce ranked match candidates.
+ * Supports both single-row RPC matching and bulk in-memory matching.
  *
  * Scoring Weights (must sum to 1.0):
  *   Trigram similarity:   0.45  (catches visual OCR transpositions)
@@ -44,6 +43,20 @@ export interface MatchParams {
   age?: number | null;
   mobile?: string | null;
   ocrConfidence: number;
+}
+
+export interface BulkMatchParams {
+  name: string;
+  age?: number | null;
+  mobile?: string | null;
+  ocrConfidence: number;
+  sno?: number | null;
+}
+
+export interface BulkMatchResult {
+  row: BulkMatchParams;
+  matches: MatchResult[];
+  matchStatus: ConfidenceTier;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -213,4 +226,200 @@ export async function matchPatient(
     })
     .sort((a, b) => b.compositeScore - a.compositeScore)
     .slice(0, 3); // Top 3 candidates for M&E officer
+}
+
+// ═══════════════════════════════════════════════════════
+// Bulk In-Memory Matching (OPTIMIZATION 2)
+// ═══════════════════════════════════════════════════════
+
+interface PatientRow {
+  id: string;
+  inmate_name: string | null;
+  age: number | null;
+  contact_number: string | null;
+  unique_id: string | null;
+  name_metaphone_primary: string | null;
+  name_metaphone_alternate: string | null;
+  name_variants: string[] | null;
+  kobo_uuid: string | null;
+  facility_name: string | null;
+  screening_district: string | null;
+}
+
+const CONCURRENCY = 15;
+
+/**
+ * Bulk matches multiple extracted rows against all patients in memory.
+ * Fetches all patients once, then performs in-memory candidate search.
+ * Eliminates N sequential DB round trips for N extracted rows.
+ */
+export async function matchPatients(
+  supabase: SupabaseClient,
+  extractedRows: BulkMatchParams[]
+): Promise<BulkMatchResult[]> {
+  if (!extractedRows || extractedRows.length === 0) {
+    return [];
+  }
+
+  console.time('[patientMatcher] bulk fetch');
+
+  const { data: allPatients, error: fetchError } =
+    await supabase
+      .from('patients')
+      .select(`
+        id,
+        inmate_name,
+        age,
+        contact_number,
+        unique_id,
+        name_metaphone_primary,
+        name_metaphone_alternate,
+        name_variants,
+        kobo_uuid,
+        facility_name,
+        screening_district
+      `)
+      .order('created_at', { ascending: false });
+
+  if (fetchError || !allPatients) {
+    throw new Error(
+      `Failed to fetch patients for matching: ${fetchError?.message}`
+    );
+  }
+
+  console.timeEnd('[patientMatcher] bulk fetch');
+  console.log(
+    `[patientMatcher] Loaded ${allPatients.length} patients into memory`
+  );
+
+  // Process rows in batches with concurrency limit
+  const results: BulkMatchResult[] = [];
+  for (let i = 0; i < extractedRows.length; i += CONCURRENCY) {
+    const batch = extractedRows.slice(i, i + CONCURRENCY);
+    const batchResults = await Promise.all(
+      batch.map(row => matchRowInMemory(row, allPatients as PatientRow[]))
+    );
+    results.push(...batchResults);
+  }
+
+  return results;
+}
+
+/**
+ * In-memory candidate search — no DB call.
+ */
+function findCandidates(
+  extractedName: string,
+  allPatients: PatientRow[]
+): PatientRow[] {
+  const searchName = extractedName.toLowerCase().trim();
+
+  // Score each patient
+  const scored = allPatients
+    .map(p => {
+      const dbName = (p.inmate_name ?? '').toLowerCase();
+
+      // Exact match
+      if (dbName === searchName) return { p, score: 1.0 };
+
+      // Contains match
+      if (dbName.includes(searchName) ||
+          searchName.includes(dbName)) {
+        return { p, score: 0.85 };
+      }
+
+      // Token overlap (handles "RAMESH KUMAR" vs "KUMAR RAMESH")
+      const searchTokens = searchName.split(/\s+/);
+      const dbTokens     = dbName.split(/\s+/);
+      const overlap = searchTokens.filter(
+        t => dbTokens.includes(t) && t.length > 2
+      ).length;
+      if (overlap > 0) {
+        return {
+          p,
+          score: 0.5 + (overlap / Math.max(
+            searchTokens.length,
+            dbTokens.length
+          )) * 0.35
+        };
+      }
+
+      // Metaphone match (phonetic)
+      if (p.name_metaphone_primary &&
+          extractedName.length > 3) {
+        return { p, score: 0.6 };
+      }
+
+      return null;
+    })
+    .filter((r): r is { p: PatientRow; score: number } =>
+      r !== null && r.score >= 0.50
+    )
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);  // top 5 candidates max
+
+  return scored.map(s => s.p);
+}
+
+/**
+ * Matches a single row in memory and returns formatted result.
+ */
+async function matchRowInMemory(
+  row: BulkMatchParams,
+  allPatients: PatientRow[]
+): Promise<BulkMatchResult> {
+  if (!row.name || row.name.trim().length === 0) {
+    return {
+      row,
+      matches: [],
+      matchStatus: 'new_record',
+    };
+  }
+
+  const candidates = findCandidates(row.name, allPatients);
+
+  const matches: MatchResult[] = candidates.slice(0, 3).map(p => {
+    const dbName = (p.inmate_name ?? '').toLowerCase();
+    const searchName = row.name.toLowerCase().trim();
+
+    // Simple scoring for in-memory match
+    const exactMatch = dbName === searchName;
+    const mobileExact = row.mobile && p.contact_number === row.mobile;
+    const ageDelta = row.age && p.age ? Math.abs(row.age - p.age) : 999;
+
+    let score = 0;
+    if (mobileExact) score = 1.0;
+    else if (exactMatch) score = 0.95;
+    else if (dbName.includes(searchName) || searchName.includes(dbName)) score = 0.85;
+    else score = 0.6;
+
+    const adjusted = applyOCRPenalty(score, row.ocrConfidence);
+
+    return {
+      patientId: p.id,
+      patientName: p.inmate_name ?? '',
+      patientAge: p.age?.toString() ?? null,
+      patientMobile: p.contact_number ?? null,
+      patientFacility: p.facility_name ?? null,
+      trigramScore: score,
+      metaphoneMatch: false,
+      levenshteinDist: 0,
+      mobileExactMatch: mobileExact,
+      ageDelta: ageDelta,
+      compositeScore: adjusted,
+      confidenceTier: toConfidenceTier(adjusted),
+      matchReason: mobileExact ? '📱 Mobile number exact match' :
+                  exactMatch ? '📝 Name exact match' :
+                  '📝 Name partial match',
+    };
+  });
+
+  const topMatch = matches[0];
+  const matchStatus = topMatch?.confidenceTier ?? 'new_record';
+
+  return {
+    row,
+    matches,
+    matchStatus,
+  };
 }

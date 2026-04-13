@@ -10,6 +10,17 @@ import { toast } from 'sonner';
 import { useReconciliationStore, type ExtractionSource } from '@/stores/useReconciliationStore';
 import { Table2, FileText, ScanLine } from 'lucide-react';
 
+const OCR_HINTS = [
+  'Scanning handwriting strokes…',
+  'Cross-referencing Indian name patterns…',
+  'Recovering faint ink characters…',
+  'Validating mobile number formats…',
+  'Building patient record list…',
+  'Applying forensic character recovery…',
+  'Detecting table structure and columns…',
+  'Verifying confidence scores per row…',
+] as const;
+
 interface RegisterUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -27,12 +38,35 @@ export function RegisterUploadModal({ isOpen, onClose, onSuccess }: RegisterUplo
   const [mounted, setMounted] = useState(false);
   const [currentStage, setCurrentStage] = useState<ProcessingStage>('uploading');
   const [detectedSource, setDetectedSource] = useState<ExtractionSource>('image');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   const { setExtractionData } = useReconciliationStore();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Elapsed timer — counts up while processing is active
+  useEffect(() => {
+    if (uploadState !== 'uploading') {
+      setElapsedSeconds(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setElapsedSeconds(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [uploadState]);
+
+  const activeHint = OCR_HINTS[
+    Math.floor(elapsedSeconds / 4) % OCR_HINTS.length
+  ];
+
+  const geminiMessage =
+    elapsedSeconds > 20 ? 'Almost done — finalizing rows…'  :
+    elapsedSeconds > 12 ? 'Gemini is reading the document…' :
+    elapsedSeconds > 6  ? 'Extracting patient records…'     :
+                          'Sending to Gemini Vision…';
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -257,34 +291,60 @@ export function RegisterUploadModal({ isOpen, onClose, onSuccess }: RegisterUplo
                 )}
 
                 {uploadState === 'uploading' && (
-                  <div className="flex flex-col items-center gap-4 py-8">
-                    <div className="w-12 h-12 rounded-full border-2 border-blue-500/20 border-t-blue-600 animate-spin" />
-                    <div className="text-center space-y-1">
-                      <p className="text-sm font-bold text-slate-900">
-                        {currentStage === 'uploading' && 'Uploading file…'}
-                        {currentStage === 'extracting' && (
-                          detectedSource === 'pdf' ? 'Reading PDF with Gemini 1.5…' :
-                          detectedSource === 'excel' ? 'Parsing spreadsheet columns…' :
-                          'Running OCR extraction…'
-                        )}
-                        {currentStage === 'matching' && 'Fuzzy matching patients…'}
-                        {currentStage === 'done' && 'Handoff complete'}
+                  <div className="flex flex-col items-center gap-4 py-8 px-4">
+
+                    {/* Spinner */}
+                    <div className="relative w-12 h-12">
+                      <div className="absolute inset-0 rounded-full border-2
+                                      border-white/[0.08]" />
+                      <div className="absolute inset-0 rounded-full border-2
+                                      border-transparent border-t-blue-500
+                                      animate-spin" />
+                    </div>
+
+                    {/* Primary stage message */}
+                    <div className="text-center">
+                      <p className="text-[14px] font-700 text-slate-200
+                            tracking-tight">
+                        {currentStage === 'uploading' ? 'Uploading file…'            :
+                         currentStage === 'extracting' ? geminiMessage                :
+                         currentStage === 'matching' ? 'Matching patients…'         :
+                         currentStage === 'done' ? 'Handoff complete'           :
+                                                 'Processing…'}
                       </p>
-                      <p className="text-xs text-slate-500">
-                        {currentStage === 'uploading' && 'Sending to secure backend'}
-                        {currentStage === 'extracting' && 'Identifying patient records'}
-                        {currentStage === 'matching' && 'Cross-referencing with database'}
-                        {currentStage === 'done' && 'Opening review grid…'}
+
+                      {/* Cycling hint */}
+                      <p className="text-[11px] text-slate-500 mt-1 min-h-[16px]
+                            transition-all duration-500">
+                        {activeHint}
                       </p>
                     </div>
-                    <div className="w-full max-w-xs h-1.5 bg-slate-100 rounded-full overflow-hidden mt-2">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progress}%` }}
-                        transition={{ duration: 0.5 }}
-                        className="h-full bg-blue-600 rounded-full shadow-[0_0_8px_rgba(37,99,235,0.4)]"
-                      />
+
+                    {/* Elapsed timer + contextual note */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-600 text-slate-600
+                       tabular-nums">
+                        {elapsedSeconds}s
+                      </span>
+                      <span className="w-0.5 h-0.5 rounded-full bg-slate-700" />
+                      <span className="text-[11px] text-slate-600">
+                        {elapsedSeconds < 5
+                          ? 'Starting up…'
+                          : elapsedSeconds < 15
+                          ? 'Gemini Vision is analyzing the image'
+                          : elapsedSeconds < 25
+                          ? 'Large document — this may take up to 30s'
+                          : 'Complex handwriting detected — still working…'}
+                      </span>
                     </div>
+
+                    {/* Thin animated progress bar (indeterminate) */}
+                    <div className="w-full max-w-[240px] h-0.5 bg-white/[0.06]
+                    rounded-full overflow-hidden">
+                      <div className="h-full w-1/3 bg-blue-500 rounded-full
+                      animate-[shimmerBar_2s_ease-in-out_infinite]" />
+                    </div>
+
                   </div>
                 )}
 

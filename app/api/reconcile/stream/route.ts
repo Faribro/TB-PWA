@@ -16,7 +16,7 @@ import {
   extractRegisterImage,
   sanitizeExtractedRows,
 } from "@/lib/ocr/geminiExtractor";
-import { matchPatient } from "@/lib/matching/patientMatcher";
+import { matchPatients, type BulkMatchParams } from "@/lib/matching/patientMatcher";
 
 export const dynamic = "force-dynamic";
 
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
           latencyMs: extraction.latencyMs,
         });
 
-        // Phase 2: Row-by-row matching
+        // Phase 2: Bulk in-memory matching
         const supabase = getSupabaseClient();
         let autoMatchCount = 0;
         let needsReviewCount = 0;
@@ -137,35 +137,31 @@ export async function POST(request: NextRequest) {
 
         const extractionId = insertedExtraction?.id || null;
 
-        for (let i = 0; i < sanitizedRows.length; i++) {
+        // Convert to BulkMatchParams format
+        const bulkParams: BulkMatchParams[] = sanitizedRows.map(row => ({
+          name: row.name || '',
+          age: row.age,
+          mobile: row.mobile,
+          ocrConfidence: row.confidence_score,
+          sno: row.sno,
+        }));
+
+        // Run bulk in-memory matching
+        const matchResults = await matchPatients(supabase, bulkParams);
+
+        // Stream each row with its matches
+        for (let i = 0; i < matchResults.length; i++) {
+          const result = matchResults[i];
           const row = sanitizedRows[i];
 
-          // Run matching
-          let matches: any[] = [];
-          if (row.name) {
-            matches = await matchPatient(supabase, {
-              name: row.name,
-              age: row.age,
-              mobile: row.mobile,
-              ocrConfidence: row.confidence_score,
-            });
-          }
-
-          // Determine status
-          const topMatch = matches[0];
-          let matchStatus: "auto_match" | "needs_review" | "new_record";
-          if (topMatch?.confidenceTier === "auto_match") {
-            matchStatus = "auto_match";
+          if (result.matchStatus === "auto_match") {
             autoMatchCount++;
-          } else if (topMatch?.confidenceTier === "needs_review") {
-            matchStatus = "needs_review";
+          } else if (result.matchStatus === "needs_review") {
             needsReviewCount++;
           } else {
-            matchStatus = "new_record";
             newRecordCount++;
           }
 
-          // Stream the row
           send("row", {
             index: i,
             totalRows,
@@ -173,8 +169,8 @@ export async function POST(request: NextRequest) {
             extractionId,
             row: {
               ...row,
-              matches,
-              matchStatus,
+              matches: result.matches,
+              matchStatus: result.matchStatus,
             },
           });
         }
