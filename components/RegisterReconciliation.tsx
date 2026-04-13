@@ -44,19 +44,24 @@ import {
   Search,
   Volume2,
   ArrowRight,
+  Table2,
+  FileText,
+  ScanLine,
 } from 'lucide-react';
+import { useSWRConfig } from 'swr';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import type { MatchResult } from '@/lib/matching/patientMatcher';
 import {
   useReconciliationStore,
   type RowAction,
   type ExtractedRowWithMatches,
 } from '@/stores/useReconciliationStore';
-import { BentoTriageCard } from './reconciliation/BentoTriageCard';
+import BentoTriageCard from './reconciliation/BentoTriageCard';
 
 // ═══════════════════════════════════════════════════════
 // Status Badges
@@ -160,10 +165,10 @@ function UploadPhase() {
       e.preventDefault();
       setIsDragOver(false);
       const file = e.dataTransfer.files[0];
-      if (file && file.type.startsWith('image/')) {
+      if (file && (file.type.startsWith('image/') || file.type === 'application/pdf' || file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
         setFile(file);
       } else {
-        toast.error('Please upload an image file (JPEG, PNG, or WebP)');
+        toast.error('Please upload a valid register file (Image, PDF, or Excel)');
       }
     },
     [setFile]
@@ -179,7 +184,7 @@ function UploadPhase() {
           Patient Triage & Notify
         </h2>
         <p className="text-sm text-slate-500 max-w-md">
-          Upload a handwritten register page. AI extracts data row-by-row in
+          Upload a register file. AI extracts data row-by-row in
           real-time, matches against patients, and enables bilingual notifications.
         </p>
       </div>
@@ -210,16 +215,16 @@ function UploadPhase() {
           />
           <div className="text-center">
             <p className="text-sm font-bold text-slate-700">
-              Drop register image here
+              Drop register file here
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              or click to browse · JPEG, PNG, WebP · Max 20 MB
+              or click to browse · Image, PDF, Excel · Max 20 MB
             </p>
           </div>
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/*,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) setFile(file);
@@ -230,11 +235,17 @@ function UploadPhase() {
       ) : (
         <div className="w-full max-w-lg space-y-4">
           <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-            <img
-              src={imagePreviewUrl!}
-              alt="Register preview"
-              className="w-full max-h-80 object-contain bg-slate-100"
-            />
+            {imagePreviewUrl ? (
+              <img
+                src={imagePreviewUrl}
+                alt="Register preview"
+                className="w-full max-h-80 object-contain bg-slate-100"
+              />
+            ) : (
+              <div className="w-full h-48 bg-slate-100 flex items-center justify-center">
+                <FileText className="w-12 h-12 text-slate-300" />
+              </div>
+            )}
             <button
               onClick={clearFile}
               className="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-900/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-slate-900/80 transition-colors"
@@ -269,7 +280,7 @@ function UploadPhase() {
             {phase === 'extracting' ? (
               <>
                 <Sparkles className="w-4 h-4 animate-spin mr-2" />
-                Initializing Gemini VLM...
+                Initializing Pipeline...
               </>
             ) : (
               <>
@@ -325,7 +336,7 @@ function StreamProgressBar() {
         </span>
         <span className="flex items-center gap-1 text-red-600 font-bold">
           <Plus className="w-3 h-3" />
-          {rows.filter((r) => r.matchStatus === 'new_record').length} new
+          {rows.filter((r) => r.matchStatus === 'new_record' || !r.matchStatus).length} new
         </span>
       </div>
     </div>
@@ -533,6 +544,8 @@ function CandidatePickerModal({
 // Review Phase — Bento Triage Dashboard
 // ═══════════════════════════════════════════════════════
 
+type ViewMode = 'all' | 'existing' | 'new';
+
 function ReviewPhase() {
   const {
     rows,
@@ -541,45 +554,140 @@ function ReviewPhase() {
     modelVersion,
     autoDecideAll,
     submitReview,
-    pendingCount,
-    isReadyToSubmit,
+    decisions,
     phase,
     imagePreviewUrl,
     extractionError,
     reset,
-    streamingProgress,
+    source,
   } = useReconciliationStore();
 
-  const pending = pendingCount();
-  const ready = isReadyToSubmit();
+  const [extractionMetadata, setExtractionMetadata] = useState<any>(null);
+
+  const { mutate } = useSWRConfig();
+  const [viewMode, setViewMode] = useState<ViewMode>('all');
+
   const isStreaming = phase === 'streaming';
 
-  // Counts derived from current rows for the live stat strip
-  const autoCount = rows.filter(
-    (r) => r.matchStatus === 'auto_match'
-  ).length;
-  const reviewCount = rows.filter(
-    (r) => r.matchStatus === 'needs_review'
-  ).length;
-  const newCount = rows.filter(
-    (r) => r.matchStatus === 'new_record' || !r.matchStatus
-  ).length;
+  const autoCount = rows.filter((r) => r.matchStatus === 'auto_match').length;
+  const reviewCount = rows.filter((r) => r.matchStatus === 'needs_review').length;
+  const newCount = rows.filter((r) => r.matchStatus === 'new_record' || !r.matchStatus).length;
+  const existingCount = autoCount + reviewCount;
+
+  const totalPossibleMatches = rows.length;
+  const decidedCount = Array.from(decisions.values()).filter(d => d.action !== 'pending').length;
+  const isAllDecided = decidedCount === totalPossibleMatches;
+
+  // Filter rows based on view mode
+  const filteredRows = useMemo(() => {
+    if (viewMode === 'all') return rows;
+    if (viewMode === 'existing') {
+      return rows.filter((r) => r.matchStatus === 'auto_match' || r.matchStatus === 'needs_review');
+    }
+    if (viewMode === 'new') {
+      return rows.filter((r) => r.matchStatus === 'new_record' || !r.matchStatus);
+    }
+    return rows;
+  }, [rows, viewMode]);
+
+  const sourceConfig: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
+    excel: {
+      icon: <Table2 className="w-3.5 h-3.5" />,
+      label: 'Excel Spreadsheet',
+      color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+    },
+    pdf: {
+      icon: <FileText className="w-3.5 h-3.5" />,
+      label: 'PDF Document',
+      color: 'text-blue-400 bg-blue-500/10 border-blue-500/20'
+    },
+    image: {
+      icon: <ScanLine className="w-3.5 h-3.5" />,
+      label: 'OCR Scan',
+      color: 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <div className="flex flex-col gap-4 h-full relative">
       {/* ── Streaming Progress ─────────────────────────── */}
       {isStreaming && <StreamProgressBar />}
 
       {/* ── Summary Header ─────────────────────────────── */}
       {!isStreaming && (
-        <div className="flex flex-wrap items-center gap-3 p-4 bg-gradient-to-r from-slate-50 to-indigo-50 rounded-2xl border border-indigo-100">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-indigo-600" />
-            <span className="text-xs font-black text-slate-700 uppercase tracking-widest">
-              Bento Triage Dashboard
-            </span>
+        <div className="flex flex-col gap-3 p-4 bg-gradient-to-r from-slate-50 to-indigo-50 rounded-2xl border border-indigo-100">
+          {/* Top row: Title + Source + Toggle */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-indigo-600" />
+              <span className="text-xs font-black text-slate-700 uppercase tracking-widest">
+                Daily Register Reconciliation
+              </span>
+            </div>
+
+            {source && sourceConfig[source] && (
+              <div className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 border text-[10px] font-bold uppercase tracking-widest",
+                sourceConfig[source].color
+              )}>
+                {sourceConfig[source].icon}
+                {sourceConfig[source].label}
+              </div>
+            )}
+
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5">
+              <button
+                onClick={() => setViewMode('all')}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
+                  viewMode === 'all' ? 'bg-indigo-500 text-white' : 'text-slate-600 hover:text-slate-900'
+                )}
+              >
+                All ({rows.length})
+              </button>
+              <button
+                onClick={() => setViewMode('existing')}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
+                  viewMode === 'existing' ? 'bg-indigo-500 text-white' : 'text-slate-600 hover:text-slate-900'
+                )}
+              >
+                Existing ({existingCount})
+              </button>
+              <button
+                onClick={() => setViewMode('new')}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
+                  viewMode === 'new' ? 'bg-indigo-500 text-white' : 'text-slate-600 hover:text-slate-900'
+                )}
+              >
+                New ({newCount})
+              </button>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 ml-auto">
+
+          {/* Summary Message based on view mode */}
+          <div className="p-3 bg-white/80 rounded-xl border border-white/60">
+            {viewMode === 'existing' && (
+              <p className="text-xs text-slate-600 leading-relaxed">
+                <span className="font-bold text-slate-800">Existing Records:</span> For this screening, <span className="font-bold text-emerald-600">{existingCount}</span> inmates are already found in the database from which <span className="font-bold text-amber-600">{reviewCount}</span> need review and <span className="font-bold text-emerald-600">{autoCount}</span> are auto-matched. Review the details to confirm or update records.
+              </p>
+            )}
+            {viewMode === 'new' && (
+              <p className="text-xs text-slate-600 leading-relaxed">
+                <span className="font-bold text-slate-800">New Records:</span> From the uploaded register, <span className="font-bold text-violet-600">{newCount}</span> new patients have been found that don't exist in the database. Please review the details and add them to the records to ensure complete data coverage.
+              </p>
+            )}
+            {viewMode === 'all' && (
+              <p className="text-xs text-slate-600 leading-relaxed">
+                <span className="font-bold text-slate-800">All Records:</span> Total <span className="font-bold text-slate-700">{rows.length}</span> records extracted. <span className="font-bold text-emerald-600">{autoCount}</span> auto-matched, <span className="font-bold text-amber-600">{reviewCount}</span> need review, <span className="font-bold text-violet-600">{newCount}</span> new patients. Use the toggle above to filter by record type.
+              </p>
+            )}
+          </div>
+
+          {/* Stats badges */}
+          <div className="flex flex-wrap items-center gap-2">
             {summary && (
               <>
                 <Badge className="bg-emerald-100 text-emerald-700 text-[10px] font-bold">
@@ -595,129 +703,111 @@ function ReviewPhase() {
             )}
             <Badge className="bg-slate-100 text-slate-500 text-[10px]">
               <Clock className="w-3 h-3 mr-1" />
-              {latencyMs ? `${(latencyMs / 1000).toFixed(1)}s` : '—'}
+              {latencyMs ? `${(latencyMs / 1000).toFixed(1)}s` : '--'}
             </Badge>
           </div>
         </div>
       )}
 
-      {/* ── Two-Panel Layout ───────────────────────────── */}
-      <div className="flex gap-4 flex-1 min-h-0">
-        {/* Left: Source Document */}
-        {imagePreviewUrl && (
-          <div className="hidden lg:block w-[240px] shrink-0">
-            <div className="sticky top-0 rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
-              <img
-                src={imagePreviewUrl}
-                alt="Register"
-                className="w-full object-contain max-h-[50vh] bg-slate-100"
-              />
-              <div className="p-2 bg-white/80 text-center">
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                  Source · {modelVersion} · {rows.length} rows
-                </p>
-              </div>
+      {/* ── Review Grid ─────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto min-h-0 px-1 pb-32">
+        {filteredRows.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            <AnimatePresence mode="popLayout">
+              {filteredRows.map((row, idx) => (
+                <BentoTriageCard key={row.sno ?? idx} row={row} index={idx} source={source || 'image'} preprocessing={extractionMetadata?.preprocessing} />
+              ))}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4">
+            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+              <RotateCcw className="w-8 h-8 animate-spin-slow" />
+            </div>
+            <p className="text-sm font-medium">Waiting for extraction results...</p>
+          </div>
+        )}
+      </div>
 
-              {/* Live Stat Strip */}
-              <div className="p-3 space-y-2 bg-slate-50 border-t border-slate-100">
-                <div className="flex items-center justify-between text-[9px]">
-                  <span className="text-emerald-600 font-bold">✅ {autoCount} matched</span>
-                  <span className="text-amber-600 font-bold">⚡ {reviewCount} review</span>
+      {/* ── Error Display ───────────────────────────── */}
+      {extractionError && (
+        <div className="mx-4 p-4 bg-red-50 border border-red-200 rounded-xl mb-4">
+          <p className="text-xs text-red-600 font-bold">
+            {extractionError}
+          </p>
+        </div>
+      )}
+
+      {/* ── Sticky Bulk Action Bar ────────────────────────── */}
+      {!isStreaming && (
+        <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-xl border-t border-white/[0.08] px-6 py-6 rounded-t-[32px] shadow-[0_-20px_50px_rgba(0,0,0,0.4)] z-50">
+          <div className="flex items-center justify-between gap-4 max-w-7xl mx-auto">
+            {/* Stats Bar */}
+            <div className="flex items-center gap-6">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Reconciliation Progress</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl font-black text-white tabular-nums">{decidedCount}/{totalPossibleMatches || '0'}</span>
+                  <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
+                    <motion.div 
+                      className="h-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]" 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(decidedCount / (totalPossibleMatches || 1)) * 100}%` }}
+                      transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-[9px]">
-                  <span className="text-violet-600 font-bold">🟣 {newCount} new</span>
-                  <span className="text-slate-400 font-bold">⏳ {pending} pending</span>
+              </div>
+              <div className="h-12 w-px bg-white/10 hidden sm:block" />
+              <div className="hidden lg:flex items-center gap-6 text-[11px] font-bold">
+                <div className="flex flex-col">
+                  <span className="text-emerald-400 tracking-wider">✨ {autoCount} STRONG MATCHES</span>
+                  <span className="text-amber-400 tracking-wider">⚖️ {reviewCount} NEEDS REVIEW</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-violet-400 tracking-wider">➕ {newCount} NEW RECORDS</span>
+                  <span className="text-slate-500 tracking-wider">⏳ {totalPossibleMatches - decidedCount} REMAINING</span>
                 </div>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* Right: Bento Grid */}
-        <div className="flex-1 min-w-0 flex flex-col gap-3">
-          {/* Toolbar */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={autoDecideAll}
-              className="text-[10px] font-black uppercase tracking-widest rounded-xl"
-            >
-              <Sparkles className="w-3.5 h-3.5 mr-1" />
-              Auto-Decide ({pending})
-            </Button>
-            <div className="flex items-center gap-1.5 ml-auto">
+            {/* Action Buttons */}
+            <div className="flex items-center gap-4">
               <Button
-                size="sm"
-                variant="ghost"
                 onClick={reset}
-                className="text-[10px] font-bold text-slate-400 uppercase tracking-widest rounded-xl"
+                variant="ghost"
+                className="text-slate-400 hover:text-white hover:bg-white/5 font-bold text-xs px-6 h-12 rounded-xl"
               >
-                <RotateCcw className="w-3.5 h-3.5 mr-1" />
-                Reset
+                Cancel
+              </Button>
+              
+              <Button
+                onClick={async () => {
+                  await submitReview();
+                  mutate((key: any) => 
+                    Array.isArray(key) && 
+                    (key[0] === 'patients' || key[0] === 'allPatients' || key[0] === '/api/patients')
+                  );
+                }}
+                disabled={!isAllDecided || phase === 'submitting' || totalPossibleMatches === 0}
+                className={cn(
+                  "h-14 px-10 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all",
+                  isAllDecided && totalPossibleMatches > 0
+                    ? "bg-emerald-500 hover:bg-emerald-400 text-white shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:scale-[1.02] active:scale-[0.98]" 
+                    : "bg-white/5 text-slate-600 border border-white/10 cursor-not-allowed"
+                )}
+              >
+                {phase === 'submitting' ? (
+                  <RotateCcw className="w-5 h-5 animate-spin mr-3" />
+                ) : (
+                  <CheckCircle2 className="w-5 h-5 mr-3" />
+                )}
+                Commit {decidedCount} Records
               </Button>
             </div>
           </div>
-
-          {/* ── BENTO GRID ──────────────────────────────── */}
-          <ScrollArea className="flex-1">
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pr-2 pb-4">
-              <AnimatePresence mode="popLayout">
-                {rows.map((row, i) => (
-                  <BentoTriageCard key={row.sno ?? i} row={row} index={i} />
-                ))}
-              </AnimatePresence>
-            </div>
-          </ScrollArea>
-
-          {/* Error */}
-          {extractionError && (
-            <div className="p-3 bg-red-50 rounded-xl border border-red-100">
-              <p className="text-xs text-red-600 font-bold">
-                {extractionError}
-              </p>
-            </div>
-          )}
-
-          {/* ── Submit Footer ──────────────────────────── */}
-          {!isStreaming && (
-            <div className="p-4 bg-white/80 backdrop-blur-md border-t border-slate-100 rounded-2xl">
-              <div className="flex items-center gap-3">
-                <Button
-                  onClick={submitReview}
-                  disabled={!ready || phase === 'submitting'}
-                  className={`
-                    flex-1 font-black uppercase text-xs tracking-widest py-5 rounded-2xl
-                    shadow-lg transition-all
-                    ${
-                      ready
-                        ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-200'
-                        : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
-                    }
-                  `}
-                >
-                  {phase === 'submitting' ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Committing...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4 mr-2" />
-                      Confirm & Sync All
-                      {pending > 0 && (
-                        <span className="ml-2 text-[10px] opacity-70">
-                          ({pending} pending)
-                        </span>
-                      )}
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

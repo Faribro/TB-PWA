@@ -1332,7 +1332,7 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
           >
             <Map 
               reuseMaps 
-              mapStyle="mapbox://styles/mapbox/dark-v11"
+              mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
               onLoad={(e) => {
                 mapRef.current = e.target;
                 setMapInstance(e.target);

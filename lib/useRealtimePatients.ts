@@ -34,6 +34,12 @@ export function useRealtimePatients(
     filterState
   } = options
 
+  // Fix continuous reconnect loop by storing changeable callbacks in a ref
+  const callbacksRef = useRef({ onInsert, onUpdate, onDelete, showToasts })
+  useEffect(() => {
+    callbacksRef.current = { onInsert, onUpdate, onDelete, showToasts }
+  }, [onInsert, onUpdate, onDelete, showToasts])
+
   const channelRef = useRef<any>(null)
   const reconnectTimer = useRef<NodeJS.Timeout | undefined>(undefined)
   const reconnectAttempts = useRef(0)
@@ -96,8 +102,8 @@ export function useRealtimePatients(
           setLastHeartbeat(Date.now())
 
           if (payload.eventType === 'INSERT') {
-            onInsert?.(payload.new)
-            if (showToasts) {
+            callbacksRef.current.onInsert?.(payload.new)
+            if (callbacksRef.current.showToasts) {
               toast.success(
                 `New patient added: ${payload.new.inmate_name}`,
                 {
@@ -109,9 +115,9 @@ export function useRealtimePatients(
           }
 
           if (payload.eventType === 'UPDATE') {
-            onUpdate?.(payload.new)
+            callbacksRef.current.onUpdate?.(payload.new)
             if (
-              showToasts &&
+              callbacksRef.current.showToasts &&
               payload.new.synced_to_sheets === true &&
               payload.old?.synced_to_sheets === false
             ) {
@@ -123,7 +129,7 @@ export function useRealtimePatients(
           }
 
           if (payload.eventType === 'DELETE') {
-            onDelete?.(payload.old?.id)
+            callbacksRef.current.onDelete?.(payload.old?.id)
           }
         }
       )
@@ -159,7 +165,7 @@ export function useRealtimePatients(
       })
 
     channelRef.current = channel
-  }, [filterState, onInsert, onUpdate, onDelete, showToasts, userId])
+  }, [filterState, userId])
 
   // Heartbeat to detect stale connections
   useEffect(() => {

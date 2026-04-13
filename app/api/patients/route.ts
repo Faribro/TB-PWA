@@ -139,37 +139,42 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // Batch fetch with column selection
+    // Batch fetch with column selection using Promise.all for true parallelism
     const records: any[] = [];
-    let from = offset;
     const limit = Math.min(maxRecords, (totalCount || 0) - offset);
+    const numBatches = Math.ceil(limit / batchSize);
     
-    while (records.length < limit) {
-      const batchLimit = Math.min(batchSize, limit - records.length);
-      batches++;
-      
-      let batchQuery = supabase
-        .from('patients')
-        .select(SELECTED_COLUMNS, { count: 'exact' })
-        .order('screening_date', { ascending: false })
-        .range(from, from + batchLimit - 1);
-      
-      batchQuery = applyFilters(batchQuery);
-      const { data, error } = await batchQuery;
-      
-      if (error) {
-        console.error('[patients/route] Batch error:', error);
-        return NextResponse.json({ 
-          error: 'Database query failed',
-          code: error.code,
-          message: error.message
-        }, { status: 500 });
+    if (limit > 0) {
+      const batchPromises = Array.from({ length: numBatches }).map((_, i) => {
+        const batchFrom = offset + (i * batchSize);
+        const batchLimit = Math.min(batchSize, limit - (i * batchSize));
+        const batchTo = batchFrom + batchLimit - 1;
+        
+        let batchQuery = supabase
+          .from('patients')
+          .select(SELECTED_COLUMNS)
+          .order('screening_date', { ascending: false })
+          .range(batchFrom, batchTo);
+          
+        return applyFilters(batchQuery);
+      });
+
+      const results = await Promise.all(batchPromises);
+      batches = numBatches;
+
+      for (const result of results) {
+        if (result.error) {
+          console.error('[patients/route] Batch error:', result.error);
+          return NextResponse.json({ 
+            error: 'Database query failed',
+            code: result.error.code,
+            message: result.error.message
+          }, { status: 500 });
+        }
+        if (result.data) {
+          records.push(...result.data);
+        }
       }
-      
-      if (!data || data.length === 0) break;
-      records.push(...data);
-      from += data.length;
-      if (data.length < batchLimit) break; // No more rows
     }
 
     const durationMs = Date.now() - startTime;

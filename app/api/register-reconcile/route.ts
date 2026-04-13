@@ -222,6 +222,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── Trigger Google Sheets Sync ──
+    // After committing to Supabase, trigger sync to Google Sheets for the newly created/updated records
+    try {
+      if (process.env.GOOGLE_APPSCRIPT_URL && (results.created > 0 || results.accepted > 0)) {
+        const gasResponse = await fetch(process.env.GOOGLE_APPSCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'TRIGGER_SYNC' }),
+        });
+
+        if (gasResponse.ok) {
+          console.log(
+            `[RegisterReconcile] ✅ Google Sheets sync triggered for ${results.created} new and ${results.accepted} updated records`
+          );
+        } else {
+          console.error(
+            `[RegisterReconcile] ⚠️ Google Sheets sync failed: ${gasResponse.statusText}`
+          );
+        }
+      }
+    } catch (syncError) {
+      console.error(
+        "[RegisterReconcile] Error triggering Google Sheets sync:",
+        syncError
+      );
+    }
+
     return NextResponse.json({
       success: results.errors.length === 0,
       ...results,

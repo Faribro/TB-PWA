@@ -31,6 +31,8 @@ export interface ExtractedRowWithMatches extends ExtractedRow {
   matchStatus?: MatchStatus;
 }
 
+export type ExtractionSource = 'image' | 'pdf' | 'excel';
+
 export interface RowDecision {
   action: RowAction;
   /** For "accept": which patient_id was selected */
@@ -63,6 +65,7 @@ export interface ReconciliationState {
   extractionId: string | null;
   rows: ExtractedRowWithMatches[];
   summary: ExtractionSummary | null;
+  source: ExtractionSource | null;
   modelVersion: string | null;
   latencyMs: number | null;
   extractionError: string | null;
@@ -84,6 +87,7 @@ export interface ReconciliationState {
 
   // ── Notifications ──
   notificationResults: NotificationResult[];
+  isReviewOpen: boolean;
 
   // ── Actions ──
   setFile: (file: File) => void;
@@ -97,6 +101,18 @@ export interface ReconciliationState {
   confirmAndNotify: (sno: number, recipientEmail?: string) => Promise<void>;
   addNotificationResult: (result: NotificationResult) => void;
   reset: () => void;
+
+  // ── Handoff Setters ──
+  setExtractionData: (data: {
+    extractionId: string;
+    rows: ExtractedRowWithMatches[];
+    summary: ExtractionSummary;
+    source: ExtractionSource;
+    modelVersion?: string;
+    latencyMs?: number;
+  }) => void;
+  setIsReviewOpen: (open: boolean) => void;
+  setPhase: (phase: WorkflowPhase) => void;
 
   // ── Computed ──
   pendingCount: () => number;
@@ -124,6 +140,8 @@ export const useReconciliationStore = create<ReconciliationState>(
     decisions: new Map(),
     submitResult: null,
     notificationResults: [],
+    source: null,
+    isReviewOpen: false,
 
     // ── Set File ──
     setFile: (file: File) => {
@@ -511,8 +529,42 @@ export const useReconciliationStore = create<ReconciliationState>(
         decisions: new Map(),
         submitResult: null,
         notificationResults: [],
+        source: null,
+        isReviewOpen: false,
       });
     },
+
+    // ── Handoff Setters ──
+    setExtractionData: (data) => {
+      const decisions = new Map<number, RowDecision>();
+      for (const row of data.rows) {
+        if (row.sno == null) continue;
+        const topMatch = row.matches?.[0];
+        if (topMatch && (topMatch as any).confidenceTier === "auto_match") {
+          decisions.set(row.sno, {
+            action: "accept",
+            selectedPatientId: topMatch.patientId,
+          });
+        } else {
+          decisions.set(row.sno, { action: "pending" });
+        }
+      }
+
+      set({
+        extractionId: data.extractionId,
+        rows: data.rows,
+        summary: data.summary,
+        source: data.source,
+        modelVersion: data.modelVersion || null,
+        latencyMs: data.latencyMs || null,
+        decisions,
+        phase: 'review',
+        isReviewOpen: true,
+      });
+    },
+
+    setIsReviewOpen: (open: boolean) => set({ isReviewOpen: open }),
+    setPhase: (phase: WorkflowPhase) => set({ phase }),
 
     // ── Computed ──
     pendingCount: () => {

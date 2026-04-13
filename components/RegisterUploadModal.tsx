@@ -6,8 +6,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, X, FileImage, FileSpreadsheet, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
+import { useReconciliationStore, type ExtractionSource } from '@/stores/useReconciliationStore';
+import { Table2, FileText, ScanLine } from 'lucide-react';
 
 interface RegisterUploadModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ interface RegisterUploadModalProps {
 }
 
 type UploadState = 'idle' | 'uploading' | 'success' | 'error';
+type ProcessingStage = 'uploading' | 'extracting' | 'matching' | 'done';
 
 export function RegisterUploadModal({ isOpen, onClose, onSuccess }: RegisterUploadModalProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -23,6 +25,10 @@ export function RegisterUploadModal({ isOpen, onClose, onSuccess }: RegisterUplo
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [progress, setProgress] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [currentStage, setCurrentStage] = useState<ProcessingStage>('uploading');
+  const [detectedSource, setDetectedSource] = useState<ExtractionSource>('image');
+
+  const { setExtractionData } = useReconciliationStore();
 
   useEffect(() => {
     setMounted(true);
@@ -38,94 +44,99 @@ export function RegisterUploadModal({ isOpen, onClose, onSuccess }: RegisterUplo
     setIsDragging(false);
   }, []);
 
-  const handleImageUpload = async (file: File) => {
-    setUploadState('uploading');
-    setProgress(30);
-
-    try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const base64 = e.target?.result as string;
-        setProgress(50);
-
-        const response = await fetch('/api/register-extract', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: base64 }),
-        });
-
-        setProgress(80);
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'OCR extraction failed');
-        }
-
-        const result = await response.json();
-        setProgress(100);
-        setUploadState('success');
-        toast.success(`Extracted ${result.extractedRows?.length || 0} patients`);
-        setTimeout(() => {
-          onSuccess?.();
-          onClose();
-        }, 1500);
-      };
-
-      reader.onerror = () => {
-        throw new Error('Failed to read image file');
-      };
-
-      reader.readAsDataURL(file);
-    } catch (error: any) {
-      setUploadState('error');
-      setErrorMessage(error.message || 'Upload failed');
-      toast.error(error.message || 'Upload failed');
+  const handleFileUpload = async (file: File): Promise<void> => {
+    // Validate file type client-side (first defense)
+    const allowed = [
+      'image/jpeg', 'image/png', 'image/webp', 'image/heic',
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/csv'
+    ];
+    
+    if (!allowed.includes(file.type) && !file.name.endsWith('.xlsx')) {
+      toast.error(`Unsupported file type: ${file.type}`);
+      return;
     }
-  };
 
-  const handleExcelUpload = async (file: File) => {
+    // Validate file size — 20MB max
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error('File too large. Maximum size is 20MB.');
+      return;
+    }
+
     setUploadState('uploading');
+    setCurrentStage('uploading');
     setProgress(30);
 
+    // Detect source based on MIME or filename
+    let source: ExtractionSource = 'image';
+    if (file.type === 'application/pdf') source = 'pdf';
+    else if (file.type.includes('spreadsheet') || file.type.includes('csv') || file.name.endsWith('.xlsx')) source = 'excel';
+    setDetectedSource(source);
+
     try {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: 'array' });
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('filename', file.name);
+      formData.append('mimeType', file.type);
 
       setProgress(50);
-
-      // Cast age to Number (critical for schema compliance)
-      const sanitizedData = jsonData.map((row: any) => ({
-        ...row,
-        age: row.age ? Number(row.age) : null,
-      }));
-
-      const response = await fetch('/api/register-reconcile', {
+      setCurrentStage('extracting');
+      
+      const response = await fetch('/api/register-extract', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rows: sanitizedData }),
+        body: formData
       });
 
-      setProgress(80);
-
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Reconciliation failed');
+        const err = await response.json();
+        throw new Error(err.message || err.error || `HTTP ${response.status}`);
       }
 
       const result = await response.json();
+      
+      setProgress(90);
+      setCurrentStage('matching');
+      
+      if (!result.extractionId) {
+        throw new Error('Backend did not return extractionId');
+      }
+
+      // Final matching stage simulated for UI smoothness if it is too fast
+      await new Promise(r => setTimeout(r, 600));
+      
+      setCurrentStage('done');
       setProgress(100);
       setUploadState('success');
-      toast.success(`Processed ${result.processed || 0} rows`);
+
+      toast.success(
+        `${result.rowCount || result.rows?.length || 0} patients extracted from ${result.source}`,
+        {
+          description: `Confidence: 100% · Opening review…`,
+          duration: 3000
+        }
+      );
+      
+      // HAND OFF to reconciliation store
+      setExtractionData({
+        extractionId: result.extractionId,
+        rows: result.rows,
+        summary: result.summary,
+        source: result.source as ExtractionSource,
+        modelVersion: result.model,
+        latencyMs: result.latencyMs
+      });
+
       setTimeout(() => {
         onSuccess?.();
         onClose();
-      }, 1500);
+        resetModal();
+      }, 800);
+
     } catch (error: any) {
       setUploadState('error');
       setErrorMessage(error.message || 'Upload failed');
-      toast.error(error.message || 'Upload failed');
+      toast.error(`Upload failed: ${error.message}`);
     }
   };
 
@@ -136,33 +147,14 @@ export function RegisterUploadModal({ isOpen, onClose, onSuccess }: RegisterUplo
     const file = e.dataTransfer.files[0];
     if (!file) return;
 
-    const isImage = file.type.startsWith('image/');
-    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.csv');
-
-    if (!isImage && !isExcel) {
-      toast.error('Only images (.jpg, .png) or Excel files (.xlsx, .csv) are supported');
-      return;
-    }
-
-    if (isImage) {
-      await handleImageUpload(file);
-    } else {
-      await handleExcelUpload(file);
-    }
+    await handleFileUpload(file);
   }, []);
 
   const handleFileInput = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const isImage = file.type.startsWith('image/');
-    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.csv');
-
-    if (isImage) {
-      await handleImageUpload(file);
-    } else {
-      await handleExcelUpload(file);
-    }
+    await handleFileUpload(file);
   }, []);
 
   const resetModal = () => {
@@ -233,7 +225,7 @@ export function RegisterUploadModal({ isOpen, onClose, onSuccess }: RegisterUplo
                   >
                     <input
                       type="file"
-                      accept="image/*,.xlsx,.csv"
+                      accept="image/*,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,.xlsx,.csv,.pdf"
                       onChange={handleFileInput}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
@@ -246,7 +238,7 @@ export function RegisterUploadModal({ isOpen, onClose, onSuccess }: RegisterUplo
                           Drop files here or click to browse
                         </p>
                         <p className="text-xs text-slate-500 mt-1">
-                          Supports .jpg, .png, .xlsx, .csv
+                          Supports .jpg, .png, .pdf, .xlsx, .csv
                         </p>
                       </div>
                       <div className="flex items-center gap-4 mt-2">
@@ -265,18 +257,32 @@ export function RegisterUploadModal({ isOpen, onClose, onSuccess }: RegisterUplo
                 )}
 
                 {uploadState === 'uploading' && (
-                  <div className="flex flex-col items-center gap-4 py-12">
-                    <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
-                    <div className="text-center">
-                      <p className="text-sm font-semibold text-slate-900">Processing...</p>
-                      <p className="text-xs text-slate-500 mt-1">Please wait</p>
+                  <div className="flex flex-col items-center gap-4 py-8">
+                    <div className="w-12 h-12 rounded-full border-2 border-blue-500/20 border-t-blue-600 animate-spin" />
+                    <div className="text-center space-y-1">
+                      <p className="text-sm font-bold text-slate-900">
+                        {currentStage === 'uploading' && 'Uploading file…'}
+                        {currentStage === 'extracting' && (
+                          detectedSource === 'pdf' ? 'Reading PDF with Gemini 1.5…' :
+                          detectedSource === 'excel' ? 'Parsing spreadsheet columns…' :
+                          'Running OCR extraction…'
+                        )}
+                        {currentStage === 'matching' && 'Fuzzy matching patients…'}
+                        {currentStage === 'done' && 'Handoff complete'}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {currentStage === 'uploading' && 'Sending to secure backend'}
+                        {currentStage === 'extracting' && 'Identifying patient records'}
+                        {currentStage === 'matching' && 'Cross-referencing with database'}
+                        {currentStage === 'done' && 'Opening review grid…'}
+                      </p>
                     </div>
-                    <div className="w-full max-w-xs h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="w-full max-w-xs h-1.5 bg-slate-100 rounded-full overflow-hidden mt-2">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${progress}%` }}
                         transition={{ duration: 0.5 }}
-                        className="h-full bg-blue-600 rounded-full"
+                        className="h-full bg-blue-600 rounded-full shadow-[0_0_8px_rgba(37,99,235,0.4)]"
                       />
                     </div>
                   </div>

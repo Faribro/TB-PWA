@@ -65,6 +65,10 @@ const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelec
   };
   const daysElapsed = calculateDaysElapsed(patient.screening_date);
 
+  const isStalled = phase.phase !== 'Closed' && daysElapsed > 5;
+  const suspectedTB = patient.xray_result === 'Suspected TB Case';
+  const normalTB = !suspectedTB;
+
   return (
     <motion.div
       data-tour-id="patient-card"
@@ -80,15 +84,58 @@ const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelec
       }}
       exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
       onClick={onClick}
-      className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(0,74,153,0.12)] hover:-translate-y-1 transition-all duration-300 group cursor-pointer flex flex-col justify-between min-h-[160px]"
+      className={`relative rounded-[20px] p-5 cursor-pointer group overflow-hidden ${
+        suspectedTB 
+          ? 'bg-white border-2 border-rose-400/60 shadow-[0_0_20px_rgba(244,63,94,0.15),0_4px_20px_-4px_rgba(244,63,94,0.3)] hover:shadow-[0_0_30px_rgba(244,63,94,0.25),0_8px_30px_-4px_rgba(244,63,94,0.4)]' 
+          : normalTB
+            ? 'bg-white border-2 border-emerald-400/40 shadow-[0_0_15px_rgba(16,185,129,0.1),0_4px_15px_-4px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.2),0_8px_25px_-4px_rgba(16,185,129,0.3)]'
+            : 'bg-white border border-slate-200/60 shadow-sm hover:shadow-md'
+      } transition-all duration-300 min-h-[160px] flex flex-col justify-between`}
     >
-      <div className="flex justify-between items-start mb-4">
+      {/* Animated gradient border glow for suspected TB */}
+      {suspectedTB && (
+        <motion.div
+          className="absolute inset-0 rounded-[20px] pointer-events-none"
+          animate={{ 
+            boxShadow: ['inset 0 0 0 2px rgba(244,63,94,0.3)', 'inset 0 0 0 3px rgba(244,63,94,0.5)', 'inset 0 0 0 2px rgba(244,63,94,0.3)'] 
+          }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      )}
+      {normalTB && !suspectedTB && (
+        <motion.div
+          className="absolute inset-0 rounded-[20px] pointer-events-none"
+          animate={{ 
+            boxShadow: ['inset 0 0 0 2px rgba(16,185,129,0.2)', 'inset 0 0 0 3px rgba(16,185,129,0.35)', 'inset 0 0 0 2px rgba(16,185,129,0.2)'] 
+          }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      )}
+      
+      {/* Left accent bar — dynamic by status */}
+      <div 
+        className={`absolute left-0 top-4 bottom-4 w-[5px] rounded-r-full ${
+          suspectedTB ? 'bg-gradient-to-b from-rose-500 to-rose-600' : 
+          normalTB ? 'bg-gradient-to-b from-emerald-500 to-emerald-600' : 
+          isStalled ? 'bg-amber-500' : 'bg-slate-300'
+        }`}
+      />
+
+      <div className="flex justify-between items-start mb-4 pl-3">
         <div>
-          <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-            {patient.inmate_name || 'Unknown Patient'}
-          </h3>
-          <span className="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded-md mt-1 inline-block">
-            {patient.kobo_uuid?.substring(0, 8) || patient.unique_id?.substring(0, 8)}
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+              {patient.inmate_name || 'Unknown Patient'}
+            </h3>
+            {isStalled && (
+              <div className="flex items-center gap-1 h-5 px-[7px] bg-amber-50 text-amber-700 border border-amber-200/40 rounded-full">
+                <Clock className="w-3 h-3" />
+                <span className="text-[10px] font-bold tracking-wide">STALE</span>
+              </div>
+            )}
+          </div>
+          <span className="text-[11px] font-mono font-semibold tracking-wide text-slate-500 bg-slate-100 px-2 py-1 rounded-[5px] mt-1 inline-block">
+            {patient.unique_id || patient.kobo_uuid?.substring(0, 8)}
           </span>
         </div>
         {canSelect && (
@@ -96,28 +143,31 @@ const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelec
             type="checkbox"
             checked={triageIds.includes(patient.id)}
             onChange={(e) => { e.stopPropagation(); toggleTriageSelect(patient.id); }}
-            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer transition-all duration-200"
             onClick={(e) => e.stopPropagation()}
+            title="Select for bulk triage"
           />
         )}
       </div>
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm text-slate-600">
-          <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center">
-            <MapPin className="w-3.5 h-3.5" />
+
+      <div className="space-y-3 pl-3">
+        <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+          <div className="w-6 h-6 rounded-md bg-slate-100 text-slate-400 flex items-center justify-center">
+            <MapPin className="w-3 h-3" />
           </div>
-          <span className="truncate">{patient.facility_name}, {patient.screening_district}</span>
+          <span className="truncate">{patient.facility_name} &bull; {patient.screening_district}</span>
         </div>
+
         <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-          <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase shadow-sm ${
-            phase.phase === 'Sputum Test' ? 'bg-amber-50 text-amber-700 border border-amber-200/50' :
-            phase.phase === 'Diagnosis' ? 'bg-blue-50 text-blue-700 border border-blue-200/50' :
-            phase.phase === 'ATT Initiation' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/50' :
-            'bg-slate-50 text-slate-700 border border-slate-200/50'
+          <span className={`px-2.5 py-[3px] rounded bg-white text-[10px] font-bold tracking-widest uppercase shadow-sm ${
+            phase.phase === 'Sputum Test' ? 'text-blue-700 border border-blue-200/50' :
+            phase.phase === 'Diagnosis' ? 'text-blue-700 border border-blue-200/50' :
+            phase.phase === 'ATT Initiation' ? 'text-emerald-700 border border-emerald-200/50' :
+            'text-slate-600 border border-slate-200/50'
           }`}>
             {phase.phase}
           </span>
-          <span className="text-[10px] font-bold text-slate-500">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
             {daysElapsed}d Active
           </span>
         </div>
@@ -396,40 +446,6 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
             Inmate List
           </h2>
           <div className="flex items-center gap-1.5">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="h-8 flex items-center text-xs font-bold text-slate-700 bg-gradient-to-br from-slate-100 to-slate-200 px-3 rounded-md shadow-sm border border-slate-300/50"
-            >
-              {filteredPatients.length.toLocaleString()} {hasActiveFilter ? 'filtered' : 'total'}
-            </motion.div>
-            {/* Realtime Connection Status */}
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className={`h-8 flex items-center gap-1.5 px-2.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                realtimeStatus.status === 'connected'
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  : realtimeStatus.status === 'connecting'
-                  ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                  : 'bg-red-50 text-red-700 border border-red-200'
-              }`}
-              title={`${realtimeStatus.activeUsers} active users • Last update: ${realtimeStatus.lastHeartbeat ? new Date(realtimeStatus.lastHeartbeat).toLocaleTimeString() : 'Never'}`}
-            >
-              <div className={`w-1.5 h-1.5 rounded-full ${
-                realtimeStatus.status === 'connected' ? 'bg-emerald-500 animate-pulse' :
-                realtimeStatus.status === 'connecting' ? 'bg-amber-500 animate-pulse' :
-                'bg-red-500'
-              }`} />
-              <span>
-                {realtimeStatus.status === 'connected' ? 'Live' :
-                 realtimeStatus.status === 'connecting' ? 'Connecting' :
-                 'Offline'}
-              </span>
-              {realtimeStatus.status === 'connected' && realtimeStatus.activeUsers > 1 && (
-                <span className="ml-1 text-emerald-600">• {realtimeStatus.activeUsers}</span>
-              )}
-            </motion.div>
             {onUploadRegister && (
               <motion.button
                 whileHover={{ scale: 1.02 }}
@@ -661,6 +677,7 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
                           phase.phase === 'Sputum Test' ? 'bg-blue-50 text-blue-700 border border-blue-200/30' :
                           phase.phase === 'Diagnosis' ? 'bg-blue-50 text-blue-700 border border-blue-200/30' :
                           phase.phase === 'ATT Initiation' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/30' :
+                          phase.phase === 'Closed' ? 'bg-slate-50 text-slate-600 border border-slate-200/30' :
                           'bg-slate-50 text-slate-600 border border-slate-200/30'
                         }`}>
                           {phase.phase}

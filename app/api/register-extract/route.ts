@@ -1,21 +1,8 @@
-/**
- * POST /api/register-extract
- *
- * Accepts a multipart form upload (register image), runs VLM extraction
- * via Gemini, then fuzzy-matches each extracted row against the patients
- * table. Returns the extraction + match results for human review.
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getSupabaseClient } from "@/lib/supabase-server";
-import {
-  extractRegisterImage,
-  sanitizeExtractedRows,
-} from "@/lib/ocr/hybridExtractor"; // Changed from geminiExtractor to hybridExtractor
 import { matchPatient } from "@/lib/matching/patientMatcher";
-
-const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"];
+import type { HybridExtractionResult } from "@/lib/ocr/hybridExtractor";
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
 
 export async function POST(request: NextRequest) {
@@ -37,18 +24,11 @@ export async function POST(request: NextRequest) {
 
     // ── Parse multipart form ──
     const formData = await request.formData();
-    const file = formData.get("image") as File | null;
+    const file = formData.get("file") as File | null;
 
     if (!file) {
       return NextResponse.json(
-        { error: "No image file provided. Send as form field 'image'." },
-        { status: 400 }
-      );
-    }
-
-    if (!ALLOWED_MIME.includes(file.type)) {
-      return NextResponse.json(
-        { error: `Unsupported file type: ${file.type}. Use JPEG, PNG, or WebP.` },
+        { error: "No file provided. Send as form field 'file'." },
         { status: 400 }
       );
     }
@@ -60,33 +40,53 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── Extract via Hybrid OCR (Tesseract → Gemini fallback) ──
-    const arrayBuffer = await file.arrayBuffer();
-    const imageBuffer = Buffer.from(arrayBuffer);
+    // Read raw buffer — works for all file types
+    const buffer = Buffer.from(await file.arrayBuffer());
 
-    const extraction = await extractRegisterImage(imageBuffer, file.type);
-    const sanitizedRows = extraction.rows; // Already sanitized by hybrid extractor
+    // Detect MIME from buffer magic bytes as secondary check
+    const declaredMime = file.type || '';
+    const filename = file.name.toLowerCase();
 
-    // ── Match each row against patients DB ──
-    const supabase = getSupabaseClient();
-    const rowsWithMatches = await Promise.all(
-      sanitizedRows.map(async (row) => {
-        if (!row.name) {
-          return { ...row, matches: [] };
-        }
+    // Determine file category
+    const isImage = declaredMime.startsWith('image/');
+    const isPDF   = declaredMime === 'application/pdf' || filename.endsWith('.pdf');
+    const isExcel = declaredMime.includes('spreadsheetml') || filename.endsWith('.xlsx');
+    const isCSV   = declaredMime === 'text/csv' || filename.endsWith('.csv');
 
-        const matches = await matchPatient(supabase, {
-          name: row.name,
-          age: row.age,
-          mobile: row.mobile,
-          ocrConfidence: row.confidence_score,
-        });
+    if (!isImage && !isPDF && !isExcel && !isCSV) {
+      return NextResponse.json(
+        { error: `Unsupported file type: ${declaredMime}` },
+        { status: 415 }
+      );
+    }
 
-        return { ...row, matches };
-      })
-    );
+    let extractionResult: HybridExtractionResult | any;
+
+    if (isExcel || isCSV) {
+      // Route to Excel/CSV extractor
+      const { extractFromSpreadsheet } = await import('@/lib/ocr/excelExtractor');
+      extractionResult = await extractFromSpreadsheet(buffer, filename);
+    } else if (isPDF) {
+      // Route directly to Gemini (skip Tesseract for PDFs)
+      const { extractRegisterImage: extractPDF } = await import('@/lib/ocr/geminiExtractor');
+      extractionResult = await extractPDF(buffer, 'application/pdf');
+    } else {
+      // Route to hybrid extractor (Tesseract → Gemini fallback)
+      const { extractRegisterImage: extractHybrid } = await import('@/lib/ocr/hybridExtractor');
+      extractionResult = await extractHybrid(buffer, declaredMime);
+    }
+
+    const sanitizedRows = extractionResult.rows || [];
+
+    // ── SKIP patient matching for faster initial response ──
+    // Matching will be done on client side or in separate step
+    const rowsWithMatches = sanitizedRows.map((row: any) => ({
+      ...row,
+      matches: [], // Empty for now
+    }));
 
     // ── Persist extraction to audit log ──
+    const supabase = getSupabaseClient();
     const { data: insertedExtraction, error: insertError } = await supabase
       .from("register_extractions")
       .insert({
@@ -94,23 +94,18 @@ export async function POST(request: NextRequest) {
         image_mime: file.type,
         status: "pending",
         extracted_rows: rowsWithMatches,
-        match_results: rowsWithMatches.map((r) => ({
-          sno: r.sno,
-          name: r.name,
-          matchCount: r.matches.length,
-          topTier: r.matches[0]?.confidenceTier || "new_record",
-          topScore: r.matches[0]?.compositeScore || 0,
-        })),
+        match_results: [],
         metadata: {
-          engine: extraction.engine, // 'tesseract' or 'gemini'
-          cost: extraction.cost, // 0 for tesseract, 1 for gemini
-          fallbackReason: extraction.fallbackReason, // Only present if gemini was used
-          model: extraction.modelVersion,
-          latencyMs: extraction.latencyMs,
-          keyIndex: extraction.keyIndex,
+          engine: extractionResult.engine || 'unknown',
+          cost: extractionResult.cost || 0,
+          fallbackReason: extractionResult.fallbackReason,
+          model: extractionResult.modelVersion,
+          latencyMs: extractionResult.latencyMs,
+          keyIndex: extractionResult.keyIndex,
           totalRows: sanitizedRows.length,
           fileName: file.name,
           fileSize: file.size,
+          sourceType: isExcel ? 'excel' : isPDF ? 'pdf' : 'image',
         },
       })
       .select("id")
@@ -120,30 +115,26 @@ export async function POST(request: NextRequest) {
       console.error("[RegisterExtract] Failed to persist extraction:", insertError);
     }
 
-    // ── Build summary stats ──
-    const autoMatchCount = rowsWithMatches.filter(
-      (r) => r.matches[0]?.confidenceTier === "auto_match"
-    ).length;
-    const needsReviewCount = rowsWithMatches.filter(
-      (r) => r.matches[0]?.confidenceTier === "needs_review"
-    ).length;
-    const newRecordCount = rowsWithMatches.filter(
-      (r) => !r.matches.length || r.matches[0]?.confidenceTier === "new_record"
-    ).length;
+    // ── Build summary stats (without matching) ──
+    const summary = {
+      autoMatch: 0,
+      needsReview: 0,
+      newRecord: sanitizedRows.length, // All treated as new until matched
+    };
 
     return NextResponse.json({
       extractionId: insertedExtraction?.id || null,
       totalRows: sanitizedRows.length,
-      summary: {
-        autoMatch: autoMatchCount,
-        needsReview: needsReviewCount,
-        newRecord: newRecordCount,
-      },
-      model: extraction.modelVersion,
-      latencyMs: extraction.latencyMs,
+      summary,
+      model: extractionResult.modelVersion,
+      latencyMs: extractionResult.latencyMs,
       rows: rowsWithMatches,
+      source: isExcel ? 'excel' : isPDF ? 'pdf' : 'image',
+      rowCount: rowsWithMatches.length,
+      skipMatching: true, // Flag to indicate matching not done yet
+      preprocessing: (extractionResult as any).preprocessing ?? null,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[RegisterExtract] Error:", error);
     return NextResponse.json(
       {

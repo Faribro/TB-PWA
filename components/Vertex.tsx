@@ -37,10 +37,12 @@ import { sounds } from '@/lib/sound';
 import { FollowUpPipeline } from '@/components/FollowUpPipeline';
 import { PatientDetailDrawer } from '@/components/PatientDetailDrawer';
 import { VertexChart } from '@/components/VertexChart';
+import { useSWRConfig } from 'swr';
+import { RegisterReconciliation } from '@/components/RegisterReconciliation';
+import { useReconciliationStore } from '@/stores/useReconciliationStore';
 import { RegisterUploadModal } from '@/components/RegisterUploadModal';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope } from '@/hooks/useSessionScope';
-import { useSWRConfig } from 'swr';
 
 // TypeScript Interfaces
 interface MonthlyHeatmapData {
@@ -593,6 +595,7 @@ export default function Vertex({
   const [filterDistrict, setFilterDistrict] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'volume' | 'breaches'>('volume');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const { isReviewOpen } = useReconciliationStore();
   const { mutate } = useSWRConfig();
 
   // Update currentDate when data loads and most recent date changes
@@ -1394,14 +1397,25 @@ export default function Vertex({
         onUpdate={handlePatientUpdate}
       />
 
-      {/* Upload Modal */}
       <RegisterUploadModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         onSuccess={() => {
-          mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+          mutate((key: any) => 
+            Array.isArray(key) && 
+            (key[0] === 'patients' || key[0] === 'allPatients' || key[0] === '/api/patients')
+          );
         }}
       />
+
+      {/* Reconciliation Review cinemantic overlay */}
+      <AnimatePresence>
+        {isReviewOpen && (
+          <div className="fixed inset-0 z-[100001] bg-slate-950 flex flex-col">
+            <RegisterReconciliation />
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

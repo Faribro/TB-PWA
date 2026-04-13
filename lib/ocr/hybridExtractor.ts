@@ -187,6 +187,20 @@ export async function extractRegisterImageHybrid(
 ): Promise<HybridExtractionResult> {
   console.log('[HybridExtractor] Starting extraction...');
 
+  // PDF GUARD: Tesseract cannot parse PDFs natively
+  // Route directly to Gemini for all PDF inputs
+  if (mime === 'application/pdf') {
+    console.log('[hybridExtractor] PDF detected — bypassing Tesseract, routing to Gemini')
+    const geminiResult = await geminiExtract(imageBuffer, mime);
+    const sanitizedRows = sanitizeExtractedRows(geminiResult.rows);
+    return {
+      ...geminiResult,
+      rows: sanitizedRows,
+      engine: 'gemini',
+      cost: 1, // Gemini API call cost
+    };
+  }
+
   // ═══════════════════════════════════════════════════════
   // FAST LANE: Tesseract.js
   // ═══════════════════════════════════════════════════════
