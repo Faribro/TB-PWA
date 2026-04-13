@@ -90,25 +90,52 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // STEP 1: Write to Supabase (blocking — source of truth)
-    let updateQuery = supabase
-      .from('patients')
-      .update({
-        ...supabaseUpdates,
-        updated_at: new Date().toISOString(),
-        synced_to_sheets: false,   // mark as needing sync
-        sheets_sync_attempts: 0    // reset retry counter
-      })
-      .eq('id', patientId);
+    // STEP 1: Write to Supabase (blocking — source of truth) with retry
+    let updatedPatient: any = null;
+    let dbError: any = null;
+    let retryCount = 0;
+    const maxRetries = 3;
 
-    if (!isServiceRoleAuth && scope.state) {
-      updateQuery = updateQuery.eq('screening_state', scope.state);
+    while (retryCount < maxRetries) {
+      let updateQuery = supabase
+        .from('patients')
+        .update({
+          ...supabaseUpdates,
+          updated_at: new Date().toISOString(),
+          synced_to_sheets: false,
+          sheets_sync_attempts: 0
+        })
+        .eq('id', patientId);
+
+      if (!isServiceRoleAuth && scope.state) {
+        updateQuery = updateQuery.eq('screening_state', scope.state);
+      }
+
+      const result = await updateQuery.select().single();
+      updatedPatient = result.data;
+      dbError = result.error;
+
+      if (!dbError) break;
+
+      // Check if error is transient (connection issues)
+      const isTransientError = dbError.message?.includes('503') ||
+                               dbError.message?.includes('502') ||
+                               dbError.message?.includes('504') ||
+                               dbError.message?.includes('timeout') ||
+                               dbError.message?.includes('network') ||
+                               dbError.code === '57014'; // query_canceled
+
+      if (!isTransientError || retryCount === maxRetries - 1) {
+        break; // Non-transient error or last retry
+      }
+
+      retryCount++;
+      console.warn(`[patient-sync] Supabase transient error, retry ${retryCount}/${maxRetries}:`, dbError.message);
+      await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
     }
 
-    const { data: updatedPatient, error: dbError } = await updateQuery.select().single();
-
     if (dbError) {
-      console.error('[patient-sync] Supabase error:', dbError);
+      console.error('[patient-sync] Supabase error after retries:', dbError);
       return NextResponse.json(
         { success: false, error: 'DB_WRITE_FAILED', detail: dbError.message },
         { status: 500 }

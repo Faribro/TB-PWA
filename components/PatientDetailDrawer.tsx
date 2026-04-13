@@ -294,19 +294,42 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         client_timestamp: new Date().toISOString()
       };
 
-      const res = await fetch('/api/patient-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          patientId: localPatient.id,
-          koboUuid: localPatient.kobo_uuid,
-          updates
-        })
-      });
+      // Retry logic for transient errors
+      let res: Response;
+      let retryCount = 0;
+      const maxRetries = 3;
+      const retryDelay = 1000;
 
-      if (!res.ok) throw new Error('Sync failed');
+      while (retryCount < maxRetries) {
+        res = await fetch('/api/patient-sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            patientId: localPatient.id,
+            koboUuid: localPatient.kobo_uuid,
+            updates
+          })
+        });
 
-      const result = await res.json();
+        if (res.ok) break;
+
+        // Retry on 500, 503, 504 (transient server errors)
+        const status = res.status;
+        const isTransientError = status === 500 || status === 503 || status === 504;
+
+        if (!isTransientError || retryCount === maxRetries - 1) {
+          const errorText = await res.text();
+          console.error('[handleSaveDemographics] API error:', status, errorText);
+          throw new Error(`Sync failed: ${status}`);
+        }
+
+        retryCount++;
+        console.warn(`[handleSaveDemographics] Transient error ${status}, retry ${retryCount}/${maxRetries}...`);
+        toast.info(`Server busy, retrying... (${retryCount}/${maxRetries})`, { id: 'demo-retry' });
+        await new Promise(resolve => setTimeout(resolve, retryDelay * retryCount));
+      }
+
+      const result = await res!.json();
 
       await mutate(
         (key: unknown) => {
