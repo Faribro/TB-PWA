@@ -111,11 +111,8 @@ export async function POST(req: NextRequest) {
     // 5. Build transformed payload
     const transformed: Record<string, any> = mapKoboPayloadToSupabase(body);
     
-    // Ensure kobo_uuid is in proper format (KoboToolbox sends various formats)
-    const rawUuid = String(uuid);
-    // If it's already a valid UUID format, use it; otherwise store as-is
-    transformed.kobo_uuid = rawUuid;
-    
+    // The mapper already handles UUID cleaning, don't overwrite it
+    // Just ensure we have the webhook metadata
     transformed.created_at = transformed.created_at ?? new Date().toISOString();
     transformed.synced_to_sheets = false;
     transformed.sheets_sync_attempts = 0;
