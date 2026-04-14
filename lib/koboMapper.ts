@@ -597,7 +597,7 @@ export function mapKoboPayloadToSupabase(
 
   // Column 12: Age (4-way fallback) - convert to number or null
   const ageRaw = getField(payload, ['grp_demo/age', 'age']);
-  const age = ageRaw && ageRaw.trim() !== '' ? parseInt(ageRaw) : null;
+  const age = ageRaw && String(ageRaw).trim() !== '' ? parseInt(String(ageRaw)) : null;
 
   // Column 13: Sex (4-way fallback)
   const sexRaw = String(getField(payload, [
@@ -804,30 +804,30 @@ export function mapKoboPayloadToSupabase(
 
   // Column 35-36: GPS coordinates (from _geolocation)
   const geo = Array.isArray(payload._geolocation) ? payload._geolocation : [];
-  const latitude = geo[0] != null ? parseFloat(String(geo[0])) : null;
-  const longitude = geo[1] != null ? parseFloat(String(geo[1])) : null;
+  const latitude = geo[0] != null && String(geo[0]).trim() !== '' ? parseFloat(String(geo[0])) : null;
+  const longitude = geo[1] != null && String(geo[1]).trim() !== '' ? parseFloat(String(geo[1])) : null;
 
-  // Only return fields that exist in the database
+  // Only return fields that exist in the database - ensure proper types
   return {
-    staff_name: staffName,
-    submitted_on: submittedOn,
-    screening_state: stateDisplay,
-    screening_district: districtRaw,
-    facility_name: facilityLabel,
+    staff_name: staffName || null,
+    submitted_on: submittedOn || null,
+    screening_state: stateDisplay || null,
+    screening_district: districtRaw || null,
+    facility_name: facilityLabel || null,
     facility_type: facilityType || null,
     screening_date: screeningDate,
-    unique_id: uniqueId,
-    inmate_name: inmateName,
-    inmate_type: inmateType,
-    father_husband_name: fatherHusbandName,
+    unique_id: uniqueId || null,
+    inmate_name: inmateName || null,
+    inmate_type: inmateType || null,
+    father_husband_name: fatherHusbandName || null,
     date_of_birth: dateOfBirth,
     age: age,
-    sex: sex,
+    sex: sex || null,
     contact_number: contactNumber || null,
     address: address || null,
     xray_result: chestXrayResult || null,
     symptoms_10s: symptoms || null,
-    tb_past_history: tbPastHistory,
+    tb_past_history: tbPastHistory || null,
     referral_date: referralDate,
     referred_facility: referredFacility || null,
     tb_diagnosed: tbDiagnosed || null,
@@ -841,8 +841,8 @@ export function mapKoboPayloadToSupabase(
     nikshay_abha_id: nikshayAbhaId || null,
     registration_date: nikshayRegistrationDate,
     remarks: remarks || null,
-    kobo_uuid: koboUuid,
-    kobo_id: koboId,
+    kobo_uuid: koboUuid || null,
+    kobo_id: koboId || null,
     serial_number: serialNumber || null,
     latitude,
     longitude
