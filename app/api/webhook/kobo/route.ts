@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse, after } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { mapKoboPayloadToSupabase } from '@/lib/koboMapper'
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const KOBO_WEBHOOK_SECRET = process.env.KOBO_WEBHOOK_SECRET
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -118,35 +118,46 @@ export async function POST(req: NextRequest) {
     transformed.webhook_received_at = new Date().toISOString();
 
     console.log('[webhook] 📊 Mapped fields:', Object.keys(transformed).join(', '));
+    console.log('[webhook] 📋 Screening date:', transformed.screening_date);
+    console.log('[webhook] 👤 Inmate name:', transformed.inmate_name);
 
-    // 6. Background processing with after()
-    after(async () => {
-      console.log('[webhook] 🔄 Processing UUID:', uuid);
-      const result = await insertWithRetry(
-        SUPABASE_URL!, 
-        SUPABASE_SERVICE_KEY!, 
-        transformed, 
-        3
+    // 6. Direct await for reliability (industry best practice for webhooks)
+    console.log('[webhook] 🔄 Processing UUID:', uuid);
+    const result = await insertWithRetry(
+      SUPABASE_URL!, 
+      SUPABASE_SERVICE_KEY!, 
+      transformed, 
+      3
+    );
+    
+    if (result.success) {
+      console.log('[webhook] ✅ Upserted:', uuid);
+      return NextResponse.json(
+        { status: 'success', uuid: String(uuid) },
+        {
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, x-kobo-webhook-secret',
+          },
+        }
       );
-      if (result.success) {
-        console.log('[webhook] ✅ Upserted:', uuid);
-      } else {
-        console.error('[webhook] ❌ Failed after retries:', result.error);
-      }
-    });
-
-    // 7. Return 200 immediately
-    return NextResponse.json(
-      { status: 'queued', uuid: String(uuid) },
-      {
-        status: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, x-kobo-webhook-secret',
-        },
-      }
-    )
+    } else {
+      console.error('[webhook] ❌ Failed after retries:', result.error);
+      // Still return 200 to prevent KoboToolbox retry spam
+      return NextResponse.json(
+        { status: 'failed', uuid: String(uuid), error: result.error },
+        {
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, x-kobo-webhook-secret',
+          },
+        }
+      );
+    }
 
   } catch (err) {
     // Catch-all
