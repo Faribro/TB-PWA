@@ -504,7 +504,7 @@ export function mapKoboPayloadToSupabase(
   ]) || getField(payload, ['username', '_submitted_by']) || "System Entry";
 
   // Column 1: Formatted Timestamp
-  const submittedOn = formatSubmissionTimestamp(getField(payload, ['_submission_time']));
+  const submittedOn = formatSubmissionTimestamp(getField(payload, ['_submission_time'])) || new Date().toISOString();
 
   // Column 2: State (4-way fallback)
   const stateRaw = getField(payload, [
@@ -809,16 +809,16 @@ export function mapKoboPayloadToSupabase(
 
   // Only return fields that exist in the database - ensure proper types
   return {
-    staff_name: staffName || null,
-    submitted_on: submittedOn || null,
+    staff_name: staffName || 'System Entry',
+    submitted_on: submittedOn,
     screening_state: stateDisplay || null,
     screening_district: districtRaw || null,
-    facility_name: facilityLabel || null,
+    facility_name: facilityLabel || 'Unknown',
     facility_type: facilityType || null,
     screening_date: screeningDate,
-    unique_id: uniqueId || null,
-    inmate_name: inmateName || null,
-    inmate_type: inmateType || null,
+    unique_id: uniqueId,
+    inmate_name: inmateName || 'Unknown',
+    inmate_type: inmateType || 'Other',
     father_husband_name: fatherHusbandName || null,
     date_of_birth: dateOfBirth,
     age: age,
@@ -827,7 +827,7 @@ export function mapKoboPayloadToSupabase(
     address: address || null,
     xray_result: chestXrayResult || null,
     symptoms_10s: symptoms || null,
-    tb_past_history: tbPastHistory || null,
+    tb_past_history: tbPastHistory || 'No',
     referral_date: referralDate,
     referred_facility: referredFacility || null,
     tb_diagnosed: tbDiagnosed || null,
@@ -841,7 +841,7 @@ export function mapKoboPayloadToSupabase(
     nikshay_abha_id: nikshayAbhaId || null,
     registration_date: nikshayRegistrationDate,
     remarks: remarks || null,
-    kobo_uuid: koboUuid || null,
+    kobo_uuid: koboUuid,
     kobo_id: koboId || null,
     serial_number: serialNumber || null,
     latitude,
