@@ -503,8 +503,9 @@ export function mapKoboPayloadToSupabase(
     'Name_of_the_Staff'
   ]) || getField(payload, ['username', '_submitted_by']) || "System Entry";
 
-  // Column 1: Formatted Timestamp
-  const submittedOn = formatSubmissionTimestamp(getField(payload, ['_submission_time'])) || new Date().toISOString();
+  // Column 1: Submission timestamp - store as ISO, not formatted display string
+  const submissionTime = getField(payload, ['_submission_time']);
+  const submittedOn = submissionTime ? parseSubmittedOn(submissionTime) : new Date().toISOString();
 
   // Column 2: State (4-way fallback)
   const stateRaw = getField(payload, [
