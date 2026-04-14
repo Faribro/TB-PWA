@@ -823,7 +823,7 @@ export function mapKoboPayloadToSupabase(
     sex: sex,
     contact_number: contactNumber,
     address: address,
-    chest_xray_result: chestXrayResult,
+    xray_result: chestXrayResult,  // Fixed: was chest_xray_result
     symptoms_10s: symptoms,
     tb_past_history: tbPastHistory,
     referral_date: referralDate,
@@ -834,7 +834,7 @@ export function mapKoboPayloadToSupabase(
     att_start_date: attStartDate,
     att_completion_date: attCompletionDate,
     hiv_status: hivStatus,
-    art_status_at_referral: artStatus,
+    art_status: artStatus,  // Fixed: was art_status_at_referral
     art_number: artNumber,
     nikshay_abha_id: nikshayAbhaId,
     nikshay_registration_date: nikshayRegistrationDate,
