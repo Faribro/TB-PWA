@@ -1,10 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { mapKoboPayloadToSupabase } from '@/lib/koboMapper'
 
-export const runtime = 'nodejs'; // Required for waitUntil
-
-// Move ALL potentially-failing imports inside the handler
-// to prevent module-load crashes from breaking the route
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
 const KOBO_WEBHOOK_SECRET = process.env.KOBO_WEBHOOK_SECRET
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -42,8 +41,8 @@ async function insertWithRetry(url: string, serviceKey: string, data: any, maxAt
         return { success: false, error: errText };
       }
 
-      // Exponential backoff: 500ms, 1000ms, 2000ms
-      await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt - 1)));
+      // Exponential backoff: 1s, 2s, 4s
+      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
     } catch (err: any) {
       console.error(`[webhook] ❌ Attempt ${attempt} exception:`, err.message);
       
@@ -51,7 +50,7 @@ async function insertWithRetry(url: string, serviceKey: string, data: any, maxAt
         return { success: false, error: err.message };
       }
       
-      await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt - 1)));
+      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
     }
   }
   
@@ -70,7 +69,16 @@ export async function GET() {
 // Webhook receiver
 export async function POST(req: NextRequest) {
   try {
-    // 1. Validate secret
+    // 1. Validate env vars
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+      console.error('[webhook] ❌ Missing Supabase env vars')
+      return NextResponse.json(
+        { error: 'Server configuration error' }, 
+        { status: 500 }
+      )
+    }
+
+    // 2. Validate secret
     const secret = req.headers.get('x-kobo-webhook-secret') 
       ?? req.headers.get('authorization')?.replace('Bearer ', '')
     
@@ -83,7 +91,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // 2. Parse body
+    // 3. Parse body
     let body: Record<string, unknown>
     try {
       body = await req.json()
@@ -91,7 +99,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
 
-    // 3. Validate UUID
+    // 4. Validate UUID
     const uuid = body['_uuid'] ?? body['uuid']
     if (!uuid) {
       return NextResponse.json(
@@ -100,46 +108,45 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 4. Background processing task
-    const ctx = (req as any)[Symbol.for('vercel.request.context')]
-    const processTask = async () => {
-      try {
-        const transformed: Record<string, any> = mapKoboPayloadToSupabase(body);
-        transformed.kobo_uuid = String(uuid);
-        transformed.created_at = transformed.created_at ?? new Date().toISOString();
-        
-        // Initialize Google Sheets sync fields
-        transformed.synced_to_sheets = false;
-        transformed.sheets_sync_attempts = 0;
-        transformed.sheets_sync_error = null;
-        transformed.webhook_received_at = new Date().toISOString();
+    // 5. Build transformed payload
+    const transformed: Record<string, any> = mapKoboPayloadToSupabase(body);
+    transformed.kobo_uuid = String(uuid);
+    transformed.created_at = transformed.created_at ?? new Date().toISOString();
+    transformed.synced_to_sheets = false;
+    transformed.sheets_sync_attempts = 0;
+    transformed.sheets_sync_error = null;
+    transformed.webhook_received_at = new Date().toISOString();
 
-        if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-          console.error('[webhook] Missing Supabase env vars')
-          return
-        }
+    console.log('[webhook] 📊 Mapped fields:', Object.keys(transformed).join(', '));
 
-        const result = await insertWithRetry(SUPABASE_URL, SUPABASE_SERVICE_KEY, transformed, 3);
-
-        if (result.success) {
-          console.log('[webhook] ✅ Upserted record:', uuid)
-        } else {
-          console.error('[webhook] ❌ Failed after retries:', result.error)
-        }
-      } catch (err: any) {
-        console.error('[webhook] Background processing error:', err.message)
+    // 6. Background processing with after()
+    after(async () => {
+      console.log('[webhook] 🔄 Processing UUID:', uuid);
+      const result = await insertWithRetry(
+        SUPABASE_URL!, 
+        SUPABASE_SERVICE_KEY!, 
+        transformed, 
+        3
+      );
+      if (result.success) {
+        console.log('[webhook] ✅ Upserted:', uuid);
+      } else {
+        console.error('[webhook] ❌ Failed after retries:', result.error);
       }
-    }
+    });
 
-    // 5. Use Vercel's waitUntil if available, otherwise fire async
-    if (ctx?.waitUntil) {
-      ctx.waitUntil(processTask())
-    } else {
-      processTask() // Non-blocking in dev
-    }
-
-    // 6. Return 200 IMMEDIATELY — Kobo is satisfied
-    return NextResponse.json({ status: 'queued', uuid: String(uuid) }, { status: 200 })
+    // 7. Return 200 immediately
+    return NextResponse.json(
+      { status: 'queued', uuid: String(uuid) },
+      {
+        status: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, x-kobo-webhook-secret',
+        },
+      }
+    )
 
   } catch (err) {
     // Catch-all
@@ -150,4 +157,17 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+// CORS preflight handler
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, x-kobo-webhook-secret, Authorization',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
 }
