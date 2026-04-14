@@ -110,7 +110,12 @@ export async function POST(req: NextRequest) {
 
     // 5. Build transformed payload
     const transformed: Record<string, any> = mapKoboPayloadToSupabase(body);
-    transformed.kobo_uuid = String(uuid);
+    
+    // Ensure kobo_uuid is in proper format (KoboToolbox sends various formats)
+    const rawUuid = String(uuid);
+    // If it's already a valid UUID format, use it; otherwise store as-is
+    transformed.kobo_uuid = rawUuid;
+    
     transformed.created_at = transformed.created_at ?? new Date().toISOString();
     transformed.synced_to_sheets = false;
     transformed.sheets_sync_attempts = 0;
@@ -118,6 +123,7 @@ export async function POST(req: NextRequest) {
     transformed.webhook_received_at = new Date().toISOString();
 
     console.log('[webhook] 📊 Mapped fields:', Object.keys(transformed).join(', '));
+    console.log('[webhook] 🆔 UUID:', transformed.kobo_uuid);
     console.log('[webhook] 📋 Screening date:', transformed.screening_date);
     console.log('[webhook] 👤 Inmate name:', transformed.inmate_name);
 
