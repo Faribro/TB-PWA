@@ -759,8 +759,9 @@ export function mapKoboPayloadToSupabase(
     'Remarks'
   ]);
 
-  // Column 32: KoboUUID
-  const koboUuid = payload._uuid || payload.uuid || "";
+  // Column 32: KoboUUID - strip 'uuid:' prefix if present
+  const rawUuid = payload._uuid || payload.uuid || "";
+  const koboUuid = String(rawUuid).replace(/^uuid:/i, '').trim();
 
   // Column 33: KoboID
   const koboId = payload._id || payload.id || "";
