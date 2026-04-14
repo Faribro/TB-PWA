@@ -806,11 +806,12 @@ export function mapKoboPayloadToSupabase(
   const latitude = geo[0] != null ? parseFloat(String(geo[0])) : null;
   const longitude = geo[1] != null ? parseFloat(String(geo[1])) : null;
 
+  // Only return fields that exist in the database
   return {
     staff_name: staffName,
     submitted_on: submittedOn,
-    state: stateDisplay,
-    district: districtRaw,
+    screening_state: stateDisplay,
+    screening_district: districtRaw,
     facility_name: facilityLabel,
     facility_type: facilityType,
     screening_date: screeningDate,
@@ -823,7 +824,7 @@ export function mapKoboPayloadToSupabase(
     sex: sex,
     contact_number: contactNumber,
     address: address,
-    xray_result: chestXrayResult,  // Fixed: was chest_xray_result
+    xray_result: chestXrayResult,
     symptoms_10s: symptoms,
     tb_past_history: tbPastHistory,
     referral_date: referralDate,
@@ -834,37 +835,16 @@ export function mapKoboPayloadToSupabase(
     att_start_date: attStartDate,
     att_completion_date: attCompletionDate,
     hiv_status: hivStatus,
-    art_status: artStatus,  // Fixed: was art_status_at_referral
+    art_status: artStatus,
     art_number: artNumber,
     nikshay_abha_id: nikshayAbhaId,
-    nikshay_registration_date: nikshayRegistrationDate,
+    registration_date: nikshayRegistrationDate,
     remarks: remarks,
     kobo_uuid: koboUuid,
     kobo_id: koboId,
     serial_number: serialNumber,
     latitude,
-    longitude,
-    microplan_block: microplanBlock,
-    symptom_cough_2weeks: symptomCough2weeks,
-    symptom_fever: symptomFever,
-    symptom_night_sweats: symptomNightSweats,
-    symptom_weight_loss: symptomWeightLoss,
-    symptom_haemoptysis: symptomHaemoptysis,
-    symptom_chest_pain: symptomChestPain,
-    symptom_breathlessness: symptomBreathlessness,
-    symptom_lymphadenopathy: symptomLymphadenopathy,
-    symptom_loss_of_appetite: symptomLossOfAppetite,
-    symptom_other: symptomOther,
-    symptom_other_detail: symptomOtherDetail,
-    xray_done: xrayDone,
-    cbnaat_done: cbnaatDone,
-    cbnaat_result: cbnaatResult,
-    referred_for_diagnosis: referredForDiagnosis,
-    dr_tb: drTb,
-    att_started: attStarted,
-    treatment_regimen: treatmentRegimen,
-    dots_provider: dotsProvider,
-    treatment_status: treatmentStatus
+    longitude
   };
 }
 
