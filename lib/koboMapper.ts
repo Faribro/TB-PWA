@@ -552,16 +552,16 @@ export function mapKoboPayloadToSupabase(
     'Date_of_Screening_CH_x_ray_dd_mm_yy'
   ]));
 
-  // Column 7: Unique ID - Always generate sequential (ignore Kobo's ID)
+  // Column 7: Unique ID - Use UUID-based approach to avoid counter reset issues
   const stateStr = String(stateRaw || "").toLowerCase().trim();
   const stateCode = STATE_CODE_MAP[stateStr] || STATE_CODE_MAP[stateStr.replace(/\s+/g, '_')] || STATE_CODE_MAP[stateStr.substring(0, 2)] || 'XX';
   const districtCode = String(districtRaw || "XX").substring(0, 2).toUpperCase();
   const facilityCode = mappings.facilityCodeMap[facilityLabel] || 'UNK';
 
-  // Update facility counter
-  facilityCounters[facilityCode] = (facilityCounters[facilityCode] || 0) + 1;
-  const seq = ('00000' + facilityCounters[facilityCode]).slice(-5);
-  const uniqueId = stateCode + districtCode + facilityCode + seq;
+  // Generate unique ID with timestamp + random suffix (avoids counter reset on cold starts)
+  const timestamp = Date.now().toString(36).toUpperCase();
+  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const uniqueId = `${stateCode}-${districtCode}-${facilityCode}-${timestamp}-${random}`;
 
   // Column 8: Inmate Name (4-way fallback)
   const inmateName = toProperCase(getField(payload, [

@@ -1,0 +1,93 @@
+KOBO WEBHOOK FIXES APPLIED
+═══════════════════════════════════════════════════════════════════════════
+
+✅ FIX 1: Added force-dynamic export
+   File: app/api/webhook/kobo/route.ts
+   Changes:
+   - Added: export const dynamic = 'force-dynamic'
+   - Added: export const maxDuration = 30
+   Impact: Prevents Next.js from caching route in production
+
+✅ FIX 2: Fixed facility counter (duplicate IDs)
+   File: lib/koboMapper.ts
+   Changes:
+   - Replaced sequential counter with timestamp + random suffix
+   - Format: STATE-DISTRICT-FACILITY-TIMESTAMP-RANDOM
+   Impact: Prevents duplicate unique_id on Vercel cold starts
+
+✅ FIX 3: Added CORS headers
+   File: app/api/webhook/kobo/route.ts
+   Changes:
+   - Added CORS headers to POST response
+   - Added OPTIONS handler for preflight requests
+   Impact: Allows external KoboToolbox webhook requests
+
+📝 FIX 4: RLS Policy (Manual - Run SQL)
+   File: scripts/fix-rls-policy.sql
+   Action Required:
+   1. Open Supabase SQL Editor
+   2. Run the SQL script: scripts/fix-rls-policy.sql
+   3. Verify policy created successfully
+   Impact: Allows service_role to bypass RLS and insert records
+
+═══════════════════════════════════════════════════════════════════════════
+TESTING
+═══════════════════════════════════════════════════════════════════════════
+
+1. Start dev server:
+   bun run dev
+
+2. Run E2E test with DB verification:
+   node scripts/test-webhook-e2e.js
+
+3. Expected output:
+   ✅ Webhook accepts POST requests
+   ✅ Background processing completes
+   ✅ Record successfully inserted into Supabase
+   ✅ Data mapping is correct
+
+═══════════════════════════════════════════════════════════════════════════
+TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════
+
+If test fails with "Record NOT found":
+
+1. Check RLS policy:
+   - Run scripts/fix-rls-policy.sql in Supabase SQL Editor
+   - Verify policy shows: roles: {service_role}
+
+2. Check server logs:
+   - Look for "[webhook] ❌ Failed after retries" messages
+   - Check for column name errors
+
+3. Verify environment variables:
+   - NEXT_PUBLIC_SUPABASE_URL
+   - SUPABASE_SERVICE_ROLE_KEY (not anon key!)
+   - KOBO_WEBHOOK_SECRET
+
+4. Check Supabase table schema:
+   - Verify column names match koboMapper output
+   - Common mismatches: state vs screening_state
+
+═══════════════════════════════════════════════════════════════════════════
+PRODUCTION DEPLOYMENT
+═══════════════════════════════════════════════════════════════════════════
+
+1. Deploy to Vercel:
+   git add .
+   git commit -m "Fix: Kobo webhook with force-dynamic and CORS"
+   git push
+
+2. Set environment variables in Vercel:
+   - NEXT_PUBLIC_SUPABASE_URL
+   - SUPABASE_SERVICE_ROLE_KEY
+   - KOBO_WEBHOOK_SECRET
+
+3. Configure KoboToolbox webhook:
+   URL: https://yourdomain.com/api/webhook/kobo
+   Method: POST
+   Custom Header: x-kobo-webhook-secret: alliance_kobo_secure_2026
+
+4. Test with real submission from KoboCollect
+
+═══════════════════════════════════════════════════════════════════════════

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getSessionScope } from '@/lib/session-scope';
 import { updatePatientInSheets, PatientRecord } from '@/lib/sheetsSync';
+import { sanitizePatientUpdate } from '@/lib/db/sanitizePatientUpdate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -50,6 +51,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Sanitize: strip non-DB fields before processing
+    const sanitizedUpdates = sanitizePatientUpdate(updates);
+    
+    console.log('[patient-sync] Sanitized updates:', { 
+      before: Object.keys(updates), 
+      after: Object.keys(sanitizedUpdates),
+      removed: Object.keys(updates).filter(k => !Object.keys(sanitizedUpdates).includes(k))
+    });
+
     // Map form fields to database columns
     const supabaseUpdates: any = {};
     const fieldMapping: Record<string, string | null> = {
@@ -81,12 +91,12 @@ export async function POST(request: NextRequest) {
       'KoboID': null
     };
 
-    Object.keys(updates).forEach(key => {
+    Object.keys(sanitizedUpdates).forEach(key => {
       const dbColumn = fieldMapping[key];
       if (dbColumn === null) return;
       const columnName = dbColumn || key;
-      if (updates[key] !== undefined && updates[key] !== null && updates[key] !== '') {
-        supabaseUpdates[columnName] = updates[key];
+      if (sanitizedUpdates[key] !== undefined && sanitizedUpdates[key] !== null && sanitizedUpdates[key] !== '') {
+        supabaseUpdates[columnName] = sanitizedUpdates[key];
       }
     });
 
@@ -101,7 +111,6 @@ export async function POST(request: NextRequest) {
         .from('patients')
         .update({
           ...supabaseUpdates,
-          updated_at: new Date().toISOString(),
           synced_to_sheets: false,
           sheets_sync_attempts: 0
         })
