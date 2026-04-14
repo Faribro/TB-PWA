@@ -595,8 +595,9 @@ export function mapKoboPayloadToSupabase(
     'Date_of_Birth'
   ]));
 
-  // Column 12: Age (4-way fallback)
-  const age = getField(payload, ['grp_demo/age', 'age']);
+  // Column 12: Age (4-way fallback) - convert to number or null
+  const ageRaw = getField(payload, ['grp_demo/age', 'age']);
+  const age = ageRaw && ageRaw.trim() !== '' ? parseInt(ageRaw) : null;
 
   // Column 13: Sex (4-way fallback)
   const sexRaw = String(getField(payload, [
@@ -813,7 +814,7 @@ export function mapKoboPayloadToSupabase(
     screening_state: stateDisplay,
     screening_district: districtRaw,
     facility_name: facilityLabel,
-    facility_type: facilityType,
+    facility_type: facilityType || null,
     screening_date: screeningDate,
     unique_id: uniqueId,
     inmate_name: inmateName,
@@ -822,27 +823,27 @@ export function mapKoboPayloadToSupabase(
     date_of_birth: dateOfBirth,
     age: age,
     sex: sex,
-    contact_number: contactNumber,
-    address: address,
-    xray_result: chestXrayResult,
-    symptoms_10s: symptoms,
+    contact_number: contactNumber || null,
+    address: address || null,
+    xray_result: chestXrayResult || null,
+    symptoms_10s: symptoms || null,
     tb_past_history: tbPastHistory,
     referral_date: referralDate,
-    referred_facility: referredFacility,
-    tb_diagnosed: tbDiagnosed,
+    referred_facility: referredFacility || null,
+    tb_diagnosed: tbDiagnosed || null,
     tb_diagnosis_date: tbDiagnosisDate,
-    tb_type: tbType,
+    tb_type: tbType || null,
     att_start_date: attStartDate,
     att_completion_date: attCompletionDate,
-    hiv_status: hivStatus,
-    art_status: artStatus,
-    art_number: artNumber,
-    nikshay_abha_id: nikshayAbhaId,
+    hiv_status: hivStatus || null,
+    art_status: artStatus || null,
+    art_number: artNumber || null,
+    nikshay_abha_id: nikshayAbhaId || null,
     registration_date: nikshayRegistrationDate,
-    remarks: remarks,
+    remarks: remarks || null,
     kobo_uuid: koboUuid,
     kobo_id: koboId,
-    serial_number: serialNumber,
+    serial_number: serialNumber || null,
     latitude,
     longitude
   };
