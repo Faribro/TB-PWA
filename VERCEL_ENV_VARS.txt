@@ -1,0 +1,67 @@
+═══════════════════════════════════════════════════════════════════════════
+VERCEL ENVIRONMENT VARIABLES - COPY TO DASHBOARD
+═══════════════════════════════════════════════════════════════════════════
+Go to: https://vercel.com/faribros-projects/tb-pwa/settings/environment-variables
+Add each variable below (select "Production" environment)
+
+─────────────────────────────────────────────────────────────────────────────
+Variable: NEXT_PUBLIC_SUPABASE_URL
+Value: https://wwcgybgvfulotflitogu.supabase.co
+Environment: Production
+─────────────────────────────────────────────────────────────────────────────
+
+─────────────────────────────────────────────────────────────────────────────
+Variable: NEXT_PUBLIC_SUPABASE_ANON_KEY
+Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2d5Ymd2ZnVsb3RmbGl0b2d1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2ODk5NDEsImV4cCI6MjA4ODI2NTk0MX0.-6bbuayttYMEhSKih0T4yUU_FFFvuKcWtrxW9yiwDE8
+Environment: Production
+─────────────────────────────────────────────────────────────────────────────
+
+─────────────────────────────────────────────────────────────────────────────
+Variable: SUPABASE_SERVICE_ROLE_KEY
+Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2d5Ymd2ZnVsb3RmbGl0b2d1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjY4OTk0MSwiZXhwIjoyMDg4MjY1OTQxfQ.aJIg860fGCJf7bVVV93Pdcev2A81h9FRxcBCU49DE_M
+Environment: Production
+─────────────────────────────────────────────────────────────────────────────
+
+─────────────────────────────────────────────────────────────────────────────
+Variable: GOOGLE_CLIENT_ID
+Value: 224533121737-bqufgmoukeohomosvt0o144du46pm0op.apps.googleusercontent.com
+Environment: Production
+─────────────────────────────────────────────────────────────────────────────
+
+─────────────────────────────────────────────────────────────────────────────
+Variable: GOOGLE_CLIENT_SECRET
+Value: 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
+Environment: Production
+─────────────────────────────────────────────────────────────────────────────
+
+─────────────────────────────────────────────────────────────────────────────
+Variable: NEXTAUTH_SECRET
+Value: e1ec36ccfface5abd4d6075ea83f627ee932b3bd105ff4e364589c8ed9283166
+Environment: Production
+─────────────────────────────────────────────────────────────────────────────
+
+─────────────────────────────────────────────────────────────────────────────
+Variable: AUTH_SECRET
+Value: e1ec36ccfface5abd4d6075ea83f627ee932b3bd105ff4e364589c8ed9283166
+Environment: Production
+─────────────────────────────────────────────────────────────────────────────
+
+─────────────────────────────────────────────────────────────────────────────
+Variable: NEXTAUTH_URL
+Value: https://tb-pwa.vercel.app
+Environment: Production
+─────────────────────────────────────────────────────────────────────────────
+
+─────────────────────────────────────────────────────────────────────────────
+Variable: AUTH_URL
+Value: https://tb-pwa.vercel.app
+Environment: Production
+─────────────────────────────────────────────────────────────────────────────
+
+═══════════════════════════════════════════════════════════════════════════
+AFTER ADDING ALL VARIABLES:
+1. Click "Save" for each variable
+2. Redeploy: git commit --allow-empty -m "redeploy" && git push
+3. Wait 2-3 minutes for deployment
+4. Test login at https://tb-pwa.vercel.app
+═══════════════════════════════════════════════════════════════════════════
