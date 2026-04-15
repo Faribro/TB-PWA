@@ -50,7 +50,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           clearTimeout(timeoutId);
           
           if (error || !dbData) {
-            console.log(`Login rejected for ${user.email}: not in profiles`);
+            console.error(`❌ Login rejected for ${user.email}`);
+            console.error('Error:', error);
+            console.error('Data:', dbData);
             return false;
           }
           
