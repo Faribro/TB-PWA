@@ -246,29 +246,36 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     setIsSubmitting(true);
 
     try {
-      const updates = {
-        ...formData,
-        'Serial Number': localPatient.serial_number || localPatient.id,
-        'KoboUUID': localPatient.kobo_uuid,
-        client_timestamp: new Date().toISOString()
+      const payload = {
+        id: localPatient.id,
+        referral_date: formData['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
+        referred_facility: formData['Name of facility where referred to (Give code/name of all facilities)'],
+        tb_diagnosed: formData['TB diagnosed (Y/N)'],
+        tb_diagnosis_date: formData['Date of TB Diagnosed (dd/mm/yy)'],
+        tb_type: formData['Type of TB Diagnosed (P/EP)'],
+        att_start_date: formData['Date of starting ATT (dd/mm/yyyy)'],
+        att_completion_date: formData['Date of Treatment Completion (dd/mm/yyyy)'],
+        hiv_status: formData['HIV Status (Positive/Negative/Unknown)'],
+        art_status: formData['Status at the time of referral (Pre ART/On ART)'],
+        art_number: formData['ART Number (if on ART at the time of referral)'],
+        nikshay_abha_id: formData['NIKSHAY/ABHA ID'],
+        remarks: formData['Remarks'],
+        updated_at: new Date().toISOString()
       };
 
-      const res = await fetch('/api/patient-sync', {
+      const res = await fetch('/api/patients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          patientId: localPatient.id,
-          koboUuid: localPatient.kobo_uuid,
-          updates
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
-        setError('Sync failed');
-        throw new Error('Sync failed');
+        const errorData = await res.json();
+        setError(errorData.error || 'Sync failed');
+        throw new Error(errorData.error || 'Sync failed');
       }
 
-      const result = await res.json();
+      const { result } = await res.json();
       setSyncing();
 
       await mutate(
@@ -286,11 +293,11 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       reset(getValues(), { keepValues: true });
       setHasUnsavedChanges(false);
       
-      toast.success('✅ Clinical data synced', { id: 'clinical-save' });
+      toast.success('✅ Clinical data saved', { id: 'clinical-save' });
     } catch (error) {
       console.error('Save failed:', error);
       setError('Failed to sync');
-      toast.error('❌ Failed to sync. Please try again.');
+      toast.error('❌ Failed to save. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -335,50 +342,36 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     setIsSavingDemographics(true);
 
     try {
-      const updates = {
-        ...editedDemographics,
-        'Serial Number': localPatient.serial_number || localPatient.id,
-        'KoboUUID': localPatient.kobo_uuid,
-        client_timestamp: new Date().toISOString()
+      const payload = {
+        id: localPatient.id,
+        inmate_name: editedDemographics.inmate_name,
+        age: editedDemographics.age,
+        sex: editedDemographics.sex,
+        contact_number: editedDemographics.contact_number,
+        address: editedDemographics.address,
+        facility_name: editedDemographics.facility_name,
+        date_of_birth: editedDemographics.date_of_birth,
+        screening_date: editedDemographics.screening_date,
+        father_husband_name: editedDemographics.father_husband_name,
+        inmate_type: editedDemographics.inmate_type,
+        staff_name: editedDemographics.staff_name,
+        symptoms_10s: editedDemographics.symptoms_10s,
+        tb_past_history: editedDemographics.tb_past_history,
+        updated_at: new Date().toISOString()
       };
 
-      // Retry logic for transient errors
-      let res: Response | null = null;
-      let retryCount = 0;
-      const maxRetries = 3;
-      const retryDelay = 1000;
+      const res = await fetch('/api/patients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
-      while (retryCount < maxRetries) {
-        res = await fetch('/api/patient-sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            patientId: localPatient.id,
-            koboUuid: localPatient.kobo_uuid,
-            updates
-          })
-        });
-
-        if (res.ok) break;
-
-        // Retry on 500, 503, 504 (transient server errors)
-        const status = res.status;
-        const isTransientError = status === 500 || status === 503 || status === 504;
-
-        if (!isTransientError || retryCount === maxRetries - 1) {
-          const errorText = await res.text();
-          console.error('[handleSaveDemographics] API error:', status, errorText);
-          throw new Error(`Sync failed: ${status}`);
-        }
-
-        retryCount++;
-        console.warn(`[handleSaveDemographics] Transient error ${status}, retry ${retryCount}/${maxRetries}...`);
-        toast.info(`Server busy, retrying... (${retryCount}/${maxRetries})`, { id: 'demo-retry' });
-        await new Promise(resolve => setTimeout(resolve, retryDelay * retryCount));
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Save failed');
       }
 
-      if (!res) throw new Error('No response received');
-      const result = await res.json();
+      const { result } = await res.json();
 
       // Optimistic update - update local state immediately
       const updatedPatient = { ...localPatient, ...editedDemographics };
@@ -410,14 +403,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       const currentValues = getValues();
       reset(currentValues, { keepValues: true });
 
-      if (result.warnings?.length > 0) {
-        toast.warning(`⚠️ ${result.warnings[0]}`, { id: 'demo-save' });
-      } else if (result.googleSheets?.success) {
-        const rows = result.googleSheets?.data?.rowsUpdated || 0;
-        toast.success(`✅ Demographics synced — Sheets updated: ${rows} row(s).`, { id: 'demo-save' });
-      } else {
-        toast.success('✅ Demographics saved locally', { id: 'demo-save' });
-      }
+      toast.success('✅ Demographics saved', { id: 'demo-save' });
     } catch (error) {
       // Still update local state even if server sync fails
       const updatedPatient = { ...localPatient, ...editedDemographics };
@@ -432,7 +418,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       // Save to localStorage as backup
       localStorage.setItem(`patient-${localPatient.id}-backup`, JSON.stringify(updatedPatient));
       
-      toast.error('❌ Failed to sync with server. Changes saved locally.', { id: 'demo-save', duration: 5000 });
+      toast.error('❌ Failed to save. Changes saved locally.', { id: 'demo-save', duration: 5000 });
       console.error('[handleSaveDemographics] Save failed:', error);
     } finally {
       setIsSavingDemographics(false);
@@ -444,28 +430,24 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     setIsSubmitting(true);
 
     try {
-      const updates = {
-        'TB diagnosed (Y/N)': 'N',
-        'closure_reason': reason,
-        'Remarks': `Loop closed: ${reason}`,
-        'Serial Number': localPatient.serial_number || localPatient.id,
-        'KoboUUID': localPatient.kobo_uuid,
-        client_timestamp: new Date().toISOString()
+      const payload = {
+        id: localPatient.id,
+        tb_diagnosed: 'N',
+        closure_reason: reason,
+        remarks: `Loop closed: ${reason}`,
+        updated_at: new Date().toISOString()
       };
 
-      const res = await fetch('/api/patient-sync', {
+      const res = await fetch('/api/patients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          patientId: localPatient.id,
-          koboUuid: localPatient.kobo_uuid,
-          updates
-        })
+        body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error('Sync failed');
-
-      const result = await res.json();
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Save failed');
+      }
 
       await mutate(
         (key: unknown) => {
@@ -481,12 +463,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       setInternalOpen(false);
       onClose();
 
-      if (result.googleSheets?.success) {
-        const rows = result.googleSheets?.data?.rowsUpdated || 0;
-        toast.success(`✅ Loop closed & synced — Sheets: ${rows} row(s).`, { id: 'close-loop' });
-      } else {
-        toast.success('✅ Loop closed & synced to Supabase', { id: 'close-loop' });
-      }
+      toast.success('✅ Loop closed successfully', { id: 'close-loop' });
     } catch (error) {
       toast.error('❌ Failed to close loop.');
     } finally {

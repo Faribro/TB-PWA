@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { createServerClient } from '@/lib/supabase-server-admin';
+import { getSupabaseClient } from '@/lib/supabase-server';
 import { normalizeRole, Role } from '@/lib/constants/roles';
 
 export const maxDuration = 60;
@@ -217,6 +218,51 @@ export async function GET(request: NextRequest) {
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error',
       code: 'INTERNAL_ERROR'
+    }, { status: 500 });
+  }
+}
+
+// POST - Upsert patient data (bypasses RLS with service role)
+export async function POST(request: NextRequest) {
+  try {
+    const session = await auth();
+    
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { id, ...data } = body;
+    
+    if (!id) {
+      return NextResponse.json({ error: 'Patient ID required' }, { status: 400 });
+    }
+
+    // Use service role client to bypass RLS
+    const supabase = getSupabaseClient();
+    
+    const { data: result, error } = await supabase
+      .from('patients')
+      .upsert({ id, ...data }, { onConflict: 'id' })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[patients/POST] Upsert error:', error);
+      return NextResponse.json({ 
+        error: error.message,
+        code: error.code 
+      }, { status: 400 });
+    }
+
+    console.log(`[patients/POST] ✅ Upserted patient ${id} by ${session.user.email}`);
+    
+    return NextResponse.json({ result }, { status: 200 });
+  } catch (err) {
+    console.error('[patients/POST] Exception:', err);
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      message: err instanceof Error ? err.message : 'Unknown error'
     }, { status: 500 });
   }
 }
