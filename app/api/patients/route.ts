@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { createServerClient } from '@/lib/supabase-server-admin';
 import { getSupabaseClient } from '@/lib/supabase-server';
 import { normalizeRole, Role } from '@/lib/constants/roles';
+import { logAudit } from '@/lib/audit-log';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -241,9 +242,42 @@ export async function POST(request: NextRequest) {
     // Use service role client to bypass RLS
     const supabase = getSupabaseClient();
     
+    // Security: Verify patient exists and user has access
+    const { data: existingPatient, error: fetchError } = await supabase
+      .from('patients')
+      .select('id, screening_state')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingPatient) {
+      return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
+    }
+
+    // Check state-scoped access (unless admin/PM)
+    const userRole = session.user.role;
+    const userState = session.user.state;
+    const isAdmin = userRole === Role.ADMIN || userRole === Role.PROGRAM_MANAGER;
+    
+    if (!isAdmin && userState && userState !== 'All' && existingPatient.screening_state !== userState) {
+      console.warn(`[patients/POST] Access denied: ${session.user.email} tried to update patient in ${existingPatient.screening_state}`);
+      return NextResponse.json({ 
+        error: 'Access denied',
+        message: `You can only update patients in ${userState}` 
+      }, { status: 403 });
+    }
+    
+    // Store old data for audit log
+    const oldData = existingPatient;
+    
     const { data: result, error } = await supabase
       .from('patients')
-      .upsert({ id, ...data }, { onConflict: 'id' })
+      .upsert({ 
+        id, 
+        ...data,
+        updated_at: new Date().toISOString(),
+        synced_to_sheets: false,
+        sheets_sync_attempts: 0
+      }, { onConflict: 'id' })
       .select()
       .single();
 
@@ -254,6 +288,18 @@ export async function POST(request: NextRequest) {
         code: error.code 
       }, { status: 400 });
     }
+
+    // Log to audit trail (fire-and-forget)
+    logAudit({
+      table_name: 'patients',
+      record_id: id,
+      action: 'UPDATE',
+      old_data: oldData,
+      new_data: result,
+      changed_by: session.user.email || 'unknown',
+      ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+      user_agent: request.headers.get('user-agent') || undefined
+    }).catch(err => console.error('[patients/POST] Audit log failed:', err));
 
     console.log(`[patients/POST] ✅ Upserted patient ${id} by ${session.user.email}`);
     

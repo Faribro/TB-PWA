@@ -263,6 +263,28 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         updated_at: new Date().toISOString()
       };
 
+      // Optimistic update - update local state immediately
+      const optimisticPatient = { ...localPatient, ...payload };
+      setLocalPatient(optimisticPatient);
+      
+      // Update SWR cache optimistically
+      mutate(
+        (key: unknown) => {
+          if (Array.isArray(key) &&
+              ['patients', 'allPatients', 'patient'].includes(key[0] as string)) return true;
+          return false;
+        },
+        (currentData: any) => {
+          if (Array.isArray(currentData)) {
+            return currentData.map((p: any) => 
+              p.id === localPatient.id ? optimisticPatient : p
+            );
+          }
+          return currentData;
+        },
+        { revalidate: false }
+      );
+
       const res = await fetch('/api/patients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -271,13 +293,25 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       if (!res.ok) {
         const errorData = await res.json();
+        // Revert optimistic update on error
+        setLocalPatient(localPatient);
+        mutate(
+          (key: unknown) => {
+            if (Array.isArray(key) &&
+                ['patients', 'allPatients', 'patient'].includes(key[0] as string)) return true;
+            return false;
+          },
+          undefined,
+          { revalidate: true }
+        );
         setError(errorData.error || 'Sync failed');
         throw new Error(errorData.error || 'Sync failed');
       }
 
       const { result } = await res.json();
       setSyncing();
-
+      
+      // Revalidate to ensure consistency
       await mutate(
         (key: unknown) => {
           if (Array.isArray(key) &&
@@ -305,10 +339,10 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
   // Realtime listener for sync confirmation
   useEffect(() => {
-    if (!patient?.id || status.state !== 'syncing') return;
+    if (!patient?.id) return;
 
     const channel = supabaseClient
-      .channel(`sync-confirm-${patient.id}`)
+      .channel(`patient-updates-${patient.id}`)
       .on(
         'postgres_changes',
         {
@@ -318,25 +352,35 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
           filter: `id=eq.${patient.id}`
         },
         (payload) => {
-          if (payload.new.synced_to_sheets === true) {
+          console.log('[PatientDetailDrawer] Realtime update received:', payload.new);
+          
+          // Update local state with new data
+          setLocalPatient(payload.new);
+          setEditedDemographics(mapDemographics(payload.new));
+          
+          // Update SWR cache
+          mutate(
+            (key: unknown) => {
+              if (Array.isArray(key) &&
+                  ['patients', 'allPatients', 'patient'].includes(key[0] as string)) return true;
+              return false;
+            },
+            undefined,
+            { revalidate: false }
+          );
+          
+          // Check if sheets sync completed
+          if (payload.new.synced_to_sheets === true && status.state === 'syncing') {
             setSynced(payload.new.sheets_synced_at || new Date().toISOString());
-            supabaseClient.removeChannel(channel);
           }
         }
       )
       .subscribe();
 
-    // Fallback timeout: 15s
-    const timeout = setTimeout(() => {
-      setSynced(new Date().toISOString());
-      supabaseClient.removeChannel(channel);
-    }, 15000);
-
     return () => {
-      clearTimeout(timeout);
       supabaseClient.removeChannel(channel);
     };
-  }, [patient?.id, status.state, setSynced]);
+  }, [patient?.id, status.state, setSynced, mutate]);
 
   const handleSaveDemographics = async () => {
     setIsSavingDemographics(true);
