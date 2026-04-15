@@ -2,6 +2,7 @@ import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
 import { createClient } from "@supabase/supabase-js"
 import { normalizeRole } from "@/lib/constants/roles"
+import { getCachedProfile, setCachedProfile } from "@/lib/auth-cache"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,22 +32,30 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (!user?.email) return false;
       
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        // Check cache first (eliminates DB call for repeat logins)
+        let data = getCachedProfile(user.email);
         
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('email, is_active, role, state, district, name')
-          .eq('email', user.email)
-          .eq('is_active', true)
-          .abortSignal(controller.signal)
-          .maybeSingle();
-        
-        clearTimeout(timeoutId);
-        
-        if (error || !data) {
-          console.log(`Login rejected for ${user.email}: not in profiles`);
-          return false;
+        if (!data) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          
+          const { data: dbData, error } = await supabase
+            .from('profiles')
+            .select('email, is_active, role, state, district, name')
+            .eq('email', user.email)
+            .eq('is_active', true)
+            .abortSignal(controller.signal)
+            .maybeSingle();
+          
+          clearTimeout(timeoutId);
+          
+          if (error || !dbData) {
+            console.log(`Login rejected for ${user.email}: not in profiles`);
+            return false;
+          }
+          
+          data = dbData;
+          setCachedProfile(user.email, data);
         }
         
         // Store profile data in user object for jwt callback

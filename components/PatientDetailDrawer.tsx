@@ -111,6 +111,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const [showCloseLoop, setShowCloseLoop] = useState(false);
   const [isEditingDemographics, setIsEditingDemographics] = useState(false);
   const [isSavingDemographics, setIsSavingDemographics] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(isOpen);
 
   const { watch, getValues, reset, setValue, formState: { isDirty } } = useForm<PatientFormData>({
     defaultValues: {
@@ -124,6 +125,11 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       'Remarks': patient?.remarks || ''
     }
   });
+
+  // Sync internal open state with prop
+  useEffect(() => {
+    setInternalOpen(isOpen);
+  }, [isOpen]);
 
   useEffect(() => {
     if (localPatient) {
@@ -162,6 +168,12 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   });
 
   const [editedDemographics, setEditedDemographics] = useState(mapDemographics(localPatient));
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Track unsaved changes (form isDirty OR demographics editing)
+  useEffect(() => {
+    setHasUnsavedChanges(isDirty || isEditingDemographics);
+  }, [isDirty, isEditingDemographics]);
 
   // Re-sync demographics when a new patient is opened
   useEffect(() => {
@@ -192,9 +204,20 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     }
   }, [localPatient]);
 
-  const handleClose = () => {
-    if (isDirty && !window.confirm('You have unsaved changes. Close anyway?')) return;
-    onClose();
+  const handleClose = (open: boolean) => {
+    // If trying to close (open=false) and has unsaved changes, block it
+    if (!open && hasUnsavedChanges) {
+      if (!window.confirm('You have unsaved changes. Close anyway?')) {
+        return; // Block close
+      }
+      // User confirmed, clear unsaved state
+      setHasUnsavedChanges(false);
+    }
+    
+    if (!open) {
+      setInternalOpen(false);
+      onClose();
+    }
   };
 
   const hotkeys = useMemo(() => ({
@@ -205,8 +228,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         else handleSaveClinical();
       }
     },
-    'escape': () => { if (isOpen && !isSubmitting) handleClose(); }
-  }), [isOpen, isSubmitting, isSavingDemographics, isEditingDemographics, isDirty]);
+    'escape': () => { if (isOpen && !isSubmitting) handleClose(false); }
+  }), [isOpen, isSubmitting, isSavingDemographics, isEditingDemographics, hasUnsavedChanges]);
 
   useHotkeys(hotkeys);
 
@@ -258,6 +281,10 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         { revalidate: true }
       );
       onUpdate();
+      
+      // Clear isDirty after successful save
+      reset(getValues(), { keepValues: true });
+      setHasUnsavedChanges(false);
       
       toast.success('✅ Clinical data synced', { id: 'clinical-save' });
     } catch (error) {
@@ -316,7 +343,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       };
 
       // Retry logic for transient errors
-      let res: Response;
+      let res: Response | null = null;
       let retryCount = 0;
       const maxRetries = 3;
       const retryDelay = 1000;
@@ -350,7 +377,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         await new Promise(resolve => setTimeout(resolve, retryDelay * retryCount));
       }
 
-      const result = await res!.json();
+      if (!res) throw new Error('No response received');
+      const result = await res.json();
 
       // Optimistic update - update local state immediately
       const updatedPatient = { ...localPatient, ...editedDemographics };
@@ -375,7 +403,12 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       );
       
       setIsEditingDemographics(false);
+      setHasUnsavedChanges(false);
       onUpdate();
+
+      // Update form default values to mark changes as clean
+      const currentValues = getValues();
+      reset(currentValues, { keepValues: true });
 
       if (result.warnings?.length > 0) {
         toast.warning(`⚠️ ${result.warnings[0]}`, { id: 'demo-save' });
@@ -390,6 +423,11 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       const updatedPatient = { ...localPatient, ...editedDemographics };
       setLocalPatient(updatedPatient);
       setIsEditingDemographics(false);
+      setHasUnsavedChanges(false);
+      
+      // Update form default values to mark changes as clean
+      const currentValues = getValues();
+      reset(currentValues, { keepValues: true });
       
       // Save to localStorage as backup
       localStorage.setItem(`patient-${localPatient.id}-backup`, JSON.stringify(updatedPatient));
@@ -439,6 +477,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         { revalidate: true }
       );
       onUpdate();
+      setHasUnsavedChanges(false);
+      setInternalOpen(false);
       onClose();
 
       if (result.googleSheets?.success) {
@@ -459,11 +499,41 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     [localPatient]
   );
 
-  if (!localPatient || !patient) return null;
+  if (!patient) return null;
+
+  if (!localPatient) {
+    return (
+      <Sheet open={internalOpen} onOpenChange={handleClose}>
+        <SheetContent hideCloseButton className="w-[95vw] sm:max-w-[650px] md:max-w-[750px] lg:max-w-[850px] !z-[500] p-0 flex flex-col overflow-hidden">
+          <div className="flex items-center justify-center h-full">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-12 h-12 border-4 border-slate-200 border-t-slate-600 rounded-full animate-spin" />
+              <p className="text-sm font-medium text-slate-500">Loading patient data...</p>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
 
   return (
-    <Sheet open={isOpen} onOpenChange={handleClose}>
-      <SheetContent className="w-[95vw] sm:max-w-[650px] md:max-w-[750px] lg:max-w-[850px] !z-[500] p-0 flex flex-col overflow-hidden">
+    <Sheet open={internalOpen} onOpenChange={handleClose}>
+      <SheetContent 
+        hideCloseButton
+        className="w-[95vw] sm:max-w-[650px] md:max-w-[750px] lg:max-w-[850px] !z-[500] p-0 flex flex-col overflow-hidden"
+        onEscapeKeyDown={(e) => {
+          if (hasUnsavedChanges) {
+            e.preventDefault();
+            handleClose(false);
+          }
+        }}
+        onPointerDownOutside={(e) => {
+          if (hasUnsavedChanges) {
+            e.preventDefault();
+            handleClose(false);
+          }
+        }}
+      >
         {!isAuthorized ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
             <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
@@ -510,7 +580,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                     />
                   </div>
                 </div>
-                <button onClick={handleClose} className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center flex-shrink-0 transition-colors duration-150" aria-label="Close drawer">
+                <button onClick={() => handleClose(false)} className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center flex-shrink-0 transition-colors duration-150" aria-label="Close drawer">
                   <X className="w-4 h-4 text-slate-500" />
                 </button>
               </div>

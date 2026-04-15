@@ -107,20 +107,40 @@ export async function POST(request: NextRequest) {
     const maxRetries = 3;
 
     while (retryCount < maxRetries) {
-      let updateQuery = supabase
+      // Verify patient exists and check ownership
+      const { data: existingPatient, error: fetchError } = await supabase
+        .from('patients')
+        .select('id, screening_state')
+        .eq('id', patientId)
+        .single();
+
+      if (fetchError || !existingPatient) {
+        return NextResponse.json(
+          { success: false, error: 'PATIENT_NOT_FOUND' },
+          { status: 404 }
+        );
+      }
+
+      // Check state-scoped access
+      if (!isServiceRoleAuth && scope.state && existingPatient.screening_state !== scope.state) {
+        return NextResponse.json(
+          { success: false, error: 'UNAUTHORIZED_STATE_ACCESS' },
+          { status: 403 }
+        );
+      }
+
+      // Update existing patient (no upsert needed - patient already exists)
+      const result = await supabase
         .from('patients')
         .update({
           ...supabaseUpdates,
           synced_to_sheets: false,
           sheets_sync_attempts: 0
         })
-        .eq('id', patientId);
+        .eq('id', patientId)
+        .select()
+        .single();
 
-      if (!isServiceRoleAuth && scope.state) {
-        updateQuery = updateQuery.eq('screening_state', scope.state);
-      }
-
-      const result = await updateQuery.select().single();
       updatedPatient = result.data;
       dbError = result.error;
 
@@ -153,8 +173,8 @@ export async function POST(request: NextRequest) {
 
     if (!updatedPatient) {
       return NextResponse.json(
-        { success: false, error: 'PATIENT_NOT_FOUND' },
-        { status: 404 }
+        { success: false, error: 'UPDATE_FAILED' },
+        { status: 500 }
       );
     }
 

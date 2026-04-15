@@ -46,7 +46,10 @@ export async function GET(request: NextRequest) {
     // Parse pagination params
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
-    const requestedPageSize = Math.max(1, parseInt(searchParams.get('pageSize') ?? '100000', 10));
+    const requestedPageSize = Math.max(1, parseInt(searchParams.get('pageSize') ?? '5000', 10)); // Reduced from 100000 to 5000
+    
+    // Cap at 10000 to prevent timeouts
+    const cappedPageSize = Math.min(requestedPageSize, 10000);
     
     // Extract filter params
     const filterState = searchParams.get('state');
@@ -85,8 +88,8 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // NO RECORD LIMITS - use requestedPageSize directly
-    const maxRecords = requestedPageSize;
+    // NO RECORD LIMITS - use cappedPageSize to prevent timeouts
+    const maxRecords = cappedPageSize;
     
     const batchSize = 1000; // Supabase hard limit per query
     const offset = (page - 1) * maxRecords;

@@ -1071,15 +1071,17 @@ export default function Vertex({
                         <p className="text-[11px] font-bold text-blue-600 uppercase tracking-widest">Active Intelligence Feed</p>
                       </div>
                     </div>
-                    <Button
-                      onClick={handleClearDate}
-                      variant="ghost"
-                      size="sm"
-                      className="text-slate-400 hover:text-slate-950 hover:bg-slate-100 rounded-xl font-bold uppercase text-[10px] tracking-widest border border-transparent hover:border-slate-200 px-4 h-10"
-                    >
-                      <X className="w-4 h-4 mr-2" />
-                      Close
-                    </Button>
+                    {!selectedPatient && (
+                      <Button
+                        onClick={handleClearDate}
+                        variant="ghost"
+                        size="sm"
+                        className="text-slate-400 hover:text-slate-950 hover:bg-slate-100 rounded-xl font-bold uppercase text-[10px] tracking-widest border border-transparent hover:border-slate-200 px-4 h-10"
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Close
+                      </Button>
+                    )}
                   </div>
 
                   <ScrollArea className="flex-1 px-8 py-8">
