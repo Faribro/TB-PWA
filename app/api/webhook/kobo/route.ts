@@ -8,6 +8,7 @@ export const maxDuration = 60;
 const KOBO_WEBHOOK_SECRET = process.env.KOBO_WEBHOOK_SECRET
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const GOOGLE_SCRIPT_WEBHOOK_URL = process.env.GOOGLE_SCRIPT_WEBHOOK_URL
 
 /**
  * Retry helper with exponential backoff
@@ -135,8 +136,48 @@ export async function POST(req: NextRequest) {
     
     if (result.success) {
       console.log('[webhook] ✅ Upserted:', uuid);
+      
+      // 7. Sync to Google Sheets (fire-and-forget with logging)
+      if (GOOGLE_SCRIPT_WEBHOOK_URL) {
+        try {
+          // Send minimal payload to Apps Script for sheet sync
+          const sheetPayload = {
+            kobo_uuid: transformed.kobo_uuid,
+            inmate_name: transformed.inmate_name,
+            screening_date: transformed.screening_date,
+            screening_state: transformed.screening_state,
+            screening_district: transformed.screening_district,
+            facility_name: transformed.facility_name,
+            facility_type: transformed.facility_type,
+            staff_name: transformed.staff_name,
+            submitted_on: transformed.submitted_on,
+            unique_id: transformed.unique_id,
+            serial_number: transformed.serial_number,
+            _raw: body // Include full raw data for Apps Script mapping
+          };
+          
+          fetch(GOOGLE_SCRIPT_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sheetPayload)
+          }).then(async (res) => {
+            if (res.ok) {
+              console.log('[webhook] ✅ Synced to Google Sheets:', uuid);
+            } else {
+              console.error('[webhook] ⚠️ Sheets sync returned:', res.status);
+            }
+          }).catch((err) => {
+            console.error('[webhook] ⚠️ Sheets sync failed (non-blocking):', err.message);
+          });
+        } catch (err: any) {
+          console.error('[webhook] ⚠️ Sheets sync error (non-blocking):', err.message);
+        }
+      } else {
+        console.log('[webhook] ℹ️ No GOOGLE_SCRIPT_WEBHOOK_URL configured, skipping Sheets sync');
+      }
+      
       return NextResponse.json(
-        { status: 'success', uuid: String(uuid) },
+        { status: 'success', uuid: String(uuid), sheets_sync: 'queued' },
         {
           status: 200,
           headers: {

@@ -407,20 +407,20 @@ function processSymptoms(symptomsRaw: any, mappings: any): string {
 export interface MappedPatientData {
   staff_name: string;
   submitted_on: string;
-  state: string;
-  district: string;
+  screening_state: string | null;
+  screening_district: string | null;
   facility_name: string;
-  facility_type: string;
+  facility_type: string | null;
   screening_date: string | null;
   unique_id: string;
   inmate_name: string;
   inmate_type: string;
-  father_husband_name: string;
+  father_husband_name: string | null;
   date_of_birth: string | null;
-  age: string;
-  sex: string;
-  contact_number: string;
-  address: string;
+  age: string | null;
+  sex: string | null;
+  contact_number: string | null;
+  address: string | null;
   chest_xray_result: string;
   symptoms_10s: string;
   tb_past_history: string;
@@ -432,10 +432,10 @@ export interface MappedPatientData {
   att_start_date: string | null;
   att_completion_date: string | null;
   hiv_status: string;
-  art_status_at_referral: string;
+  art_status: string;
   art_number: string;
   nikshay_abha_id: string;
-  nikshay_registration_date: string | null;
+  registration_date: string | null;
   remarks: string;
   kobo_uuid: string;
   kobo_id: string;
@@ -596,9 +596,9 @@ export function mapKoboPayloadToSupabase(
     'Date_of_Birth'
   ]));
 
-  // Column 12: Age (4-way fallback) - convert to number or null
+  // Column 12: Age (4-way fallback) - convert to string or null
   const ageRaw = getField(payload, ['grp_demo/age', 'age']);
-  const age = ageRaw && String(ageRaw).trim() !== '' ? parseInt(String(ageRaw)) : null;
+  const age = ageRaw && String(ageRaw).trim() !== '' ? String(ageRaw) : null;
 
   // Column 13: Sex (4-way fallback)
   const sexRaw = String(getField(payload, [
@@ -827,7 +827,7 @@ export function mapKoboPayloadToSupabase(
     sex: sex || null,
     contact_number: contactNumber || null,
     address: address || null,
-    xray_result: chestXrayResult || null,
+    chest_xray_result: chestXrayResult || null,
     symptoms_10s: symptoms || null,
     tb_past_history: tbPastHistory || 'No',
     referral_date: referralDate,
@@ -847,7 +847,28 @@ export function mapKoboPayloadToSupabase(
     kobo_id: koboId || null,
     serial_number: serialNumber || null,
     latitude,
-    longitude
+    longitude,
+    microplan_block: microplanBlock || '',
+    symptom_cough_2weeks: symptomCough2weeks,
+    symptom_fever: symptomFever,
+    symptom_night_sweats: symptomNightSweats,
+    symptom_weight_loss: symptomWeightLoss,
+    symptom_haemoptysis: symptomHaemoptysis,
+    symptom_chest_pain: symptomChestPain,
+    symptom_breathlessness: symptomBreathlessness,
+    symptom_lymphadenopathy: symptomLymphadenopathy,
+    symptom_loss_of_appetite: symptomLossOfAppetite,
+    symptom_other: symptomOther,
+    xray_done: xrayDone,
+    cbnaat_done: cbnaatDone,
+    referred_for_diagnosis: referredForDiagnosis,
+    dr_tb: drTb,
+    att_started: attStarted,
+    symptom_other_detail: symptomOtherDetail || '',
+    cbnaat_result: cbnaatResult || '',
+    treatment_regimen: treatmentRegimen || '',
+    dots_provider: dotsProvider || '',
+    treatment_status: treatmentStatus || ''
   };
 }
 

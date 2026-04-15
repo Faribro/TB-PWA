@@ -125,6 +125,19 @@ const allPatientsFetcher = async (
       if (!isTransientError || retryCount === maxRetries - 1) {
         const errorText = await response.text();
         console.error('[useSWRPatients] API error:', status, errorText);
+        
+        // Try to return cached data if available
+        const cached = localStorage.getItem('swr-patients-cache');
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            console.warn('[useSWRPatients] Using cached data due to API failure');
+            return parsed.data || [];
+          } catch (e) {
+            console.error('[useSWRPatients] Failed to parse cached data');
+          }
+        }
+        
         throw new Error(`API error: ${status}`);
       }
 

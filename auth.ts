@@ -28,15 +28,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('email, is_active')
+          .select('email, is_active, role, state, district, name')
           .eq('email', user.email)
           .eq('is_active', true)
-          .single();
+          .maybeSingle();
         
         if (error || !data) {
           console.log(`Login rejected for ${user.email}: not in profiles`);
           return false;
         }
+        
+        // Store profile data in user object for jwt callback
+        (user as any).profileData = data;
         return true;
       } catch (err) {
         console.error('SignIn callback error:', err);
@@ -44,33 +47,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
     },
     async jwt({ token, user }) {
-      if (user?.email) {
-        try {
-          const { data } = await supabase
-            .from('profiles')
-            .select('role, state, district, name')
-            .eq('email', user.email)
-            .single();
-
-          // CRITICAL FIX: Normalize role from short code to long form for RLS compatibility
-          // profiles.role stores: PM, SPM, ME, PC, admin
-          // RLS policies expect: Program Manager, State Program Manager, M&E Officer, Prison Coordinator, admin
-          const rawRole = data?.role ?? 'ME';
-          const normalizedRole = normalizeRole(rawRole) ?? 'M&E Officer';
-          
-          console.log(`[JWT] Role normalization: "${rawRole}" → "${normalizedRole}"`);
-          
-          token.role = normalizedRole;
-          token.state = data?.state ?? 'All';
-          token.district = data?.district ?? 'All';
-          token.staffName = data?.name ?? user.name;
-        } catch (err) {
-          console.error('JWT callback error:', err);
-          token.role = 'M&E Officer';
-          token.state = 'All';
-          token.district = 'All';
-          token.staffName = user.name;
-        }
+      if (user?.email && (user as any).profileData) {
+        const data = (user as any).profileData;
+        const rawRole = data.role ?? 'ME';
+        const normalizedRole = normalizeRole(rawRole) ?? 'M&E Officer';
+        
+        token.role = normalizedRole;
+        token.state = data.state ?? 'All';
+        token.district = data.district ?? 'All';
+        token.staffName = data.name ?? user.name;
       }
       return token;
     },

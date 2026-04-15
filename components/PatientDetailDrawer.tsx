@@ -48,7 +48,7 @@ const EditableField = ({ label, value, onChange, type = 'text' }: { label: strin
     <label className="block text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400 mb-1">{label}</label>
     <Input
       type={type}
-      value={value}
+      value={value || ''}
       onChange={(e) => onChange(e.target.value)}
       className={`h-10 w-full text-[13px] font-medium rounded-[10px] border-[1.5px] px-3 transition-all duration-150 outline-none ${value ? 'border-green-200 bg-green-50/50' : 'border-slate-200 bg-slate-50'} hover:bg-white focus:bg-white focus:border-blue-400 focus:ring-[3px] focus:ring-blue-500/10`}
     />
@@ -166,6 +166,27 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   // Re-sync demographics when a new patient is opened
   useEffect(() => {
     if (localPatient) {
+      // Check if there's a local backup with newer changes
+      const backup = localStorage.getItem(`patient-${localPatient.id}-backup`);
+      if (backup) {
+        try {
+          const backupPatient = JSON.parse(backup);
+          const backupDate = new Date(backupPatient.client_timestamp || 0);
+          const serverDate = new Date(localPatient.updated_at || 0);
+          
+          if (backupDate > serverDate) {
+            console.log('[PatientDetailDrawer] Using local backup with newer changes');
+            setLocalPatient(backupPatient);
+            setEditedDemographics(mapDemographics(backupPatient));
+            setIsEditingDemographics(false);
+            toast.info('📝 Restored unsaved changes from local backup', { id: 'backup-restore' });
+            return;
+          }
+        } catch (e) {
+          console.error('[PatientDetailDrawer] Failed to parse backup:', e);
+        }
+      }
+      
       setEditedDemographics(mapDemographics(localPatient));
       setIsEditingDemographics(false);
     }
@@ -331,16 +352,28 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       const result = await res!.json();
 
+      // Optimistic update - update local state immediately
+      const updatedPatient = { ...localPatient, ...editedDemographics };
+      setLocalPatient(updatedPatient);
+      
+      // Update SWR cache with new data
       await mutate(
         (key: unknown) => {
           if (Array.isArray(key) &&
               ['patients', 'allPatients', 'patient'].includes(key[0] as string)) return true;
           return false;
         },
-        undefined,
-        { revalidate: true }
+        (currentData: any) => {
+          if (Array.isArray(currentData)) {
+            return currentData.map((p: any) => 
+              p.id === localPatient.id ? updatedPatient : p
+            );
+          }
+          return currentData;
+        },
+        { revalidate: false }  // Don't revalidate immediately since we just saved
       );
-      setLocalPatient(prev => ({ ...prev, ...editedDemographics }));
+      
       setIsEditingDemographics(false);
       onUpdate();
 
@@ -350,10 +383,19 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         const rows = result.googleSheets?.data?.rowsUpdated || 0;
         toast.success(`✅ Demographics synced — Sheets updated: ${rows} row(s).`, { id: 'demo-save' });
       } else {
-        toast.success('✅ Demographics synced to Supabase', { id: 'demo-save' });
+        toast.success('✅ Demographics saved locally', { id: 'demo-save' });
       }
     } catch (error) {
-      toast.error('❌ Failed to save demographics.');
+      // Still update local state even if server sync fails
+      const updatedPatient = { ...localPatient, ...editedDemographics };
+      setLocalPatient(updatedPatient);
+      setIsEditingDemographics(false);
+      
+      // Save to localStorage as backup
+      localStorage.setItem(`patient-${localPatient.id}-backup`, JSON.stringify(updatedPatient));
+      
+      toast.error('❌ Failed to sync with server. Changes saved locally.', { id: 'demo-save', duration: 5000 });
+      console.error('[handleSaveDemographics] Save failed:', error);
     } finally {
       setIsSavingDemographics(false);
     }
@@ -786,6 +828,12 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                                   {section.id === 'nikshay' && (
                                     <div className="space-y-4">
                                       <EditableField label="NIKSHAY/ABHA ID" value={watchedNikshay} onChange={(val) => setValue('NIKSHAY/ABHA ID', val, { shouldDirty: true })} />
+                                      <EditableField 
+                                        label="Date of registration" 
+                                        value={watch('Date of registration (dd/mm/yyyy)')} 
+                                        onChange={(val) => setValue('Date of registration (dd/mm/yyyy)', val, { shouldDirty: true })} 
+                                        type="date" 
+                                      />
                                       <div>
                                         <label className="block text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1.5">Remarks</label>
                                         <VoiceInput
@@ -878,6 +926,11 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                       <div className="grid grid-cols-2 gap-3">
                         {[
                           { label: 'Screening Date', value: localPatient?.screening_date },
+                          { label: 'Date of Diagnosis', value: localPatient?.tb_diagnosis_date },
+                          { label: 'Completion Date', value: localPatient?.att_completion_date },
+                          { label: 'ART Status', value: localPatient?.art_status },
+                          { label: 'ART Number', value: localPatient?.art_number },
+                          { label: 'Registration Date', value: localPatient?.registration_date },
                           { label: 'Staff Name', value: localPatient?.staff_name || localPatient?.data_collector },
                           { label: 'Inmate Type', value: localPatient?.inmate_type },
                           { label: 'Facility Type', value: localPatient?.facility_type },

@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       'Date of starting ATT (dd/mm/yyyy)': 'att_start_date',
       'Date of Treatment Completion (dd/mm/yyyy)': 'att_completion_date',
       'HIV Status (Positive/Negative/Unknown)': 'hiv_status',
-      'Status at the time of referral (Pre ART/On ART) [If on ART at time of referral]': 'art_status',
+      'Status at the time of referral (Pre ART/On ART)': 'art_status',
       'ART Number (if on ART at the time of referral)': 'art_number',
       'NIKSHAY/ABHA ID': 'nikshay_abha_id',
       'Date of registration (dd/mm/yyyy)': 'registration_date',
