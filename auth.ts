@@ -5,7 +5,12 @@ import { normalizeRole } from "@/lib/constants/roles"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    db: { schema: 'public' },
+    global: { fetch: fetch },
+    auth: { persistSession: false, autoRefreshToken: false }
+  }
 )
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -26,12 +31,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (!user?.email) return false;
       
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
         const { data, error } = await supabase
           .from('profiles')
           .select('email, is_active, role, state, district, name')
           .eq('email', user.email)
           .eq('is_active', true)
+          .abortSignal(controller.signal)
           .maybeSingle();
+        
+        clearTimeout(timeoutId);
         
         if (error || !data) {
           console.log(`Login rejected for ${user.email}: not in profiles`);
