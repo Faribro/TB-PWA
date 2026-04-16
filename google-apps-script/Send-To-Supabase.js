@@ -14,6 +14,57 @@ const SUPABASE_CONFIG = {
 };
 
 /**
+ * Convert various date formats to ISO timestamp
+ * Handles: "14/04/26 at 4:20 PM", "16/02/26", Date objects
+ */
+function convertDateToISO_(value) {
+  if (!value) return null;
+  
+  // Already a Date object
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  
+  var str = String(value).trim();
+  if (!str) return null;
+  
+  // Already ISO format
+  if (str.match(/^\d{4}-\d{2}-\d{2}T/)) return str;
+  
+  try {
+    // Format: "14/04/26 at 4:20 PM" or "Submitted on 16/02/26 at 8:16 AM IST"
+    var match = str.match(/(\d{2})\/(\d{2})\/(\d{2})(?:\s+at\s+(\d{1,2}):(\d{2})\s+(AM|PM))?/);
+    if (match) {
+      var day = match[1];
+      var month = match[2];
+      var year = '20' + match[3];
+      var hour = match[4] ? parseInt(match[4], 10) : 0;
+      var minute = match[5] || '00';
+      var ampm = match[6];
+      
+      // Convert to 24-hour format
+      if (ampm === 'PM' && hour !== 12) hour += 12;
+      if (ampm === 'AM' && hour === 12) hour = 0;
+      
+      // Format as ISO 8601
+      return year + '-' + month + '-' + day + 'T' + 
+             ('0' + hour).slice(-2) + ':' + minute + ':00+05:30';
+    }
+    
+    // Try parsing as date
+    var date = new Date(str);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString();
+    }
+    
+    return null;
+  } catch (e) {
+    Logger.log('Date conversion error for "' + str + '": ' + e.message);
+    return null;
+  }
+}
+
+/**
  * Maps the 37-column array from TB Industrial Engine to Supabase-ready JSON
  * ✅ Verified against actual Supabase schema (43 columns)
  * ✅ id = UUID (auto-generated), unique_id = MPGWCJ00001 (PRIMARY IDENTIFIER)
@@ -23,6 +74,7 @@ function mapRowToSupabaseJson_(row) {
   // Clean and validate identifiers
   var cleanUuid = String(row[32] || '').replace(/^uuid:/i, '').trim();
   var uniqueId = String(row[7] || '').trim();
+  var submittedOn = convertDateToISO_(row[1]);
   
   return {
     // Core identifiers
@@ -32,7 +84,7 @@ function mapRowToSupabaseJson_(row) {
     
     // Staff & submission
     staff_name: row[0] || null,                  // Name of the Staff
-    submitted_on: row[1] || null,                // Submitted On
+    submitted_on: submittedOn,                   // Submitted On (converted to ISO)
     
     // Location
     screening_state: row[2] || null,             // State
@@ -41,13 +93,13 @@ function mapRowToSupabaseJson_(row) {
     facility_type: row[5] || null,               // Facility type
     
     // Screening
-    screening_date: row[6] || null,              // Date of Screening
+    screening_date: convertDateToISO_(row[6]),   // Date of Screening
     
     // Patient demographics
     inmate_name: row[8] || null,                 // Inmate Name
     inmate_type: row[9] || null,                 // Inmate type
     father_husband_name: row[10] || null,        // Father/Husband's Name
-    date_of_birth: row[11] || null,              // Date of Birth
+    date_of_birth: convertDateToISO_(row[11]),   // Date of Birth
     age: row[12] || null,                        // Age
     sex: row[13] || null,                        // Sex
     contact_number: row[14] || null,             // Contact Number
@@ -61,17 +113,17 @@ function mapRowToSupabaseJson_(row) {
     tb_past_history: row[18] || null,            // Past history of TB
     
     // Referral
-    referral_date: row[19] || null,              // Date of referral
+    referral_date: convertDateToISO_(row[19]),   // Date of referral
     referred_facility: row[20] || null,          // Name of facility referred to
     
     // Diagnosis
     tb_diagnosed: row[21] || null,               // TB diagnosed (Y/N)
-    tb_diagnosis_date: row[22] || null,          // Date of TB Diagnosed
+    tb_diagnosis_date: convertDateToISO_(row[22]), // Date of TB Diagnosed
     tb_type: row[23] || null,                    // Type of TB Diagnosed
     
     // Treatment
-    att_start_date: row[24] || null,             // Date of starting ATT
-    att_completion_date: row[25] || null,        // Date of Treatment Completion
+    att_start_date: convertDateToISO_(row[24]),  // Date of starting ATT
+    att_completion_date: convertDateToISO_(row[25]), // Date of Treatment Completion
     
     // HIV/ART
     hiv_status: row[26] || null,                 // HIV Status
@@ -80,7 +132,7 @@ function mapRowToSupabaseJson_(row) {
     
     // Registration
     nikshay_abha_id: row[29] || null,            // NIKSHAY/ABHA ID
-    registration_date: row[30] || null,          // Date of registration
+    registration_date: convertDateToISO_(row[30]), // Date of registration
     
     // Notes
     remarks: row[31] || null                     // Remarks
