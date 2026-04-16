@@ -75,7 +75,6 @@ function getHardcodedColumns(): Set<string> {
     'contact_number', 'address',
     'nikshay_abha_id', 'nikshay_id',
     'remarks', 'follow_up_notes',
-    'gps_latitude', 'gps_longitude', 'latitude', 'longitude',
     'is_active', 'current_phase',
     'created_at', 'updated_at', 'last_updated'
   ]);
@@ -173,10 +172,6 @@ function mapSheetRowToSupabase(row: Record<string, any>): Record<string, any> {
     // Additional fields
     remarks: row['Remarks'] || row['remarks'] || null,
     
-    // GPS coordinates - FIXED: Handle Google Sheets column names
-    gps_latitude: row['Latitude'] || row['gps_latitude'] || row['_gps_latitude'] || null,
-    gps_longitude: row['Longitude'] || row['gps_longitude'] || row['_gps_longitude'] || null,
-    
     // Serial Number
     serial_number: row['Serial Number'] || row['serial_number'] || null,
     
@@ -250,26 +245,42 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Sheets Sync] Upserting ${validData.length} records`);
 
-    // Direct upsert without audit logging
-    const { error } = await supabase
-      .from('patients')
-      .upsert(validData, {
-        onConflict: 'kobo_uuid',
-        ignoreDuplicates: false,
-      });
+    // Batch processing for large datasets (20k+ records)
+    const BATCH_SIZE = 500;
+    let processedCount = 0;
+    const errors: string[] = [];
 
-    if (error) {
-      console.error('[Sheets Sync] Supabase upsert failed:', error.message);
+    for (let i = 0; i < validData.length; i += BATCH_SIZE) {
+      const batch = validData.slice(i, i + BATCH_SIZE);
+      
+      const { error } = await supabase
+        .from('patients')
+        .upsert(batch, {
+          onConflict: 'id',
+          ignoreDuplicates: false,
+        });
+
+      if (error) {
+        console.error(`[Sheets Sync] Batch ${i / BATCH_SIZE + 1} failed:`, error.message);
+        errors.push(`Batch ${i / BATCH_SIZE + 1}: ${error.message}`);
+      } else {
+        processedCount += batch.length;
+        console.log(`[Sheets Sync] Batch ${i / BATCH_SIZE + 1} complete: ${processedCount}/${validData.length}`);
+      }
+    }
+
+    if (errors.length > 0) {
       return NextResponse.json(
         { 
-          error: 'Database Error', 
-          message: error.message,
+          error: 'Partial Failure', 
+          message: `${processedCount}/${validData.length} records synced`,
+          errors: errors.slice(0, 5),
         },
-        { status: 500 }
+        { status: 207 }
       );
     }
 
-    console.log(`[Sheets Sync] ✅ Successfully synced ${validData.length} records`);
+    console.log(`[Sheets Sync] ✅ Successfully synced ${processedCount} records`);
 
     return NextResponse.json(
       {
@@ -277,7 +288,7 @@ export async function POST(req: NextRequest) {
         message: 'Records synced successfully',
         stats: {
           received: body.length,
-          synced: validData.length,
+          synced: processedCount,
           invalid: invalidCount,
         },
       },
