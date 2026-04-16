@@ -16,18 +16,19 @@ const SUPABASE_CONFIG = {
 /**
  * Maps the 37-column array from TB Industrial Engine to Supabase-ready JSON
  * ✅ Verified against actual Supabase schema (43 columns)
- * ✅ id = UUID (auto-generated), unique_id = MPGWCJ00001, kobo_uuid = 5b3ec782...
+ * ✅ id = UUID (auto-generated), unique_id = MPGWCJ00001 (PRIMARY IDENTIFIER)
  * Column indices match your sheet structure exactly
  */
 function mapRowToSupabaseJson_(row) {
-  // Clean and validate UUID
+  // Clean and validate identifiers
   var cleanUuid = String(row[32] || '').replace(/^uuid:/i, '').trim();
+  var uniqueId = String(row[7] || '').trim();
   
   return {
     // Core identifiers
     // NOTE: 'id' is auto-generated UUID in Supabase - DO NOT send it
-    unique_id: String(row[7] || ''),             // Unique ID (MPGWCJ00001) - TEXT field
-    kobo_uuid: cleanUuid,                        // KoboUUID (5b3ec782...) - TEXT field
+    unique_id: uniqueId,                         // Unique ID (MPGWCJ00001) - PRIMARY IDENTIFIER
+    kobo_uuid: cleanUuid || null,                // KoboUUID (5b3ec782...) - May be empty for some records
     
     // Staff & submission
     staff_name: row[0] || null,                  // Name of the Staff
@@ -125,13 +126,27 @@ function sendAllDataToSupabase() {
     
     Logger.log('Total rows to sync: ' + dataRows.length);
     
+    // Debug: Check kobo_uuid distribution
+    var withUuid = 0;
+    var withoutUuid = 0;
+    for (var i = 0; i < Math.min(dataRows.length, 100); i++) {
+      var uuid = String(dataRows[i][32] || '').replace(/^uuid:/i, '').trim();
+      if (uuid) {
+        withUuid++;
+      } else {
+        withoutUuid++;
+      }
+    }
+    Logger.log('Sample check (first 100 rows): ' + withUuid + ' with UUID, ' + withoutUuid + ' without UUID');
+    Logger.log('Column 32 sample values: ' + dataRows[0][32] + ', ' + dataRows[100][32] + ', ' + dataRows[1000][32]);
+    
     // Convert to JSON objects
     var patientsData = [];
     for (var i = 0; i < dataRows.length; i++) {
       var row = dataRows[i];
       
-      // Skip empty rows (check if kobo_uuid exists)
-      if (!row[32] || String(row[32]).trim() === '') {
+      // Skip empty rows (check if unique_id exists - this is the primary identifier)
+      if (!row[7] || String(row[7]).trim() === '') {
         continue;
       }
       
