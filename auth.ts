@@ -29,14 +29,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     async signIn({ user }) {
-      if (!user?.email) return false;
+      console.log('[auth] signIn callback triggered for:', user?.email);
+      
+      if (!user?.email) {
+        console.error('[auth] ❌ No email provided');
+        return false;
+      }
       
       try {
         // Check cache first (eliminates DB call for repeat logins)
         let data = getCachedProfile(user.email);
         
         if (!data) {
-          console.log(`[auth] Checking profile for: ${user.email}`);
+          console.log(`[auth] Cache miss, querying Supabase for: ${user.email}`);
           
           const { data: dbData, error } = await supabase
             .from('profiles')
@@ -44,6 +49,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             .eq('email', user.email)
             .eq('is_active', true)
             .maybeSingle();
+          
+          console.log('[auth] Supabase response:', { error: error?.message, hasData: !!dbData });
           
           if (error) {
             console.error(`[auth] ❌ Database error for ${user.email}:`, error);
@@ -64,9 +71,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         
         // Store profile data in user object for jwt callback
         (user as any).profileData = data;
+        console.log('[auth] ✅ signIn callback returning true');
         return true;
       } catch (err) {
-        console.error('[auth] SignIn callback exception:', err);
+        console.error('[auth] ❌ SignIn callback exception:', err);
         return false;
       }
     },
