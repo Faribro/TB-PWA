@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { clearProfileCache } from '@/lib/auth-cache';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   try {
