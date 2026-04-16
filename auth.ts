@@ -36,35 +36,37 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         let data = getCachedProfile(user.email);
         
         if (!data) {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          console.log(`[auth] Checking profile for: ${user.email}`);
           
           const { data: dbData, error } = await supabase
             .from('profiles')
             .select('email, is_active, role, state, district, name')
             .eq('email', user.email)
             .eq('is_active', true)
-            .abortSignal(controller.signal)
             .maybeSingle();
           
-          clearTimeout(timeoutId);
-          
-          if (error || !dbData) {
-            console.error(`❌ Login rejected for ${user.email}`);
-            console.error('Error:', error);
-            console.error('Data:', dbData);
+          if (error) {
+            console.error(`[auth] ❌ Database error for ${user.email}:`, error);
             return false;
           }
           
+          if (!dbData) {
+            console.error(`[auth] ❌ No active profile found for ${user.email}`);
+            return false;
+          }
+          
+          console.log(`[auth] ✅ Profile found for ${user.email}:`, { role: dbData.role, state: dbData.state });
           data = dbData;
           setCachedProfile(user.email, data);
+        } else {
+          console.log(`[auth] ✅ Using cached profile for ${user.email}`);
         }
         
         // Store profile data in user object for jwt callback
         (user as any).profileData = data;
         return true;
       } catch (err) {
-        console.error('SignIn callback error:', err);
+        console.error('[auth] SignIn callback exception:', err);
         return false;
       }
     },
