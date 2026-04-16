@@ -172,15 +172,31 @@ function sendAllDataToSupabase() {
       try {
         var response = UrlFetchApp.fetch(SUPABASE_CONFIG.ENDPOINT, options);
         var responseCode = response.getResponseCode();
+        var responseBody = response.getContentText();
         
         Logger.log('Batch ' + batchNum + ' response: ' + responseCode);
         
-        if (responseCode === 200 || responseCode === 207) {
+        if (responseCode === 200) {
           successCount += batch.length;
           Logger.log('✅ Batch ' + batchNum + ' synced successfully');
+        } else if (responseCode === 207) {
+          // Partial success - log the error details
+          Logger.log('⚠️ Batch ' + batchNum + ' partial failure: ' + responseBody);
+          try {
+            var errorData = JSON.parse(responseBody);
+            if (errorData.message) {
+              Logger.log('Error message: ' + errorData.message);
+            }
+            if (errorData.errors) {
+              Logger.log('Errors: ' + JSON.stringify(errorData.errors));
+            }
+          } catch (e) {
+            Logger.log('Could not parse error response');
+          }
+          failCount += batch.length;
         } else {
           failCount += batch.length;
-          Logger.log('❌ Batch ' + batchNum + ' failed: ' + response.getContentText());
+          Logger.log('❌ Batch ' + batchNum + ' failed: ' + responseBody);
         }
       } catch (e) {
         failCount += batch.length;
