@@ -1,1 +1,23 @@
 $ next dev --turbopack
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\farid\bun.lock as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\farid\Desktop\TB-PWA-Clean\package-lock.json
+
+   ▲ Next.js 15.5.13 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.4.167:3000
+   - Environments: .env.local, .env
+
+ ✓ Starting...
+Creating turbopack project { dir: 'C:\\Users\\farid\\Desktop\\TB-PWA-Clean', testMode: true }
+ ○ Compiling middleware ...
+ ✓ Compiled middleware in 2.4s
+ ✓ Ready in 18.1s
+ ✓ Compiled middleware in 3ms
+[33m[auth][warn][debug-enabled][0m Read more: https://warnings.authjs.dev
+ ○ Compiling /api/sync/sheets-to-supabase/health ...
+ ✓ Compiled /api/sync/sheets-to-supabase/health in 4.2s
+ HEAD /api/sync/sheets-to-supabase/health 200 in 4772ms

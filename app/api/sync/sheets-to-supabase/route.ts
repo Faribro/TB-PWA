@@ -65,16 +65,17 @@ async function getValidColumns(): Promise<Set<string>> {
 function getHardcodedColumns(): Set<string> {
   const columns = new Set([
     'id', 'kobo_uuid', 'kobo_id', 'unique_id', 'serial_number',
-    'inmate_name', 'age', 'sex', 'date_of_birth', 'father_husband_name', 'inmate_type',
-    'facility_name', 'facility_type', 'screening_state', 'screening_district', 'staff_name',
-    'screening_date', 'submitted_on', 'submission_time',
-    'referral_date', 'att_start_date', 'att_completion_date', 'tb_diagnosis_date', 'registration_date',
+    'inmate_name', 'patient_name', 'age', 'sex', 'gender', 'date_of_birth', 'dob', 'father_husband_name', 'inmate_type',
+    'facility_name', 'facility_type', 'screening_state', 'state', 'screening_district', 'district', 'staff_name',
+    'screening_date', 'submitted_on', 'submitted_at', 'submission_time',
+    'referral_date', 'att_start_date', 'att_completion_date', 'tb_diagnosis_date', 'diagnosis_date', 'registration_date',
     'tb_diagnosed', 'tb_type', 'chest_x_ray_result', 'xray_result',
-    'symptoms_10s', 'symptoms_present', 'tb_past_history', 'referred_facility',
+    'symptoms_10s', 'symptoms', 'symptoms_present', 'tb_past_history', 'past_history_tb', 'referred_facility', 'referred_to',
     'hiv_status', 'art_status', 'art_number',
     'contact_number', 'address',
     'nikshay_abha_id', 'nikshay_id',
     'remarks', 'follow_up_notes',
+    'latitude', 'longitude',
     'is_active', 'current_phase',
     'created_at', 'updated_at', 'last_updated'
   ]);
@@ -201,16 +202,18 @@ export async function POST(req: NextRequest) {
     // Parse payload
     const body = await req.json();
     
-    // Validate payload is an array
-    if (!Array.isArray(body)) {
-      console.error('[Sheets Sync] Bad Request: Payload must be an array');
+    // Handle both direct array and { patients: [...] } wrapper
+    const patientsArray = Array.isArray(body) ? body : body.patients;
+    
+    if (!Array.isArray(patientsArray)) {
+      console.error('[Sheets Sync] Bad Request: Payload must be an array or { patients: [...] }');
       return NextResponse.json(
-        { error: 'Bad Request', message: 'Payload must be an array of patient records' },
+        { error: 'Bad Request', message: 'Payload must be an array of patient records or { patients: [...] }' },
         { status: 400 }
       );
     }
 
-    if (body.length === 0) {
+    if (patientsArray.length === 0) {
       console.warn('[Sheets Sync] Empty payload received');
       return NextResponse.json(
         { success: true, message: 'No records to sync', count: 0 },
@@ -218,27 +221,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(`[Sheets Sync] Received ${body.length} records from Google Sheets`);
+    console.log(`[Sheets Sync] Received ${patientsArray.length} records from Google Sheets`);
 
     // FAST PATH: Skip schema detection, use hardcoded columns
     const validColumns = getHardcodedColumns();
 
-    // Map and filter in one pass
-    const validData = body
-      .map(mapSheetRowToSupabase)
+    // Map and filter in one pass - accept snake_case directly from Apps Script
+    const validData = patientsArray
       .map(row => filterToValidColumns(row, validColumns))
-      .filter(row => row.kobo_uuid); // Only keep rows with UUID
+      .filter(row => row.id); // Only keep rows with ID (primary key)
 
-    const invalidCount = body.length - validData.length;
+    const invalidCount = patientsArray.length - validData.length;
 
     if (invalidCount > 0) {
       console.warn(`[Sheets Sync] Skipping ${invalidCount} rows without kobo_uuid`);
     }
 
     if (validData.length === 0) {
-      console.error('[Sheets Sync] No valid records to sync (all missing kobo_uuid)');
+      console.error('[Sheets Sync] No valid records to sync (all missing id)');
       return NextResponse.json(
-        { error: 'Bad Request', message: 'No valid records with kobo_uuid found' },
+        { error: 'Bad Request', message: 'No valid records with id found' },
         { status: 400 }
       );
     }
@@ -287,7 +289,7 @@ export async function POST(req: NextRequest) {
         success: true,
         message: 'Records synced successfully',
         stats: {
-          received: body.length,
+          received: patientsArray.length,
           synced: processedCount,
           invalid: invalidCount,
         },
