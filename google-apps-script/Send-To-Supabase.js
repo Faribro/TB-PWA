@@ -196,19 +196,27 @@ function sendAllDataToSupabase() {
           Logger.log('✅ Batch ' + batchNum + ' synced successfully');
         } else if (responseCode === 207) {
           // Partial success - log the error details
-          Logger.log('⚠️ Batch ' + batchNum + ' partial failure: ' + responseBody);
+          Logger.log('⚠️ Batch ' + batchNum + ' partial failure (207)');
           try {
             var errorData = JSON.parse(responseBody);
+            Logger.log('Response: ' + responseBody);
             if (errorData.message) {
-              Logger.log('Error message: ' + errorData.message);
+              Logger.log('Message: ' + errorData.message);
             }
-            if (errorData.errors) {
-              Logger.log('Errors: ' + JSON.stringify(errorData.errors));
+            if (errorData.errors && errorData.errors.length > 0) {
+              Logger.log('First error: ' + errorData.errors[0]);
+            }
+            // Count how many actually synced
+            if (errorData.stats && errorData.stats.synced) {
+              successCount += errorData.stats.synced;
+              failCount += (batch.length - errorData.stats.synced);
+            } else {
+              failCount += batch.length;
             }
           } catch (e) {
-            Logger.log('Could not parse error response');
+            Logger.log('Could not parse 207 response');
+            failCount += batch.length;
           }
-          failCount += batch.length;
         } else {
           failCount += batch.length;
           Logger.log('❌ Batch ' + batchNum + ' failed: ' + responseBody);
