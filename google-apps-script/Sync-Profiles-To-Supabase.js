@@ -243,7 +243,7 @@ function testProfilesSync() {
 }
 
 /**
- * Diagnostic function - Check sheet data
+ * Diagnostic function - Check sheet data and find duplicates
  */
 function diagnoseProfilesSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -269,11 +269,28 @@ function diagnoseProfilesSheet() {
   
   var withEmail = 0;
   var withoutEmail = 0;
+  var emailMap = {};
+  var duplicates = [];
   
   for (var i = 0; i < dataRows.length; i++) {
-    var email = String(dataRows[i][0] || '').trim();
+    var email = String(dataRows[i][0] || '').trim().toLowerCase();
+    var sheetRow = i + PROFILES_CONFIG.HEADER_ROW + 1;
+    
     if (email) {
       withEmail++;
+      
+      // Check for duplicates
+      if (emailMap[email]) {
+        duplicates.push({
+          email: email,
+          firstRow: emailMap[email],
+          secondRow: sheetRow,
+          firstName: dataRows[emailMap[email] - PROFILES_CONFIG.HEADER_ROW - 1][1],
+          secondName: dataRows[i][1]
+        });
+      } else {
+        emailMap[email] = sheetRow;
+      }
     } else {
       withoutEmail++;
     }
@@ -281,6 +298,25 @@ function diagnoseProfilesSheet() {
   
   Logger.log('✅ Rows with email: ' + withEmail);
   Logger.log('❌ Rows without email: ' + withoutEmail);
+  Logger.log('');
+  
+  // Report duplicates
+  if (duplicates.length > 0) {
+    Logger.log('❌ DUPLICATE EMAILS FOUND: ' + duplicates.length);
+    Logger.log('');
+    for (var i = 0; i < duplicates.length; i++) {
+      var dup = duplicates[i];
+      Logger.log('Duplicate #' + (i + 1) + ':');
+      Logger.log('  Email: ' + dup.email);
+      Logger.log('  Row ' + dup.firstRow + ': ' + dup.firstName);
+      Logger.log('  Row ' + dup.secondRow + ': ' + dup.secondName);
+      Logger.log('  💡 ACTION: Delete row ' + dup.secondRow + ' or change email');
+      Logger.log('');
+    }
+    Logger.log('⚠️ FIX DUPLICATES BEFORE SYNCING!');
+  } else {
+    Logger.log('✅ No duplicate emails found');
+  }
   Logger.log('');
   
   if (dataRows.length > 0) {
@@ -292,6 +328,8 @@ function diagnoseProfilesSheet() {
   }
   
   Logger.log('═══════════════════════════════════════════════════════════════');
+  
+  return duplicates;
 }
 
 /**
