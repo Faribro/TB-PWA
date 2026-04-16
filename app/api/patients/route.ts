@@ -48,10 +48,10 @@ export async function GET(request: NextRequest) {
     // Parse pagination params
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
-    const requestedPageSize = Math.max(1, parseInt(searchParams.get('pageSize') ?? '5000', 10)); // Reduced from 100000 to 5000
+    const requestedPageSize = Math.max(1, parseInt(searchParams.get('pageSize') ?? '500', 10)); // Reduced to 500
     
-    // Cap at 10000 to prevent timeouts
-    const cappedPageSize = Math.min(requestedPageSize, 10000);
+    // Cap at 1000 to prevent timeouts
+    const cappedPageSize = Math.min(requestedPageSize, 1000);
     
     // Extract filter params
     const filterState = searchParams.get('state');
@@ -148,13 +148,13 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // Batch fetch with column selection using Promise.all for true parallelism
+    // Batch fetch with column selection - SEQUENTIAL to avoid timeout
     const records: any[] = [];
     const limit = Math.min(maxRecords, (totalCount || 0) - offset);
     const numBatches = Math.ceil(limit / batchSize);
     
-    if (limit > 0) {
-      const batchPromises = Array.from({ length: numBatches }).map((_, i) => {
+    if (limit > 0 && numBatches <= 5) { // Max 5 batches = 5000 records
+      for (let i = 0; i < numBatches; i++) {
         const batchFrom = offset + (i * batchSize);
         const batchLimit = Math.min(batchSize, limit - (i * batchSize));
         const batchTo = batchFrom + batchLimit - 1;
@@ -165,13 +165,11 @@ export async function GET(request: NextRequest) {
           .order('screening_date', { ascending: false })
           .range(batchFrom, batchTo);
           
-        return applyFilters(batchQuery);
-      });
-
-      const results = await Promise.all(batchPromises);
-      batches = numBatches;
-
-      for (const result of results) {
+        batchQuery = applyFilters(batchQuery);
+        
+        const result = await batchQuery;
+        batches++;
+        
         if (result.error) {
           console.error('[patients/route] Batch error:', result.error);
           return NextResponse.json({ 
@@ -180,8 +178,15 @@ export async function GET(request: NextRequest) {
             message: result.error.message
           }, { status: 500 });
         }
+        
         if (result.data) {
           records.push(...result.data);
+        }
+        
+        // Check timeout (8 seconds max)
+        if (Date.now() - startTime > 8000) {
+          console.warn(`[patients/route] Timeout after ${i + 1} batches, returning partial data`);
+          break;
         }
       }
     }
