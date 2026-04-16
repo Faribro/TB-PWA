@@ -251,6 +251,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Patient ID required' }, { status: 400 });
     }
 
+    // Sanitize data: convert empty strings to null for date/numeric fields
+    const sanitizedData = Object.entries(data).reduce((acc, [key, value]) => {
+      // Convert empty strings to null
+      if (value === '' || value === undefined) {
+        acc[key] = null;
+      } else {
+        acc[key] = value;
+      }
+      return acc;
+    }, {} as Record<string, any>);
+
     // Use service role client to bypass RLS
     const supabase = getSupabaseClient();
     
@@ -285,7 +296,7 @@ export async function POST(request: NextRequest) {
       .from('patients')
       .upsert({ 
         id, 
-        ...data,
+        ...sanitizedData,
         updated_at: new Date().toISOString(),
         synced_to_sheets: false,
         sheets_sync_attempts: 0

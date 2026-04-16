@@ -70,9 +70,9 @@ const fetcher = async (key: string, params: FetchPatientsParams, userEmail?: str
 
 // Role-based default page sizes — must match canonical Role values from lib/constants/roles.ts
 const getDefaultPageSize = (role: string): number => {
-  // Admin/PM: fetch all records (no limit)
+  // Admin/PM: fetch 10000 per request (client will paginate for more)
   if (role === 'admin' || role === 'PM') {
-    return 5000000; // 5 million limit for admin/PM
+    return 10000;
   }
   // Others: limit to 5000 to prevent timeouts
   return 5000;
@@ -80,7 +80,7 @@ const getDefaultPageSize = (role: string): number => {
 
 const allPatientsFetcher = async (
   scope: SessionScope | null, 
-  pageSize: number = 5000000, // Default 5M for admin/PM
+  pageSize: number = 10000, // Default 10K per request
   filters?: { state?: string; district?: string; dateFrom?: string; dateTo?: string; search?: string }
 ) => {
   // Build cache key based on scope + filters
