@@ -222,6 +222,7 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[Sheets Sync] Received ${patientsArray.length} records from Google Sheets`);
+    console.log(`[Sheets Sync] First record sample:`, JSON.stringify(patientsArray[0]).substring(0, 200));
 
     // FAST PATH: Skip schema detection, use hardcoded columns
     const validColumns = getHardcodedColumns();
@@ -230,6 +231,11 @@ export async function POST(req: NextRequest) {
     const validData = patientsArray
       .map(row => filterToValidColumns(row, validColumns))
       .filter(row => row.kobo_uuid); // Only keep rows with kobo_uuid (unique identifier)
+
+    console.log(`[Sheets Sync] After filtering: ${validData.length} valid records`);
+    if (validData.length > 0) {
+      console.log(`[Sheets Sync] First valid record:`, JSON.stringify(validData[0]).substring(0, 200));
+    }
 
     const invalidCount = patientsArray.length - validData.length;
 
