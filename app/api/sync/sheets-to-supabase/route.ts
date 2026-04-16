@@ -300,41 +300,39 @@ export async function POST(req: NextRequest) {
 // Health check endpoint
 export async function GET(req: NextRequest) {
   try {
-    // Fetch and display current schema
-    const validColumns = await getValidColumns();
+    // Test Supabase connection
+    const { data, error } = await supabase
+      .from('patients')
+      .select('id')
+      .limit(1);
+    
+    if (error) {
+      return NextResponse.json(
+        {
+          status: 'error',
+          message: 'Supabase connection failed',
+          error: error.message,
+        },
+        { status: 500 }
+      );
+    }
     
     return NextResponse.json(
       {
         status: 'ok',
         endpoint: '/api/sync/sheets-to-supabase',
-        method: 'POST',
-        description: 'Receives bulk patient data from Google Sheets and syncs to Supabase with schema-aware filtering',
-        authentication: 'x-kobo-webhook-secret header required',
-        payload: 'Array of patient objects',
-        features: [
-          'Dynamic schema detection',
-          'Automatic column filtering',
-          'Explicit blacklist for alcohol/smoking',
-          'Unknown column stripping',
-          'Industrial upsert with kobo_uuid',
-          'Detailed audit logging',
-        ],
-        blacklist: Array.from(BLACKLISTED_COLUMNS),
-        schema: {
-          total_columns: validColumns.size,
-          columns: Array.from(validColumns).sort(),
-        },
+        supabase_connected: true,
+        test_query_success: true,
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: any) {
     return NextResponse.json(
       {
-        status: 'ok',
-        endpoint: '/api/sync/sheets-to-supabase',
-        error: 'Could not fetch schema',
+        status: 'error',
+        message: error.message,
       },
-      { status: 200 }
+      { status: 500 }
     );
   }
 }
