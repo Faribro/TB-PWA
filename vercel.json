@@ -5,7 +5,10 @@
   "framework": "nextjs",
   "functions": {
     "app/api/patients/route.ts": {
-      "maxDuration": 60
+      "maxDuration": 15
+    },
+    "app/api/vertex/metrics/route.ts": {
+      "maxDuration": 15
     },
     "app/api/**/*.ts": {
       "maxDuration": 10

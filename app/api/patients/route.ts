@@ -5,7 +5,7 @@ import { getSupabaseClient } from '@/lib/supabase-server';
 import { normalizeRole, Role } from '@/lib/constants/roles';
 import { logAudit } from '@/lib/audit-log';
 
-export const maxDuration = 60;
+export const maxDuration = 15;
 export const dynamic = 'force-dynamic';
 
 // Column selection - only fetch what we need for UI
@@ -48,10 +48,10 @@ export async function GET(request: NextRequest) {
     // Parse pagination params
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
-    const requestedPageSize = Math.max(1, parseInt(searchParams.get('pageSize') ?? '500', 10)); // Reduced to 500
+    const requestedPageSize = Math.max(1, parseInt(searchParams.get('pageSize') ?? '100', 10));
     
-    // Cap at 1000 to prevent timeouts
-    const cappedPageSize = Math.min(requestedPageSize, 1000);
+    // HARD MAX 100 to prevent timeouts
+    const cappedPageSize = Math.min(requestedPageSize, 100);
     
     // Extract filter params
     const filterState = searchParams.get('state');
@@ -134,61 +134,60 @@ export async function GET(request: NextRequest) {
       return query;
     };
 
-    // Get filtered count
-    let countQuery = supabase.from('patients').select('*', { count: 'exact', head: true });
-    countQuery = applyFilters(countQuery);
-    const { count: totalCount, error: countError } = await countQuery;
-
-    if (countError) {
+    // Get filtered count with timeout
+    let totalCount = 0;
+    try {
+      const countPromise = (async () => {
+        let countQuery = supabase.from('patients').select('*', { count: 'exact', head: true });
+        countQuery = applyFilters(countQuery);
+        const { count, error } = await countQuery;
+        if (error) throw error;
+        return count || 0;
+      })();
+      
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Count timeout')), 3000)
+      );
+      
+      totalCount = await Promise.race([countPromise, timeoutPromise]);
+    } catch (countError) {
       console.error('[patients/route] Count error:', countError);
-      return NextResponse.json({ 
-        error: 'Database error', 
-        code: countError.code,
-        message: countError.message 
-      }, { status: 500 });
+      totalCount = cappedPageSize * page;
     }
 
-    // Batch fetch with column selection - SEQUENTIAL to avoid timeout
+    // Single query with hard limit (no batching needed for 100 records)
     const records: any[] = [];
-    const limit = Math.min(maxRecords, (totalCount || 0) - offset);
-    const numBatches = Math.ceil(limit / batchSize);
     
-    if (limit > 0 && numBatches <= 5) { // Max 5 batches = 5000 records
-      for (let i = 0; i < numBatches; i++) {
-        const batchFrom = offset + (i * batchSize);
-        const batchLimit = Math.min(batchSize, limit - (i * batchSize));
-        const batchTo = batchFrom + batchLimit - 1;
+    try {
+      let query = supabase
+        .from('patients')
+        .select(SELECTED_COLUMNS)
+        .order('screening_date', { ascending: false })
+        .range(offset, offset + cappedPageSize - 1);
         
-        let batchQuery = supabase
-          .from('patients')
-          .select(SELECTED_COLUMNS)
-          .order('screening_date', { ascending: false })
-          .range(batchFrom, batchTo);
-          
-        batchQuery = applyFilters(batchQuery);
-        
-        const result = await batchQuery;
-        batches++;
-        
-        if (result.error) {
-          console.error('[patients/route] Batch error:', result.error);
-          return NextResponse.json({ 
-            error: 'Database query failed',
-            code: result.error.code,
-            message: result.error.message
-          }, { status: 500 });
-        }
-        
-        if (result.data) {
-          records.push(...result.data);
-        }
-        
-        // Check timeout (8 seconds max)
-        if (Date.now() - startTime > 8000) {
-          console.warn(`[patients/route] Timeout after ${i + 1} batches, returning partial data`);
-          break;
-        }
+      query = applyFilters(query);
+      
+      const queryPromise = query;
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Query timeout')), 8000)
+      );
+      
+      const result = await Promise.race([queryPromise, timeoutPromise]);
+      batches = 1;
+      
+      if (result.error) {
+        throw result.error;
       }
+      
+      if (result.data) {
+        records.push(...result.data);
+      }
+    } catch (queryError) {
+      console.error('[patients/route] Query error:', queryError);
+      return NextResponse.json({ 
+        error: 'Database query failed',
+        message: queryError instanceof Error ? queryError.message : 'Unknown error'
+      }, { status: 500 });
     }
 
     const durationMs = Date.now() - startTime;
@@ -209,7 +208,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(response, {
       headers: {
-        'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+        'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
         'X-Total-Count': String(totalCount || 0),
         'X-Returned': String(records.length),
         'X-Batches': String(batches),

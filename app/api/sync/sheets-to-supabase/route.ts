@@ -23,41 +23,66 @@ async function getValidColumns(): Promise<Set<string>> {
   }
 
   try {
-    // Fetch a single record to get the schema
+    // Fetch table schema from information_schema
     const { data, error } = await supabase
-      .from('patients')
-      .select('*')
-      .limit(1);
+      .rpc('get_table_columns', { table_name: 'patients' })
+      .single();
 
     if (error) {
-      console.error('[Schema Fetch] Error fetching schema:', error);
-      // Fallback to known columns if fetch fails
-      return new Set([
-        'id', 'kobo_uuid', 'unique_id', 'inmate_name', 'age', 'gender',
-        'facility_name', 'facility_type', 'screening_state', 'screening_district',
-        'screening_date', 'submitted_on', 'referral_date', 'att_start_date',
-        'att_completion_date', 'tb_diagnosed', 'chest_x_ray_result', 'xray_result',
-        'symptoms_present', 'sputum_test_result', 'hiv_status', 'contact_number',
-        'address', 'current_phase', 'is_active', 'remarks', 'follow_up_notes',
-        'gps_latitude', 'gps_longitude', 'referred_to', 'referral_status',
-        'treatment_regimen', 'treatment_outcome', 'diabetes', 'date_of_birth',
-        'data_source', 'last_updated', 'created_at', 'updated_at'
-      ]);
+      console.warn('[Schema Fetch] RPC failed, using direct query:', error.message);
+      
+      // Fallback: Try to fetch a single record
+      const { data: sampleData, error: sampleError } = await supabase
+        .from('patients')
+        .select('*')
+        .limit(1);
+
+      if (sampleError) {
+        console.error('[Schema Fetch] Sample query failed:', sampleError);
+        return getHardcodedColumns();
+      }
+
+      if (sampleData && sampleData.length > 0) {
+        const columns = new Set(Object.keys(sampleData[0]));
+        validColumnsCache = columns;
+        console.log(`[Schema Fetch] Loaded ${columns.size} columns from sample record`);
+        return columns;
+      }
     }
 
-    if (data && data.length > 0) {
-      const columns = new Set(Object.keys(data[0]));
-      validColumnsCache = columns;
-      console.log(`[Schema Fetch] Loaded ${columns.size} valid columns from Supabase`);
-      return columns;
-    }
-
-    // If no data, return empty set (will be handled by fallback)
-    return new Set();
+    // If table is empty, use hardcoded schema
+    console.warn('[Schema Fetch] Table is empty, using hardcoded schema');
+    return getHardcodedColumns();
   } catch (error) {
     console.error('[Schema Fetch] Unexpected error:', error);
-    return new Set();
+    return getHardcodedColumns();
   }
+}
+
+/**
+ * Hardcoded column list for when schema detection fails
+ */
+function getHardcodedColumns(): Set<string> {
+  const columns = new Set([
+    'id', 'kobo_uuid', 'kobo_id', 'unique_id', 'serial_number',
+    'inmate_name', 'age', 'sex', 'date_of_birth', 'father_husband_name', 'inmate_type',
+    'facility_name', 'facility_type', 'screening_state', 'screening_district', 'staff_name',
+    'screening_date', 'submitted_on', 'submission_time',
+    'referral_date', 'att_start_date', 'att_completion_date', 'tb_diagnosis_date', 'registration_date',
+    'tb_diagnosed', 'tb_type', 'chest_x_ray_result', 'xray_result',
+    'symptoms_10s', 'symptoms_present', 'tb_past_history', 'referred_facility',
+    'hiv_status', 'art_status', 'art_number',
+    'contact_number', 'address',
+    'nikshay_abha_id', 'nikshay_id',
+    'remarks', 'follow_up_notes',
+    'gps_latitude', 'gps_longitude', 'latitude', 'longitude',
+    'data_source', 'is_active', 'current_phase',
+    'created_at', 'updated_at', 'last_updated'
+  ]);
+  
+  validColumnsCache = columns;
+  console.log(`[Schema Fetch] Using hardcoded schema with ${columns.size} columns`);
+  return columns;
 }
 
 /**
@@ -95,67 +120,69 @@ function filterToValidColumns(
 // Robust field mapping: Google Sheets verbose keys → Supabase snake_case
 function mapSheetRowToSupabase(row: Record<string, any>): Record<string, any> {
   const mapped: Record<string, any> = {
-    // Core identifiers
-    kobo_uuid: row['KoboUUID(hidden)'] || row['kobo_uuid'] || row['_uuid'] || null,
+    // Core identifiers - Handle BOTH old Google Sheets format AND new snake_case format
+    kobo_uuid: row['KoboUUID(hidden)'] || row['kobo_uuid'] || row['_uuid'] || row['uuid'] || null,
     unique_id: row['Unique ID'] || row['unique_id'] || null,
     
     // Patient demographics
     inmate_name: row['Inmate Name'] || row['inmate_name'] || null,
     age: row['Age'] || row['age'] || null,
-    gender: row['Gender'] || row['gender'] || null,
-    date_of_birth: row['Date of Birth'] || row['date_of_birth'] || row['data_of_birth'] || null, // Fixed typo: data_of_birth
+    sex: row['Sex (Male/Female/TG)'] || row['sex'] || row['gender'] || null,
+    date_of_birth: row['Date of Birth'] || row['date_of_birth'] || null,
+    father_husband_name: row["Father /Husband's Name"] || row['father_husband_name'] || null,
+    inmate_type: row['Inmate type (Under Trial/Convicted/Other)'] || row['inmate_type'] || null,
     
     // Facility information
     facility_name: row['Facility Name'] || row['facility_name'] || null,
-    facility_type: row['Facility Type'] || row['facility_type'] || null,
-    screening_state: row['Screening State'] || row['State'] || row['screening_state'] || null,
-    screening_district: row['Screening District'] || row['District'] || row['screening_district'] || null,
+    facility_type: row['Facility type'] || row['facility_type'] || null,
+    screening_state: row['State'] || row['screening_state'] || null,
+    screening_district: row['District'] || row['screening_district'] || null,
+    staff_name: row['Name of the Staff'] || row['staff_name'] || null,
     
     // Dates
-    screening_date: row['Screening Date'] || row['screening_date'] || null,
+    screening_date: row['Date of Screening - CH-x ray (dd/mm/yy)'] || row['screening_date'] || null,
     submitted_on: row['Submitted On'] || row['submitted_on'] || row['_submission_time'] || null,
-    referral_date: row['Referral Date'] || row['referral_date'] || null,
-    att_start_date: row['ATT Start Date'] || row['att_start_date'] || null,
-    att_completion_date: row['ATT Completion Date'] || row['att_completion_date'] || null,
+    referral_date: row['Date of referral for TB Examination (sputum) (dd/mm/yy)'] || row['referral_date'] || null,
+    att_start_date: row['Date of starting ATT (dd/mm/yyyy)'] || row['att_start_date'] || null,
+    att_completion_date: row['Date of Treatment Completion (dd/mm/yyyy)'] || row['att_completion_date'] || null,
+    tb_diagnosis_date: row['Date of TB Diagnosed (dd/mm/yy)'] || row['tb_diagnosis_date'] || null,
+    registration_date: row['Date of registration (dd/mm/yyyy)'] || row['registration_date'] || null,
     
     // Clinical data
-    tb_diagnosed: row['TB Diagnosed'] || row['tb_diagnosed'] || null,
-    chest_x_ray_result: row['Chest X-Ray Result'] || row['X-Ray Result'] || row['chest_x_ray_result'] || row['xray_result'] || null,
-    xray_result: row['X-Ray Result'] || row['xray_result'] || row['chest_x_ray_result'] || null,
-    symptoms_present: row['Symptoms Present'] || row['symptoms_present'] || null,
-    sputum_test_result: row['Sputum Test Result'] || row['sputum_test_result'] || null,
-    hiv_status: row['HIV Status'] || row['hiv_status'] || null,
+    tb_diagnosed: row['TB diagnosed (Y/N)'] || row['tb_diagnosed'] || null,
+    tb_type: row['Type of TB Diagnosed (P/EP)'] || row['tb_type'] || null,
+    chest_x_ray_result: row['Chest x ray Result (Abnormal/Normal/Not-detected)'] || row['xray_result'] || row['chest_x_ray_result'] || null,
+    xray_result: row['Chest x ray Result (Abnormal/Normal/Not-detected)'] || row['xray_result'] || null,
+    symptoms_10s: row['10s Symptoms Present? (You can select more than one symptoms)'] || row['symptoms_10s'] || row['symptoms_present'] || null,
+    symptoms_present: row['10s Symptoms Present? (You can select more than one symptoms)'] || row['symptoms_present'] || null,
+    tb_past_history: row['Whether any past history of TB? (Y/N)'] || row['tb_past_history'] || null,
+    referred_facility: row['Name of facility where referred to (Give code/name of all facilities)'] || row['referred_facility'] || null,
+    
+    // HIV/ART data
+    hiv_status: row['HIV Status (Positive/Negative/Unknown)'] || row['hiv_status'] || null,
+    art_status: row['Status at the time of referral (Pre ART/On ART) [If on ART at time of referral]'] || row['art_status'] || null,
+    art_number: row['ART Number (if on ART at the time of referral)'] || row['art_number'] || null,
     
     // Contact information
     contact_number: row['Contact Number'] || row['contact_number'] || null,
     address: row['Address'] || row['address'] || null,
     
-    // Treatment tracking
-    current_phase: row['Current Phase'] || row['current_phase'] || null,
-    is_active: row['Is Active'] !== undefined ? row['Is Active'] : (row['is_active'] !== undefined ? row['is_active'] : true),
+    // Registration
+    nikshay_abha_id: row['NIKSHAY/ABHA ID'] || row['nikshay_abha_id'] || null,
     
     // Additional fields
     remarks: row['Remarks'] || row['remarks'] || null,
-    follow_up_notes: row['Follow-up Notes'] || row['follow_up_notes'] || null,
     
-    // GPS coordinates
-    gps_latitude: row['GPS Latitude'] || row['gps_latitude'] || row['_gps_latitude'] || null,
-    gps_longitude: row['GPS Longitude'] || row['gps_longitude'] || row['_gps_longitude'] || null,
+    // GPS coordinates - FIXED: Handle Google Sheets column names
+    gps_latitude: row['Latitude'] || row['gps_latitude'] || row['_gps_latitude'] || null,
+    gps_longitude: row['Longitude'] || row['gps_longitude'] || row['_gps_longitude'] || null,
     
-    // Referral tracking
-    referred_to: row['Referred To'] || row['referred_to'] || null,
-    referral_status: row['Referral Status'] || row['referral_status'] || null,
-    
-    // Treatment details
-    treatment_regimen: row['Treatment Regimen'] || row['treatment_regimen'] || null,
-    treatment_outcome: row['Treatment Outcome'] || row['treatment_outcome'] || null,
-    
-    // Risk factors (only diabetes is in schema)
-    diabetes: row['Diabetes'] || row['diabetes'] || null,
+    // Serial Number
+    serial_number: row['Serial Number'] || row['serial_number'] || null,
     
     // Metadata
     data_source: row['Data Source'] || row['data_source'] || 'google_sheets',
-    last_updated: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   };
 
   // EXPLICIT BLACKLIST: Remove alcohol and smoking if they somehow got added

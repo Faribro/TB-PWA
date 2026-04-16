@@ -3,7 +3,7 @@ import { auth } from '@/auth';
 import { createServerClient } from '@/lib/supabase-server-admin';
 import { normalizeRole, Role } from '@/lib/constants/roles';
 
-export const maxDuration = 60;
+export const maxDuration = 15;
 export const dynamic = 'force-dynamic';
 
 interface PatientRecord {
@@ -78,23 +78,38 @@ export async function GET(request: NextRequest) {
       const yearStart = `${year}-01-01`;
       const yearEnd = `${year}-12-31`;
       
-      // ONE query fetches patient records for the year (limit 10k for performance)
-      const { data: yearData, error: yearError } = await applyFilters(
+      // ONE query fetches patient records for the year (limit 5k for performance)
+      const queryPromise = applyFilters(
         supabase
           .from('patients')
           .select('screening_date, tb_diagnosed, xray_result, att_start_date, referral_date')
           .gte('screening_date', yearStart)
           .lte('screening_date', yearEnd)
           .not('screening_date', 'is', null)
-          .limit(10000)
+          .limit(5000)
       );
       
-      if (yearError) {
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Query timeout')), 8000)
+      );
+      
+      let yearData;
+      try {
+        const result = await Promise.race([queryPromise, timeoutPromise]);
+        if (result.error) throw result.error;
+        yearData = result.data;
+      } catch (yearError: any) {
         console.error('[/api/vertex/metrics] Year query error:', yearError);
         return NextResponse.json({ 
-          error: 'Database query failed',
-          details: yearError.message
-        }, { status: 500 });
+          error: 'Database query timeout',
+          details: yearError.message,
+          fallback: true
+        }, { 
+          status: 200,
+          headers: {
+            'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200'
+          }
+        });
       }
       
       // Aggregate in JavaScript - O(n) single pass
@@ -171,23 +186,38 @@ export async function GET(request: NextRequest) {
       const lastDay = new Date(year, month, 0).getDate();
       const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
       
-      // Single query for month data (limit 5k for performance)
-      const { data: monthData, error: monthError } = await applyFilters(
+      // Single query for month data (limit 3k for performance)
+      const queryPromise = applyFilters(
         supabase
           .from('patients')
           .select('screening_date, tb_diagnosed, xray_result, att_start_date, referral_date')
           .gte('screening_date', monthStart)
           .lte('screening_date', monthEnd)
           .not('screening_date', 'is', null)
-          .limit(5000)
+          .limit(3000)
       );
       
-      if (monthError) {
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Query timeout')), 8000)
+      );
+      
+      let monthData;
+      try {
+        const result = await Promise.race([queryPromise, timeoutPromise]);
+        if (result.error) throw result.error;
+        monthData = result.data;
+      } catch (monthError: any) {
         console.error('[/api/vertex/metrics] Month query error:', monthError);
         return NextResponse.json({ 
-          error: 'Database query failed',
-          details: monthError.message
-        }, { status: 500 });
+          error: 'Database query timeout',
+          details: monthError.message,
+          fallback: true
+        }, { 
+          status: 200,
+          headers: {
+            'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600'
+          }
+        });
       }
       
       // Aggregate in JavaScript

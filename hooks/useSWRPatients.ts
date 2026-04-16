@@ -70,13 +70,13 @@ const fetcher = async (key: string, params: FetchPatientsParams, userEmail?: str
 
 // Role-based default page sizes — must match canonical Role values from lib/constants/roles.ts
 const getDefaultPageSize = (role: string): number => {
-  // Reduced to 5000 to prevent timeouts with large datasets
-  return 5000;
+  // Hard limit 100 to prevent timeouts
+  return 100;
 };
 
 const allPatientsFetcher = async (
   scope: SessionScope | null, 
-  pageSize: number = 5000, // Reduced from 100 to 5000
+  pageSize: number = 100, // Hard limit 100
   filters?: { state?: string; district?: string; dateFrom?: string; dateTo?: string; search?: string }
 ) => {
   // Build cache key based on scope + filters
@@ -251,10 +251,10 @@ export function useSWRAllPatients(
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      dedupingInterval: 120000,     // 2 min dedup
+      dedupingInterval: 30000,      // 30s dedup
       errorRetryCount: 3,
-      errorRetryInterval: 5000,
-      keepPreviousData: true,       // no flash on filter change
+      errorRetryInterval: 2000,
+      keepPreviousData: true,
       onError: (err) => {
         console.error('[useSWRPatients]', err);
       }
