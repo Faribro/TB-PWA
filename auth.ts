@@ -1,18 +1,8 @@
 import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
-import { createClient } from "@supabase/supabase-js"
 import { normalizeRole } from "@/lib/constants/roles"
 import { getCachedProfile, setCachedProfile } from "@/lib/auth-cache"
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    db: { schema: 'public' },
-    global: { fetch: fetch },
-    auth: { persistSession: false, autoRefreshToken: false }
-  }
-)
+import { getSupabaseClient } from "@/lib/supabase-server"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -29,51 +19,49 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     async signIn({ user }) {
-      console.log('[auth] signIn callback triggered for:', user?.email);
-      
-      if (!user?.email) {
-        console.error('[auth] ❌ No email provided');
-        return false;
+      if (!user?.email) return false;
+
+      const email = user.email.toLowerCase();
+      const cached = getCachedProfile(email);
+      if (cached) {
+        (user as Record<string, unknown>).profileData = cached;
+        return true;
       }
-      
-      // Check if user exists in profiles table
+
       try {
+        const supabase = getSupabaseClient();
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('*')
-          .eq('email', user.email.toLowerCase())
+          .select('email, role, state, district, staff_name')
+          .eq('email', email)
           .single();
-        
+
         if (error || !profile) {
-          console.error('[auth] ❌ User not found in profiles:', user.email);
+          console.error('[auth] User not found in profiles:', email);
           return false;
         }
-        
-        console.log('[auth] ✅ User found in profiles:', user.email, 'Role:', profile.role);
-        
-        // Store profile data for JWT callback
-        (user as any).profileData = {
+
+        const profileData = {
           email: profile.email,
           role: profile.role,
           state: profile.state,
           district: profile.district,
           name: profile.staff_name || user.name,
-          is_active: true
         };
-        
+
+        setCachedProfile(email, profileData);
+        (user as Record<string, unknown>).profileData = profileData;
         return true;
       } catch (err) {
-        console.error('[auth] ❌ Database error:', err);
+        console.error('[auth] Database error during signIn:', err);
         return false;
       }
     },
     async jwt({ token, user }) {
-      if (user?.email && (user as any).profileData) {
-        const data = (user as any).profileData;
-        const rawRole = data.role ?? 'ME';
-        const normalizedRole = normalizeRole(rawRole) ?? 'M&E Officer';
-        
-        token.role = normalizedRole;
+      if (user?.email && (user as Record<string, unknown>).profileData) {
+        const data = (user as Record<string, unknown>).profileData as Record<string, unknown>;
+        const rawRole = data.role as string ?? 'ME';
+        token.role = normalizeRole(rawRole) ?? 'M&E Officer';
         token.state = data.state ?? 'All';
         token.district = data.district ?? 'All';
         token.staffName = data.name ?? user.name;
@@ -90,8 +78,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
   },
-  pages: {
-    signIn: "/login",
-  },
+  pages: { signIn: "/login" },
   debug: process.env.NODE_ENV === 'development',
 })

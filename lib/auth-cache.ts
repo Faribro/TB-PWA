@@ -1,31 +1,32 @@
-// In-memory cache for profile lookups (survives across requests in same instance)
-const profileCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const profileCache = new Map<string, { data: unknown; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000;
+const MAX_CACHE_SIZE = 1000;
 
-export function getCachedProfile(email: string) {
+export function getCachedProfile(email: string): unknown | null {
   const cached = profileCache.get(email);
   if (!cached) return null;
-  
-  const isExpired = Date.now() - cached.timestamp > CACHE_TTL;
-  if (isExpired) {
+
+  if (Date.now() - cached.timestamp > CACHE_TTL) {
     profileCache.delete(email);
     return null;
   }
-  
+
+  // Refresh position (LRU: delete + re-insert moves to end)
+  profileCache.delete(email);
+  profileCache.set(email, cached);
   return cached.data;
 }
 
-export function setCachedProfile(email: string, data: any) {
-  profileCache.set(email, { data, timestamp: Date.now() });
-  
-  // Auto-cleanup: keep cache under 1000 entries
-  if (profileCache.size > 1000) {
-    const firstKey = profileCache.keys().next().value;
-    profileCache.delete(firstKey);
+export function setCachedProfile(email: string, data: unknown): void {
+  // Evict oldest entry when at capacity
+  if (profileCache.size >= MAX_CACHE_SIZE && !profileCache.has(email)) {
+    const oldestKey = profileCache.keys().next().value;
+    if (oldestKey) profileCache.delete(oldestKey);
   }
+  profileCache.set(email, { data, timestamp: Date.now() });
 }
 
-export function clearProfileCache(email?: string) {
+export function clearProfileCache(email?: string): void {
   if (email) {
     profileCache.delete(email);
   } else {
