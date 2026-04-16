@@ -28,7 +28,8 @@
     "test:hybrid-ocr": "node scripts/test-hybrid-ocr.js",
     "test:upload-modal": "node scripts/test-upload-modal.js",
     "test:rls": "bun run scripts/test-rls-normalization.ts",
-    "seed:knowledge": "bun run scripts/seed-knowledge-articles.ts"
+    "seed:knowledge": "bun run scripts/seed-knowledge-articles.ts",
+    "test:sheets-sync": "node scripts/test-sheets-sync.js"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.43",

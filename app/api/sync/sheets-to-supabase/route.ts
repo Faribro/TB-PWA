@@ -76,7 +76,7 @@ function getHardcodedColumns(): Set<string> {
     'nikshay_abha_id', 'nikshay_id',
     'remarks', 'follow_up_notes',
     'gps_latitude', 'gps_longitude', 'latitude', 'longitude',
-    'data_source', 'is_active', 'current_phase',
+    'is_active', 'current_phase',
     'created_at', 'updated_at', 'last_updated'
   ]);
   
@@ -181,7 +181,6 @@ function mapSheetRowToSupabase(row: Record<string, any>): Record<string, any> {
     serial_number: row['Serial Number'] || row['serial_number'] || null,
     
     // Metadata
-    data_source: row['Data Source'] || row['data_source'] || 'google_sheets',
     updated_at: new Date().toISOString(),
   };
 
