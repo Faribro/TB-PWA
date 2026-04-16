@@ -145,8 +145,8 @@ function sendAllDataToSupabase() {
     for (var i = 0; i < dataRows.length; i++) {
       var row = dataRows[i];
       
-      // Skip empty rows (check if unique_id exists - this is the primary identifier)
-      if (!row[7] || String(row[7]).trim() === '') {
+      // Skip empty rows (check if kobo_uuid exists - this is the primary identifier)
+      if (!row[32] || String(row[32]).trim() === '') {
         continue;
       }
       
