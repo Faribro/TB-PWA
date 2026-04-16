@@ -36,20 +36,36 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return false;
       }
       
-      // TEMPORARY: Allow all Google users (bypass Supabase check)
-      console.log('[auth] ✅ Allowing user (Supabase check bypassed):', user.email);
-      
-      // Store mock profile data
-      (user as any).profileData = {
-        email: user.email,
-        role: 'admin',
-        state: 'All',
-        district: 'All',
-        name: user.name || user.email,
-        is_active: true
-      };
-      
-      return true;
+      // Check if user exists in profiles table
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', user.email.toLowerCase())
+          .single();
+        
+        if (error || !profile) {
+          console.error('[auth] ❌ User not found in profiles:', user.email);
+          return false;
+        }
+        
+        console.log('[auth] ✅ User found in profiles:', user.email, 'Role:', profile.role);
+        
+        // Store profile data for JWT callback
+        (user as any).profileData = {
+          email: profile.email,
+          role: profile.role,
+          state: profile.state,
+          district: profile.district,
+          name: profile.staff_name || user.name,
+          is_active: true
+        };
+        
+        return true;
+      } catch (err) {
+        console.error('[auth] ❌ Database error:', err);
+        return false;
+      }
     },
     async jwt({ token, user }) {
       if (user?.email && (user as any).profileData) {

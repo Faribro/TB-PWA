@@ -48,10 +48,10 @@ export async function GET(request: NextRequest) {
     // Parse pagination params
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
-    const requestedPageSize = Math.max(1, parseInt(searchParams.get('pageSize') ?? '100', 10));
+    const requestedPageSize = parseInt(searchParams.get('pageSize') ?? '100000', 10);
     
-    // HARD MAX 100 to prevent timeouts
-    const cappedPageSize = Math.min(requestedPageSize, 100);
+    // Allow large page sizes for dashboard (no cap)
+    const cappedPageSize = requestedPageSize;
     
     // Extract filter params
     const filterState = searchParams.get('state');
@@ -90,14 +90,14 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // NO RECORD LIMITS - use cappedPageSize to prevent timeouts
+    // NO RECORD LIMITS - fetch all data
     const maxRecords = cappedPageSize;
     
     const batchSize = 1000; // Supabase hard limit per query
     const offset = (page - 1) * maxRecords;
     let batches = 0;
 
-    console.log(`[patients/route] FINAL - User: ${session.user.email}, Role: ${role}, Max: ${maxRecords} (no limits)`);
+    console.log(`[patients/route] FINAL - User: ${session.user.email}, Role: ${role}, Fetching: ${maxRecords} records`);
 
     // Build base query with ALL filters (RBAC + query params)
     const applyFilters = (query: any) => {
@@ -155,32 +155,38 @@ export async function GET(request: NextRequest) {
       totalCount = cappedPageSize * page;
     }
 
-    // Single query with hard limit (no batching needed for 100 records)
+    // Fetch all records in batches of 1000 (Supabase limit)
     const records: any[] = [];
     
     try {
-      let query = supabase
-        .from('patients')
-        .select(SELECTED_COLUMNS)
-        .order('screening_date', { ascending: false })
-        .range(offset, offset + cappedPageSize - 1);
+      let currentOffset = offset;
+      let hasMore = true;
+      
+      while (hasMore && records.length < maxRecords) {
+        const batchLimit = Math.min(1000, maxRecords - records.length);
         
-      query = applyFilters(query);
-      
-      const queryPromise = query;
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Query timeout')), 8000)
-      );
-      
-      const result = await Promise.race([queryPromise, timeoutPromise]);
-      batches = 1;
-      
-      if (result.error) {
-        throw result.error;
-      }
-      
-      if (result.data) {
-        records.push(...result.data);
+        let query = supabase
+          .from('patients')
+          .select(SELECTED_COLUMNS)
+          .order('screening_date', { ascending: false })
+          .range(currentOffset, currentOffset + batchLimit - 1);
+          
+        query = applyFilters(query);
+        
+        const result = await query;
+        batches++;
+        
+        if (result.error) {
+          throw result.error;
+        }
+        
+        if (result.data && result.data.length > 0) {
+          records.push(...result.data);
+          currentOffset += result.data.length;
+          hasMore = result.data.length === batchLimit;
+        } else {
+          hasMore = false;
+        }
       }
     } catch (queryError) {
       console.error('[patients/route] Query error:', queryError);
