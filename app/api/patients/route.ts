@@ -50,8 +50,11 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
     const requestedPageSize = parseInt(searchParams.get('pageSize') ?? '1000', 10);
     
-    // Cap at 5000 to prevent timeouts (will fetch in batches)
-    const cappedPageSize = Math.min(requestedPageSize, 5000);
+    // For admin/PM: no limit. For others: cap at 10000
+    const sessionRole = session.user.role;
+    const normalizedRole = normalizeRole(sessionRole) ?? Role.ME_OFFICER;
+    const isAdminOrPM = normalizedRole === Role.ADMIN || normalizedRole === Role.PROGRAM_MANAGER;
+    const cappedPageSize = isAdminOrPM ? requestedPageSize : Math.min(requestedPageSize, 10000);
     
     // Extract filter params
     const filterState = searchParams.get('state');
@@ -62,7 +65,6 @@ export async function GET(request: NextRequest) {
     
     const supabase = createServerClient();
     
-    const sessionRole = session.user.role;
     const sessionState = session.user.state;
     const staffName = (session.user as any).staffName;
 
