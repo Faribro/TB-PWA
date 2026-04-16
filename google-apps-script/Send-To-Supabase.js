@@ -15,47 +15,76 @@ const SUPABASE_CONFIG = {
 
 /**
  * Maps the 37-column array from TB Industrial Engine to Supabase-ready JSON
+ * ✅ Verified against actual Supabase schema (43 columns)
  * Column indices match your sheet structure exactly
  */
 function mapRowToSupabaseJson_(row) {
+  // Clean and validate UUID
+  var cleanUuid = String(row[32] || '').replace(/^uuid:/i, '').trim();
+  
   return {
-    id: String(row[7] || ''),                    // Unique ID (SCode+DCode+FCode+Seq)
-    staff_name: row[0] || '',                    // Name of the Staff
-    submitted_on: row[1] || '',                  // Submitted On
-    screening_state: row[2] || '',               // State
-    screening_district: row[3] || '',            // District
-    facility_name: row[4] || '',                 // Facility Name
-    facility_type: row[5] || '',                 // Facility type
-    screening_date: row[6] || '',                // Date of Screening
-    inmate_name: row[8] || '',                   // Inmate Name
-    inmate_type: row[9] || '',                   // Inmate type
-    father_husband_name: row[10] || '',          // Father/Husband's Name
-    date_of_birth: row[11] || '',                // Date of Birth
-    age: row[12] || '',                          // Age
-    sex: row[13] || '',                          // Sex
-    contact_number: row[14] || '',               // Contact Number
-    address: row[15] || '',                      // Address
-    xray_result: row[16] || '',                  // Chest x ray Result
-    symptoms_present: row[17] || '',             // 10s Symptoms Present
-    tb_past_history: row[18] || '',              // Past history of TB
-    referral_date: row[19] || '',                // Date of referral
-    referred_facility: row[20] || '',            // Name of facility referred to
-    tb_diagnosed: row[21] || '',                 // TB diagnosed (Y/N)
-    tb_diagnosis_date: row[22] || '',            // Date of TB Diagnosed
-    tb_type: row[23] || '',                      // Type of TB Diagnosed
-    att_start_date: row[24] || '',               // Date of starting ATT
-    att_completion_date: row[25] || '',          // Date of Treatment Completion
-    hiv_status: row[26] || '',                   // HIV Status
-    art_status: row[27] || '',                   // Status at time of referral
-    art_number: row[28] || '',                   // ART Number
-    nikshay_abha_id: row[29] || '',              // NIKSHAY/ABHA ID
-    registration_date: row[30] || '',            // Date of registration
-    remarks: row[31] || '',                      // Remarks
-    kobo_uuid: String(row[32] || '').replace(/^uuid:/i, '').trim(),  // KoboUUID (cleaned)
-    kobo_id: String(row[33] || ''),              // KoboID
-    serial_number: row[34] || '',                // Serial Number
-    latitude: row[35] || null,                   // Latitude
-    longitude: row[36] || null                   // Longitude
+    // Core identifiers
+    id: String(row[7] || ''),                    // Unique ID (SCode+DCode+FCode+Seq) - PRIMARY KEY
+    unique_id: String(row[7] || ''),             // Alias for id
+    kobo_uuid: cleanUuid,                        // KoboUUID (cleaned)
+    
+    // Staff & submission
+    staff_name: row[0] || null,                  // Name of the Staff
+    submitted_on: row[1] || null,                // Submitted On
+    
+    // Location
+    screening_state: row[2] || null,             // State
+    screening_district: row[3] || null,          // District
+    facility_name: row[4] || null,               // Facility Name
+    facility_type: row[5] || null,               // Facility type
+    
+    // Screening
+    screening_date: row[6] || null,              // Date of Screening
+    
+    // Patient demographics
+    inmate_name: row[8] || null,                 // Inmate Name
+    inmate_type: row[9] || null,                 // Inmate type
+    father_husband_name: row[10] || null,        // Father/Husband's Name
+    date_of_birth: row[11] || null,              // Date of Birth
+    age: row[12] || null,                        // Age
+    sex: row[13] || null,                        // Sex
+    contact_number: row[14] || null,             // Contact Number
+    address: row[15] || null,                    // Address
+    
+    // Clinical data
+    xray_result: row[16] || null,                // Chest x ray Result (primary)
+    chest_x_ray_result: row[16] || null,         // Chest x ray Result (alias)
+    symptoms_present: row[17] || null,           // 10s Symptoms Present (primary)
+    symptoms_10s: row[17] || null,               // 10s Symptoms Present (alias)
+    tb_past_history: row[18] || null,            // Past history of TB
+    
+    // Referral
+    referral_date: row[19] || null,              // Date of referral
+    referred_facility: row[20] || null,          // Name of facility referred to
+    
+    // Diagnosis
+    tb_diagnosed: row[21] || null,               // TB diagnosed (Y/N)
+    tb_diagnosis_date: row[22] || null,          // Date of TB Diagnosed
+    tb_type: row[23] || null,                    // Type of TB Diagnosed
+    
+    // Treatment
+    att_start_date: row[24] || null,             // Date of starting ATT
+    att_completion_date: row[25] || null,        // Date of Treatment Completion
+    
+    // HIV/ART
+    hiv_status: row[26] || null,                 // HIV Status
+    art_status: row[27] || null,                 // Status at time of referral
+    art_number: row[28] || null,                 // ART Number
+    
+    // Registration
+    nikshay_abha_id: row[29] || null,            // NIKSHAY/ABHA ID
+    registration_date: row[30] || null,          // Date of registration
+    
+    // Notes
+    remarks: row[31] || null                     // Remarks
+    
+    // Note: kobo_id, serial_number, latitude, longitude are NOT in Supabase schema
+    // They will be filtered out by the backend
   };
 }
 
