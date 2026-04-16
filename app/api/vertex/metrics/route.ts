@@ -3,7 +3,7 @@ import { auth } from '@/auth';
 import { createServerClient } from '@/lib/supabase-server-admin';
 import { normalizeRole, Role } from '@/lib/constants/roles';
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 interface PatientRecord {
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       const yearStart = `${year}-01-01`;
       const yearEnd = `${year}-12-31`;
       
-      // ONE query fetches all patient records for the year
+      // ONE query fetches patient records for the year (limit 10k for performance)
       const { data: yearData, error: yearError } = await applyFilters(
         supabase
           .from('patients')
@@ -86,6 +86,7 @@ export async function GET(request: NextRequest) {
           .gte('screening_date', yearStart)
           .lte('screening_date', yearEnd)
           .not('screening_date', 'is', null)
+          .limit(10000)
       );
       
       if (yearError) {
@@ -170,7 +171,7 @@ export async function GET(request: NextRequest) {
       const lastDay = new Date(year, month, 0).getDate();
       const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
       
-      // Single query for month data
+      // Single query for month data (limit 5k for performance)
       const { data: monthData, error: monthError } = await applyFilters(
         supabase
           .from('patients')
@@ -178,6 +179,7 @@ export async function GET(request: NextRequest) {
           .gte('screening_date', monthStart)
           .lte('screening_date', monthEnd)
           .not('screening_date', 'is', null)
+          .limit(5000)
       );
       
       if (monthError) {
