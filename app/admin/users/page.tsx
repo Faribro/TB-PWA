@@ -22,6 +22,7 @@ const STATES = ['Delhi', 'Maharashtra', 'Karnataka', 'Tamil Nadu', 'West Bengal'
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -38,6 +39,7 @@ export default function AdminUsersPage() {
       const data = await res.json();
       if (data.success) {
         setUsers(data.users);
+        setTotalCount(data.total || data.users.length);
       } else {
         toast.error('Failed to load users');
       }
@@ -134,7 +136,7 @@ export default function AdminUsersPage() {
               User Management
             </h2>
             <p className="text-sm text-slate-600">
-              Manage system access and role assignments
+              Manage system access and role assignments · Total: {totalCount.toLocaleString()} users
             </p>
           </div>
 

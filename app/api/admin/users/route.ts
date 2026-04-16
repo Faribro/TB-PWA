@@ -11,14 +11,32 @@ export async function GET() {
 
   try {
     const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('email, name, role, state, district, phone, is_active')
-      .order('name');
+    
+    let allUsers: any[] = [];
+    let from = 0;
+    const pageSize = 1000;
+    let hasMore = true;
 
-    if (error) throw error;
+    // Fetch all records using pagination
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('email, name, role, state, district, phone, is_active')
+        .order('name')
+        .range(from, from + pageSize - 1);
 
-    return NextResponse.json({ success: true, users: data });
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        allUsers = [...allUsers, ...data];
+        from += pageSize;
+        hasMore = data.length === pageSize;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    return NextResponse.json({ success: true, users: allUsers, total: allUsers.length });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
