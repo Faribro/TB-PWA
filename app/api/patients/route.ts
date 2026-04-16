@@ -199,7 +199,7 @@ export async function GET(request: NextRequest) {
       meta: {
         total: totalCount || 0,
         returned: records.length,
-        limit,
+        limit: cappedPageSize,
         role,
         batches,
         durationMs
