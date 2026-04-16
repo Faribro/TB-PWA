@@ -229,7 +229,7 @@ export async function POST(req: NextRequest) {
     // Map and filter in one pass - accept snake_case directly from Apps Script
     const validData = patientsArray
       .map(row => filterToValidColumns(row, validColumns))
-      .filter(row => row.id); // Only keep rows with ID (primary key)
+      .filter(row => row.kobo_uuid); // Only keep rows with kobo_uuid (unique identifier)
 
     const invalidCount = patientsArray.length - validData.length;
 
@@ -238,9 +238,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (validData.length === 0) {
-      console.error('[Sheets Sync] No valid records to sync (all missing id)');
+      console.error('[Sheets Sync] No valid records to sync (all missing kobo_uuid)');
       return NextResponse.json(
-        { error: 'Bad Request', message: 'No valid records with id found' },
+        { error: 'Bad Request', message: 'No valid records with kobo_uuid found' },
         { status: 400 }
       );
     }
@@ -258,7 +258,7 @@ export async function POST(req: NextRequest) {
       const { error } = await supabase
         .from('patients')
         .upsert(batch, {
-          onConflict: 'id',
+          onConflict: 'kobo_uuid',
           ignoreDuplicates: false,
         });
 

@@ -16,6 +16,7 @@ const SUPABASE_CONFIG = {
 /**
  * Maps the 37-column array from TB Industrial Engine to Supabase-ready JSON
  * ✅ Verified against actual Supabase schema (43 columns)
+ * ✅ id = UUID (auto-generated), unique_id = MPGWCJ00001, kobo_uuid = 5b3ec782...
  * Column indices match your sheet structure exactly
  */
 function mapRowToSupabaseJson_(row) {
@@ -24,9 +25,9 @@ function mapRowToSupabaseJson_(row) {
   
   return {
     // Core identifiers
-    id: String(row[7] || ''),                    // Unique ID (SCode+DCode+FCode+Seq) - PRIMARY KEY
-    unique_id: String(row[7] || ''),             // Alias for id
-    kobo_uuid: cleanUuid,                        // KoboUUID (cleaned)
+    // NOTE: 'id' is auto-generated UUID in Supabase - DO NOT send it
+    unique_id: String(row[7] || ''),             // Unique ID (MPGWCJ00001) - TEXT field
+    kobo_uuid: cleanUuid,                        // KoboUUID (5b3ec782...) - TEXT field
     
     // Staff & submission
     staff_name: row[0] || null,                  // Name of the Staff
@@ -83,8 +84,8 @@ function mapRowToSupabaseJson_(row) {
     // Notes
     remarks: row[31] || null                     // Remarks
     
+    // Note: 'id' is auto-generated UUID by Supabase - not sent from Apps Script
     // Note: kobo_id, serial_number, latitude, longitude are NOT in Supabase schema
-    // They will be filtered out by the backend
   };
 }
 
@@ -129,8 +130,8 @@ function sendAllDataToSupabase() {
     for (var i = 0; i < dataRows.length; i++) {
       var row = dataRows[i];
       
-      // Skip empty rows (check if Unique ID exists)
-      if (!row[7] || String(row[7]).trim() === '') {
+      // Skip empty rows (check if kobo_uuid exists)
+      if (!row[32] || String(row[32]).trim() === '') {
         continue;
       }
       
