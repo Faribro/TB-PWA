@@ -14,12 +14,12 @@ export async function POST() {
     // Enable RLS
     await supabase.rpc('exec_sql', {
       sql: 'ALTER TABLE profiles ENABLE ROW LEVEL SECURITY'
-    }).catch(() => {});
+    });
 
     // Drop existing policies
     await supabase.rpc('exec_sql', {
       sql: 'DROP POLICY IF EXISTS "service_role_all_access" ON profiles'
-    }).catch(() => {});
+    });
 
     // Create service role policy
     const { error } = await supabase.rpc('exec_sql', {

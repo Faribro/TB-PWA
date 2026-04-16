@@ -18,8 +18,8 @@ export async function getSessionScope(): Promise<SessionScope> {
   const rawRole = session.user.role ?? 'ME';
   const role = normalizeRole(rawRole) ?? Role.ME_OFFICER;
   const rawState = (session.user.state ?? 'All').trim();
-  const rawDist = ((session.user as Record<string, unknown>).district as string ?? 'All').trim();
-  const staffName = ((session.user as Record<string, unknown>).staffName as string | undefined) ?? session.user.name ?? null;
+  const rawDist = ((session.user as any).district ?? 'All').trim();
+  const staffName = ((session.user as any).staffName ?? session.user.name) ?? null;
 
   const accessTier = ROLE_DATA_ACCESS[role];
 

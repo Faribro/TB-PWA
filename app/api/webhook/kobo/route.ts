@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Map payload
-    const transformed: Record<string, unknown> = mapKoboPayloadToSupabase(body);
+    const transformed = mapKoboPayloadToSupabase(body) as unknown as Record<string, unknown>;
     transformed.created_at ??= new Date().toISOString();
     transformed.synced_to_sheets = false;
     transformed.sheets_sync_attempts = 0;

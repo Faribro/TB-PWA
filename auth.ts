@@ -24,7 +24,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       const email = user.email.toLowerCase();
       const cached = getCachedProfile(email);
       if (cached) {
-        (user as Record<string, unknown>).profileData = cached;
+        (user as any).profileData = cached;
         return true;
       }
 
@@ -50,7 +50,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         };
 
         setCachedProfile(email, profileData);
-        (user as Record<string, unknown>).profileData = profileData;
+        (user as any).profileData = profileData;
         return true;
       } catch (err) {
         console.error('[auth] Database error during signIn:', err);
@@ -58,9 +58,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
     },
     async jwt({ token, user }) {
-      if (user?.email && (user as Record<string, unknown>).profileData) {
-        const data = (user as Record<string, unknown>).profileData as Record<string, unknown>;
-        const rawRole = data.role as string ?? 'ME';
+      if (user?.email && (user as any).profileData) {
+        const data = (user as any).profileData;
+        const rawRole = data.role ?? 'ME';
         token.role = normalizeRole(rawRole) ?? 'M&E Officer';
         token.state = data.state ?? 'All';
         token.district = data.district ?? 'All';

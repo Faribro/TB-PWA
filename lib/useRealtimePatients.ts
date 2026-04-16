@@ -1,214 +1,206 @@
-import { useEffect, useRef, useCallback, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-import { toast } from 'sonner'
+'use client';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { useEffect, useRef, useCallback, useState } from 'react';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
+import { toast } from 'sonner';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
-type RealtimeEvent = 'INSERT' | 'UPDATE' | 'DELETE'
-
-interface UseRealtimePatientsOptions {
-  onInsert?: (newPatient: any) => void
-  onUpdate?: (updatedPatient: any) => void
-  onDelete?: (deletedId: string) => void
-  showToasts?: boolean
-  filterState?: string   // only listen to patients from this state
-}
+type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
 export interface RealtimeStatus {
-  status: 'connecting' | 'connected' | 'disconnected' | 'error'
-  activeUsers: number
-  lastHeartbeat: number | null
+  status: ConnectionStatus;
+  activeUsers: number;
+  lastHeartbeat: number | null;
 }
+
+interface UseRealtimePatientsOptions {
+  onInsert?: (patient: Record<string, unknown>) => void;
+  onUpdate?: (patient: Record<string, unknown>) => void;
+  onDelete?: (id: string) => void;
+  showToasts?: boolean;
+  filterState?: string;
+}
+
+// Stable user ID persisted for the browser session
+function getSessionUserId(): string {
+  if (typeof window === 'undefined') return 'server';
+  const key = 'samadhaan_realtime_uid';
+  let id = sessionStorage.getItem(key);
+  if (!id) {
+    id = `u_${Math.random().toString(36).slice(2, 11)}`;
+    sessionStorage.setItem(key, id);
+  }
+  return id;
+}
+
+const MAX_RECONNECT_DELAY_MS = 30_000;
+const STALE_THRESHOLD_MS = 60_000;
+const HEARTBEAT_INTERVAL_MS = 30_000;
 
 export function useRealtimePatients(
   options: UseRealtimePatientsOptions = {}
 ): RealtimeStatus {
-  const {
-    onInsert,
-    onUpdate,
-    onDelete,
-    showToasts = true,
-    filterState
-  } = options
+  const { onInsert, onUpdate, onDelete, showToasts = true, filterState } = options;
 
-  // Fix continuous reconnect loop by storing changeable callbacks in a ref
-  const callbacksRef = useRef({ onInsert, onUpdate, onDelete, showToasts })
+  // Keep latest callbacks in a ref — never a subscribe dep
+  const cb = useRef({ onInsert, onUpdate, onDelete, showToasts });
   useEffect(() => {
-    callbacksRef.current = { onInsert, onUpdate, onDelete, showToasts }
-  }, [onInsert, onUpdate, onDelete, showToasts])
+    cb.current = { onInsert, onUpdate, onDelete, showToasts };
+  });
 
-  const channelRef = useRef<any>(null)
-  const reconnectTimer = useRef<NodeJS.Timeout | undefined>(undefined)
-  const reconnectAttempts = useRef(0)
-  const heartbeatTimer = useRef<NodeJS.Timeout | undefined>(undefined)
-  
-  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('connecting' as const)
-  const [activeUsers, setActiveUsers] = useState<number>(0)
-  const [lastHeartbeat, setLastHeartbeat] = useState<number | null>(null)
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttempts = useRef(0);
+  const lastHeartbeatRef = useRef<number | null>(null);
 
-  // Generate stable user ID for presence
-  const userId = useRef(
-    typeof window !== 'undefined'
-      ? `user_${Math.random().toString(36).slice(2, 11)}`
-      : 'server'
-  ).current
+  const [status, setStatus] = useState<ConnectionStatus>('connecting');
+  const [activeUsers, setActiveUsers] = useState(0);
+  const [lastHeartbeat, setLastHeartbeat] = useState<number | null>(null);
+
+  const userId = useRef(getSessionUserId()).current;
+
+  const clearReconnectTimer = () => {
+    if (reconnectTimer.current) {
+      clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = null;
+    }
+  };
 
   const subscribe = useCallback(() => {
-    // Clean up existing channel
+    const supabase = getSupabaseBrowserClient();
+
     if (channelRef.current) {
-      supabase.removeChannel(channelRef.current)
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
     }
+
+    setStatus('connecting');
 
     const channel = supabase
       .channel('patients-realtime-shared', {
         config: {
-          presence: {
-            key: userId
-          },
-          broadcast: {
-            self: false
-          }
-        }
+          presence: { key: userId },
+          broadcast: { self: false },
+        },
       })
-      // Track presence (active users)
       .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState()
-        const userCount = Object.keys(state).length
-        setActiveUsers(userCount)
-        console.log(`[Realtime] ${userCount} active users`)
+        const count = Object.keys(channel.presenceState()).length;
+        setActiveUsers(count);
       })
-      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        console.log('[Realtime] User joined:', key)
-      })
-      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-        console.log('[Realtime] User left:', key)
-      })
-      // Listen to database changes
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'patients',
-          ...(filterState
-            ? { filter: `screening_state=eq.${filterState}` }
-            : {})
+          ...(filterState ? { filter: `screening_state=eq.${filterState}` } : {}),
         },
         (payload) => {
-          reconnectAttempts.current = 0 // reset on success
-          setLastHeartbeat(Date.now())
+          reconnectAttempts.current = 0;
+          const now = Date.now();
+          lastHeartbeatRef.current = now;
+          setLastHeartbeat(now);
 
           if (payload.eventType === 'INSERT') {
-            callbacksRef.current.onInsert?.(payload.new)
-            if (callbacksRef.current.showToasts) {
-              toast.success(
-                `New patient added: ${payload.new.inmate_name}`,
-                {
-                  description: payload.new.unique_id,
-                  duration: 4000
-                }
-              )
+            const p = payload.new as Record<string, unknown>;
+            cb.current.onInsert?.(p);
+            if (cb.current.showToasts) {
+              toast.success(`New patient: ${p.inmate_name}`, {
+                description: p.unique_id as string,
+                duration: 4000,
+              });
             }
           }
 
           if (payload.eventType === 'UPDATE') {
-            callbacksRef.current.onUpdate?.(payload.new)
+            const p = payload.new as Record<string, unknown>;
+            const old = payload.old as Record<string, unknown>;
+            cb.current.onUpdate?.(p);
             if (
-              callbacksRef.current.showToasts &&
-              payload.new.synced_to_sheets === true &&
-              payload.old?.synced_to_sheets === false
+              cb.current.showToasts &&
+              p.synced_to_sheets === true &&
+              old?.synced_to_sheets === false
             ) {
-              toast.success(
-                `${payload.new.inmate_name} synced to Sheets`,
-                { duration: 3000 }
-              )
+              toast.success(`${p.inmate_name} synced to Sheets`, { duration: 3000 });
             }
           }
 
           if (payload.eventType === 'DELETE') {
-            callbacksRef.current.onDelete?.(payload.old?.id)
+            cb.current.onDelete?.((payload.old as Record<string, unknown>)?.id as string);
           }
         }
       )
-      .subscribe((status) => {
-        console.log('[Realtime] Subscription status:', status)
-        
-        if (status === 'SUBSCRIBED') {
-          reconnectAttempts.current = 0
-          setConnectionStatus('connected')
-          setLastHeartbeat(Date.now())
-          
-          // Track presence
-          channel.track({
-            user_id: userId,
-            online_at: new Date().toISOString()
-          })
-        } else if (status === 'CLOSED') {
-          setConnectionStatus('disconnected')
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          setConnectionStatus('error')
-          
-          // Exponential backoff reconnect
+      .subscribe((s) => {
+        if (s === 'SUBSCRIBED') {
+          reconnectAttempts.current = 0;
+          setStatus('connected');
+          const now = Date.now();
+          lastHeartbeatRef.current = now;
+          setLastHeartbeat(now);
+          channel.track({ user_id: userId, online_at: new Date().toISOString() });
+        } else if (s === 'CLOSED') {
+          setStatus('disconnected');
+        } else if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT') {
+          setStatus('error');
           const delay = Math.min(
             1000 * Math.pow(2, reconnectAttempts.current),
-            30000 // max 30s
-          )
-          reconnectAttempts.current++
-          
-          console.warn(`[Realtime] Connection error, retrying in ${delay}ms (attempt ${reconnectAttempts.current})`)
-          
-          reconnectTimer.current = setTimeout(subscribe, delay)
+            MAX_RECONNECT_DELAY_MS
+          );
+          reconnectAttempts.current++;
+          reconnectTimer.current = setTimeout(subscribe, delay);
         }
-      })
+      });
 
-    channelRef.current = channel
-  }, [filterState, userId])
+    channelRef.current = channel;
+  }, [filterState, userId]); // stable — callbacks never in deps
 
-  // Heartbeat to detect stale connections
+  // Heartbeat watchdog — uses ref for lastHeartbeat, no dep-array churn
   useEffect(() => {
-    const checkConnection = () => {
-      if (!channelRef.current) return
-      
-      const state = channelRef.current.state
-      const timeSinceLastHeartbeat = lastHeartbeat ? Date.now() - lastHeartbeat : null
-      
-      // If no heartbeat in 60s and state is not joined, reconnect
-      if (state !== 'joined' || (timeSinceLastHeartbeat && timeSinceLastHeartbeat > 60000)) {
-        console.warn('[Realtime] Connection stale, reconnecting...', {
-          state,
-          timeSinceLastHeartbeat
-        })
-        setConnectionStatus('disconnected')
-        subscribe()
+    const id = setInterval(() => {
+      if (!channelRef.current) return;
+      const stale =
+        lastHeartbeatRef.current !== null &&
+        Date.now() - lastHeartbeatRef.current > STALE_THRESHOLD_MS;
+      const notJoined = (channelRef.current as unknown as { state: string }).state !== 'joined';
+      if (stale || notJoined) {
+        setStatus('disconnected');
+        subscribe();
       }
-    }
-    
-    heartbeatTimer.current = setInterval(checkConnection, 30000) // Check every 30s
-    
-    return () => {
-      if (heartbeatTimer.current) {
-        clearInterval(heartbeatTimer.current)
-      }
-    }
-  }, [subscribe, lastHeartbeat])
+    }, HEARTBEAT_INTERVAL_MS);
 
+    return () => clearInterval(id);
+  }, [subscribe]); // subscribe is stable (memoized with useCallback)
+
+  // Pause when tab hidden, resume when visible
   useEffect(() => {
-    subscribe()
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        clearReconnectTimer();
+        subscribe();
+      } else {
+        // Tab hidden — disconnect to free server resources
+        if (channelRef.current) {
+          getSupabaseBrowserClient().removeChannel(channelRef.current);
+          channelRef.current = null;
+        }
+        setStatus('disconnected');
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [subscribe]);
+
+  // Mount / unmount
+  useEffect(() => {
+    subscribe();
     return () => {
-      clearTimeout(reconnectTimer.current)
-      clearInterval(heartbeatTimer.current)
+      clearReconnectTimer();
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current)
+        getSupabaseBrowserClient().removeChannel(channelRef.current);
       }
-    }
-  }, [subscribe])
-  
-  return {
-    status: connectionStatus,
-    activeUsers,
-    lastHeartbeat
-  }
+    };
+  }, [subscribe]);
+
+  return { status, activeUsers, lastHeartbeat };
 }

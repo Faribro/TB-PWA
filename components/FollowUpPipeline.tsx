@@ -198,15 +198,14 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
     filterState: activeFilters?.state,
     onInsert: (newPatient) => {
       setPatients(prev => {
-        // Avoid duplicates
-        if (prev.some(p => p.id === newPatient.id)) return prev
-        return [newPatient, ...prev]
-      })
+        if (prev.some(p => p.id === newPatient.id)) return prev;
+        return [newPatient as unknown as Patient, ...prev];
+      });
     },
     onUpdate: (updated) => {
       setPatients(prev =>
-        prev.map(p => p.id === updated.id ? updated : p)
-      )
+        prev.map(p => p.id === updated.id ? updated as unknown as Patient : p)
+      );
     },
     onDelete: (deletedId) => {
       setPatients(prev => prev.filter(p => p.id !== Number(deletedId)))

@@ -21,3 +21,15 @@ Creating turbopack project { dir: 'C:\\Users\\farid\\Desktop\\TB-PWA-Clean', tes
  ○ Compiling /api/sync/sheets-to-supabase/health ...
  ✓ Compiled /api/sync/sheets-to-supabase/health in 4.2s
  HEAD /api/sync/sheets-to-supabase/health 200 in 4772ms
+ ✓ Compiled middleware in 15ms
+ ✓ Compiled middleware in 19ms
+ ✓ Compiled in 89ms
+ ✓ Compiled middleware in 12ms
+ ✓ Compiled in 0ms
+ ✓ Compiled middleware in 20ms
+ ✓ Compiled in 0ms
+[33m[auth][warn][debug-enabled][0m Read more: https://warnings.authjs.dev
+ ✓ Compiled middleware in 61ms
+ ✓ Compiled in 0ms
+ ✓ Compiled middleware in 36ms
+ ✓ Compiled in 0ms
