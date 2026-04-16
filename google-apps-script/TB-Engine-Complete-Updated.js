@@ -1382,8 +1382,8 @@ function FIND_DUPLICATE_UUIDS() {
 // =============================================================================
 
 var SUPABASE_SYNC_CONFIG = {
-  // 50 rows/batch: small enough to avoid Vercel timeout on cold start
-  BATCH_SIZE:      50,
+  // 10 rows/batch: minimal size to avoid Vercel cold start timeouts
+  BATCH_SIZE:      10,
   // Stop at 4m30s â€” leaves 90s margin before Apps Script's 6-min kill
   MAX_RUNTIME_MS:  5 * 60000,
   // Only retry true network errors â€” never retry server 5xx (they waste time)
