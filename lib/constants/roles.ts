@@ -28,6 +28,8 @@ export const RoleShortCode = {
 // Map short codes to full role names
 export const ROLE_MAPPING: Record<string, UserRole> = {
   'admin': Role.ADMIN,
+  'Admin': Role.ADMIN,  // Case-insensitive admin
+  'ADMIN': Role.ADMIN,  // Case-insensitive admin
   'PM': Role.PROGRAM_MANAGER,
   'SPM': Role.STATE_PROGRAM_MANAGER,
   'ME': Role.ME_OFFICER,
