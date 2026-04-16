@@ -12,6 +12,11 @@ export async function GET() {
   try {
     const supabase = getSupabaseClient();
     
+    // Get total count first
+    const { count } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
+
     let allUsers: any[] = [];
     let from = 0;
     const pageSize = 1000;
@@ -36,7 +41,14 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ success: true, users: allUsers, total: allUsers.length });
+    console.log(`[Admin Users API] Fetched ${allUsers.length} users out of ${count} total`);
+
+    return NextResponse.json({ 
+      success: true, 
+      users: allUsers, 
+      total: count || allUsers.length,
+      fetched: allUsers.length 
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

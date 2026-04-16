@@ -38,6 +38,11 @@ export default function AdminUsersPage() {
       const res = await fetch('/api/admin/users');
       const data = await res.json();
       if (data.success) {
+        console.log('[Admin Users] API Response:', {
+          totalFromAPI: data.total,
+          fetchedFromAPI: data.fetched,
+          usersArrayLength: data.users.length
+        });
         setUsers(data.users);
         setTotalCount(data.total || data.users.length);
       } else {
