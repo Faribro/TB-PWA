@@ -226,27 +226,16 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Sheets Sync] Received ${body.length} records from Google Sheets`);
 
-    // STEP 1: Fetch valid column names from Supabase schema
-    const validColumns = await getValidColumns();
-    console.log(`[Sheets Sync] Using ${validColumns.size} valid columns for filtering`);
+    // FAST PATH: Skip schema detection, use hardcoded columns
+    const validColumns = getHardcodedColumns();
 
-    // STEP 2: Map all rows to Supabase schema
-    const mappedData = body.map(mapSheetRowToSupabase);
+    // Map and filter in one pass
+    const validData = body
+      .map(mapSheetRowToSupabase)
+      .map(row => filterToValidColumns(row, validColumns))
+      .filter(row => row.kobo_uuid); // Only keep rows with UUID
 
-    // STEP 3: Filter each mapped row to only include valid columns
-    const cleanedData = mappedData.map(row => {
-      const filtered = filterToValidColumns(row, validColumns);
-      
-      // DOUBLE CHECK: Explicitly delete blacklisted columns again
-      delete filtered.alcohol;
-      delete filtered.smoking;
-      
-      return filtered;
-    });
-
-    // Filter out rows without kobo_uuid (required for upsert)
-    const validData = cleanedData.filter(row => row.kobo_uuid);
-    const invalidCount = cleanedData.length - validData.length;
+    const invalidCount = body.length - validData.length;
 
     if (invalidCount > 0) {
       console.warn(`[Sheets Sync] Skipping ${invalidCount} rows without kobo_uuid`);
@@ -260,72 +249,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(`[Sheets Sync] Proceeding with clean push of ${validData.length} records`);
+    console.log(`[Sheets Sync] Upserting ${validData.length} records`);
 
-    // AUDIT LOG: Show exactly what keys are being sent to Supabase
-    if (validData.length > 0) {
-      const sampleKeys = Object.keys(validData[0]).sort();
-      console.log(`[Upsert Audit] Upserting payload keys (${sampleKeys.length}):`, sampleKeys.join(', '));
-      
-      // Check for blacklisted columns in final payload
-      const hasBlacklisted = sampleKeys.some(key => BLACKLISTED_COLUMNS.has(key));
-      if (hasBlacklisted) {
-        console.error('[Upsert Audit] ⚠️ BLACKLISTED COLUMNS DETECTED IN FINAL PAYLOAD!');
-        const blacklisted = sampleKeys.filter(key => BLACKLISTED_COLUMNS.has(key));
-        console.error('[Upsert Audit] Blacklisted columns found:', blacklisted.join(', '));
-      } else {
-        console.log('[Upsert Audit] ✅ No blacklisted columns in final payload');
-      }
-    }
-
-    // STEP 4: Industrial upsert with cleaned data
-    const { data, error, count } = await supabase
+    // Direct upsert without audit logging
+    const { error } = await supabase
       .from('patients')
       .upsert(validData, {
         onConflict: 'kobo_uuid',
-        ignoreDuplicates: false, // Update existing records
-      })
-      .select();
+        ignoreDuplicates: false,
+      });
 
     if (error) {
-      console.error('[Sheets Sync] Supabase upsert failed:', error);
-      console.error('[Sheets Sync] Error details:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      });
-      
-      // Log first record for debugging
-      if (validData.length > 0) {
-        console.error('[Sheets Sync] First record keys:', Object.keys(validData[0]).join(', '));
-      }
-      
+      console.error('[Sheets Sync] Supabase upsert failed:', error.message);
       return NextResponse.json(
         { 
           error: 'Database Error', 
           message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
         },
         { status: 500 }
       );
     }
 
-    console.log(`[Sheets Sync] ✅ Successfully synced ${validData.length} records to Supabase`);
+    console.log(`[Sheets Sync] ✅ Successfully synced ${validData.length} records`);
 
-    // Return success only after Supabase write is confirmed
     return NextResponse.json(
       {
         success: true,
-        message: 'Records synced successfully with schema-aware filtering',
+        message: 'Records synced successfully',
         stats: {
           received: body.length,
-          valid: validData.length,
-          invalid: invalidCount,
           synced: validData.length,
-          schema_columns: validColumns.size,
+          invalid: invalidCount,
         },
       },
       { status: 200 }
@@ -337,7 +291,6 @@ export async function POST(req: NextRequest) {
       { 
         error: 'Internal Server Error', 
         message: error.message || 'An unexpected error occurred',
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
     );
