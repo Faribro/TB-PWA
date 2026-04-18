@@ -238,7 +238,25 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     [localPatient]
   );
   const isClosed = phase === 'Closed';
-  const isAuthorized = !scope || !localPatient || isSuperuser(scope) || !scope.state || localPatient.screening_state === scope.state;
+  
+  // Authorization check with Maharashtra-Mumbai grouping
+  const isAuthorized = useMemo(() => {
+    if (!scope || !localPatient) return true;
+    if (isSuperuser(scope)) return true;
+    if (!scope.state) return true;
+    
+    const patientState = localPatient.screening_state;
+    const userState = scope.state;
+    
+    // Direct match
+    if (patientState === userState) return true;
+    
+    // Maharashtra-Mumbai grouping: Maharashtra SPM can access Mumbai patients
+    if (userState === 'Maharashtra' && patientState === 'Mumbai') return true;
+    if (userState === 'Mumbai' && patientState === 'Maharashtra') return true;
+    
+    return false;
+  }, [scope, localPatient]);
 
   const handleSaveClinical = async () => {
     const formData = getValues();
