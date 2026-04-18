@@ -1353,7 +1353,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                       {/* ─────────────────────────────────────
                           §8 · Administrative Metadata
                           Always read-only.
-                          kobo keys: kobouuid, koboid, SerialNumber
+                          kobo key: kobouuid
                       ───────────────────────────────────── */}
                       <div className="flex items-center gap-1.5 mb-3">
                         <Settings2 className="w-3 h-3 text-slate-400" />
@@ -1365,21 +1365,6 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                           <p className="text-[12px] font-mono font-medium text-slate-600 break-all leading-relaxed">
                             {localPatient?.kobo_uuid || <span className="text-slate-300 font-sans font-normal italic">Not recorded</span>}
                           </p>
-                        </div>
-                        <div className="h-px bg-slate-200/60" />
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">KoboID</p>
-                            <p className="text-[12px] font-mono font-medium text-slate-600">
-                              {localPatient?.kobo_id || <span className="text-slate-300 font-sans font-normal italic">—</span>}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Serial Number</p>
-                            <p className="text-[12px] font-mono font-medium text-slate-600">
-                              {localPatient?.serial_number || <span className="text-slate-300 font-sans font-normal italic">—</span>}
-                            </p>
-                          </div>
                         </div>
                       </div>
                     </div>

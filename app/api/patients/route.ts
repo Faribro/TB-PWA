@@ -23,9 +23,7 @@ const SELECTED_COLUMNS = [
   'symptoms_10s', 'tb_past_history', 'remarks',
   // CRITICAL: Clinical fields for Diagnosis/Treatment/Nikshay sections
   'tb_diagnosis_date', 'att_completion_date', 'art_status', 'art_number',
-  'registration_date', 'closure_reason', 'updated_at',
-  // Demographics tab: administrative metadata fields
-  'kobo_id', 'serial_number'
+  'registration_date', 'closure_reason', 'updated_at'
 ].join(',');
 
 interface PatientsResponse {
