@@ -245,8 +245,16 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     if (isSuperuser(scope)) return true;
     if (!scope.state) return true;
     
-    const patientState = localPatient.screening_state;
-    const userState = scope.state;
+    const patientState = localPatient.screening_state?.trim();
+    const userState = scope.state?.trim();
+    
+    console.log('[PatientDetailDrawer] Authorization check:', {
+      patientState,
+      userState,
+      patientStateRaw: localPatient.screening_state,
+      userStateRaw: scope.state,
+      isSuperuser: isSuperuser(scope)
+    });
     
     // Direct match
     if (patientState === userState) return true;
