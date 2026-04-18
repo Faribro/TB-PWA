@@ -259,9 +259,15 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         art_status: formData['Status at the time of referral (Pre ART/On ART)'],
         art_number: formData['ART Number (if on ART at the time of referral)'],
         nikshay_abha_id: formData['NIKSHAY/ABHA ID'],
+        registration_date: formData['Date of registration (dd/mm/yyyy)'],
         remarks: formData['Remarks'],
         updated_at: new Date().toISOString()
       };
+
+      console.log('[PatientDetailDrawer] 📤 Sending clinical update:', {
+        patientId: localPatient.id,
+        payload
+      });
 
       // Optimistic update - update local state immediately
       const optimisticPatient = { ...localPatient, ...payload };
@@ -310,6 +316,21 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       const { result } = await res.json();
       setSyncing();
+      
+      console.log('[PatientDetailDrawer] ✅ Save successful, result:', {
+        persistedFields: {
+          tb_diagnosed: result.tb_diagnosed,
+          tb_diagnosis_date: result.tb_diagnosis_date,
+          tb_type: result.tb_type,
+          att_start_date: result.att_start_date,
+          att_completion_date: result.att_completion_date,
+          hiv_status: result.hiv_status,
+          art_status: result.art_status,
+          art_number: result.art_number,
+          nikshay_abha_id: result.nikshay_abha_id,
+          registration_date: result.registration_date
+        }
+      });
       
       // Revalidate to ensure consistency
       await mutate(

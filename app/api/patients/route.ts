@@ -20,7 +20,10 @@ const SELECTED_COLUMNS = [
   // Additional columns for PatientDetailDrawer
   'date_of_birth', 'contact_number', 'address',
   'father_husband_name', 'inmate_type', 'staff_name',
-  'symptoms_10s', 'tb_past_history', 'remarks'
+  'symptoms_10s', 'tb_past_history', 'remarks',
+  // CRITICAL: Clinical fields for Diagnosis/Treatment/Nikshay sections
+  'tb_diagnosis_date', 'att_completion_date', 'art_status', 'art_number',
+  'registration_date', 'closure_reason', 'updated_at'
 ].join(',');
 
 interface PatientsResponse {
@@ -261,6 +264,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Patient ID required' }, { status: 400 });
     }
 
+    // DEBUG: Log incoming payload
+    console.log(`[patients/POST] 🔍 Received payload for patient ${id}:`, {
+      fields: Object.keys(data),
+      clinicalFields: {
+        tb_diagnosed: data.tb_diagnosed,
+        tb_diagnosis_date: data.tb_diagnosis_date,
+        tb_type: data.tb_type,
+        att_start_date: data.att_start_date,
+        att_completion_date: data.att_completion_date,
+        hiv_status: data.hiv_status,
+        art_status: data.art_status,
+        art_number: data.art_number,
+        nikshay_abha_id: data.nikshay_abha_id,
+        registration_date: data.registration_date,
+        referral_date: data.referral_date,
+        referred_facility: data.referred_facility,
+        remarks: data.remarks
+      }
+    });
+
     // Sanitize data: convert empty strings to null for date/numeric fields
     const sanitizedData = Object.entries(data).reduce((acc, [key, value]) => {
       // Convert empty strings to null
@@ -315,12 +338,29 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('[patients/POST] Upsert error:', error);
+      console.error('[patients/POST] ❌ Upsert error:', error);
       return NextResponse.json({ 
         error: error.message,
         code: error.code 
       }, { status: 400 });
     }
+
+    // DEBUG: Log what was actually persisted
+    console.log(`[patients/POST] ✅ Upserted patient ${id}:`, {
+      persistedClinicalFields: {
+        tb_diagnosed: result.tb_diagnosed,
+        tb_diagnosis_date: result.tb_diagnosis_date,
+        tb_type: result.tb_type,
+        att_start_date: result.att_start_date,
+        att_completion_date: result.att_completion_date,
+        hiv_status: result.hiv_status,
+        art_status: result.art_status,
+        art_number: result.art_number,
+        nikshay_abha_id: result.nikshay_abha_id,
+        registration_date: result.registration_date,
+        updated_at: result.updated_at
+      }
+    });
 
     // Log to audit trail (fire-and-forget)
     logAudit({
