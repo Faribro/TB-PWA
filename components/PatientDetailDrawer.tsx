@@ -150,21 +150,33 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     }
   }, [localPatient, reset]);
 
-  // ── Demographics State with Aggressive API Fallbacks ──
+  // ── Demographics State — Kobo-canonical keys with legacy fallbacks ──
+  // Key names match the Kobo XLSX field names exactly. Supabase column mapping
+  // happens in mapDemographics (read) and handleSaveDemographics (write).
   const mapDemographics = (p: any) => ({
-    inmate_name: p?.inmate_name || p?.['Inmate Name'] || p?.patient_name || p?.name || '',
-    age: p?.age || p?.['Age'] || '',
-    sex: p?.sex || p?.['Sex (Male/Female/TG)'] || p?.gender || p?.['Gender'] || '',
-    contact_number: p?.contact_number || p?.['Contact Number'] || p?.phone || p?.mobile || '',
-    address: p?.address || p?.['Address'] || p?.residential_address || '',
-    facility_name: p?.facility_name || p?.['Name of Facility'] || p?.['Facility'] || '',
-    date_of_birth: p?.date_of_birth || p?.['Date of Birth'] || p?.dob || '',
-    screening_date: p?.screening_date || p?.['Date of Screening'] || p?.submitted_on || '',
-    father_husband_name: p?.father_husband_name || p?.['Father/Husband Name'] || p?.father_name || '',
-    inmate_type: p?.inmate_type || p?.['Inmate Type'] || '',
-    staff_name: p?.staff_name || p?.['Staff Name'] || p?.data_collector || '',
-    symptoms_10s: p?.symptoms_10s || p?.['Symptoms 10s'] || p?.symptoms_present || '',
-    tb_past_history: p?.tb_past_history || p?.['Past TB History'] || p?.past_tb_history || p?.tb_history || ''
+    // §1 Screening Details
+    staffname:         p?.staff_name         || p?.['Staff Name']            || p?.data_collector        || '',
+    submittedon:       p?.submitted_on        || '',
+    screeningstate:    p?.screening_state     || '',
+    screeningdistrict: p?.screening_district  || p?.['District']              || '',
+    facilitycode:      p?.facility_name       || p?.['Name of Facility']      || p?.facilitycode          || '',
+    facilitytype:      p?.facility_type       || p?.['Facility Type']         || '',
+    screeningdate:     p?.screening_date      || p?.['Date of Screening']     || '',
+    uniqueid:          p?.unique_id           || '',
+    // §2 Identity
+    inmatename:        p?.inmate_name         || p?.['Inmate Name']           || p?.patient_name           || p?.name || '',
+    inmatetype:        p?.inmate_type         || p?.['Inmate Type']           || '',
+    fatherhusbandname: p?.father_husband_name || p?.['Father/Husband Name']   || p?.father_name            || '',
+    dateofbirth:       p?.date_of_birth       || p?.['Date of Birth']         || p?.dob                    || '',
+    age:               p?.age                 || p?.['Age']                   || '',
+    sex:               p?.sex                 || p?.['Sex (Male/Female/TG)']  || p?.gender                 || '',
+    contactnumber:     p?.contact_number      || p?.['Contact Number']        || p?.phone                  || p?.mobile || '',
+    // §3 Location
+    address:           p?.address             || p?.['Address']               || p?.residential_address    || '',
+    // §4 TB Screening (editable in demographics, not in clinical accordion)
+    xrayresult:        p?.xray_result         || p?.chest_x_ray_result        || '',
+    symptoms10s:       p?.symptoms_10s        || p?.['Symptoms 10s']          || p?.symptoms_present       || '',
+    tbpasthistory:     p?.tb_past_history     || p?.['Past TB History']       || p?.past_tb_history        || p?.tb_history || '',
   });
 
   const [editedDemographics, setEditedDemographics] = useState(mapDemographics(localPatient));
@@ -433,22 +445,33 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     setIsSavingDemographics(true);
 
     try {
+      // Map Kobo-canonical state keys → Supabase column names
       const payload = {
         id: localPatient.id,
-        inmate_name: editedDemographics.inmate_name,
-        age: editedDemographics.age,
-        sex: editedDemographics.sex,
-        contact_number: editedDemographics.contact_number,
-        address: editedDemographics.address,
-        facility_name: editedDemographics.facility_name,
-        date_of_birth: editedDemographics.date_of_birth,
-        screening_date: editedDemographics.screening_date,
-        father_husband_name: editedDemographics.father_husband_name,
-        inmate_type: editedDemographics.inmate_type,
-        staff_name: editedDemographics.staff_name,
-        symptoms_10s: editedDemographics.symptoms_10s,
-        tb_past_history: editedDemographics.tb_past_history,
-        updated_at: new Date().toISOString()
+        // §1 Screening Details
+        staff_name:          editedDemographics.staffname,
+        submitted_on:        editedDemographics.submittedon,
+        screening_state:     editedDemographics.screeningstate,
+        screening_district:  editedDemographics.screeningdistrict,
+        facility_name:       editedDemographics.facilitycode,   // facilitycode Kobo key → facility_name Supabase col
+        facility_type:       editedDemographics.facilitytype,
+        screening_date:      editedDemographics.screeningdate,
+        unique_id:           editedDemographics.uniqueid,
+        // §2 Identity
+        inmate_name:         editedDemographics.inmatename,
+        inmate_type:         editedDemographics.inmatetype,
+        father_husband_name: editedDemographics.fatherhusbandname,
+        date_of_birth:       editedDemographics.dateofbirth,
+        age:                 editedDemographics.age,
+        sex:                 editedDemographics.sex,
+        contact_number:      editedDemographics.contactnumber,
+        // §3 Location
+        address:             editedDemographics.address,
+        // §4 TB Screening
+        xray_result:         editedDemographics.xrayresult,
+        symptoms_10s:        editedDemographics.symptoms10s,
+        tb_past_history:     editedDemographics.tbpasthistory,
+        updated_at:          new Date().toISOString()
       };
 
       const res = await fetch('/api/patients', {
@@ -1097,13 +1120,13 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="demographics" className="mt-0">
-                    <div className="p-4">
-                      {/* Lock/Unlock Toggle — compact */}
-                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 mb-4">
+                    <TabsContent value="demographics" className="mt-0">
+                    <div className="p-4 space-y-0">
+                      {/* Lock/Unlock Toggle */}
+                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 mb-5">
                         <div className="flex items-center gap-2">
                           {isEditingDemographics ? <Unlock className="w-3.5 h-3.5 text-emerald-600" /> : <Lock className="w-3.5 h-3.5 text-slate-400" />}
-                          <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">{isEditingDemographics ? 'Editing' : 'Read-Only'}</span>
+                          <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">{isEditingDemographics ? 'Editing — Sections 1–4 unlocked' : 'Read-Only'}</span>
                         </div>
                         <button
                           onClick={() => setIsEditingDemographics(!isEditingDemographics)}
@@ -1113,94 +1136,251 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                         </button>
                       </div>
 
-                      {/* ── Section 1: Identity ── */}
-                      <div className="flex items-center gap-1.5 mb-3 mt-1">
-                        <User className="w-3 h-3 text-slate-400" />
-                        <span className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">Identity</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2.5">
-                        {isEditingDemographics ? (
-                          <>
-                            <div className="col-span-2"><EditableField label="Name" value={editedDemographics.inmate_name} onChange={(v) => setEditedDemographics({...editedDemographics, inmate_name: v})} /></div>
-                            <EditableField label="Date of Birth" value={editedDemographics.date_of_birth} onChange={(v) => setEditedDemographics({...editedDemographics, date_of_birth: v})} type="date" />
-                            <EditableField label="Age" value={editedDemographics.age} onChange={(v) => setEditedDemographics({...editedDemographics, age: v})} />
-                            <EditableSelect label="Sex" value={editedDemographics.sex} onChange={(v) => setEditedDemographics({...editedDemographics, sex: v})} options={[{value:'Male', label:'Male'}, {value:'Female', label:'Female'}, {value:'TG', label:'Transgender'}]} />
-                            <EditableField label="Contact Number" value={editedDemographics.contact_number} onChange={(v) => setEditedDemographics({...editedDemographics, contact_number: v})} />
-                          </>
-                        ) : (
-                          <>
-                            <div className="col-span-2"><ReadOnlyField label="Name" value={localPatient?.inmate_name || localPatient?.['Inmate Name'] || localPatient?.patient_name} /></div>
-                            <ReadOnlyField label="Date of Birth" value={localPatient?.date_of_birth || localPatient?.['Date of Birth'] || localPatient?.dob} />
-                            <ReadOnlyField label="Age" value={localPatient?.age || localPatient?.['Age']} />
-                            <ReadOnlyField label="Sex" value={localPatient?.sex || localPatient?.['Sex (Male/Female/TG)'] || localPatient?.gender} />
-                            <ReadOnlyField label="Contact" value={localPatient?.contact_number || localPatient?.['Contact Number'] || localPatient?.phone || localPatient?.mobile} />
-                          </>
-                        )}
-                      </div>
-
-                      <div className="h-px bg-slate-100 my-4" />
-
-                      {/* ── Section 2: Location ── */}
-                      <div className="flex items-center gap-1.5 mb-3">
-                        <MapPin className="w-3 h-3 text-slate-400" />
-                        <span className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">Location</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2.5">
-                        {isEditingDemographics ? (
-                          <>
-                            <div className="col-span-2"><EditableField label="Address" value={editedDemographics.address} onChange={(v) => setEditedDemographics({...editedDemographics, address: v})} /></div>
-                            <div className="col-span-2"><EditableField label="Facility Name" value={editedDemographics.facility_name} onChange={(v) => setEditedDemographics({...editedDemographics, facility_name: v})} /></div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="col-span-2"><ReadOnlyField label="Address" value={localPatient?.address || localPatient?.['Address'] || localPatient?.residential_address} /></div>
-                            <ReadOnlyField label="Facility" value={localPatient?.facility_name || localPatient?.['Name of Facility']} />
-                            <ReadOnlyField label="Facility Type" value={localPatient?.facility_type || localPatient?.['Facility Type']} />
-                            <ReadOnlyField label="District" value={localPatient?.screening_district || localPatient?.['District']} />
-                            <ReadOnlyField label="State" value={localPatient?.screening_state || localPatient?.['State']} />
-                          </>
-                        )}
-                      </div>
-
-                      <div className="h-px bg-slate-100 my-4" />
-
-                      {/* ── Section 3: Screening & Clinical ── */}
+                      {/* ─────────────────────────────────────
+                          §1 · Screening Details
+                          koboid keys: staffname, submittedon, screeningstate,
+                          screeningdistrict, facilitycode, facilitytype,
+                          screeningdate, uniqueid
+                      ───────────────────────────────────── */}
                       <div className="flex items-center gap-1.5 mb-3">
                         <Calendar className="w-3 h-3 text-slate-400" />
                         <span className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">Screening Details</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2.5">
+                      <div className="grid grid-cols-2 gap-2.5 mb-5">
                         {isEditingDemographics ? (
                           <>
-                            <EditableField label="Screening Date" value={editedDemographics.screening_date} onChange={(v) => setEditedDemographics({...editedDemographics, screening_date: v})} type="date" />
-                            <EditableField label="Staff Name" value={editedDemographics.staff_name} onChange={(v) => setEditedDemographics({...editedDemographics, staff_name: v})} />
-                            <EditableField label="Father/Husband" value={editedDemographics.father_husband_name} onChange={(v) => setEditedDemographics({...editedDemographics, father_husband_name: v})} />
-                            <EditableField label="Inmate Type" value={editedDemographics.inmate_type} onChange={(v) => setEditedDemographics({...editedDemographics, inmate_type: v})} />
+                            <EditableField label="Name of the Staff" value={editedDemographics.staffname} onChange={(v) => setEditedDemographics({...editedDemographics, staffname: v})} />
+                            <EditableField label="Submitted On" value={editedDemographics.submittedon} onChange={(v) => setEditedDemographics({...editedDemographics, submittedon: v})} type="date" />
+                            <EditableField label="State" value={editedDemographics.screeningstate} onChange={(v) => setEditedDemographics({...editedDemographics, screeningstate: v})} />
+                            <EditableField label="District" value={editedDemographics.screeningdistrict} onChange={(v) => setEditedDemographics({...editedDemographics, screeningdistrict: v})} />
+                            <div className="col-span-2"><EditableField label="Facility Name" value={editedDemographics.facilitycode} onChange={(v) => setEditedDemographics({...editedDemographics, facilitycode: v})} /></div>
+                            <EditableField label="Facility Type" value={editedDemographics.facilitytype} onChange={(v) => setEditedDemographics({...editedDemographics, facilitytype: v})} />
+                            <EditableField label="Date of Screening — CH/X-Ray" value={editedDemographics.screeningdate} onChange={(v) => setEditedDemographics({...editedDemographics, screeningdate: v})} type="date" />
+                            <div className="col-span-2"><EditableField label="Unique ID" value={editedDemographics.uniqueid} onChange={(v) => setEditedDemographics({...editedDemographics, uniqueid: v})} /></div>
                           </>
                         ) : (
                           <>
-                            <ReadOnlyField label="Screening Date" value={localPatient?.screening_date || localPatient?.submitted_on} />
-                            <ReadOnlyField label="Staff Name" value={localPatient?.staff_name || localPatient?.data_collector} />
-                            <ReadOnlyField label="Father/Husband" value={localPatient?.father_husband_name || localPatient?.father_name} />
-                            <ReadOnlyField label="Inmate Type" value={localPatient?.inmate_type} />
+                            <ReadOnlyField label="Name of the Staff" value={localPatient?.staff_name || localPatient?.data_collector} />
+                            <ReadOnlyField label="Submitted On" value={localPatient?.submitted_on} />
+                            <ReadOnlyField label="State" value={localPatient?.screening_state} />
+                            <ReadOnlyField label="District" value={localPatient?.screening_district} />
+                            <div className="col-span-2"><ReadOnlyField label="Facility Name" value={localPatient?.facility_name || localPatient?.['Name of Facility']} /></div>
+                            <ReadOnlyField label="Facility Type" value={localPatient?.facility_type} />
+                            <ReadOnlyField label="Date of Screening — CH/X-Ray" value={localPatient?.screening_date} />
+                            <div className="col-span-2"><ReadOnlyField label="Unique ID" value={localPatient?.unique_id} /></div>
                           </>
                         )}
+                      </div>
+
+                      <div className="h-px bg-slate-100 my-4" />
+
+                      {/* ─────────────────────────────────────
+                          §2 · Identity
+                          kobo keys: inmatename, inmatetype, fatherhusbandname,
+                          dateofbirth, age, sex, contactnumber
+                      ───────────────────────────────────── */}
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <User className="w-3 h-3 text-slate-400" />
+                        <span className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">Identity</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2.5 mb-5">
+                        {isEditingDemographics ? (
+                          <>
+                            <div className="col-span-2"><EditableField label="Inmate Name" value={editedDemographics.inmatename} onChange={(v) => setEditedDemographics({...editedDemographics, inmatename: v})} /></div>
+                            <div className="col-span-2"><EditableField label="Inmate Type" value={editedDemographics.inmatetype} onChange={(v) => setEditedDemographics({...editedDemographics, inmatetype: v})} /></div>
+                            <div className="col-span-2"><EditableField label="Father / Husband's Name" value={editedDemographics.fatherhusbandname} onChange={(v) => setEditedDemographics({...editedDemographics, fatherhusbandname: v})} /></div>
+                            <EditableField label="Date of Birth" value={editedDemographics.dateofbirth} onChange={(v) => setEditedDemographics({...editedDemographics, dateofbirth: v})} type="date" />
+                            <EditableField label="Age" value={editedDemographics.age} onChange={(v) => setEditedDemographics({...editedDemographics, age: v})} />
+                            <EditableSelect label="Sex" value={editedDemographics.sex} onChange={(v) => setEditedDemographics({...editedDemographics, sex: v})} options={[{value:'', label:'Select'}, {value:'Male', label:'Male'}, {value:'Female', label:'Female'}, {value:'TG', label:'Transgender'}]} />
+                            <EditableField label="Contact Number" value={editedDemographics.contactnumber} onChange={(v) => setEditedDemographics({...editedDemographics, contactnumber: v})} />
+                          </>
+                        ) : (
+                          <>
+                            <div className="col-span-2"><ReadOnlyField label="Inmate Name" value={localPatient?.inmate_name || localPatient?.['Inmate Name'] || localPatient?.patient_name} /></div>
+                            <div className="col-span-2"><ReadOnlyField label="Inmate Type" value={localPatient?.inmate_type} /></div>
+                            <div className="col-span-2"><ReadOnlyField label="Father / Husband's Name" value={localPatient?.father_husband_name || localPatient?.father_name} /></div>
+                            <ReadOnlyField label="Date of Birth" value={localPatient?.date_of_birth || localPatient?.dob} />
+                            <ReadOnlyField label="Age" value={localPatient?.age} />
+                            <ReadOnlyField label="Sex" value={localPatient?.sex || localPatient?.gender} />
+                            <ReadOnlyField label="Contact Number" value={localPatient?.contact_number || localPatient?.phone || localPatient?.mobile} />
+                          </>
+                        )}
+                      </div>
+
+                      <div className="h-px bg-slate-100 my-4" />
+
+                      {/* ─────────────────────────────────────
+                          §3 · Location / Address
+                          kobo key: address
+                      ───────────────────────────────────── */}
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <MapPin className="w-3 h-3 text-slate-400" />
+                        <span className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">Location / Address</span>
+                      </div>
+                      <div className="mb-5">
+                        {isEditingDemographics ? (
+                          <EditableField label="Address" value={editedDemographics.address} onChange={(v) => setEditedDemographics({...editedDemographics, address: v})} />
+                        ) : (
+                          <ReadOnlyField label="Address" value={localPatient?.address || localPatient?.residential_address} />
+                        )}
+                      </div>
+
+                      <div className="h-px bg-slate-100 my-4" />
+
+                      {/* ─────────────────────────────────────
+                          §4 · TB Screening
+                          kobo keys: xrayresult, symptoms10s, tbpasthistory
+                      ───────────────────────────────────── */}
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <Activity className="w-3 h-3 text-slate-400" />
+                        <span className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">TB Screening</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2.5 mb-5">
                         <div className="col-span-2">
-                          <label className="block text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400 mb-1">X-Ray Result</label>
-                          <div className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[12px] font-bold ${
-                            (localPatient?.xray_result || localPatient?.chest_x_ray_result) === 'Suspected TB Case'
-                              ? 'bg-amber-50 border border-amber-200/60 text-amber-700'
-                              : (localPatient?.xray_result || localPatient?.chest_x_ray_result)
-                              ? 'bg-emerald-50 border border-emerald-200/60 text-emerald-700'
-                              : 'bg-slate-50 border border-slate-200 text-slate-400'
-                          }`}>
-                            {(localPatient?.xray_result || localPatient?.chest_x_ray_result) === 'Suspected TB Case' && <AlertTriangle className="w-3.5 h-3.5" />}
-                            {(localPatient?.xray_result || localPatient?.chest_x_ray_result) && (localPatient?.xray_result || localPatient?.chest_x_ray_result) !== 'Suspected TB Case' && <CheckCircle2 className="w-3.5 h-3.5" />}
-                            {localPatient?.xray_result || localPatient?.chest_x_ray_result || 'Not recorded'}
+                          {isEditingDemographics ? (
+                            <EditableSelect
+                              label="Chest X-Ray Result"
+                              value={editedDemographics.xrayresult}
+                              onChange={(v) => setEditedDemographics({...editedDemographics, xrayresult: v})}
+                              options={[
+                                { value: '', label: 'Select result' },
+                                { value: 'Normal', label: 'Normal' },
+                                { value: 'Suspected TB Case', label: 'Suspected TB Case' },
+                                { value: 'Other Abnormality', label: 'Other Abnormality' },
+                              ]}
+                            />
+                          ) : (
+                            <>
+                              <label className="block text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400 mb-1">Chest X-Ray Result</label>
+                              <div className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[12px] font-bold ${
+                                (localPatient?.xray_result || localPatient?.chest_x_ray_result) === 'Suspected TB Case'
+                                  ? 'bg-amber-50 border border-amber-200/60 text-amber-700'
+                                  : (localPatient?.xray_result || localPatient?.chest_x_ray_result)
+                                  ? 'bg-emerald-50 border border-emerald-200/60 text-emerald-700'
+                                  : 'bg-slate-50 border border-slate-200 text-slate-400'
+                              }`}>
+                                {(localPatient?.xray_result || localPatient?.chest_x_ray_result) === 'Suspected TB Case' && <AlertTriangle className="w-3.5 h-3.5" />}
+                                {(localPatient?.xray_result || localPatient?.chest_x_ray_result) && (localPatient?.xray_result || localPatient?.chest_x_ray_result) !== 'Suspected TB Case' && <CheckCircle2 className="w-3.5 h-3.5" />}
+                                {localPatient?.xray_result || localPatient?.chest_x_ray_result || 'Not recorded'}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        {isEditingDemographics ? (
+                          <>
+                            <EditableSelect
+                              label="10S Symptoms Present"
+                              value={editedDemographics.symptoms10s}
+                              onChange={(v) => setEditedDemographics({...editedDemographics, symptoms10s: v})}
+                              options={[{value:'', label:'Select'}, {value:'Yes', label:'Yes'}, {value:'No', label:'No'}]}
+                            />
+                            <EditableSelect
+                              label="Past History of TB"
+                              value={editedDemographics.tbpasthistory}
+                              onChange={(v) => setEditedDemographics({...editedDemographics, tbpasthistory: v})}
+                              options={[{value:'', label:'Select'}, {value:'Yes', label:'Yes'}, {value:'No', label:'No'}]}
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <ReadOnlyField label="10S Symptoms Present" value={localPatient?.symptoms_10s || localPatient?.symptoms_present} />
+                            <ReadOnlyField label="Past History of TB" value={localPatient?.tb_past_history || localPatient?.past_tb_history || localPatient?.tb_history} />
+                          </>
+                        )}
+                      </div>
+
+                      <div className="h-px bg-slate-100 my-4" />
+
+                      {/* ─────────────────────────────────────
+                          §5 · Referral / Diagnosis
+                          Read-only mirror — clinical tab is the write path.
+                          kobo keys: referraldate, referredfacility, tbdiagnosed,
+                          tbdiagnosisdate, tbtype, attstartdate, attcompletiondate
+                      ───────────────────────────────────── */}
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <FileText className="w-3 h-3 text-slate-400" />
+                        <span className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">Referral / Diagnosis</span>
+                        <span className="ml-auto text-[9px] font-bold uppercase tracking-widest text-blue-500 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5 flex-shrink-0">Edit via Clinical tab</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2.5 mb-5">
+                        <ReadOnlyField label="Date of Referral for TB Examination" value={localPatient?.referral_date} />
+                        <ReadOnlyField label="Facility Referred To" value={localPatient?.referred_facility} />
+                        <ReadOnlyField label="TB Diagnosed" value={localPatient?.tb_diagnosed} />
+                        <ReadOnlyField label="Date of TB Diagnosis" value={localPatient?.tb_diagnosis_date} />
+                        <ReadOnlyField label="Type of TB Diagnosed" value={localPatient?.tb_type} />
+                        <ReadOnlyField label="Date of Starting ATT" value={localPatient?.att_start_date} />
+                        <ReadOnlyField label="Date of Treatment Completion" value={localPatient?.att_completion_date} />
+                      </div>
+
+                      <div className="h-px bg-slate-100 my-4" />
+
+                      {/* ─────────────────────────────────────
+                          §6 · HIV / ART
+                          Read-only mirror — clinical tab is the write path.
+                          kobo keys: hivstatus, artstatusatreferral, artnumber
+                      ───────────────────────────────────── */}
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Shield className="w-3 h-3 text-slate-400" />
+                        <span className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">HIV / ART</span>
+                        <span className="ml-auto text-[9px] font-bold uppercase tracking-widest text-blue-500 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5 flex-shrink-0">Edit via Clinical tab</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2.5 mb-5">
+                        <ReadOnlyField label="HIV Status" value={localPatient?.hiv_status} />
+                        <ReadOnlyField label="ART Status at Referral" value={localPatient?.art_status} />
+                        <ReadOnlyField label="ART Number" value={localPatient?.art_number} />
+                      </div>
+
+                      <div className="h-px bg-slate-100 my-4" />
+
+                      {/* ─────────────────────────────────────
+                          §7 · Nikshay / Registration
+                          Read-only mirror — clinical tab is the write path.
+                          kobo keys: nikshayabhaid, nikshayregistrationdate, remarks
+                      ───────────────────────────────────── */}
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <ClipboardList className="w-3 h-3 text-slate-400" />
+                        <span className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">Nikshay / Registration</span>
+                        <span className="ml-auto text-[9px] font-bold uppercase tracking-widest text-blue-500 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5 flex-shrink-0">Edit via Clinical tab</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2.5 mb-5">
+                        <div className="col-span-2"><ReadOnlyField label="NIKSHAY / ABHA ID" value={localPatient?.nikshay_abha_id} /></div>
+                        <ReadOnlyField label="Date of Nikshay Registration" value={localPatient?.registration_date} />
+                        <ReadOnlyField label="Remarks" value={localPatient?.remarks} />
+                      </div>
+
+                      <div className="h-px bg-slate-100 my-4" />
+
+                      {/* ─────────────────────────────────────
+                          §8 · Administrative Metadata
+                          Always read-only.
+                          kobo keys: kobouuid, koboid, SerialNumber
+                      ───────────────────────────────────── */}
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <Settings2 className="w-3 h-3 text-slate-400" />
+                        <span className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">Administrative Metadata</span>
+                      </div>
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-3 mb-2">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">KoboUUID</p>
+                          <p className="text-[12px] font-mono font-medium text-slate-600 break-all leading-relaxed">
+                            {localPatient?.kobo_uuid || <span className="text-slate-300 font-sans font-normal italic">Not recorded</span>}
+                          </p>
+                        </div>
+                        <div className="h-px bg-slate-200/60" />
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">KoboID</p>
+                            <p className="text-[12px] font-mono font-medium text-slate-600">
+                              {localPatient?.kobo_id || <span className="text-slate-300 font-sans font-normal italic">—</span>}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Serial Number</p>
+                            <p className="text-[12px] font-mono font-medium text-slate-600">
+                              {localPatient?.serial_number || <span className="text-slate-300 font-sans font-normal italic">—</span>}
+                            </p>
                           </div>
                         </div>
-                        <ReadOnlyField label="10s Symptoms" value={localPatient?.symptoms_present || localPatient?.symptoms_10s} />
-                        <ReadOnlyField label="Past TB History" value={localPatient?.tb_past_history || localPatient?.past_tb_history || localPatient?.tb_history} />
                       </div>
                     </div>
                   </TabsContent>
