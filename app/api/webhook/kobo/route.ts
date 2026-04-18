@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { mapKoboPayloadToSupabase } from '@/lib/koboMapper'
 import { getSupabaseClient } from '@/lib/supabase-server'
 
 export const runtime = 'nodejs';
@@ -84,13 +83,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required field: _uuid' }, { status: 400 });
     }
 
-    // Map payload
-    const transformed = mapKoboPayloadToSupabase(body) as unknown as Record<string, unknown>;
-    transformed.created_at ??= new Date().toISOString();
-    transformed.synced_to_sheets = false;
-    transformed.sheets_sync_attempts = 0;
-    transformed.sheets_sync_error = null;
-    transformed.webhook_received_at = new Date().toISOString();
+    // Map payload - simplified direct mapping
+    const transformed: Record<string, unknown> = {
+      kobo_uuid: String(uuid).replace(/^uuid:/i, '').trim(),
+      kobo_id: body['_id'] ?? body['id'] ?? null,
+      ...body,
+      created_at: new Date().toISOString(),
+      synced_to_sheets: false,
+      sheets_sync_attempts: 0,
+      sheets_sync_error: null,
+      webhook_received_at: new Date().toISOString(),
+    };
 
     // Upsert via singleton client
     const result = await upsertWithRetry(transformed, 3);

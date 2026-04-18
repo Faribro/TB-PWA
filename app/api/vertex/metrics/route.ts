@@ -54,7 +54,12 @@ export async function GET(request: NextRequest) {
         // National tier - no filters
       } else if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
         if (state && state !== 'All') {
-          query = query.eq('screening_state', state);
+          // Maharashtra SPM sees both Maharashtra and Mumbai data
+          if (state === 'Maharashtra') {
+            query = query.in('screening_state', ['Maharashtra', 'Mumbai']);
+          } else {
+            query = query.eq('screening_state', state);
+          }
         }
       } else if (role === Role.PRISON_COORDINATOR) {
         if (staffName) {
@@ -64,7 +69,12 @@ export async function GET(request: NextRequest) {
       
       // Query param filtering (overrides for filter bar)
       if (filterState && filterState !== 'all') {
-        query = query.eq('screening_state', filterState);
+        // Maharashtra filter includes Mumbai data
+        if (filterState === 'Maharashtra') {
+          query = query.in('screening_state', ['Maharashtra', 'Mumbai']);
+        } else {
+          query = query.eq('screening_state', filterState);
+        }
       }
       if (filterDistrict && filterDistrict !== 'all') {
         query = query.eq('screening_district', filterDistrict);
