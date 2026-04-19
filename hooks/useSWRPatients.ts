@@ -75,7 +75,9 @@ const cursorFetcher = async (
   console.log('[useSWRPatients] Response:', {
     returned: result.data?.length,
     hasMore: result.hasMore,
-    duration: result.meta?.durationMs
+    duration: result.meta?.durationMs,
+    role: result.meta?.role,
+    scope: result.meta?.scope
   });
   
   return result;
