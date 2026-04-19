@@ -205,7 +205,14 @@ export async function GET(request: NextRequest) {
       .order('id', { ascending: false });
 
     // Apply RBAC + user filters via shared utility
+    console.log('[patients/GET] Before buildScopedQuery:', {
+      role: scope.role,
+      sessionState: scope.sessionState,
+      isNational: scope.isNational,
+      filters
+    });
     query = buildScopedQuery(query, scope, filters);
+    console.log('[patients/GET] After buildScopedQuery - filters applied');
 
     // Apply cursor for keyset pagination
     if (cursor) {
