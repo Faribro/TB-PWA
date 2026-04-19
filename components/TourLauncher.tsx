@@ -114,27 +114,7 @@ export default function TourLauncher() {
         <Map size={24} style={{ color: '#6366f1' }} suppressHydrationWarning />
       </motion.button>
 
-      {/* Tooltip */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '136px',
-          right: '24px',
-          background: '#1e293b',
-          color: 'white',
-          padding: '6px 12px',
-          borderRadius: '8px',
-          fontSize: '12px',
-          fontWeight: 800,
-          zIndex: 9980,
-          opacity: isOpen ? 0 : 1,
-          pointerEvents: 'none',
-          transition: 'opacity 0.2s',
-          letterSpacing: '0.1em'
-        }}
-        suppressHydrationWarning
-      >
-      </div>
+
 
       {/* Tour Picker Panel */}
       <AnimatePresence>
