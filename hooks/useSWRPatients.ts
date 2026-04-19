@@ -198,23 +198,13 @@ export function useSWRAllPatients(
           hasMore = page.hasMore;
           iterations++;
           
-          // Update progress (guarded to prevent unnecessary re-renders)
-          setProgressState(prev => {
-            const newLoadedCount = allRecords.length;
-            const newProgress = prev.totalCount > 0 ? Math.round((newLoadedCount / prev.totalCount) * 100) : 0;
-            
-            // Guard: Only update if values actually changed
-            if (prev.loadedCount === newLoadedCount && prev.progress === newProgress && prev.isLoadingMore === hasMore) {
-              return prev;
-            }
-            
-            return {
-              loadedCount: newLoadedCount,
-              totalCount: prev.totalCount,
-              isLoadingMore: hasMore,
-              progress: newProgress
-            };
-          });
+          // Update progress
+          setProgressState(prev => ({
+            loadedCount: allRecords.length,
+            totalCount: prev.totalCount,
+            isLoadingMore: hasMore,
+            progress: prev.totalCount > 0 ? Math.round((allRecords.length / prev.totalCount) * 100) : 0
+          }));
           
           // Update SWR cache with accumulated data
           mutate({
@@ -270,18 +260,13 @@ export function useSWRAllPatients(
     };
   }, [data, progressive, scope, limit, filters, maxPages, maxRecords, mutate]);
   
-  // Update total count from external source (guarded to prevent unnecessary updates)
+  // Update total count from external source
   const setTotalCount = useCallback((total: number) => {
-    setProgressState(prev => {
-      // Guard: Only update if total actually changed
-      if (prev.totalCount === total) return prev;
-      
-      return {
-        ...prev,
-        totalCount: total,
-        progress: prev.loadedCount > 0 && total > 0 ? Math.round((prev.loadedCount / total) * 100) : 0
-      };
-    });
+    setProgressState(prev => ({
+      ...prev,
+      totalCount: total,
+      progress: prev.loadedCount > 0 && total > 0 ? Math.round((prev.loadedCount / total) * 100) : 0
+    }));
   }, []);
   
   // Reset progress on filter change

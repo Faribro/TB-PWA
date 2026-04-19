@@ -387,7 +387,7 @@ const GeographicHierarchy = ({
   const [expandedStates, setExpandedStates] = useState<Set<string>>(new Set());
   const [expandedDistricts, setExpandedDistricts] = useState<Set<string>>(new Set());
 
-  const toggleState = useCallback((stateName: string) => {
+  const toggleState = (stateName: string) => {
     setExpandedStates(prev => {
       const next = new Set(prev);
       if (next.has(stateName)) {
@@ -397,9 +397,9 @@ const GeographicHierarchy = ({
       }
       return next;
     });
-  }, []);
+  };
 
-  const toggleDistrict = useCallback((districtKey: string) => {
+  const toggleDistrict = (districtKey: string) => {
     setExpandedDistricts(prev => {
       const next = new Set(prev);
       if (next.has(districtKey)) {
@@ -409,7 +409,7 @@ const GeographicHierarchy = ({
       }
       return next;
     });
-  }, []);
+  };
 
   return (
     <div className="space-y-4" data-tour-id="geo-case-distribution">
@@ -598,12 +598,10 @@ export default function Vertex({
   const { isReviewOpen } = useReconciliationStore();
   const { mutate } = useSWRConfig();
 
-  // Update currentDate when data loads and most recent date changes (run once on mount)
-  const hasInitializedDate = useRef(false);
+  // Update currentDate when data loads and most recent date changes
   useEffect(() => {
-    if (!isLoading && mostRecentDateWithData && !hasInitializedDate.current) {
+    if (!isLoading && mostRecentDateWithData) {
       setCurrentDate(clampToCurrentMonth(mostRecentDateWithData));
-      hasInitializedDate.current = true;
     }
   }, [mostRecentDateWithData, isLoading, clampToCurrentMonth]);
 
@@ -660,50 +658,38 @@ export default function Vertex({
 
   // If the current month has no screening activity dots, automatically jump to
   // the most recent month that has activity and pre-select a day with activity.
-  // Guard: Only run once when heatmapData first loads
-  const hasAutoJumped = useRef(false);
   useEffect(() => {
-    if (!heatmapData.length || hasAutoJumped.current) return;
-    if (selectedDate) return;
+    if (!heatmapData.length) return
+    if (selectedDate) return
 
     const monthKey = (d: Date) =>
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 
-    const currentKey = monthKey(currentDate);
+    const currentKey = monthKey(currentDate)
 
     const hasAnyInCurrentMonth = heatmapData.some(
       d => d?.date?.startsWith(currentKey) && (d?.screenedCount ?? 0) > 0
-    );
+    )
 
-    if (hasAnyInCurrentMonth) {
-      hasAutoJumped.current = true;
-      return;
-    }
+    if (hasAnyInCurrentMonth) return
 
-    let latestDateStr: string | null = null;
+    let latestDateStr: string | null = null
     for (const d of heatmapData) {
-      if ((d?.screenedCount ?? 0) <= 0) continue;
-      if (!latestDateStr || d.date > latestDateStr) latestDateStr = d.date;
+      if ((d?.screenedCount ?? 0) <= 0) continue
+      if (!latestDateStr || d.date > latestDateStr) latestDateStr = d.date
     }
 
-    if (!latestDateStr) {
-      hasAutoJumped.current = true;
-      return;
-    }
+    if (!latestDateStr) return
 
-    const [yStr, mStr] = latestDateStr.split('-');
-    const y = Number(yStr);
-    const m = Number(mStr);
-    if (!y || !m) {
-      hasAutoJumped.current = true;
-      return;
-    }
+    const [yStr, mStr] = latestDateStr.split('-')
+    const y = Number(yStr)
+    const m = Number(mStr)
+    if (!y || !m) return
 
-    const next = new Date(y, m - 1, 1);
-    setCurrentDate(clampToCurrentMonth(next));
-    setSelectedDate(latestDateStr);
-    hasAutoJumped.current = true;
-  }, [heatmapData.length, selectedDate, currentDate, clampToCurrentMonth]);
+    const next = new Date(y, m - 1, 1)
+    setCurrentDate(clampToCurrentMonth(next))
+    setSelectedDate(latestDateStr)
+  }, [heatmapData, selectedDate, currentDate, clampToCurrentMonth])
 
   const patientsForSelectedDate = useMemo(() => {
     if (!selectedDate || !globalPatients?.length) return [];
