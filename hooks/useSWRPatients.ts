@@ -270,6 +270,7 @@ export function useSWRAllPatients(
   }, []);
   
   // Reset progress on filter change
+  const keyStr = useMemo(() => key ? JSON.stringify(key) : null, [key ? JSON.stringify(key) : null]);
   useEffect(() => {
     setProgressState({
       loadedCount: 0,
@@ -277,7 +278,7 @@ export function useSWRAllPatients(
       isLoadingMore: false,
       progress: 0
     });
-  }, [key]);
+  }, [keyStr]);
 
   return {
     patients: data?.data ?? [],

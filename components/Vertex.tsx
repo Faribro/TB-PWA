@@ -658,38 +658,41 @@ export default function Vertex({
 
   // If the current month has no screening activity dots, automatically jump to
   // the most recent month that has activity and pre-select a day with activity.
+  const hasAutoJumped = useRef(false);
   useEffect(() => {
-    if (!heatmapData.length) return
-    if (selectedDate) return
+    if (hasAutoJumped.current) return;
+    if (!heatmapData.length) return;
+    if (selectedDate) return;
 
     const monthKey = (d: Date) =>
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
-    const currentKey = monthKey(currentDate)
+    const currentKey = monthKey(currentDate);
 
     const hasAnyInCurrentMonth = heatmapData.some(
       d => d?.date?.startsWith(currentKey) && (d?.screenedCount ?? 0) > 0
-    )
+    );
 
-    if (hasAnyInCurrentMonth) return
+    if (hasAnyInCurrentMonth) return;
 
-    let latestDateStr: string | null = null
+    let latestDateStr: string | null = null;
     for (const d of heatmapData) {
-      if ((d?.screenedCount ?? 0) <= 0) continue
-      if (!latestDateStr || d.date > latestDateStr) latestDateStr = d.date
+      if ((d?.screenedCount ?? 0) <= 0) continue;
+      if (!latestDateStr || d.date > latestDateStr) latestDateStr = d.date;
     }
 
-    if (!latestDateStr) return
+    if (!latestDateStr) return;
 
-    const [yStr, mStr] = latestDateStr.split('-')
-    const y = Number(yStr)
-    const m = Number(mStr)
-    if (!y || !m) return
+    const [yStr, mStr] = latestDateStr.split('-');
+    const y = Number(yStr);
+    const m = Number(mStr);
+    if (!y || !m) return;
 
-    const next = new Date(y, m - 1, 1)
-    setCurrentDate(clampToCurrentMonth(next))
-    setSelectedDate(latestDateStr)
-  }, [heatmapData, selectedDate, currentDate, clampToCurrentMonth])
+    const next = new Date(y, m - 1, 1);
+    setCurrentDate(clampToCurrentMonth(next));
+    setSelectedDate(latestDateStr);
+    hasAutoJumped.current = true;
+  }, [heatmapData.length, selectedDate, currentDate, clampToCurrentMonth]);
 
   const patientsForSelectedDate = useMemo(() => {
     if (!selectedDate || !globalPatients?.length) return [];
