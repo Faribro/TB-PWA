@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, TrendingDown, Activity, Target, Zap, Shield, Clock, Users, BarChart3, ArrowUpRight, ArrowDownRight, Flame, Sparkles, Globe, Filter, RefreshCw } from 'lucide-react';
+import useSWR from 'swr';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope } from '@/hooks/useSessionScope';
 
@@ -17,9 +18,28 @@ interface MetricCard {
   gradient: string;
 }
 
+// Simple fetcher for SWR
+const fetcher = (url: string) => fetch(url).then(r => r.json());
+
 export default function PremiumDashboard() {
   const scope = useSessionScope();
-  const { patients } = useSWRAllPatients(scope);
+  
+  // Fetch summary metrics (server-computed aggregates) - FAST
+  const { data: summaryData } = useSWR(
+    scope ? `/api/patients/summary` : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60000, // 1 min cache
+    }
+  );
+  
+  // Fetch first page only for today's calculations
+  const { patients } = useSWRAllPatients(scope, {
+    limit: 1000,
+    autoFetchAll: false
+  });
+  
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month'>('today');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -32,11 +52,11 @@ export default function PremiumDashboard() {
 
   // Calculate metrics
   const metrics = useMemo((): MetricCard[] => {
-    if (!patients) return [];
+    if (!summaryData || !patients) return [];
 
     const todayStr = new Date().toISOString().split('T')[0];
     
-    // Today's stats
+    // Today's stats (from first page - sufficient for today)
     const todayScreened = todayPatients.length;
     const todaySuspected = todayPatients.filter(p => p.xray_result === 'Suspected TB Case').length;
     const todayDiagnosed = todayPatients.filter(p => p.tb_diagnosed === 'Y').length;
@@ -47,11 +67,11 @@ export default function PremiumDashboard() {
       return !p.referral_date && daysSince > 7;
     }).length;
 
-    // Total stats
-    const totalScreened = patients.length;
-    const totalSuspected = patients.filter(p => p.xray_result === 'Suspected TB Case').length;
-    const totalDiagnosed = patients.filter(p => p.tb_diagnosed === 'Y').length;
-    const totalBreaches = patients.filter(p => !p.referral_date).length;
+    // Total stats (from server-computed summary - TRUE TOTALS)
+    const totalScreened = summaryData.total;
+    const totalSuspected = summaryData.suspected;
+    const totalDiagnosed = summaryData.diagnosed;
+    const totalBreaches = summaryData.pending; // Pending = no referral
 
     return [
       {
@@ -95,7 +115,7 @@ export default function PremiumDashboard() {
         gradient: 'from-red-500 to-rose-400'
       }
     ];
-  }, [patients, todayPatients]);
+  }, [summaryData, patients, todayPatients]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
