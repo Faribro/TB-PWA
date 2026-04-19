@@ -789,7 +789,7 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
     </div>
     </>
   );
-});
+}
 
 // Custom comparison to prevent re-mount when only data length changes
 function arePropsEqual(prevProps: CommandCenterProps, nextProps: CommandCenterProps) {
