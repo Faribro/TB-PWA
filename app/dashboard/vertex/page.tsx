@@ -93,6 +93,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     isFullyLoaded,
     isPartialLoad,
     cappedBy,
+    cappedReason,
     error: patientsError,
     mutate: mutatePatients 
   } = useSWRAllPatients(scope, {
@@ -362,7 +363,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
           {/* Spacer */}
           <div className="flex-1 min-w-[24px]" />
 
-          {/* Record count */}
+          {/* Record count with improved partial load warning */}
           <span className="text-xs text-[#7a7974] tabular-nums whitespace-nowrap">
             <span className="font-semibold text-[#28251d]">
               {filteredPatients.length.toLocaleString()}
@@ -374,17 +375,30 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
                 ({meta.pages} pages)
               </span>
             )}
-            {isPartialLoad && cappedBy && (
-              <span className="text-[10px] text-amber-600 ml-1" title={`Capped by ${cappedBy}`}>
-                ⚠️ Partial ({cappedBy})
-              </span>
-            )}
-            {isLoadingPatients && !isFullyLoaded && (
-              <span className="text-[10px] text-blue-600 ml-1 animate-pulse">
-                Loading...
-              </span>
-            )}
           </span>
+
+          {/* Partial load warning with actionable message */}
+          {isPartialLoad && cappedReason && (
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 border border-amber-200 rounded text-[10px] text-amber-800">
+              <span>⚠️</span>
+              <span className="max-w-xs truncate" title={cappedReason}>
+                {cappedReason}
+              </span>
+              <button
+                onClick={() => mutatePatients()}
+                className="ml-1 underline hover:text-amber-900 font-medium"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Loading indicator */}
+          {isLoadingPatients && !isFullyLoaded && (
+            <span className="text-[10px] text-blue-600 animate-pulse">
+              Loading pages...
+            </span>
+          )}
 
           {/* Thin divider */}
           <div className="w-px h-5 bg-black/[0.08]" />

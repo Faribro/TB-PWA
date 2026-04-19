@@ -9,7 +9,7 @@ import type { Session } from 'next-auth';
 
 export interface PatientScope {
   session: Session;
-  role: string;
+  role: string; // Keep as string for flexibility (normalizeRole returns string)
   sessionState: string | undefined;
   staffName: string | undefined;
   isNational: boolean;
@@ -21,6 +21,81 @@ export interface PatientFilters {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+}
+
+// Date validation regex and helpers
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_PAST_DATE = new Date('2000-01-01');
+
+/**
+ * Validates and normalizes a date string
+ * @returns normalized date or undefined if invalid
+ */
+export function validateDateFilter(dateStr: string | null | undefined, fieldName: string): string | undefined {
+  if (!dateStr) return undefined;
+  
+  if (!DATE_REGEX.test(dateStr)) {
+    throw new Error(`Invalid ${fieldName}: must be YYYY-MM-DD format`);
+  }
+  
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    throw new Error(`Invalid ${fieldName}: not a valid date`);
+  }
+  
+  const now = new Date();
+  const maxFuture = new Date(now.getFullYear() + 1, 11, 31);
+  
+  if (date > maxFuture) {
+    throw new Error(`Invalid ${fieldName}: date too far in future`);
+  }
+  if (date < MAX_PAST_DATE) {
+    throw new Error(`Invalid ${fieldName}: date before year 2000`);
+  }
+  
+  return dateStr;
+}
+
+/**
+ * Validates cursor format and extracts components
+ * @returns [created_at, id] tuple
+ * @throws Error if cursor is invalid
+ */
+export function validateCursor(cursor: string): [string, string] {
+  try {
+    const decoded = Buffer.from(cursor, 'base64url').toString('utf-8');
+    const [created_at, id] = decoded.split('::');
+    
+    if (!created_at || !id) {
+      throw new Error('Invalid cursor format: missing components');
+    }
+    
+    // Validate created_at is ISO timestamp
+    const timestamp = new Date(created_at);
+    if (isNaN(timestamp.getTime())) {
+      throw new Error('Invalid cursor: created_at is not a valid timestamp');
+    }
+    
+    // Validate id is UUID format (basic check)
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      throw new Error('Invalid cursor: id is not a valid UUID');
+    }
+    
+    return [created_at, id];
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith('Invalid cursor')) {
+      throw err;
+    }
+    throw new Error('Invalid cursor: decode failed');
+  }
+}
+
+/**
+ * Normalizes Maharashtra state filter
+ * Handles both 'Maharashtra' and 'Mumbai' as equivalent
+ */
+function normalizeMaharashtraFilter(state: string): string[] {
+  return state === 'Maharashtra' ? ['Maharashtra', 'Mumbai'] : [state];
 }
 
 export interface ScopedQueryResult {
@@ -71,10 +146,11 @@ export function applyRBACFilters<T>(
   // State-level access
   if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
     if (sessionState && sessionState !== 'All') {
-      if (sessionState === 'Maharashtra') {
-        (query as any) = (query as any).in('screening_state', ['Maharashtra', 'Mumbai']);
+      const states = normalizeMaharashtraFilter(sessionState);
+      if (states.length > 1) {
+        (query as any) = (query as any).in('screening_state', states);
       } else {
-        (query as any) = (query as any).eq('screening_state', sessionState);
+        (query as any) = (query as any).eq('screening_state', states[0]);
       }
     }
   } 
@@ -99,10 +175,11 @@ export function applyUserFilters<T>(
   const { state, district, dateFrom, dateTo, search } = filters;
   
   if (state && state !== 'all') {
-    if (state === 'Maharashtra') {
-      (query as any) = (query as any).in('screening_state', ['Maharashtra', 'Mumbai']);
+    const states = normalizeMaharashtraFilter(state);
+    if (states.length > 1) {
+      (query as any) = (query as any).in('screening_state', states);
     } else {
-      (query as any) = (query as any).eq('screening_state', state);
+      (query as any) = (query as any).eq('screening_state', states[0]);
     }
   }
   
@@ -141,7 +218,7 @@ export function buildScopedQuery<T>(
 
 /**
  * Structured logging for API requests
- * Machine-readable, no PII
+ * Machine-readable, no PII, consistent format
  */
 export function logApiRequest(
   endpoint: string,
@@ -149,12 +226,13 @@ export function logApiRequest(
   metadata: Record<string, any> = {}
 ) {
   const log = {
+    type: 'request',
     endpoint,
     role: scope.role,
     scope: scope.sessionState || 'national',
     isNational: scope.isNational,
-    ...metadata,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    ...metadata
   };
   
   console.log(JSON.stringify(log));
@@ -162,7 +240,7 @@ export function logApiRequest(
 
 /**
  * Structured logging for API responses
- * Machine-readable, includes timing
+ * Machine-readable, includes timing, consistent format
  */
 export function logApiResponse(
   endpoint: string,
@@ -170,11 +248,21 @@ export function logApiResponse(
   metadata: Record<string, any> = {}
 ) {
   const log = {
+    type: 'response',
     endpoint,
     durationMs,
-    ...metadata,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    ...metadata
   };
   
   console.log(JSON.stringify(log));
+}
+
+/**
+ * Gets first day of current month in YYYY-MM-DD format
+ * Used for "this month" filters in summary queries
+ */
+export function getFirstDayOfMonth(): string {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
 }

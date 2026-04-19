@@ -16,19 +16,43 @@ const CommandCenter = dynamic(() => import('@/components/CommandCenter'), {
 
 export default function FollowUpPage() {
   const scope = useSessionScope();
-  const { patients: globalPatients = [], isLoading } = useSWRAllPatients(scope, {
+  const { 
+    patients: globalPatients = [], 
+    isLoading,
+    isPartialLoad,
+    cappedReason,
+    mutate
+  } = useSWRAllPatients(scope, {
     autoFetchAll: true, // Explicit opt-in for complete dataset
     maxPages: 50,
     maxRecords: 500000
   });
 
   return (
-    <div className="h-screen">
-      <CommandCenter
-        globalPatients={globalPatients}
-        isLoading={isLoading}
-        initialFilter={null}
-      />
+    <div className="h-screen flex flex-col">
+      {/* Partial load warning banner */}
+      {isPartialLoad && cappedReason && (
+        <div className="flex-shrink-0 flex items-center justify-between px-6 py-2 bg-amber-50 border-b border-amber-200">
+          <div className="flex items-center gap-2 text-sm text-amber-800">
+            <span>⚠️</span>
+            <span>{cappedReason}</span>
+          </div>
+          <button
+            onClick={() => mutate()}
+            className="text-xs text-amber-700 underline hover:text-amber-900 font-medium"
+          >
+            Retry Load
+          </button>
+        </div>
+      )}
+      
+      <div className="flex-1 overflow-hidden">
+        <CommandCenter
+          globalPatients={globalPatients}
+          isLoading={isLoading}
+          initialFilter={null}
+        />
+      </div>
     </div>
   );
 }

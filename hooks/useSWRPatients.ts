@@ -32,6 +32,7 @@ interface CursorPaginationResponse {
     autoFetchAll?: boolean;
     isPartial?: boolean;
     cappedBy?: 'maxPages' | 'maxRecords' | 'timeout';
+    cappedReason?: string; // Human-readable explanation
   };
 }
 
@@ -159,8 +160,22 @@ export function useSWRAllPatients(
       const durationMs = Date.now() - startTime;
       const isPartial = hasMore || iterations >= maxPages || allRecords.length >= maxRecords;
       
+      // Determine cap reason with human-readable message
+      let cappedBy: 'maxPages' | 'maxRecords' | 'timeout' | undefined;
+      let cappedReason: string | undefined;
+      
       if (isPartial) {
-        console.warn(`[useSWRPatients] ⚠️ PARTIAL: ${allRecords.length} in ${iterations} pages (${durationMs}ms)`);
+        if (iterations >= maxPages) {
+          cappedBy = 'maxPages';
+          cappedReason = `Reached maximum page limit (${maxPages} pages). Showing first ${allRecords.length.toLocaleString()} records.`;
+        } else if (allRecords.length >= maxRecords) {
+          cappedBy = 'maxRecords';
+          cappedReason = `Reached maximum record limit (${maxRecords.toLocaleString()} records). Refine filters to see more.`;
+        } else {
+          cappedBy = 'timeout';
+          cappedReason = `Request timed out after ${(timeout / 1000).toFixed(0)}s. Showing ${allRecords.length.toLocaleString()} records loaded so far.`;
+        }
+        console.warn(`[useSWRPatients] ⚠️ PARTIAL: ${cappedReason}`);
       } else {
         console.log(`[useSWRPatients] ✅ Complete: ${allRecords.length} in ${iterations} pages (${durationMs}ms)`);
       }
@@ -178,7 +193,8 @@ export function useSWRAllPatients(
           pages: iterations,
           autoFetchAll: true,
           isPartial,
-          cappedBy: isPartial ? (iterations >= maxPages ? 'maxPages' : allRecords.length >= maxRecords ? 'maxRecords' : 'timeout') : undefined
+          cappedBy,
+          cappedReason
         }
       };
     },
@@ -223,6 +239,7 @@ export function useSWRAllPatients(
     isFullyLoaded: autoFetchAll ? (!isLoading && !data?.meta?.isPartial) : (!isLoading && !data?.hasMore),
     isPartialLoad: data?.meta?.isPartial ?? false,
     cappedBy: data?.meta?.cappedBy,
+    cappedReason: data?.meta?.cappedReason,
     error,
     mutate,
     loadMore

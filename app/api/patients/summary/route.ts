@@ -5,6 +5,8 @@ import {
   buildScopedQuery, 
   logApiRequest, 
   logApiResponse,
+  validateDateFilter,
+  getFirstDayOfMonth,
   type PatientFilters 
 } from '@/lib/api/patients-scope';
 
@@ -46,17 +48,35 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     
-    // Parse user filters
-    const filters: PatientFilters = {
-      state: searchParams.get('state') || undefined,
-      district: searchParams.get('district') || undefined,
-      dateFrom: searchParams.get('dateFrom') || undefined,
-      dateTo: searchParams.get('dateTo') || undefined
-    };
+    // Parse and validate user filters
+    let filters: PatientFilters;
+    try {
+      filters = {
+        state: searchParams.get('state') || undefined,
+        district: searchParams.get('district') || undefined,
+        dateFrom: validateDateFilter(searchParams.get('dateFrom'), 'dateFrom'),
+        dateTo: validateDateFilter(searchParams.get('dateTo'), 'dateTo')
+      };
+      
+      // Validate date range logic
+      if (filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo) {
+        return NextResponse.json({
+          error: 'Invalid date range',
+          message: 'dateFrom must be before or equal to dateTo'
+        }, { status: 400 });
+      }
+    } catch (err) {
+      return NextResponse.json({
+        error: 'Invalid parameters',
+        message: err instanceof Error ? err.message : 'Parameter validation failed'
+      }, { status: 400 });
+    }
     
     // Structured logging
     logApiRequest('/api/patients/summary', scope, {
-      filters: Object.keys(filters).filter(k => filters[k as keyof PatientFilters])
+      filters: Object.entries(filters)
+        .filter(([_, v]) => v !== undefined)
+        .map(([k]) => k)
     });
     
     const supabase = createServerClient();
@@ -64,8 +84,9 @@ export async function GET(request: NextRequest) {
     /**
      * Build base query with RBAC + user filters
      * OPTIMIZATION: select('id') only - minimal payload for counting
+     * Reuse this function to avoid duplication
      */
-    const buildBaseQuery = () => {
+    const buildCountQuery = () => {
       const query = supabase
         .from('patients')
         .select('id', { count: 'exact', head: true });
@@ -74,8 +95,7 @@ export async function GET(request: NextRequest) {
     };
 
     // Execute aggregation queries in parallel
-    const now = new Date();
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const firstDayOfMonth = getFirstDayOfMonth();
     
     const [
       totalResult,
@@ -87,30 +107,30 @@ export async function GET(request: NextRequest) {
       onTreatmentResult
     ] = await Promise.all([
       // Total count
-      buildBaseQuery(),
+      buildCountQuery(),
       
       // Pending (no referral date)
-      buildBaseQuery().is('referral_date', null),
+      buildCountQuery().is('referral_date', null),
       
       // Alerts this month (screening date this month, no diagnosis)
-      buildBaseQuery()
+      buildCountQuery()
         .gte('screening_date', firstDayOfMonth)
         .is('tb_diagnosed', null),
       
       // Screened this month
-      buildBaseQuery()
+      buildCountQuery()
         .gte('screening_date', firstDayOfMonth),
       
       // Suspected (xray abnormal)
-      buildBaseQuery()
+      buildCountQuery()
         .or('xray_result.ilike.%abnormal%,xray_result.ilike.%suspected%'),
       
       // Diagnosed (TB positive)
-      buildBaseQuery()
+      buildCountQuery()
         .eq('tb_diagnosed', 'Yes'),
       
       // On treatment (ATT started)
-      buildBaseQuery()
+      buildCountQuery()
         .not('att_start_date', 'is', null)
     ]);
 
@@ -136,7 +156,8 @@ export async function GET(request: NextRequest) {
     logApiResponse('/api/patients/summary', durationMs, {
       status: 'success',
       total: summary.total,
-      role: scope.role
+      role: scope.role,
+      scope: scope.sessionState || 'national'
     });
 
     return NextResponse.json(summary, {
@@ -154,11 +175,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ 
         error: 'Unauthorized',
         message: 'Authentication required' 
-      }, { status: 401 });\n    }
+      }, { status: 401 });
+    }
     
     logApiResponse('/api/patients/summary', durationMs, {
       status: 'exception',
-      error: error instanceof Error ? error.message : 'Unknown'
+      error: error instanceof Error ? error.message : 'Unknown',
+      stack: error instanceof Error ? error.stack : undefined
     });
     
     return NextResponse.json({ 

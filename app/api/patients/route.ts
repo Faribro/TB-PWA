@@ -8,6 +8,8 @@ import {
   buildScopedQuery, 
   logApiRequest, 
   logApiResponse,
+  validateDateFilter,
+  validateCursor,
   type PatientFilters 
 } from '@/lib/api/patients-scope';
 
@@ -38,6 +40,7 @@ interface CursorPaginationResponse {
     returned: number;
     requestedLimit: number;
     role: string;
+    scope?: string; // Added for consistency
     durationMs: number;
     mode: 'cursor';
     total?: number; // Optional for backward compatibility
@@ -56,47 +59,22 @@ function encodeCursor(created_at: string, id: string): string {
 
 /**
  * Decodes cursor for keyset pagination
+ * Gracefully handles invalid cursors by returning null
  */
-function decodeCursor(cursor: string): [string, string] {
+function decodeCursor(cursor: string): [string, string] | null {
   try {
-    const decoded = Buffer.from(cursor, 'base64url').toString('utf-8');
-    const [created_at, id] = decoded.split('::');
-    if (!created_at || !id) {
-      throw new Error('Invalid cursor format');
-    }
-    return [created_at, id];
-  } catch {
-    throw new Error('Invalid cursor');
+    return validateCursor(cursor);
+  } catch (err) {
+    console.warn('[patients/GET] Invalid cursor:', err instanceof Error ? err.message : 'Unknown');
+    return null;
   }
 }
 
 // Validation helpers
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/; // YYYY-MM-DD
-const STATE_REGEX = /^[A-Za-z\s]+$/; // Alphabetic with spaces
-const DISTRICT_REGEX = /^[A-Za-z0-9\s]+$/; // Alphanumeric with spaces
+const STATE_REGEX = /^[A-Za-z\s]+$/;
+const DISTRICT_REGEX = /^[A-Za-z0-9\s]+$/;
 const MAX_LIMIT = 10000;
 const DEFAULT_LIMIT = 500;
-
-function validateDate(dateStr: string | undefined, fieldName: string): string | undefined {
-  if (!dateStr) return undefined;
-  if (!DATE_REGEX.test(dateStr)) {
-    throw new Error(`Invalid ${fieldName}: must be YYYY-MM-DD format`);
-  }
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) {
-    throw new Error(`Invalid ${fieldName}: not a valid date`);
-  }
-  // Sanity check: date not too far in future or past
-  const now = new Date();
-  const maxPast = new Date('2000-01-01');
-  if (date > new Date(now.getFullYear() + 1, 11, 31)) {
-    throw new Error(`Invalid ${fieldName}: date too far in future`);
-  }
-  if (date < maxPast) {
-    throw new Error(`Invalid ${fieldName}: date before year 2000`);
-  }
-  return dateStr;
-}
 
 function validateState(state: string | undefined): string | undefined {
   if (!state || state === 'all') return undefined;
@@ -169,8 +147,8 @@ export async function GET(request: NextRequest) {
       filters = {
         state: validateState(searchParams.get('state') || undefined),
         district: validateDistrict(searchParams.get('district') || undefined),
-        dateFrom: validateDate(searchParams.get('dateFrom') || undefined, 'dateFrom'),
-        dateTo: validateDate(searchParams.get('dateTo') || undefined, 'dateTo'),
+        dateFrom: validateDateFilter(searchParams.get('dateFrom'), 'dateFrom'),
+        dateTo: validateDateFilter(searchParams.get('dateTo'), 'dateTo'),
         search: searchParams.get('search') || undefined,
       };
       
@@ -207,7 +185,9 @@ export async function GET(request: NextRequest) {
       limit: requestedLimit,
       hasCursor: !!cursor,
       fullDetails,
-      filters: Object.keys(filters).filter(k => filters[k as keyof PatientFilters])
+      filters: Object.entries(filters)
+        .filter(([_, v]) => v !== undefined)
+        .map(([k]) => k)
     });
 
     /**
@@ -229,15 +209,17 @@ export async function GET(request: NextRequest) {
 
     // Apply cursor for keyset pagination
     if (cursor) {
-      try {
-        const [lastCreatedAt, lastId] = decodeCursor(cursor);
+      const decoded = decodeCursor(cursor);
+      if (!decoded) {
+        // Graceful degradation: invalid cursor returns first page
+        logApiResponse('/api/patients', Date.now() - startTime, {
+          status: 'warning',
+          message: 'Invalid cursor ignored, returning first page'
+        });
+      } else {
+        const [lastCreatedAt, lastId] = decoded;
         // Keyset: WHERE (created_at < last) OR (created_at = last AND id < lastId)
         query = query.or(`created_at.lt.${lastCreatedAt},and(created_at.eq.${lastCreatedAt},id.lt.${lastId})`);
-      } catch (err) {
-        return NextResponse.json({ 
-          error: 'Invalid cursor',
-          message: err instanceof Error ? err.message : 'Cursor decode failed'
-        }, { status: 400 });
       }
     }
 
@@ -250,7 +232,8 @@ export async function GET(request: NextRequest) {
     if (error) {
       logApiResponse('/api/patients', Date.now() - startTime, {
         status: 'error',
-        error: error.message
+        error: error.message,
+        code: error.code
       });
       return NextResponse.json({ 
         error: 'Database query failed',
@@ -276,7 +259,8 @@ export async function GET(request: NextRequest) {
       status: 'success',
       returned: records.length,
       hasMore,
-      role: scope.role
+      role: scope.role,
+      scope: scope.sessionState || 'national'
     });
 
     const response: CursorPaginationResponse = {
@@ -316,7 +300,8 @@ export async function GET(request: NextRequest) {
     
     logApiResponse('/api/patients', durationMs, {
       status: 'exception',
-      error: error instanceof Error ? error.message : 'Unknown'
+      error: error instanceof Error ? error.message : 'Unknown',
+      stack: error instanceof Error ? error.stack : undefined
     });
     
     return NextResponse.json({ 
