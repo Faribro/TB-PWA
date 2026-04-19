@@ -79,14 +79,18 @@ interface CommandCenterProps {
   initialFilter?: any;
 }
 
-export default memo(function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }: CommandCenterProps) {
+function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }: CommandCenterProps) {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [triageIds, setTriageIds] = useState<number[]>([]);
   const [isTriaging, setIsTriaging] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 400);
+  
+  // CRITICAL: Initialize state ONCE and never let it reset from props
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [showDashboard, setShowDashboard] = useState(true);
+  
   const [filters, setFilters] = useState<FilterState>({
     facilityType: '',
     state: '',
@@ -99,17 +103,18 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
     dateTo: ''
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [showDashboard, setShowDashboard] = useState(true);
   const [sortBy, setSortBy] = useState('submitted_on');
   const [page, setPage] = useState(1);
   const pageSize = 50;
   
-  // Stable handlers to prevent re-renders from resetting state
+  // Stable handlers - NEVER recreate these
   const handleViewModeChange = useCallback((mode: 'table' | 'grid') => {
+    console.log('[CommandCenter] Changing view mode to:', mode);
     setViewMode(mode);
   }, []);
   
   const handleDashboardToggle = useCallback(() => {
+    console.log('[CommandCenter] Toggling dashboard');
     setShowDashboard(prev => !prev);
   }, []);
 
@@ -786,5 +791,14 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
   );
 });
 
+// Custom comparison to prevent re-mount when only data length changes
+function arePropsEqual(prevProps: CommandCenterProps, nextProps: CommandCenterProps) {
+  // Only re-render if loading state changes or patient count changes significantly
+  return (
+    prevProps.isLoading === nextProps.isLoading &&
+    prevProps.globalPatients?.length === nextProps.globalPatients?.length &&
+    prevProps.initialFilter === nextProps.initialFilter
+  );
+}
 
-
+export default memo(CommandCenter, arePropsEqual);
