@@ -197,10 +197,7 @@ export default function CommandHubPage() {
           />
         </motion.section>
         
-        <div className="w-full px-6 pb-6" data-tour-id="pipeline-embed">
-          <PipelineDashboardEmbed />
-        </div>
-        
+
         <div className="w-full max-w-[1400px] mx-auto px-6 mt-6 mb-8" data-tour-id="program-mission">
           <ProgramMission />
         </div>
