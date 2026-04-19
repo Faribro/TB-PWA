@@ -68,18 +68,6 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
   dataTourId?: string;
 }) {
   const Icon = tab.icon;
-  const router = useRouter();
-  
-  const handleClick = useCallback(async (e: React.MouseEvent) => {
-    e.preventDefault();
-    try {
-      const s = await initSounds();
-      s.navTab?.();
-    } catch (e) {
-      // Silent fail
-    }
-    router.push(tab.path);
-  }, [router, tab.path]);
   
   return (
     <motion.div
@@ -87,10 +75,10 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay, ease: [0.22, 1, 0.36, 1], duration: 0.35 }}
     >
-      <a
+      <Link
         href={tab.path}
         data-tour-id={dataTourId}
-        onClick={handleClick}
+        onClick={() => console.log('clicked', tab.path)}
         aria-current={isActive ? 'page' : undefined}
         title={isCollapsed ? tab.label : undefined}
         className={`
@@ -144,7 +132,7 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
             </motion.div>
           )}
         </AnimatePresence>
-      </a>
+      </Link>
     </motion.div>
   );
 }
@@ -152,6 +140,7 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const pathname = usePathname();
+  console.log('pathname', pathname);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [duplicatePairs] = useState<any[]>([]);
   const [eligibleCount] = useState(0);
@@ -434,7 +423,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main className="flex-1 h-full overflow-y-auto relative z-10 flex flex-col">
         <DashboardErrorBoundary>
           <motion.div
-            key={pathname}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
