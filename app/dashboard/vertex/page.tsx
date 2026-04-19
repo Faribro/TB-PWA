@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import useSWR from 'swr';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope, isSuperuser } from '@/hooks/useSessionScope';
@@ -112,9 +112,11 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     }
   });
   
-  // Sync total count from summary to hook
+  // Sync total count from summary to hook (guarded to prevent loops)
+  const prevTotalRef = useRef<number>(0);
   useEffect(() => {
-    if (summaryData?.total) {
+    if (summaryData?.total && summaryData.total !== prevTotalRef.current) {
+      prevTotalRef.current = summaryData.total;
       setTotalCount(summaryData.total);
     }
   }, [summaryData?.total, setTotalCount]);
@@ -257,6 +259,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
   };
 
   const handleExport = useCallback(async () => {
+    if (isExporting || filteredPatients.length === 0) return;
     setIsExporting(true);
     sounds.download();
     try {
@@ -267,13 +270,17 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     } finally {
       setIsExporting(false);
     }
-  }, [filteredPatients, filters.state]);
+  }, [filteredPatients, filters.state, isExporting]);
 
   const handleDayClick = useCallback((date: string) => {
-    sounds.calendarClick();
-    setSelectedCalendarDate(prev => prev === date ? null : date);
+    if (selectedCalendarDate === date) {
+      setSelectedCalendarDate(null);
+    } else {
+      sounds.calendarClick();
+      setSelectedCalendarDate(date);
+    }
     setView('table');
-  }, []);
+  }, [selectedCalendarDate]);
 
 
 
