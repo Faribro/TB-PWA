@@ -392,6 +392,11 @@ export function useSWRAllPatients(
     ? Math.min(100, Math.round((currentLoadedCount / progressState.totalCount) * 100))
     : 0;
 
+  // Debug: Log when data.data.length changes
+  useEffect(() => {
+    console.log('[useSWRPatients] Hook returning patients array length:', currentLoadedCount);
+  }, [currentLoadedCount]);
+
   return {
     patients: data?.data ?? [],
     meta: data?.meta ?? null,
