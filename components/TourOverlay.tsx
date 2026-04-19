@@ -687,10 +687,10 @@ export default function TourOverlay() {
         return
       }
 
-      // Special-case: Tab switching steps (admin-journey-tab, demographics-tab)
+      // Special-case: Tab switching steps (clinical-tab-open, admin-journey-tab, demographics-tab)
       // These need to click the tab trigger AND wait for content to render
       // NO SILENT SKIP - always attempt recovery if drawer missing
-      if (stepData.id === 'admin-journey-tab' || stepData.id === 'demographics-tab') {
+      if (stepData.id === 'clinical-tab-open' || stepData.id === 'admin-journey-tab' || stepData.id === 'demographics-tab') {
         const TAB_SELECTOR = stepData.target!
         const MAX_CYCLES = 30 // Increased from 20 for better reliability
         const INTERVAL = 300
@@ -970,6 +970,7 @@ export default function TourOverlay() {
     const isCalendarStep = currentStepData.id === 'neural-timeline-calendar'
     const isNavigateToMarchStep = currentStepData.id === 'navigate-to-march'
     const isClinicalTailStep = [
+      'clinical-tab-open',
       'open-patient-record',
       'clinical-sputum',
       'clinical-diagnosis',
@@ -997,6 +998,7 @@ export default function TourOverlay() {
       // STRICT DRAWER CONTEXT ENFORCEMENT FOR CLINICAL TAIL STEPS
       // These steps MUST be inside patient drawer - never fallback to Vertex pane
       const isClinicalDrawerStep = [
+        'clinical-tab-open',
         'clinical-sputum',
         'clinical-diagnosis', 
         'clinical-att',
@@ -1058,14 +1060,26 @@ export default function TourOverlay() {
           try {
             const el = drawerContainer.querySelector(sel) // Query within drawer first
             if (el instanceof HTMLElement) {
-              // Visibility check
-              const rect = el.getBoundingClientRect()
-              const isVisible = rect.width > 0 && rect.height > 0 && 
-                               window.getComputedStyle(el).visibility !== 'hidden' &&
-                               window.getComputedStyle(el).display !== 'none'
-              if (isVisible) {
-                foundElement = el
-                break
+              // For submit-clinical-update and other deep-drawer elements,
+              // skip the viewport visibility check — scrollAndHighlight will scroll them into view
+              const isSubmitButton = sel.includes('submit-clinical-update') || sel.includes('close-loop-button')
+              if (isSubmitButton) {
+                // Only need the element to exist in the DOM, not be in viewport
+                const style = window.getComputedStyle(el)
+                if (style.display !== 'none' && style.visibility !== 'hidden') {
+                  foundElement = el
+                  break
+                }
+              } else {
+                // Visibility check for other elements
+                const rect = el.getBoundingClientRect()
+                const isVisible = rect.width > 0 && rect.height > 0 && 
+                                 window.getComputedStyle(el).visibility !== 'hidden' &&
+                                 window.getComputedStyle(el).display !== 'none'
+                if (isVisible) {
+                  foundElement = el
+                  break
+                }
               }
             }
           } catch {
