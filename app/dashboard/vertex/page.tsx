@@ -466,7 +466,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
           <div className="flex items-center gap-2">
             <span className="text-xs text-[#7a7974] tabular-nums whitespace-nowrap">
               <span className="font-semibold text-[#28251d]">
-                {loadedCount.toLocaleString()}
+                {filteredPatients.length.toLocaleString()}
               </span>
               {' / '}
               <span className="font-semibold text-[#28251d]">
@@ -695,7 +695,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
         ) : (
           <div className="h-full">
             <NeuralDashboard
-              globalPatients={globalPatients}
+              globalPatients={filteredPatients}
               isLoading={isLoadingPatients || isLoadingMore}
               filter={null}
               onSetFilter={() => {}}
