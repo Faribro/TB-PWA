@@ -158,6 +158,7 @@ export function useSWRAllPatients(
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
+      refreshInterval: 0, // Disable global polling to prevent background loop aborts
       dedupingInterval: 30000,
       errorRetryCount: 3,
       errorRetryInterval: 2000,
