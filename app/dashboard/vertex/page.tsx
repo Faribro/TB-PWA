@@ -83,7 +83,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     error: patientsError,
     mutate: mutatePatients 
   } = useSWRAllPatients(scope, {
-    pageSize: 100000, // Explicitly set to large number to remove limits
+    limit: 10000,
     filters: {
       state: selectedState,
       district: selectedDistrict,
@@ -354,7 +354,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
             {total.toLocaleString()}
             {meta && (
               <span className="text-[10px] text-slate-400 ml-1">
-                (fetched {meta.returned?.toLocaleString()} in {meta.batches} batches)
+                (fetched {meta.returned?.toLocaleString()} in {Math.ceil((meta.returned || 0) / 500)} batches)
               </span>
             )}
           </span>

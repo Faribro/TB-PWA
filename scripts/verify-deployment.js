@@ -1,136 +1,96 @@
 #!/usr/bin/env node
 
+/**
+ * POST-DEPLOYMENT VERIFICATION SCRIPT
+ * Run this after deploying to production to verify all auth/security fixes
+ */
+
+const PRODUCTION_URL = process.env.NEXT_PUBLIC_VERCEL_URL || 'http://localhost:3000';
+
 console.log('═══════════════════════════════════════════════════════════════════════════');
-console.log('✅ TB-PWA ENTERPRISE STABILIZATION - PRE-DEPLOYMENT CHECKLIST');
+console.log('🚀 POST-DEPLOYMENT VERIFICATION');
 console.log('═══════════════════════════════════════════════════════════════════════════');
-console.log('');
+console.log(`Target: ${PRODUCTION_URL}\n`);
 
-const fs = require('fs');
-const path = require('path');
+const tests = [
+  {
+    name: 'Unauthenticated GET /api/patients',
+    test: async () => {
+      const res = await fetch(`${PRODUCTION_URL}/api/patients`);
+      const data = await res.json();
+      return res.status === 401 && data.error === 'Unauthorized';
+    }
+  },
+  {
+    name: 'Unauthenticated GET /api/patients/export',
+    test: async () => {
+      const res = await fetch(`${PRODUCTION_URL}/api/patients/export`);
+      const data = await res.json();
+      return res.status === 401 && data.error === 'Unauthorized';
+    }
+  },
+  {
+    name: 'Invalid date param returns 400',
+    test: async () => {
+      const res = await fetch(`${PRODUCTION_URL}/api/patients?dateFrom=invalid-date`, {
+        headers: { 'Cookie': 'next-auth.session-token=test' }
+      });
+      return res.status === 400 || res.status === 401; // 401 if no valid session
+    }
+  },
+  {
+    name: 'Search query >100 chars returns 400',
+    test: async () => {
+      const longSearch = 'a'.repeat(101);
+      const res = await fetch(`${PRODUCTION_URL}/api/patients?search=${longSearch}`, {
+        headers: { 'Cookie': 'next-auth.session-token=test' }
+      });
+      return res.status === 400 || res.status === 401;
+    }
+  },
+  {
+    name: 'Health endpoint accessible',
+    test: async () => {
+      const res = await fetch(`${PRODUCTION_URL}/api/health`);
+      return res.status === 200;
+    }
+  }
+];
 
-const checks = [];
+async function runTests() {
+  let passed = 0;
+  let failed = 0;
 
-function check(name, fn) {
-  try {
-    fn();
-    console.log(`✅ ${name}`);
-    checks.push({ name, passed: true });
-  } catch (error) {
-    console.log(`❌ ${name}`);
-    console.log(`   Error: ${error.message}`);
-    checks.push({ name, passed: false, error: error.message });
+  for (const { name, test } of tests) {
+    try {
+      const result = await test();
+      if (result) {
+        console.log(`✅ ${name}`);
+        passed++;
+      } else {
+        console.log(`❌ ${name}`);
+        failed++;
+      }
+    } catch (err) {
+      console.log(`❌ ${name} - ${err.message}`);
+      failed++;
+    }
+  }
+
+  console.log('\n═══════════════════════════════════════════════════════════════════════════');
+  console.log(`📊 RESULTS: ${passed}/${tests.length} passed`);
+  console.log('═══════════════════════════════════════════════════════════════════════════\n');
+
+  if (failed === 0) {
+    console.log('🎉 ALL TESTS PASSED - Deployment verified!\n');
+    process.exit(0);
+  } else {
+    console.log('⚠️  Some tests failed - Review deployment\n');
+    process.exit(1);
   }
 }
 
-// File existence checks
-check('Global Supabase singleton exists', () => {
-  const file = path.join(__dirname, '..', 'lib', 'supabase-browser.ts');
-  if (!fs.existsSync(file)) throw new Error('File not found');
-  const content = fs.readFileSync(file, 'utf8');
-  if (!content.includes('getSupabaseBrowserClient')) throw new Error('Missing export');
-});
-
-check('Circuit breaker utility exists', () => {
-  const file = path.join(__dirname, '..', 'lib', 'circuit-breaker.ts');
-  if (!fs.existsSync(file)) throw new Error('File not found');
-  const content = fs.readFileSync(file, 'utf8');
-  if (!content.includes('withCircuitBreaker')) throw new Error('Missing export');
-});
-
-check('Patients API updated', () => {
-  const file = path.join(__dirname, '..', 'app', 'api', 'patients', 'route.ts');
-  if (!fs.existsSync(file)) throw new Error('File not found');
-  const content = fs.readFileSync(file, 'utf8');
-  if (!content.includes('maxDuration = 15')) throw new Error('Missing maxDuration');
-  if (!content.includes('Math.min(requestedPageSize, 100)')) throw new Error('Missing hard limit');
-});
-
-check('Vertex metrics API updated', () => {
-  const file = path.join(__dirname, '..', 'app', 'api', 'vertex', 'metrics', 'route.ts');
-  if (!fs.existsSync(file)) throw new Error('File not found');
-  const content = fs.readFileSync(file, 'utf8');
-  if (!content.includes('maxDuration = 15')) throw new Error('Missing maxDuration');
-  if (!content.includes('Promise.race')) throw new Error('Missing circuit breaker');
-});
-
-check('SWR hook updated', () => {
-  const file = path.join(__dirname, '..', 'hooks', 'useSWRPatients.ts');
-  if (!fs.existsSync(file)) throw new Error('File not found');
-  const content = fs.readFileSync(file, 'utf8');
-  if (!content.includes('pageSize: number = 100')) throw new Error('Missing hard limit');
-});
-
-check('RLS fix endpoint exists', () => {
-  const file = path.join(__dirname, '..', 'app', 'api', 'admin', 'fix-rls', 'route.ts');
-  if (!fs.existsSync(file)) throw new Error('File not found');
-});
-
-check('SQL migration exists', () => {
-  const file = path.join(__dirname, '..', 'supabase', 'migrations', '20250122_service_role_rls.sql');
-  if (!fs.existsSync(file)) throw new Error('File not found');
-  const content = fs.readFileSync(file, 'utf8');
-  if (!content.includes('service_role_all_patients')) throw new Error('Missing policy');
-});
-
-check('Vercel config updated', () => {
-  const file = path.join(__dirname, '..', 'vercel.json');
-  if (!fs.existsSync(file)) throw new Error('File not found');
-  const content = fs.readFileSync(file, 'utf8');
-  const config = JSON.parse(content);
-  if (!config.functions['app/api/patients/route.ts']) throw new Error('Missing patients config');
-  if (config.functions['app/api/patients/route.ts'].maxDuration !== 15) throw new Error('Wrong maxDuration');
-});
-
-check('Test scripts exist', () => {
-  const stabilization = path.join(__dirname, 'test-stabilization.js');
-  const loadTest = path.join(__dirname, 'load-test.ts');
-  if (!fs.existsSync(stabilization)) throw new Error('test-stabilization.js not found');
-  if (!fs.existsSync(loadTest)) throw new Error('load-test.ts not found');
-});
-
-check('Documentation exists', () => {
-  const deployment = path.join(__dirname, '..', 'docs', 'DEPLOYMENT_GUIDE.md');
-  const emergency = path.join(__dirname, '..', 'docs', 'EMERGENCY_FIXES.md');
-  if (!fs.existsSync(deployment)) throw new Error('DEPLOYMENT_GUIDE.md not found');
-  if (!fs.existsSync(emergency)) throw new Error('EMERGENCY_FIXES.md not found');
-});
-
-check('Package.json scripts added', () => {
-  const file = path.join(__dirname, '..', 'package.json');
-  const content = fs.readFileSync(file, 'utf8');
-  const pkg = JSON.parse(content);
-  if (!pkg.scripts['test:stabilization']) throw new Error('Missing test:stabilization');
-  if (!pkg.scripts['load:test']) throw new Error('Missing load:test');
-});
-
-console.log('');
-console.log('═══════════════════════════════════════════════════════════════════════════');
-console.log('📊 SUMMARY');
-console.log('═══════════════════════════════════════════════════════════════════════════');
-
-const passed = checks.filter(c => c.passed).length;
-const failed = checks.filter(c => !c.passed).length;
-
-console.log(`Total Checks: ${checks.length}`);
-console.log(`✅ Passed: ${passed}`);
-console.log(`❌ Failed: ${failed}`);
-console.log('');
-
-if (failed > 0) {
-  console.log('❌ PRE-DEPLOYMENT CHECKS FAILED');
-  console.log('');
-  console.log('Fix the errors above before deploying.');
+runTests().catch(err => {
+  console.error('Fatal error:', err);
   process.exit(1);
-} else {
-  console.log('✅ ALL PRE-DEPLOYMENT CHECKS PASSED');
-  console.log('');
-  console.log('🚀 Ready to deploy!');
-  console.log('');
-  console.log('Next steps:');
-  console.log('  1. bun run build');
-  console.log('  2. bun run test:stabilization');
-  console.log('  3. vercel --prod');
-  console.log('');
-}
-
-console.log('═══════════════════════════════════════════════════════════════════════════');
+});

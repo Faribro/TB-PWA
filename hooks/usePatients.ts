@@ -1,3 +1,11 @@
+/**
+ * @deprecated This hook bypasses server-side RBAC and directly queries Supabase.
+ * Use useSWRAllPatients from @/hooks/useSWRPatients instead for proper authentication and authorization.
+ * 
+ * SECURITY WARNING: This hook uses the anon key and does not apply role-based access control.
+ * Data may be exposed beyond user's authorized scope.
+ */
+
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@supabase/supabase-js';
 

@@ -5,39 +5,171 @@ import { getSupabaseClient } from '@/lib/supabase-server';
 import { normalizeRole, Role } from '@/lib/constants/roles';
 import { logAudit } from '@/lib/audit-log';
 
-export const maxDuration = 15;
+export const maxDuration = 30;
 export const dynamic = 'force-dynamic';
 
-// Column selection - only fetch what we need for UI
-// Reduces payload from ~4KB/row to ~400B/row = 10× faster
-const SELECTED_COLUMNS = [
+const LIST_COLUMNS = [
   'id', 'unique_id', 'inmate_name', 'screening_date', 'submitted_on',
-  'screening_state', 'screening_district', 'facility_name',
-  'facility_type', 'xray_result', 'tb_diagnosed', 'tb_type',
-  'att_start_date', 'referral_date', 'referred_facility',
-  'hiv_status', 'sex', 'age', 'created_at', 'kobo_uuid',
-  'ai_link_status', 'nikshay_abha_id',
-  // Additional columns for PatientDetailDrawer
-  'date_of_birth', 'contact_number', 'address',
-  'father_husband_name', 'inmate_type', 'staff_name',
-  'symptoms_10s', 'tb_past_history', 'remarks',
-  // CRITICAL: Clinical fields for Diagnosis/Treatment/Nikshay sections
+  'screening_state', 'screening_district', 'facility_name', 'facility_type',
+  'xray_result', 'tb_diagnosed', 'tb_type', 'att_start_date',
+  'referral_date', 'hiv_status', 'sex', 'age', 'created_at'
+].join(',');
+
+const FULL_COLUMNS = [
+  ...LIST_COLUMNS.split(','),
+  'referred_facility', 'kobo_uuid', 'ai_link_status', 'nikshay_abha_id',
+  'date_of_birth', 'contact_number', 'address', 'father_husband_name',
+  'inmate_type', 'staff_name', 'symptoms_10s', 'tb_past_history', 'remarks',
   'tb_diagnosis_date', 'att_completion_date', 'art_status', 'art_number',
   'registration_date', 'closure_reason', 'updated_at'
 ].join(',');
 
-interface PatientsResponse {
+interface CursorPaginationResponse {
   data: any[];
+  nextCursor: string | null;
+  hasMore: boolean;
   meta: {
-    total: number;
     returned: number;
-    limit: number;
+    requestedLimit: number;
     role: string;
-    batches: number;
     durationMs: number;
+    mode: 'cursor';
+    total?: number; // Optional for backward compatibility
   };
 }
 
+function encodeCursor(screening_date: string | null, id: string): string {
+  const payload = `${screening_date || 'null'}::${id}`;
+  return Buffer.from(payload).toString('base64url');
+}
+
+function decodeCursor(cursor: string): [string | null, string] {
+  try {
+    const decoded = Buffer.from(cursor, 'base64url').toString('utf-8');
+    const [date, id] = decoded.split('::');
+    return [date === 'null' ? null : date, id];
+  } catch {
+    throw new Error('Invalid cursor');
+  }
+}
+
+// Validation helpers
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/; // YYYY-MM-DD
+const STATE_REGEX = /^[A-Za-z\s]+$/; // Alphabetic with spaces
+const DISTRICT_REGEX = /^[A-Za-z0-9\s]+$/; // Alphanumeric with spaces
+const MAX_LIMIT = 10000;
+const DEFAULT_LIMIT = 500;
+
+function validateDate(dateStr: string | undefined, fieldName: string): string | undefined {
+  if (!dateStr) return undefined;
+  if (!DATE_REGEX.test(dateStr)) {
+    throw new Error(`Invalid ${fieldName}: must be YYYY-MM-DD format`);
+  }
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    throw new Error(`Invalid ${fieldName}: not a valid date`);
+  }
+  // Sanity check: date not too far in future or past
+  const now = new Date();
+  const maxPast = new Date('2000-01-01');
+  if (date > new Date(now.getFullYear() + 1, 11, 31)) {
+    throw new Error(`Invalid ${fieldName}: date too far in future`);
+  }
+  if (date < maxPast) {
+    throw new Error(`Invalid ${fieldName}: date before year 2000`);
+  }
+  return dateStr;
+}
+
+function validateState(state: string | undefined): string | undefined {
+  if (!state || state === 'all') return undefined;
+  if (!STATE_REGEX.test(state)) {
+    throw new Error('Invalid state: contains invalid characters');
+  }
+  if (state.length > 50) {
+    throw new Error('Invalid state: too long');
+  }
+  return state;
+}
+
+function validateDistrict(district: string | undefined): string | undefined {
+  if (!district || district === 'all') return undefined;
+  if (!DISTRICT_REGEX.test(district)) {
+    throw new Error('Invalid district: contains invalid characters');
+  }
+  if (district.length > 100) {
+    throw new Error('Invalid district: too long');
+  }
+  return district;
+}
+
+function applyRBACFilters(query: any, role: string, sessionState: string | undefined, staffName: string | undefined) {
+  if (role === Role.ADMIN || role === Role.PROGRAM_MANAGER) {
+    return query;
+  }
+  
+  if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
+    if (sessionState && sessionState !== 'All') {
+      if (sessionState === 'Maharashtra') {
+        query = query.in('screening_state', ['Maharashtra', 'Mumbai']);
+      } else {
+        query = query.eq('screening_state', sessionState);
+      }
+    }
+  } else if (role === Role.PRISON_COORDINATOR) {
+    if (staffName) {
+      query = query.ilike('staff_name', staffName.trim());
+    }
+  }
+  
+  return query;
+}
+
+function applyUserFilters(
+  query: any,
+  filters: {
+    state?: string;
+    district?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    search?: string;
+  }
+) {
+  if (filters.state && filters.state !== 'all') {
+    if (filters.state === 'Maharashtra') {
+      query = query.in('screening_state', ['Maharashtra', 'Mumbai']);
+    } else {
+      query = query.eq('screening_state', filters.state);
+    }
+  }
+  
+  if (filters.district && filters.district !== 'all') {
+    query = query.eq('screening_district', filters.district);
+  }
+  
+  if (filters.dateFrom) {
+    query = query.gte('screening_date', filters.dateFrom);
+  }
+  
+  if (filters.dateTo) {
+    query = query.lte('screening_date', filters.dateTo);
+  }
+  
+  if (filters.search) {
+    query = query.or(`inmate_name.ilike.%${filters.search}%,unique_id.ilike.%${filters.search}%`);
+  }
+  
+  return query;
+}
+
+/**
+ * GET /api/patients - Cursor-based pagination
+ * 
+ * Backward compatible params:
+ * - pageSize -> mapped to limit (for old consumers)
+ * - limit -> preferred param
+ * - cursor -> for pagination
+ */
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
   
@@ -45,200 +177,170 @@ export async function GET(request: NextRequest) {
     const session = await auth();
     
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ 
+        error: 'Unauthorized',
+        message: 'Authentication required' 
+      }, { status: 401 });
     }
 
-    // Parse pagination params
     const { searchParams } = new URL(request.url);
-    const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
-    const requestedPageSize = parseInt(searchParams.get('pageSize') ?? '1000', 10);
     
-    // For admin/PM: no limit. For others: cap at 10000
-    const sessionRole = session.user.role;
-    const normalizedRole = normalizeRole(sessionRole) ?? Role.ME_OFFICER;
-    const isAdminOrPM = normalizedRole === Role.ADMIN || normalizedRole === Role.PROGRAM_MANAGER;
-    const cappedPageSize = isAdminOrPM ? requestedPageSize : Math.min(requestedPageSize, 10000);
+    // Backward compatibility: accept both pageSize and limit
+    const pageSizeParam = searchParams.get('pageSize');
+    const limitParam = searchParams.get('limit');
+    const cursor = searchParams.get('cursor');
     
-    // Extract filter params
-    const filterState = searchParams.get('state');
-    const filterDistrict = searchParams.get('district');
-    const filterDateFrom = searchParams.get('dateFrom');
-    const filterDateTo = searchParams.get('dateTo');
-    const filterSearch = searchParams.get('search');
+    // Parse limit with validation
+    let requestedLimit = 500; // Default
+    if (limitParam) {
+      requestedLimit = parseInt(limitParam, 10);
+    } else if (pageSizeParam) {
+      // Backward compatibility: map pageSize to limit
+      const parsed = parseInt(pageSizeParam, 10);
+      // Cap extremely large pageSize requests (e.g., 100000 from vertex)
+      requestedLimit = parsed > 10000 ? 10000 : parsed;
+    }
+    
+    // Validate and cap limit
+    if (isNaN(requestedLimit) || requestedLimit < 1) {
+      requestedLimit = 500;
+    }
+    requestedLimit = Math.min(requestedLimit, 10000); // Hard cap at 10k
+    
+    // Validate and sanitize filters
+    let filters: {
+      state?: string;
+      district?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      search?: string;
+    };
+    
+    try {
+      filters = {
+        state: validateState(searchParams.get('state') || undefined),
+        district: validateDistrict(searchParams.get('district') || undefined),
+        dateFrom: validateDate(searchParams.get('dateFrom') || undefined, 'dateFrom'),
+        dateTo: validateDate(searchParams.get('dateTo') || undefined, 'dateTo'),
+        search: searchParams.get('search') || undefined,
+      };
+      
+      // Validate date range logic
+      if (filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo) {
+        return NextResponse.json({
+          error: 'Invalid date range',
+          message: 'dateFrom must be before or equal to dateTo'
+        }, { status: 400 });
+      }
+    } catch (err) {
+      return NextResponse.json({
+        error: 'Invalid parameters',
+        message: err instanceof Error ? err.message : 'Parameter validation failed'
+      }, { status: 400 });
+    }
+    
+    // Validate search length to prevent abuse
+    if (filters.search && filters.search.length > 100) {
+      return NextResponse.json({
+        error: 'Invalid search',
+        message: 'Search query too long (max 100 characters)'
+      }, { status: 400 });
+    }
+    
+    // Column selection
+    const fullDetails = searchParams.get('fullDetails') === 'true';
+    const selectedColumns = fullDetails ? FULL_COLUMNS : LIST_COLUMNS;
     
     const supabase = createServerClient();
-    
     const sessionState = session.user.state;
     const staffName = (session.user as any).staffName;
+    const role = normalizeRole(session.user.role) ?? Role.ME_OFFICER;
 
-    // DEBUG: Log raw session data
-    console.log(`[patients/route] DEBUG - Raw session.user:`, JSON.stringify({
-      email: session.user.email,
-      role: sessionRole,
-      state: sessionState,
-      staffName
-    }));
+    console.log(`[patients/GET] User: ${session.user.email}, Role: ${role}, Limit: ${requestedLimit}, Cursor: ${cursor ? 'present' : 'none'}`);
 
-    // Normalize role using the canonical Role constants (auth.ts already normalizes JWT)
-    const role = normalizeRole(sessionRole) ?? Role.ME_OFFICER;
+    // Build query with keyset pagination
+    let query = supabase
+      .from('patients')
+      .select(selectedColumns)
+      .order('screening_date', { ascending: false, nullsFirst: false })
+      .order('id', { ascending: false })
+      .limit(requestedLimit + 1);
 
-    // DEBUG: Log role detection
-    console.log(`[patients/route] DEBUG - Role detection:`, {
-      sessionRole,
-      normalizedRole: role,
-      RoleConstants: {
-        ADMIN: Role.ADMIN,
-        PM: Role.PROGRAM_MANAGER,
-        SPM: Role.STATE_PROGRAM_MANAGER,
-        ME: Role.ME_OFFICER,
-        PC: Role.PRISON_COORDINATOR
-      }
-    });
-
-    // NO RECORD LIMITS - fetch all data
-    const maxRecords = cappedPageSize;
+    // Apply RBAC filters (server-side, based on session)
+    query = applyRBACFilters(query, role, sessionState, staffName);
     
-    const batchSize = 1000; // Supabase hard limit per query
-    const offset = (page - 1) * maxRecords;
-    let batches = 0;
+    // Apply user filters (on top of RBAC)
+    query = applyUserFilters(query, filters);
 
-    console.log(`[patients/route] FINAL - User: ${session.user.email}, Role: ${role}, Fetching: ${maxRecords} records`);
-
-    // Build base query with ALL filters (RBAC + query params)
-    const applyFilters = (query: any) => {
-      // RBAC filters — use canonical Role constants
-      if (role === Role.ADMIN || role === Role.PROGRAM_MANAGER) {
-        // National tier — no RBAC filters
-      } else if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
-        if (sessionState && sessionState !== 'All') {
-          // Maharashtra SPM sees both Maharashtra and Mumbai data
-          if (sessionState === 'Maharashtra') {
-            query = query.in('screening_state', ['Maharashtra', 'Mumbai']);
-          } else {
-            query = query.eq('screening_state', sessionState);
-          }
-        }
-      } else if (role === Role.PRISON_COORDINATOR) {
-        if (staffName) {
-          query = query.ilike('staff_name', staffName.trim());
-        }
-      }
-      
-      // Query param filters (for filter bar)
-      if (filterState && filterState !== 'all') {
-        // Maharashtra filter includes Mumbai data
-        if (filterState === 'Maharashtra') {
-          query = query.in('screening_state', ['Maharashtra', 'Mumbai']);
+    // Apply cursor if present
+    if (cursor) {
+      try {
+        const [lastDate, lastId] = decodeCursor(cursor);
+        
+        if (lastDate) {
+          query = query.or(`screening_date.lt.${lastDate},and(screening_date.eq.${lastDate},id.lt.${lastId})`);
         } else {
-          query = query.eq('screening_state', filterState);
+          query = query.is('screening_date', null).lt('id', lastId);
         }
+      } catch (err) {
+        return NextResponse.json({ 
+          error: 'Invalid cursor',
+          message: err instanceof Error ? err.message : 'Cursor decode failed'
+        }, { status: 400 });
       }
-      if (filterDistrict && filterDistrict !== 'all') {
-        query = query.eq('screening_district', filterDistrict);
-      }
-      if (filterDateFrom) {
-        query = query.gte('screening_date', filterDateFrom);
-      }
-      if (filterDateTo) {
-        query = query.lte('screening_date', filterDateTo);
-      }
-      if (filterSearch) {
-        query = query.or(`inmate_name.ilike.%${filterSearch}%,unique_id.ilike.%${filterSearch}%`);
-      }
-      
-      return query;
-    };
-
-    // Get filtered count with timeout
-    let totalCount = 0;
-    try {
-      const countPromise = (async () => {
-        let countQuery = supabase.from('patients').select('*', { count: 'exact', head: true });
-        countQuery = applyFilters(countQuery);
-        const { count, error } = await countQuery;
-        if (error) throw error;
-        return count || 0;
-      })();
-      
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Count timeout')), 3000)
-      );
-      
-      totalCount = await Promise.race([countPromise, timeoutPromise]);
-    } catch (countError) {
-      console.error('[patients/route] Count error:', countError);
-      totalCount = cappedPageSize * page;
     }
 
-    // Fetch all records in batches of 1000 (Supabase limit)
-    const records: any[] = [];
-    
-    try {
-      let currentOffset = offset;
-      let hasMore = true;
-      
-      while (hasMore && records.length < maxRecords) {
-        const batchLimit = Math.min(1000, maxRecords - records.length);
-        
-        let query = supabase
-          .from('patients')
-          .select(SELECTED_COLUMNS)
-          .order('screening_date', { ascending: false })
-          .range(currentOffset, currentOffset + batchLimit - 1);
-          
-        query = applyFilters(query);
-        
-        const result = await query;
-        batches++;
-        
-        if (result.error) {
-          throw result.error;
-        }
-        
-        if (result.data && result.data.length > 0) {
-          records.push(...result.data);
-          currentOffset += result.data.length;
-          hasMore = result.data.length === batchLimit;
-        } else {
-          hasMore = false;
-        }
-      }
-    } catch (queryError) {
-      console.error('[patients/route] Query error:', queryError);
+    // Execute query
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('[patients/GET] Query error:', error);
       return NextResponse.json({ 
         error: 'Database query failed',
-        message: queryError instanceof Error ? queryError.message : 'Unknown error'
+        message: error.message
       }, { status: 500 });
     }
 
-    const durationMs = Date.now() - startTime;
-    console.log(`[patients/route] ✅ Fetched ${records.length}/${totalCount} in ${batches} batches (${durationMs}ms)`);
+    // Determine if there are more results
+    const hasMore = data.length > requestedLimit;
+    const records = hasMore ? data.slice(0, requestedLimit) : data;
 
-    // Response envelope with meta
-    const response: PatientsResponse = {
+    // Generate next cursor
+    let nextCursor: string | null = null;
+    if (hasMore && records.length > 0) {
+      const lastRecord = records[records.length - 1] as any;
+      nextCursor = encodeCursor(lastRecord.screening_date ?? null, lastRecord.id);
+    }
+
+    const durationMs = Date.now() - startTime;
+    console.log(`[patients/GET] ✅ Returned ${records.length} records in ${durationMs}ms, hasMore: ${hasMore}`);
+
+    const response: CursorPaginationResponse = {
       data: records,
+      nextCursor,
+      hasMore,
       meta: {
-        total: totalCount || 0,
         returned: records.length,
-        limit: cappedPageSize,
+        requestedLimit,
         role,
-        batches,
-        durationMs
+        durationMs,
+        mode: 'cursor',
+        // Backward compatibility: include total for first page only
+        ...((!cursor && records.length > 0) ? { total: records.length } : {})
       }
     };
 
     return NextResponse.json(response, {
       headers: {
-        'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
-        'X-Total-Count': String(totalCount || 0),
+        'Cache-Control': 'private, max-age=300, stale-while-revalidate=600',
         'X-Returned': String(records.length),
-        'X-Batches': String(batches),
+        'X-Has-More': String(hasMore),
         'X-Duration-Ms': String(durationMs)
       }
     });
   } catch (error) {
     const durationMs = Date.now() - startTime;
-    console.error('[patients/route] Exception:', error);
+    console.error('[patients/GET] Exception:', error);
     
     return NextResponse.json({ 
       error: 'Internal server error',
@@ -248,13 +350,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Upsert patient data (bypasses RLS with service role)
+/**
+ * POST /api/patients - Upsert patient data
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
     
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ 
+        error: 'Unauthorized',
+        message: 'Authentication required' 
+      }, { status: 401 });
     }
 
     const body = await request.json();
@@ -264,41 +371,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Patient ID required' }, { status: 400 });
     }
 
-    // DEBUG: Log incoming payload
-    console.log(`[patients/POST] 🔍 Received payload for patient ${id}:`, {
-      fields: Object.keys(data),
-      clinicalFields: {
-        tb_diagnosed: data.tb_diagnosed,
-        tb_diagnosis_date: data.tb_diagnosis_date,
-        tb_type: data.tb_type,
-        att_start_date: data.att_start_date,
-        att_completion_date: data.att_completion_date,
-        hiv_status: data.hiv_status,
-        art_status: data.art_status,
-        art_number: data.art_number,
-        nikshay_abha_id: data.nikshay_abha_id,
-        registration_date: data.registration_date,
-        referral_date: data.referral_date,
-        referred_facility: data.referred_facility,
-        remarks: data.remarks
-      }
-    });
-
-    // Sanitize data: convert empty strings to null for date/numeric fields
+    // Sanitize data
     const sanitizedData = Object.entries(data).reduce((acc, [key, value]) => {
-      // Convert empty strings to null
-      if (value === '' || value === undefined) {
-        acc[key] = null;
-      } else {
-        acc[key] = value;
-      }
+      acc[key] = (value === '' || value === undefined) ? null : value;
       return acc;
     }, {} as Record<string, any>);
 
-    // Use service role client to bypass RLS
     const supabase = getSupabaseClient();
     
-    // Security: Verify patient exists and user has access
+    // Verify patient exists and user has access
     const { data: existingPatient, error: fetchError } = await supabase
       .from('patients')
       .select('id, screening_state')
@@ -309,7 +390,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
     }
 
-    // Check state-scoped access (unless admin/PM)
+    // Check state-scoped access
     const userRole = session.user.role;
     const userState = session.user.state;
     const isAdmin = userRole === Role.ADMIN || userRole === Role.PROGRAM_MANAGER;
@@ -322,7 +403,6 @@ export async function POST(request: NextRequest) {
       }, { status: 403 });
     }
     
-    // Store old data for audit log
     const oldData = existingPatient;
     
     const { data: result, error } = await supabase
@@ -338,31 +418,14 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('[patients/POST] ❌ Upsert error:', error);
+      console.error('[patients/POST] Upsert error:', error);
       return NextResponse.json({ 
         error: error.message,
         code: error.code 
       }, { status: 400 });
     }
 
-    // DEBUG: Log what was actually persisted
-    console.log(`[patients/POST] ✅ Upserted patient ${id}:`, {
-      persistedClinicalFields: {
-        tb_diagnosed: result.tb_diagnosed,
-        tb_diagnosis_date: result.tb_diagnosis_date,
-        tb_type: result.tb_type,
-        att_start_date: result.att_start_date,
-        att_completion_date: result.att_completion_date,
-        hiv_status: result.hiv_status,
-        art_status: result.art_status,
-        art_number: result.art_number,
-        nikshay_abha_id: result.nikshay_abha_id,
-        registration_date: result.registration_date,
-        updated_at: result.updated_at
-      }
-    });
-
-    // Log to audit trail (fire-and-forget)
+    // Audit log (fire-and-forget)
     logAudit({
       table_name: 'patients',
       record_id: id,

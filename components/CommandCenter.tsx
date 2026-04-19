@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, memo } from 'react';
+import useSWR from 'swr';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, Activity, Calendar, CheckCircle, MapPin, Search, Check, X, ChevronRight, Clock, Filter, CheckSquare, Square, Grid3X3, List, Edit3, ChevronUp, ChevronDown } from 'lucide-react';
 import { PatientDetailDrawer } from './PatientDetailDrawer';
@@ -9,7 +10,7 @@ import AnalyticsOverview from './AnalyticsOverview';
 import { calculatePatientPhase } from '@/lib/phase-engine';
 import { Button } from './ui/button';
 import { useDebounce } from '@/hooks/useDebounce';
-import { useSWRPatients, useSWRAllPatients, useSWRFilterMetadata } from '@/hooks/useSWRPatients';
+import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSWRConfig } from 'swr';
 import { createClient } from '@supabase/supabase-js';
 import { LinesAndDotsLoader } from './LinesAndDotsLoader';
@@ -107,9 +108,12 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
   const userRole = 'State M&E';
   const userState = undefined; // Set to 'Maharashtra' to test state filtering
 
-  // SWR hooks with state-based security - REMOVED: useSWRPatients call
-  // Now using globalPatients prop directly from parent
-  const { data: filterMetadata } = useSWRFilterMetadata(userState);
+  // SWR hooks with state-based security
+  const { data: filterMetadata } = useSWR(
+    userState ? `/api/filter-metadata?state=${userState}` : '/api/filter-metadata',
+    (url: string) => fetch(url).then(r => r.json()),
+    { revalidateOnFocus: false, dedupingInterval: 300000 }
+  );
 
   // SWR config for cache revalidation
   const { mutate } = useSWRConfig();

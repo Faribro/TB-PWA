@@ -4,21 +4,22 @@ import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Stethoscope, Activity, AlertTriangle, Pill } from 'lucide-react';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
+import { useSessionScope } from '@/hooks/useSessionScope';
 import { PatientDetailDrawer } from './PatientDetailDrawer';
 import { useSWRConfig } from 'swr';
 
 export default function ActionsHub() {
   const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
   const [activeState, setActiveState] = useState<string | null>(null);
-  const userRole = 'National Admin';
-  const userState = undefined;
-  const { patients: allPatients = [] } = useSWRAllPatients(userState);
+  const scope = useSessionScope();
+  const { patients: allPatients = [] } = useSWRAllPatients(scope);
   const { mutate } = useSWRConfig();
 
   const filteredData = useMemo(() => {
-    const state = activeState || userState;
-    return state ? allPatients.filter((p: any) => p && p.screening_state === state) : allPatients;
-  }, [allPatients, userState, activeState]);
+    return activeState 
+      ? allPatients.filter((p: any) => p && p.screening_state === activeState) 
+      : allPatients;
+  }, [allPatients, activeState]);
 
   const getDaysPending = (patient: any): number => {
     if (!patient) return 0;
@@ -121,10 +122,10 @@ export default function ActionsHub() {
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
             <span className="text-sm font-semibold text-slate-700">
-              {userRole === 'National Admin' ? 'All States' : userState || 'Dashboard'}
+              {scope?.role === 'admin' || scope?.role === 'Program Manager' ? 'All States' : scope?.state || 'Dashboard'}
             </span>
           </div>
-          {userRole === 'National Admin' && (
+          {(scope?.role === 'admin' || scope?.role === 'Program Manager') && (
             <select
               value={activeState || ''}
               onChange={(e) => setActiveState(e.target.value || null)}
