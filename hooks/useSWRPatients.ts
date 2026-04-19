@@ -161,28 +161,46 @@ export function useSWRAllPatients(
   
   // Track initial data to prevent effect re-runs during background loading
   const initialDataRef = useRef<typeof data | null>(null);
+  const loadingSessionRef = useRef<string | null>(null);
+  const filtersRef = useRef(filters);
   
-  // Background loading effect
+  // Update filters ref
   useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
+  
+  // Background loading effect - only triggers on initial data load
+  useEffect(() => {
+    console.log('[useSWRPatients] Effect triggered', {
+      progressive,
+      hasData: !!data,
+      backgroundLoading: backgroundLoadingRef.current,
+      dataLength: data?.data?.length,
+      hasMore: data?.hasMore,
+      nextCursor: data?.nextCursor
+    });
+    
     if (!progressive || !data) {
+      console.log('[useSWRPatients] Skipping: no progressive or no data');
       return;
     }
     
     // If background loading is already in progress, don't restart
     if (backgroundLoadingRef.current) {
+      console.log('[useSWRPatients] Skipping: background loading already in progress');
       return;
     }
     
-    // Check if this is new data (not from our own mutate)
-    const isNewData = !initialDataRef.current || 
-      initialDataRef.current.data.length !== data.data.length ||
-      initialDataRef.current.nextCursor !== data.nextCursor;
-    
-    if (!isNewData) {
+    // Only start if this is the first page (not accumulated data)
+    if (data.data.length > limit) {
+      console.log('[useSWRPatients] Skipping: already have accumulated data');
       return;
     }
     
+    console.log('[useSWRPatients] Starting new background load session');
     initialDataRef.current = data;
+    const sessionId = Date.now().toString();
+    loadingSessionRef.current = sessionId;
     
     // Initialize progress state with first page
     setProgressState(prev => ({
@@ -193,6 +211,11 @@ export function useSWRAllPatients(
     
     if (!data.hasMore) {
       console.log('[useSWRPatients] No more pages to load');
+      return;
+    }
+    
+    if (!data.nextCursor) {
+      console.log('[useSWRPatients] No cursor available');
       return;
     }
     
@@ -208,17 +231,24 @@ export function useSWRAllPatients(
         let iterations = 1;
         const startTime = Date.now();
         
-        console.log('[useSWRPatients] Starting background load from page 2, cursor:', cursor);
+        console.log(`[useSWRPatients] [${sessionId}] Starting background load from page 2, cursor:`, cursor);
         
         while (hasMore && cursor && iterations < maxPages && allRecords.length < maxRecords) {
           if (controller.signal.aborted) {
-            console.log('[useSWRPatients] Background load aborted');
+            console.log(`[useSWRPatients] [${sessionId}] Background load aborted`);
             return;
           }
           
-          const page = await cursorFetcher(scope, limit, filters, cursor);
+          console.log(`[useSWRPatients] [${sessionId}] Fetching page ${iterations + 1} with cursor:`, cursor);
+          const page = await cursorFetcher(scope, limit, filtersRef.current, cursor);
+          console.log(`[useSWRPatients] [${sessionId}] Page ${iterations + 1} response:`, {
+            dataLength: page.data.length,
+            hasMore: page.hasMore,
+            nextCursor: page.nextCursor
+          });
           
           if (controller.signal.aborted) {
+            console.log(`[useSWRPatients] [${sessionId}] Aborted after fetch`);
             return;
           }
           
@@ -236,7 +266,8 @@ export function useSWRAllPatients(
           }));
           
           // Update SWR cache with accumulated data (revalidate: false prevents effect re-trigger)
-          await mutate({
+          console.log(`[useSWRPatients] [${sessionId}] Updating cache with ${allRecords.length} records`);
+          mutate({
             data: allRecords,
             nextCursor: cursor,
             hasMore,
@@ -251,23 +282,26 @@ export function useSWRAllPatients(
             }
           }, { revalidate: false });
           
-          console.log(`[useSWRPatients] Background page ${iterations + 1}: +${page.data.length}, total: ${allRecords.length}, hasMore: ${hasMore}, cursor: ${cursor}`);
+          console.log(`[useSWRPatients] [${sessionId}] Background page ${iterations + 1}: +${page.data.length}, total: ${allRecords.length}, hasMore: ${hasMore}, cursor: ${cursor}`);
           
-          if (!hasMore || !cursor) break;
+          if (!hasMore || !cursor) {
+            console.log(`[useSWRPatients] [${sessionId}] Breaking: hasMore=${hasMore}, cursor=${cursor}`);
+            break;
+          }
           
           if (iterations >= maxPages) {
-            console.warn(`[useSWRPatients] Hit maxPages (${maxPages})`);
+            console.warn(`[useSWRPatients] [${sessionId}] Hit maxPages (${maxPages})`);
             break;
           }
           
           if (allRecords.length >= maxRecords) {
-            console.warn(`[useSWRPatients] Hit maxRecords (${maxRecords})`);
+            console.warn(`[useSWRPatients] [${sessionId}] Hit maxRecords (${maxRecords})`);
             break;
           }
         }
         
         const durationMs = Date.now() - startTime;
-        console.log(`[useSWRPatients] ✅ Background load complete: ${allRecords.length} in ${iterations + 1} pages (${durationMs}ms)`);
+        console.log(`[useSWRPatients] [${sessionId}] ✅ Background load complete: ${allRecords.length} in ${iterations + 1} pages (${durationMs}ms)`);
         
         setProgressState(prev => ({
           ...prev,
@@ -277,19 +311,21 @@ export function useSWRAllPatients(
         
       } catch (err) {
         if (!controller.signal.aborted) {
-          console.error('[useSWRPatients] Background load error:', err);
+          console.error(`[useSWRPatients] [${sessionId}] Background load error:`, err);
           setProgressState(prev => ({ ...prev, isLoadingMore: false }));
         }
       } finally {
+        console.log(`[useSWRPatients] [${sessionId}] Cleaning up, setting backgroundLoadingRef to false`);
         backgroundLoadingRef.current = false;
       }
     })();
     
     return () => {
+      console.log(`[useSWRPatients] Effect cleanup, aborting controller`);
       controller.abort();
       abortControllerRef.current = null;
     };
-  }, [progressive, scope, limit, maxPages, maxRecords, mutate, data?.hasMore, data?.nextCursor, JSON.stringify(filters)]);
+  }, [progressive, isLoading, scope, limit, maxPages, maxRecords, mutate]);
   
   // Update total count from external source
   const setTotalCount = useCallback((total: number) => {
@@ -306,8 +342,13 @@ export function useSWRAllPatients(
   // Reset progress on filter change
   const keyStr = useMemo(() => key ? JSON.stringify(key) : null, [key ? JSON.stringify(key) : null]);
   useEffect(() => {
+    console.log('[useSWRPatients] Filter change detected, resetting');
     backgroundLoadingRef.current = false;
     initialDataRef.current = null;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     setProgressState({
       loadedCount: 0,
       totalCount: 0,
