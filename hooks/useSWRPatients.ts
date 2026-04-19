@@ -184,7 +184,15 @@ export function useSWRAllPatients(
     
     // Only trigger if this is first page data (exactly limit records, pages === 1)
     // AND we haven't already completed a load for this filter set
-    if (data.data.length === limit && data.meta?.pages === 1 && data.hasMore && data.nextCursor && !hasCompletedLoadRef.current) {
+    // AND we're not currently loading
+    if (
+      data.data.length === limit && 
+      data.meta?.pages === 1 && 
+      data.hasMore && 
+      data.nextCursor && 
+      !hasCompletedLoadRef.current &&
+      !backgroundLoadingRef.current
+    ) {
       console.log('[useSWRPatients] First page data detected, setting shouldStartLoading=true');
       setShouldStartLoading(true);
     }
@@ -205,6 +213,11 @@ export function useSWRAllPatients(
     
     if (backgroundLoadingRef.current) {
       console.log('[useSWRPatients] Background loading already in progress');
+      return;
+    }
+    
+    if (hasCompletedLoadRef.current) {
+      console.log('[useSWRPatients] Load already completed for this filter set');
       return;
     }
     
