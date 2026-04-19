@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import useSWR from 'swr';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope, isSuperuser } from '@/hooks/useSessionScope';
