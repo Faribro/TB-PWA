@@ -41,13 +41,9 @@ export default auth((req) => {
       url.searchParams.set('reason', 'expired');
       return NextResponse.redirect(url);
     }
-    console.log('[Middleware] Checking permission for:', pathname, 'Role:', userRole);
-    // TEMPORARILY DISABLED FOR DEBUGGING
-    // if (userRole && !hasRoutePermission(userRole, pathname)) {
-    //   console.log('[Middleware] BLOCKED - Redirecting to default route');
-    //   return NextResponse.redirect(new URL(getDefaultRoute(userRole), req.url));
-    // }
-    console.log('[Middleware] ALLOWED - Proceeding');
+    if (userRole && !hasRoutePermission(userRole, pathname)) {
+      return NextResponse.redirect(new URL(getDefaultRoute(userRole), req.url));
+    }
   }
 
   // Protect admin routes

@@ -68,27 +68,31 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
   dataTourId?: string;
 }) {
   const Icon = tab.icon;
+  const router = useRouter();
   
   return (
     <motion.div
       initial={{ opacity: 0, x: -16 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay, ease: [0.22, 1, 0.36, 1], duration: 0.35 }}
+      style={{ pointerEvents: 'auto' }}
     >
       <Link
         href={tab.path}
         data-tour-id={dataTourId}
         aria-current={isActive ? 'page' : undefined}
         title={isCollapsed ? tab.label : undefined}
+        prefetch={true}
         className={`
-          group relative w-full flex items-center gap-4 rounded-2xl transition-all duration-300 cursor-pointer
+          block group relative w-full rounded-2xl transition-all duration-300
           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900
-          ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}
+          ${isCollapsed ? 'p-3' : 'px-3 py-3'}
           ${isActive
             ? 'bg-slate-900/[0.04] border border-slate-900/10 shadow-sm'
             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-900/5'}
         `}
       >
+        <div className="flex items-center gap-4">
         {isActive && (
           <motion.div
             layoutId="sidebar-active-pill"
@@ -130,7 +134,8 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
               </p>
             </motion.div>
           )}
-        </AnimatePresence>
+          </AnimatePresence>
+        </div>
       </Link>
     </motion.div>
   );
@@ -139,7 +144,6 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const pathname = usePathname();
-  console.log('pathname', pathname);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [duplicatePairs] = useState<any[]>([]);
   const [eligibleCount] = useState(0);
@@ -229,15 +233,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   
   // Use useMemo to prevent recalculation on every render
   const visibleTabs = useMemo(() => {
-    console.log('[Sidebar] Computing visibleTabs for role:', userRole);
     if (userRole === Role.PRISON_COORDINATOR) {
-      console.log('[Sidebar] Returning PC_TAB_CONFIG');
       return PC_TAB_CONFIG;
     }
-    // Filter tabs based on normalized role
-    const filtered = TAB_CONFIG.filter(t => t.roles.includes(userRole));
-    console.log('[Sidebar] Filtered tabs:', filtered.map(t => t.label));
-    return filtered;
+    return TAB_CONFIG.filter(t => t.roles.includes(userRole));
   }, [userRole]);
 
   const quickSlotTab = useMemo(() => {
@@ -275,20 +274,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const exists = visibleTabs.some((tab) => tab.path === quickSlotTab.path);
     return exists ? visibleTabs : [quickSlotTab, ...visibleTabs];
   }, [visibleTabs, quickSlotTab]);
-  
-  // Debug logging - runs AFTER visibleTabs is computed
-  useEffect(() => {
-    console.log('[Sidebar Debug] ===================================');
-    console.log('[Sidebar Debug] Session:', session);
-    console.log('[Sidebar Debug] Raw Role:', rawRole);
-    console.log('[Sidebar Debug] Normalized Role:', userRole);
-    console.log('[Sidebar Debug] Is Prison Coordinator?:', userRole === Role.PRISON_COORDINATOR);
-    console.log('[Sidebar Debug] Role.PRISON_COORDINATOR value:', Role.PRISON_COORDINATOR);
-    console.log('[Sidebar Debug] Visible Tabs Count:', visibleTabs.length);
-    console.log('[Sidebar Debug] Tab Names:', visibleTabs.map(t => t.label));
-    console.log('[Sidebar Debug] PC_TAB_CONFIG:', PC_TAB_CONFIG);
-    console.log('[Sidebar Debug] ===================================');
-  }, [rawRole, userRole, session, visibleTabs]);
 
   return (
     <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden selection:bg-slate-900/20">
