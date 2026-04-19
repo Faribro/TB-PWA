@@ -134,12 +134,12 @@ export default function CommandHubPage() {
   }, [filters]);
 
   // Fetch summary metrics (server-computed aggregates including Today's metrics)
-  const { data: summaryData } = useSWR(
+  const { data: summaryData, isValidating } = useSWR(
     scope ? `/api/patients/summary?${queryString}` : null,
     fetcher,
     {
       revalidateOnFocus: false,
-      dedupingInterval: 60000, // 1 min cache
+      dedupingInterval: 2000, // Reduced to 2s to make filter 'Apply' feel more responsive
     }
   );
 
@@ -194,6 +194,7 @@ export default function CommandHubPage() {
             summaryData={summaryData} 
             activeFilterCount={activeFilterCount}
             onOpenFilters={() => setIsFilterDrawerOpen(true)} 
+            isLoading={isValidating}
           />
         </motion.section>
         

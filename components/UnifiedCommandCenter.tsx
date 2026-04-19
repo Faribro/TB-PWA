@@ -22,6 +22,7 @@ interface UnifiedCommandCenterProps {
   summaryData?: SummaryData;
   activeFilterCount: number;
   onOpenFilters: () => void;
+  isLoading?: boolean;
 }
 
 type MetricKey = "screened" | "suspected" | "diagnosed" | "pending" | "treatment";
@@ -119,6 +120,7 @@ export default function UnifiedCommandCenter({
   summaryData,
   activeFilterCount,
   onOpenFilters,
+  isLoading = false,
 }: UnifiedCommandCenterProps) {
   const [activeTab, setActiveTab] = useState<MetricKey>("screened");
 
@@ -130,12 +132,12 @@ export default function UnifiedCommandCenter({
 
   return (
     <div className="relative w-full rounded-[2.5rem] bg-gradient-to-br from-white/90 via-white/50 to-white/90 backdrop-blur-[40px] saturate-[120%] border border-white/80 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(255,255,255,0.3)] overflow-hidden group">
-      
+
       {/* Liquid Reflection Sweep running across the container */}
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-[200%] skew-x-[-15deg] group-hover:translate-x-[200%] transition-transform duration-[2500ms] ease-in-out pointer-events-none z-0" />
 
       {/* High-Fidelity Noise Texture */}
-      <div 
+      <div
         className="absolute inset-0 opacity-[0.025] pointer-events-none mix-blend-overlay z-0"
         style={{ backgroundImage: "url(data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E)" }}
       />
@@ -146,17 +148,17 @@ export default function UnifiedCommandCenter({
           <motion.div
             key={activeTab}
             initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ 
+            animate={{
               opacity: [0, 0.7, 0.8, 0.7],
               scale: [0.8, 1, 1.1, 1],
               rotate: [0, 90, 180, 270, 360],
               borderRadius: ["40% 60% 70% 30%", "30% 70% 40% 60%", "60% 40% 50% 50%", "40% 60% 70% 30%"]
             }}
             exit={{ opacity: 0, scale: 1.2, filter: "blur(40px)" }}
-            transition={{ 
-              duration: 25, 
-              repeat: Infinity, 
-              repeatType: "reverse", 
+            transition={{
+              duration: 25,
+              repeat: Infinity,
+              repeatType: "reverse",
               ease: "linear",
               opacity: { duration: 1 }
             }}
@@ -168,10 +170,10 @@ export default function UnifiedCommandCenter({
       <div className="relative z-10 flex flex-col lg:flex-row min-h-[440px]">
         {/* LEFT NAV/TABS */}
         <div className="lg:w-[320px] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200/40 bg-white/20 p-6 sm:p-8 flex flex-col gap-8 shadow-[inset_-10px_0_30px_-20px_rgba(0,0,0,0.05)] backdrop-blur-md">
-          
+
           <div className="flex items-center justify-between">
             <h2 className="text-[11px] font-black tracking-[0.25em] uppercase text-slate-500/80 drop-shadow-sm">Command Center</h2>
-            
+
             <button
               onClick={onOpenFilters}
               className="relative flex items-center justify-center px-4 py-2.5 rounded-xl bg-gradient-to-b from-white/90 to-white/60 border border-white/80 shadow-[0_4px_12px_rgba(0,0,0,0.05),inset_0_2px_2px_rgba(255,255,255,1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.08),inset_0_2px_4px_rgba(255,255,255,1)] hover:-translate-y-0.5 transition-all group/filter backdrop-blur-xl duration-300"
@@ -193,29 +195,29 @@ export default function UnifiedCommandCenter({
               const tab = METRICS_CONFIG[key];
               const isActive = activeTab === key;
               const TabIcon = tab.icon;
-              
+
               return (
                 <button
                   key={key}
                   onClick={() => setActiveTab(key)}
                   className={cn(
                     "relative flex items-center gap-3.5 px-4 py-3.5 rounded-[1.25rem] transition-all duration-500 text-left min-w-[200px] lg:min-w-0 z-10 overflow-hidden transform-gpu",
-                    isActive 
-                      ? "text-slate-900 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12),inset_0_2px_2px_rgba(255,255,255,0.9)] bg-gradient-to-b from-white/90 to-white/70 backdrop-blur-xl border border-white/80 scale-[1.02]" 
+                    isActive
+                      ? "text-slate-900 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12),inset_0_2px_2px_rgba(255,255,255,0.9)] bg-gradient-to-b from-white/90 to-white/70 backdrop-blur-xl border border-white/80 scale-[1.02]"
                       : "hover:bg-white/40 text-slate-500 hover:text-slate-800 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.5)] border border-transparent hover:border-white/40"
                   )}
                 >
                   <div className={cn(
-                    "w-9 h-9 rounded-[0.85rem] flex items-center justify-center transition-all duration-500 relative z-10 shadow-sm", 
+                    "w-9 h-9 rounded-[0.85rem] flex items-center justify-center transition-all duration-500 relative z-10 shadow-sm",
                     isActive ? `${tab.glow} shadow-[inset_0_2px_4px_rgba(255,255,255,0.4),0_4px_12px_rgba(0,0,0,0.1)]` : "bg-gradient-to-b from-slate-50 to-slate-100/50 border border-slate-200/60"
                   )}>
                     <TabIcon className={cn("w-4 h-4 transition-transform duration-500", isActive ? "text-white scale-110 drop-shadow-md" : "text-slate-400")} />
                   </div>
-                  
+
                   <span className={cn("text-[13px] font-bold tracking-wide relative z-10 transition-colors", isActive ? "text-slate-900" : "")}>
                     {tab.label}
                   </span>
-                  
+
                   {isActive && (
                     <motion.div
                       layoutId="activeIndicatorLine"
@@ -249,11 +251,15 @@ export default function UnifiedCommandCenter({
 
               <div className="flex flex-col sm:flex-row items-center sm:items-baseline gap-6 sm:gap-12 mb-8">
                 {/* TOTAL SECTION */}
-                <div className="flex flex-col items-start gap-1">
+                <div className={cn(
+                  "flex flex-col items-start gap-1 transition-opacity duration-300",
+                  isLoading ? "opacity-50" : "opacity-100"
+                )}>
                   <span className="text-[11px] font-black text-slate-400 tracking-[0.2em] uppercase ml-1 drop-shadow-sm">Total</span>
                   <h1 className={cn(
-                    "text-7xl sm:text-[110px] font-black tracking-tighter tabular-nums leading-[0.8] bg-clip-text text-transparent bg-gradient-to-br transition-all duration-700",
-                    config.textGradient
+                    "text-7xl sm:text-[110px] font-black tracking-tighter tabular-nums leading-none transition-all duration-700",
+                    // Fix: Use solid color + shadow for visibility, instead of transparent gradient which may fail in layout
+                    "text-slate-900 drop-shadow-[0_4px_12px_rgba(0,0,0,0.05)]"
                   )}>
                     <AnimatePresence mode="popLayout">
                       <AnimatedNumber key={`total-${activeTab}-${totalValue}`} value={totalValue} />
@@ -262,9 +268,12 @@ export default function UnifiedCommandCenter({
                 </div>
                 
                 {todayValue !== null && (
-                  <div className="flex items-center gap-8">
+                  <div className={cn(
+                    "flex items-center gap-8 transition-opacity duration-300",
+                    isLoading ? "opacity-50" : "opacity-100"
+                  )}>
                     {/* Vertical Divider */}
-                    <div className="hidden sm:block w-[2px] h-20 bg-gradient-to-b from-transparent via-slate-200 to-transparent rotate-[12deg] shadow-[1px_0_2px_rgba(255,255,255,0.8)]" />
+                    <div className="hidden sm:block w-[2px] h-20 bg-gradient-to-b from-transparent via-slate-200 to-transparent rotate-[12deg]" />
                     
                     {/* TODAY SECTION */}
                     <div className="flex flex-col items-start gap-1">
@@ -285,13 +294,13 @@ export default function UnifiedCommandCenter({
 
               <div className="flex items-center gap-4">
                 <Link href="/dashboard/vertex" className="group/btn relative flex items-center gap-3 px-8 py-4.5 bg-gradient-to-b from-slate-800 to-slate-950 border border-slate-700/60 rounded-2xl text-[14px] font-extrabold text-white shadow-[0_12px_24px_-6px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.15),inset_0_-2px_4px_rgba(0,0,0,0.5)] overflow-hidden transition-all hover:scale-[1.03] hover:shadow-[0_20px_40px_-6px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.3)] duration-300">
-                  
+
                   {/* Glossy Button Light Sweep */}
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-[150%] skew-x-[-20deg] group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
-                  
+
                   {/* Liquid Glow underneath text */}
                   <div className="absolute inset-0 bg-gradient-to-t from-blue-500/20 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity duration-500" />
-                  
+
                   <span className="relative z-10 tracking-widest uppercase drop-shadow-md">Dive In</span>
                   <div className="w-7 h-7 rounded-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center relative z-10 transition-transform group-hover/btn:translate-x-1.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] border border-white/10">
                     <ChevronRight className="w-4 h-4 text-white drop-shadow-md" />
@@ -302,7 +311,7 @@ export default function UnifiedCommandCenter({
           </AnimatePresence>
         </div>
       </div>
-      
+
       <style jsx global>{`
         .hide-scrollbar::-webkit-scrollbar {
           display: none;
