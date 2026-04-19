@@ -121,10 +121,28 @@ const Header = memo<HeaderProps>(({ firstName, userRole }) => {
 
 Header.displayName = 'Header';
 
+// Simple fetcher for SWR
+const fetcher = (url: string) => fetch(url).then(r => r.json());
+
 export default function CommandHubPage() {
   const { data: session, status } = useSession();
   const scope = useSessionScope();
-  const { patients } = useSWRAllPatients(scope);
+  
+  // Fetch summary metrics (server-computed aggregates) - FAST
+  const { data: summaryData } = useSWR(
+    scope ? `/api/patients/summary` : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60000, // 1 min cache
+    }
+  );
+  
+  // Fetch first page only for today's calculations (not for totals)
+  const { patients } = useSWRAllPatients(scope, {
+    limit: 1000, // Enough for today's data
+    autoFetchAll: false // Only first page for today's metrics
+  });
 
   const firstName = useMemo(
     () => session?.user?.name?.split(' ')[0] || 'Officer',
@@ -135,21 +153,21 @@ export default function CommandHubPage() {
 
   // Calculate dynamic metrics
   const metrics = useMemo(() => {
-    if (!patients) return null;
+    if (!summaryData) return null;
     
     const todayStr = new Date().toISOString().split('T')[0];
     
-    // Today's stats
-    const todayScreened = patients.filter(p => p.screening_date === todayStr).length;
-    const todaySuspected = patients.filter(p => p.screening_date === todayStr && p.xray_result === 'Suspected TB Case').length;
-    const todayDiagnosed = patients.filter(p => p.screening_date === todayStr && p.tb_diagnosed === 'Y').length;
-    const todayPending = patients.filter(p => p.screening_date === todayStr && !p.referral_date && p.tb_diagnosed !== 'Y').length;
+    // Today's stats (computed from first page - good enough for today)
+    const todayScreened = patients?.filter(p => p.screening_date === todayStr).length || 0;
+    const todaySuspected = patients?.filter(p => p.screening_date === todayStr && p.xray_result === 'Suspected TB Case').length || 0;
+    const todayDiagnosed = patients?.filter(p => p.screening_date === todayStr && p.tb_diagnosed === 'Y').length || 0;
+    const todayPending = patients?.filter(p => p.screening_date === todayStr && !p.referral_date && p.tb_diagnosed !== 'Y').length || 0;
 
-    // Total stats
-    const totalScreened = patients.length;
-    const totalSuspected = patients.filter(p => p.xray_result === 'Suspected TB Case').length;
-    const totalDiagnosed = patients.filter(p => p.tb_diagnosed === 'Y').length;
-    const totalPending = patients.filter(p => !p.referral_date && p.tb_diagnosed !== 'Y').length;
+    // Total stats (from server-computed summary - TRUE TOTALS)
+    const totalScreened = summaryData.total;
+    const totalSuspected = summaryData.suspected;
+    const totalDiagnosed = summaryData.diagnosed;
+    const totalPending = summaryData.pending;
 
     return {
       todayScreened,
@@ -161,7 +179,7 @@ export default function CommandHubPage() {
       totalDiagnosed,
       totalPending
     };
-  }, [patients]);
+  }, [summaryData, patients]);
 
   // Show loading state while session is loading
   if (status === 'loading') {
