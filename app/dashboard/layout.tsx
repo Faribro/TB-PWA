@@ -69,24 +69,24 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
 }) {
   const Icon = tab.icon;
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -16 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay, ease: [0.22, 1, 0.36, 1], duration: 0.35 }}
+    <Link
+      href={tab.path}
+      data-tour-id={dataTourId}
+      onClick={async () => {
+        try {
+          const s = await initSounds();
+          s.navTab?.();
+        } catch (e) {
+          // Silent fail
+        }
+      }}
+      aria-current={isActive ? 'page' : undefined}
+      title={isCollapsed ? tab.label : undefined}
     >
-      <Link
-        href={tab.path}
-        data-tour-id={dataTourId}
-        onClick={async () => {
-          try {
-            const s = await initSounds();
-            s.navTab?.();
-          } catch (e) {
-            // Silent fail
-          }
-        }}
-        aria-current={isActive ? 'page' : undefined}
-        title={isCollapsed ? tab.label : undefined}
+      <motion.div
+        initial={{ opacity: 0, x: -16 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay, ease: [0.22, 1, 0.36, 1], duration: 0.35 }}
         className={`
           group relative w-full flex items-center gap-4 rounded-2xl transition-all duration-300 cursor-pointer
           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900
@@ -138,8 +138,8 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
             </motion.div>
           )}
         </AnimatePresence>
-      </Link>
-    </motion.div>
+      </motion.div>
+    </Link>
   );
 }
 
