@@ -27,10 +27,10 @@ export default function PatientTimelineMermaid() {
       'background': 'transparent',
       'mainBkg': 'transparent',
       'nodeBorder': '#e2e8f0',
-      'clusterBkg': 'rgba(248, 250, 252, 0.4)',
-      'clusterBorder': 'rgba(203, 213, 225, 0.5)',
+      'clusterBkg': '#f8fafc',
+      'clusterBorder': '#cbd5e1',
       'titleColor': '#334155',
-      'edgeLabelBackground': 'rgba(255, 255, 255, 0.9)',
+      'edgeLabelBackground': '#ffffff',
       'fontFamily': '"Inter", ui-sans-serif, system-ui, sans-serif'
     }
   }
@@ -98,7 +98,7 @@ graph TB
   }, [reducedMotion]);
 
   useEffect(() => {
-    if (!isVisible || mermaidRendered) return;
+    if (!isVisible) return;
 
     mermaid.initialize({
       startOnLoad: false,
@@ -119,7 +119,9 @@ graph TB
       if (!mermaidRef.current) return;
 
       try {
-        const { svg } = await mermaid.render("mermaid-timeline", mermaidDiagram);
+        // Use a random ID suffix to force a re-render and avoid cache issues
+        const id = `mermaid-timeline-${Math.random().toString(36).substr(2, 9)}`;
+        const { svg } = await mermaid.render(id, mermaidDiagram);
         mermaidRef.current.innerHTML = svg;
         setMermaidRendered(true);
       } catch (error) {
@@ -128,7 +130,7 @@ graph TB
     };
 
     renderDiagram();
-  }, [isVisible, mermaidRendered, mermaidDiagram]);
+  }, [isVisible, mermaidDiagram]);
 
   const completedSteps = 3;
   const totalSteps = 6;
