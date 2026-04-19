@@ -250,7 +250,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Determine if there are more results
-    const hasMore = data.length > requestedLimit;
+    // If we got exactly fetchLimit records, there might be more
+    const hasMore = data.length === fetchLimit;
     const records = hasMore ? data.slice(0, requestedLimit) : data;
 
     // Generate next cursor using stable created_at + id
