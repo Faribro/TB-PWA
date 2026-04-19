@@ -169,7 +169,7 @@ export function useSWRAllPatients(
     filtersRef.current = filters;
   }, [filters]);
   
-  // Background loading effect - only triggers on initial data load
+  // Background loading effect - only triggers on data change, NOT on isLoading change
   useEffect(() => {
     console.log('[useSWRPatients] Effect triggered', {
       progressive,
@@ -180,7 +180,7 @@ export function useSWRAllPatients(
       nextCursor: data?.nextCursor
     });
     
-    if (!progressive || !data) {
+    if (!progressive || !data || !data.data) {
       console.log('[useSWRPatients] Skipping: no progressive or no data');
       return;
     }
@@ -325,7 +325,7 @@ export function useSWRAllPatients(
       controller.abort();
       abortControllerRef.current = null;
     };
-  }, [progressive, isLoading, scope, limit, maxPages, maxRecords, mutate]);
+  }, [progressive, data, scope, limit, maxPages, maxRecords, mutate]);
   
   // Update total count from external source
   const setTotalCount = useCallback((total: number) => {
