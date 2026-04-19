@@ -234,12 +234,18 @@ export function useSWRAllPatients(
     
     if (!data.hasMore) {
       console.log('[useSWRPatients] No more pages to load');
-      return;
+      return; // No cleanup needed
     }
     
     if (!data.nextCursor) {
       console.log('[useSWRPatients] No cursor available');
-      return;
+      return; // No cleanup needed
+    }
+    
+    // Abort any previous controller before starting new one
+    if (abortControllerRef.current) {
+      console.log('[useSWRPatients] Aborting previous controller before starting new session');
+      abortControllerRef.current.abort();
     }
     
     backgroundLoadingRef.current = true;
@@ -340,15 +346,12 @@ export function useSWRAllPatients(
       } finally {
         console.log(`[useSWRPatients] [${sessionId}] Cleaning up, setting backgroundLoadingRef to false`);
         backgroundLoadingRef.current = false;
+        abortControllerRef.current = null;
         // Don't reset hasStartedLoadingRef here - it stays true until new data arrives
       }
     })();
     
-    return () => {
-      console.log(`[useSWRPatients] Effect cleanup, aborting controller`);
-      controller.abort();
-      abortControllerRef.current = null;
-    };
+    // NO CLEANUP FUNCTION - we manage abort manually in filter change effect
   }, [progressive, data, scope, limit, maxPages, maxRecords, mutate]);
   
   // Update total count from external source
