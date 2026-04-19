@@ -159,11 +159,30 @@ export function useSWRAllPatients(
     }
   );
   
+  // Track initial data to prevent effect re-runs during background loading
+  const initialDataRef = useRef<typeof data | null>(null);
+  
   // Background loading effect
   useEffect(() => {
-    if (!progressive || !data || backgroundLoadingRef.current) {
+    if (!progressive || !data) {
       return;
     }
+    
+    // If background loading is already in progress, don't restart
+    if (backgroundLoadingRef.current) {
+      return;
+    }
+    
+    // Check if this is new data (not from our own mutate)
+    const isNewData = !initialDataRef.current || 
+      initialDataRef.current.data.length !== data.data.length ||
+      initialDataRef.current.nextCursor !== data.nextCursor;
+    
+    if (!isNewData) {
+      return;
+    }
+    
+    initialDataRef.current = data;
     
     // Initialize progress state with first page
     setProgressState(prev => ({
@@ -216,8 +235,8 @@ export function useSWRAllPatients(
             progress: prev.totalCount > 0 ? Math.min(100, Math.round((allRecords.length / prev.totalCount) * 100)) : 0
           }));
           
-          // Update SWR cache with accumulated data
-          mutate({
+          // Update SWR cache with accumulated data (revalidate: false prevents effect re-trigger)
+          await mutate({
             data: allRecords,
             nextCursor: cursor,
             hasMore,
@@ -230,7 +249,7 @@ export function useSWRAllPatients(
               pages: iterations,
               progressive: true
             }
-          }, false);
+          }, { revalidate: false });
           
           console.log(`[useSWRPatients] Background page ${iterations + 1}: +${page.data.length}, total: ${allRecords.length}, hasMore: ${hasMore}, cursor: ${cursor}`);
           
@@ -270,7 +289,7 @@ export function useSWRAllPatients(
       controller.abort();
       abortControllerRef.current = null;
     };
-  }, [data?.hasMore, data?.nextCursor, data?.data?.length, progressive, scope, limit, JSON.stringify(filters), maxPages, maxRecords, mutate]);
+  }, [progressive, scope, limit, maxPages, maxRecords, mutate, data?.hasMore, data?.nextCursor, JSON.stringify(filters)]);
   
   // Update total count from external source
   const setTotalCount = useCallback((total: number) => {
@@ -288,6 +307,7 @@ export function useSWRAllPatients(
   const keyStr = useMemo(() => key ? JSON.stringify(key) : null, [key ? JSON.stringify(key) : null]);
   useEffect(() => {
     backgroundLoadingRef.current = false;
+    initialDataRef.current = null;
     setProgressState({
       loadedCount: 0,
       totalCount: 0,
