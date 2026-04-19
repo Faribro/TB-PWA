@@ -192,31 +192,31 @@ export function useSWRAllPatients(
     
     if (!progressive || !data || !data.data) {
       console.log('[useSWRPatients] Skipping: no progressive or no data');
-      return;
+      return; // No cleanup needed
     }
     
     // If we've already started loading for this data, don't restart
     if (hasStartedLoadingRef.current) {
       console.log('[useSWRPatients] Skipping: already started loading for this data');
-      return;
+      return; // No cleanup needed - don't abort existing load
     }
     
     // If background loading is already in progress, don't restart
     if (backgroundLoadingRef.current) {
       console.log('[useSWRPatients] Skipping: background loading already in progress');
-      return;
+      return; // No cleanup needed
     }
     
     // Only start if this is the first page (not accumulated data)
     if (data.data.length > limit) {
       console.log('[useSWRPatients] Skipping: already have accumulated data');
-      return;
+      return; // No cleanup needed
     }
     
     // Additional safety: Only run if this looks like initial SWR data (has meta.pages === 1)
     if (data.meta?.pages && data.meta.pages > 1) {
       console.log('[useSWRPatients] Skipping: data already has multiple pages');
-      return;
+      return; // No cleanup needed
     }
     
     console.log('[useSWRPatients] Starting new background load session');
