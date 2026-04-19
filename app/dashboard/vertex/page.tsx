@@ -141,9 +141,22 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
           setNewDataToast(true);
           setTimeout(() => setNewDataToast(false), 3000);
           
-          // Revalidate SWR cache to fetch latest data
-          mutatePatients();
-          // Also revalidate summary
+          // Optimistic update: append new patient to existing data
+          mutatePatients((currentData) => {
+            if (!currentData || !currentData.data) return currentData;
+            
+            // Append new patient to the array
+            return {
+              ...currentData,
+              data: [...currentData.data, payload.new],
+              meta: {
+                ...currentData.meta,
+                returned: currentData.data.length + 1
+              }
+            };
+          }, false); // Don't revalidate - just update cache
+          
+          // Also revalidate summary (lightweight)
           mutate('/api/patients/summary');
         }
       )
