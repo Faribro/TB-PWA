@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Activity, Target, Shield, Clock, HeartPulse, Filter, ChevronRight, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from 'next/link';
 
 interface SummaryData {
   total: number;
@@ -274,13 +275,13 @@ export default function UnifiedCommandCenter({
               </p>
 
               <div className="flex items-center gap-4">
-                <button className="group relative flex items-center gap-2 px-7 py-4 bg-slate-900 border border-slate-800 rounded-2xl text-[13px] font-bold text-white shadow-[0_8px_20px_-4px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.15)] overflow-hidden transition-all hover:scale-[1.02] hover:shadow-[0_12px_25px_-4px_rgba(0,0,0,0.3)]">
+                <Link href="/dashboard/vertex" className="group relative flex items-center gap-2 px-7 py-4 bg-slate-900 border border-slate-800 rounded-2xl text-[13px] font-bold text-white shadow-[0_8px_20px_-4px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.15)] overflow-hidden transition-all hover:scale-[1.02] hover:shadow-[0_12px_25px_-4px_rgba(0,0,0,0.3)]">
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] skew-x-[-20deg] group-hover:translate-x-[150%] transition-transform duration-700 ease-in-out" />
                   <span className="relative z-10 tracking-wide">Explore Filtered Cohort</span>
                   <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center relative z-10 transition-transform group-hover:translate-x-1">
                     <ChevronRight className="w-3.5 h-3.5 text-white/80" />
                   </div>
-                </button>
+                </Link>
               </div>
             </motion.div>
           </AnimatePresence>
