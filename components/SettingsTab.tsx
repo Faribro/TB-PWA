@@ -10,7 +10,6 @@ import {
 import { useSWRConfig } from 'swr';
 import { useSession } from 'next-auth/react';
 import dynamic from 'next/dynamic';
-import { CharacterSelector } from './CharacterSelector';
 import { SyncIntelligenceCard } from './settings/SyncIntelligenceCard';
 import { sounds, setSoundEnabled, isSoundEnabled } from '@/lib/sound';
 import { cn } from '@/lib/utils';
@@ -21,7 +20,7 @@ const PDFLibrary = dynamic(() => import('./pdf/PDFLibrary'), { ssr: false });
 /* ─────────────────────────────────────────────
    TYPES
 ───────────────────────────────────────────── */
-type SubTab = 'profile' | 'sync' | 'documents' | 'character' | 'pipeline';
+type SubTab = 'profile' | 'sync' | 'documents' | 'pipeline';
 
 interface NotificationPreference {
   id: string;
@@ -678,7 +677,6 @@ export default function SettingsTab() {
 
   const subTabs: { id: SubTab; label: string; icon: React.ComponentType<{ className?: string }>; description: string }[] = [
     { id: 'profile' as SubTab, label: 'Profile', icon: User, description: 'Identity & alerts' },
-    { id: 'character' as SubTab, label: 'AI Character', icon: Sparkles, description: 'Floating companion' },
     { id: 'sync' as SubTab, label: 'Data & Sync', icon: HardDrive, description: 'Cache & connectivity' },
     { id: 'documents' as SubTab, label: 'Documents', icon: FileText, description: 'PDF library & Q&A' },
     { id: 'pipeline' as SubTab, label: 'Sync Intelligence', icon: Activity, description: 'Pipeline health & diagnostics' },
@@ -777,11 +775,6 @@ export default function SettingsTab() {
                       )} />
                     </button>
                   </div>
-                </div>
-              )}
-              {activeSubTab === 'character' && (
-                <div className="rounded-3xl bg-white border border-slate-200/60 shadow-[0_8px_40px_rgb(0,0,0,0.06)] p-8">
-                  <CharacterSelector />
                 </div>
               )}
               {activeSubTab === 'sync' && (
