@@ -247,9 +247,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Determine if there are more results
-    // If we got exactly fetchLimit records, there might be more
-    const hasMore = data.length === fetchLimit;
-    const records = hasMore ? data.slice(0, requestedLimit) : data;
+    // If we got exactly requestedLimit records, assume there might be more
+    // (Supabase caps at 1000, so we can't use fetchLimit for detection)
+    const hasMore = data.length >= requestedLimit;
+    const records = data;
 
     // Generate next cursor using stable created_at + id
     let nextCursor: string | null = null;
