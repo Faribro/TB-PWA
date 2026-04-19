@@ -97,9 +97,9 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     error: patientsError,
     mutate: mutatePatients 
   } = useSWRAllPatients(scope, {
-    limit: 500, // Optimal page size for Supabase - will fetch ~40 pages for 20k records
+    limit: 1000, // Use max Supabase limit - will fetch ~20 pages for 20k records
     autoFetchAll: true, // Auto-pagination enabled
-    maxPages: 100, // Safety: max 100 pages = 50k records
+    maxPages: 50, // Safety: max 50 pages = 50k records
     maxRecords: 500000, // Safety: max 500k records
     timeout: 120000, // Safety: 120s timeout for large datasets
     filters: {
