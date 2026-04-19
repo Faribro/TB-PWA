@@ -138,15 +138,32 @@ export function applyRBACFilters<T>(
 ): T {
   const { role, sessionState, staffName, isNational } = scope;
   
+  // Debug logging
+  console.log('[RBAC Debug]', {
+    role,
+    sessionState,
+    isNational,
+    roleAdmin: Role.ADMIN,
+    rolePM: Role.PROGRAM_MANAGER,
+    comparison: {
+      isAdmin: role === Role.ADMIN,
+      isPM: role === Role.PROGRAM_MANAGER
+    }
+  });
+  
   // National access - no RBAC filter
   if (isNational) {
+    console.log('[RBAC] National access - NO filters applied');
     return query;
   }
+  
+  console.log('[RBAC] State/Staff access - applying filters');
   
   // State-level access
   if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
     if (sessionState && sessionState !== 'All') {
       const states = normalizeMaharashtraFilter(sessionState);
+      console.log('[RBAC] Applying state filter:', states);
       if (states.length > 1) {
         (query as any) = (query as any).in('screening_state', states);
       } else {
@@ -157,6 +174,7 @@ export function applyRBACFilters<T>(
   // Staff-level access
   else if (role === Role.PRISON_COORDINATOR) {
     if (staffName) {
+      console.log('[RBAC] Applying staff filter:', staffName);
       (query as any) = (query as any).ilike('staff_name', staffName.trim());
     }
   }
