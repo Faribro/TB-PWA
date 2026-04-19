@@ -251,6 +251,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     filters.state,
     filters.district,
     filters.facilityType,
+    filters.suspected !== 'all' ? '1' : '',
     filters.tbDiagnosed !== 'all' ? '1' : '',
     filters.treatmentStatus !== 'all' ? '1' : '',
   ].filter(Boolean).length;
@@ -274,6 +275,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
       if (filters.state && p.screening_state !== filters.state) return false;
       if (filters.district && p.screening_district !== filters.district) return false;
       if (filters.facilityType && p.facility_type !== filters.facilityType) return false;
+      if (filters.suspected !== 'all' && p.tb_suspected !== filters.suspected) return false;
       if (filters.tbDiagnosed !== 'all' && p.tb_diagnosed !== filters.tbDiagnosed) return false;
       if (filters.treatmentStatus !== 'all' && p.treatment_status !== filters.treatmentStatus) return false;
       if (selectedCalendarDate && p.screening_date !== selectedCalendarDate) return false;
@@ -574,12 +576,13 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               style={{ overflow: 'hidden' }}
             >
-              <div className="px-4 pb-3 pt-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-2
+              <div className="px-4 pb-3 pt-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-2
                              border-t border-black/[0.04]">
                 {[
                   { label: 'State', key: 'state' as const, options: ['', 'Maharashtra', 'Madhya Pradesh', 'Rajasthan', 'Uttar Pradesh', 'Gujarat'] },
                   { label: 'District', key: 'district' as const, options: ['', 'Mumbai', 'Dewas', 'Jaipur', 'Lucknow'] },
                   { label: 'Facility', key: 'facilityType' as const, options: ['', 'CHC', 'PHC', 'Prison', 'DH', 'DRTB Centre'] },
+                  { label: 'Suspected', key: 'suspected' as const, options: ['all', 'Yes', 'No'] },
                   { label: 'TB Status', key: 'tbDiagnosed' as const, options: ['all', 'Yes', 'No', 'Pending'] },
                   { label: 'Treatment', key: 'treatmentStatus' as const, options: ['all', 'Ongoing', 'Completed', 'Defaulted', 'Died', 'Not Started'] },
                 ].map(({ label, key, options }) => (

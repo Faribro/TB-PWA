@@ -12,6 +12,7 @@ export interface VertexFilters {
   state: string
   district: string
   facilityType: string
+  suspected: string
   tbDiagnosed: string
   treatmentStatus: string
 }
@@ -23,6 +24,7 @@ export const DEFAULT_FILTERS: VertexFilters = {
   state: '',
   district: '',
   facilityType: '',
+  suspected: 'all',
   tbDiagnosed: 'all',
   treatmentStatus: 'all',
 }
@@ -49,6 +51,7 @@ export function VertexFilterBar({
     filters.state && filters.state,
     filters.district && filters.district,
     filters.facilityType && filters.facilityType,
+    filters.suspected !== 'all' && `Suspected: ${filters.suspected}`,
     filters.tbDiagnosed !== 'all' && `TB: ${filters.tbDiagnosed}`,
     filters.treatmentStatus !== 'all' && `Rx: ${filters.treatmentStatus}`,
   ].filter(Boolean)
@@ -203,7 +206,7 @@ export function VertexFilterBar({
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             style={{ overflow: 'hidden' }}
           >
-            <div className="px-6 pb-3 grid grid-cols-4 gap-3">
+            <div className="px-6 pb-3 grid grid-cols-5 gap-3">
               {[
                 {
                   label: 'State',
@@ -212,10 +215,20 @@ export function VertexFilterBar({
                     'Rajasthan', 'Uttar Pradesh', 'Gujarat'],
                 },
                 {
+                  label: 'District',
+                  key: 'district' as keyof VertexFilters,
+                  options: ['All Districts', 'Mumbai', 'Dewas', 'Jaipur', 'Lucknow'],
+                },
+                {
                   label: 'Facility Type',
                   key: 'facilityType' as keyof VertexFilters,
-                  options: ['All Types', 'CHC', 'PHC', 'DH',
+                  options: ['All Facilities', 'CHC', 'PHC', 'DH',
                     'Private', 'Prison', 'DRTB Centre'],
+                },
+                {
+                  label: 'Suspected',
+                  key: 'suspected' as keyof VertexFilters,
+                  options: ['all', 'Yes', 'No'],
                 },
                 {
                   label: 'TB Diagnosed',
@@ -241,7 +254,7 @@ export function VertexFilterBar({
                                focus:border-[#01696f] transition-all"
                   >
                     {options.map(o => (
-                      <option key={o} value={o === 'All States' || o === 'All Types' ? '' : o}>
+                      <option key={o} value={o === 'All States' || o === 'All Districts' || o === 'All Facilities' ? '' : o}>
                         {o}
                       </option>
                     ))}
