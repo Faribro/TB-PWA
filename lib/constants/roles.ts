@@ -161,12 +161,20 @@ export const FeaturePermissions: Record<string, readonly UserRole[]> = {
 export function hasRoutePermission(userRole: UserRole | null, route: string): boolean {
   if (!userRole) return false;
   
+  console.log('[hasRoutePermission] Checking route:', route, 'for role:', userRole);
+  
   // Find matching route pattern
   const routeKey = Object.keys(RoutePermissions).find(key => route.startsWith(key));
+  console.log('[hasRoutePermission] Matched route key:', routeKey);
+  
   if (!routeKey) return false;
   
   const allowedRoles = RoutePermissions[routeKey as keyof typeof RoutePermissions];
-  return allowedRoles.includes(userRole);
+  console.log('[hasRoutePermission] Allowed roles:', allowedRoles);
+  const hasPermission = allowedRoles.includes(userRole);
+  console.log('[hasRoutePermission] Has permission:', hasPermission);
+  
+  return hasPermission;
 }
 
 // Helper: Check if user has a specific feature permission

@@ -78,7 +78,6 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
       <Link
         href={tab.path}
         data-tour-id={dataTourId}
-        onClick={() => console.log('clicked', tab.path)}
         aria-current={isActive ? 'page' : undefined}
         title={isCollapsed ? tab.label : undefined}
         className={`
