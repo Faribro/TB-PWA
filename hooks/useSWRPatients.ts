@@ -360,7 +360,8 @@ export function useSWRAllPatients(
         abortControllerRef.current = null;
       }
     };
-  }, [shouldStartLoading, progressive, limit, scope, maxPages, maxRecords, mutate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldStartLoading, progressive, limit, scope, maxPages, maxRecords]);
   
   // Update total count from external source
   const setTotalCount = useCallback((total: number) => {
