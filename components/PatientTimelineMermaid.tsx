@@ -35,32 +35,33 @@ export default function PatientTimelineMermaid() {
     }
   }
 }%%
-graph TB
-    Start([Day 0: Barrack Deployment]):::complete
-    XRay[X-Ray Capture<br/><small class="mermaid-small">&lt; 30 sec</small>]:::complete
-    AI[AI Analysis<br/><small class="mermaid-small">99.2% accuracy</small>]:::complete
-    Triage{Triage Decision<br/><small class="mermaid-small font-semibold">342 flagged</small>}:::current
+graph LR
+    Start(["Barrack Deployment<br/>Day 0"]):::complete
+    XRay(["X-Ray Capture<br/>&lt; 30 sec"]):::complete
+    AI(["AI Analysis<br/>99.2% accuracy"]):::complete
+    Triage{{"Triage Decision<br/>342 flagged"}}:::current
     
-    subgraph Confirmatory["Confirmatory Testing"]
-        CBNAAT[CBNAAT / Truenat<br/><small class="mermaid-small">&lt; 2h result</small>]:::pending
+    subgraph Confirmatory ["Confirmatory Testing"]
+        CBNAAT(["CBNAAT / Truenat<br/>&lt; 2h result"]):::risk
         Merge1[ ]:::merge
     end
     
-    Treatment[Treatment Initiated<br/><small class="mermaid-small font-semibold">89 confirmed</small>]:::pending
-    End([RNTCP Enrollment]):::pending
+    Treatment(["Treatment Initiated<br/>89 confirmed"]):::success
+    End(["RNTCP Enrollment<br/>Done"]):::success
     
     Start --> XRay
     XRay --> AI
     AI --> Triage
-    Triage -->|High Risk| CBNAAT
-    Triage -.->|Normal| Merge1
+    Triage -- "High Risk" --> CBNAAT
+    Triage -- "Normal" --> Merge1
     CBNAAT --> Merge1
     Merge1 --> Treatment
     Treatment --> End
     
-    classDef complete fill:#ecfdf5,stroke:#34d399,stroke-width:2px,color:#065f46,rx:12,ry:12
+    classDef complete fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,color:#64748b,rx:12,ry:12
     classDef current fill:#fffbeb,stroke:#fbbf24,stroke-width:2px,color:#92400e,rx:12,ry:12
-    classDef pending fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,stroke-dasharray: 4 4,color:#64748b,rx:12,ry:12
+    classDef risk fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#9f1239,rx:12,ry:12
+    classDef success fill:#f0fdf4,stroke:#22c55e,stroke-width:2px,color:#166534,rx:12,ry:12
     classDef merge fill:transparent,stroke:none
     
     style Confirmatory fill:#fdfaed,fill-opacity:0.3,stroke:#fde047,stroke-width:1px,stroke-dasharray: 3 3,rx:20,ry:20
@@ -109,9 +110,9 @@ graph TB
         useMaxWidth: true,
         htmlLabels: true,
         curve: "basis",
-        padding: 30,
-        nodeSpacing: 70,
-        rankSpacing: 90,
+        padding: 20,
+        nodeSpacing: 40,
+        rankSpacing: 50,
       },
     });
 
@@ -331,96 +332,75 @@ graph TB
         }
 
         .mermaid-container .nodeLabel {
-          font-size: 13px !important;
-          font-weight: 600 !important;
+          font-size: 11px !important;
+          font-weight: 700 !important;
           color: #0f172a !important;
-          line-height: 1.4 !important;
-        }
-
-        .mermaid-container .mermaid-small {
-          font-size: 11px;
-          color: #64748b;
-          display: block;
-          margin-top: 4px;
-          font-weight: 500;
+          line-height: 1.2 !important;
+          text-align: center !important;
         }
 
         /* Beautiful Subgraph (Confirmatory Testing) */
         .mermaid-container .cluster rect {
           fill: rgba(253, 250, 237, 0.4) !important;
-          stroke: rgba(250, 204, 21, 0.4) !important;
-          stroke-width: 1.5px !important;
+          stroke: rgba(250, 204, 21, 0.3) !important;
+          stroke-width: 1px !important;
           stroke-dasharray: 4 4 !important;
         }
 
         .mermaid-container .cluster-label text {
-          font-size: 10px !important;
+          font-size: 9px !important;
           font-weight: 800 !important;
           fill: #ca8a04 !important; /* amber-600 */
           text-transform: uppercase !important;
-          letter-spacing: 0.15em !important;
+          letter-spacing: 0.1em !important;
         }
 
         /* Edge Labels - Pills */
         .mermaid-container .edgeLabel {
-          font-size: 10px !important;
-          font-weight: 700 !important;
+          font-size: 9px !important;
+          font-weight: 800 !important;
           color: #475569 !important;
-          background-color: rgba(255, 255, 255, 0.95) !important;
-          padding: 4px 8px !important;
-          border-radius: 6px !important;
-          border: 1px solid rgba(226, 232, 240, 0.8) !important;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+          background-color: rgba(255, 255, 255, 0.9) !important;
+          padding: 2px 6px !important;
+          border-radius: 4px !important;
+          border: 1px solid rgba(226, 232, 240, 0.6) !important;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02) !important;
           text-transform: uppercase !important;
           letter-spacing: 0.05em !important;
         }
 
         /* Smooth Edges */
         .mermaid-container .flowchart-link {
-          stroke: #94a3b8 !important;
-          stroke-width: 2px !important;
+          stroke: #cbd5e1 !important;
+          stroke-width: 1.5px !important;
           transition: stroke 0.3s ease;
         }
         
         .mermaid-container .flowchart-link:hover {
-          stroke: #3b82f6 !important;
-          stroke-width: 3px !important;
+          stroke: #94a3b8 !important;
+          stroke-width: 2px !important;
         }
 
         /* Arrow heads */
         .mermaid-container .arrowheadPath {
-          fill: #94a3b8 !important;
+          fill: #cbd5e1 !important;
           stroke: none !important;
         }
 
         /* Glowing Nodes */
         .mermaid-container .node.current polygon,
         .mermaid-container .node.current rect {
-          filter: drop-shadow(0 8px 24px rgba(245, 158, 11, 0.25)) !important;
-          transition: all 0.3s ease;
+          filter: drop-shadow(0 4px 12px rgba(245, 158, 11, 0.15)) !important;
         }
         
-        .mermaid-container .node.current:hover polygon,
-        .mermaid-container .node.current:hover rect {
-          filter: drop-shadow(0 12px 30px rgba(245, 158, 11, 0.4)) !important;
-          transform: translateY(-2px);
-        }
-
-        .mermaid-container .node.complete rect,
-        .mermaid-container .node.complete circle {
-          filter: drop-shadow(0 4px 16px rgba(16, 185, 129, 0.15)) !important;
-          transition: all 0.3s ease;
+        .mermaid-container .node.risk rect,
+        .mermaid-container .node.risk circle {
+          filter: drop-shadow(0 4px 12px rgba(244, 63, 94, 0.12)) !important;
         }
         
-        .mermaid-container .node.complete:hover rect,
-        .mermaid-container .node.complete:hover circle {
-          filter: drop-shadow(0 8px 24px rgba(16, 185, 129, 0.25)) !important;
-          transform: translateY(-2px);
-        }
-        
-        .mermaid-container .node.pending rect,
-        .mermaid-container .node.pending circle {
-          filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.02)) !important;
+        .mermaid-container .node.success rect,
+        .mermaid-container .node.success circle {
+          filter: drop-shadow(0 4px 12px rgba(34, 197, 94, 0.12)) !important;
         }
       `}</style>
     </div>
