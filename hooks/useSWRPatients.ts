@@ -1,14 +1,14 @@
 import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import type { SessionScope } from '@/hooks/useSessionScope';
 
 interface UseSWRAllPatientsOptions {
   limit?: number;
-  autoFetchAll?: boolean; // Enable auto-pagination (default: false for safety)
+  progressive?: boolean; // Enable progressive loading (default: false)
   maxPages?: number; // Safety cap on pages (default: 50)
   maxRecords?: number; // Safety cap on total records (default: 500k)
-  timeout?: number; // Timeout in ms (default: 60s)
+  timeout?: number; // Timeout in ms (default: 120s)
   filters?: {
     state?: string;
     district?: string;
@@ -28,12 +28,14 @@ interface CursorPaginationResponse {
     role: string;
     durationMs: number;
     mode: 'cursor' | 'offset';
-    pages?: number;
-    autoFetchAll?: boolean;
-    isPartial?: boolean;
-    cappedBy?: 'maxPages' | 'maxRecords' | 'timeout';
-    cappedReason?: string; // Human-readable explanation
   };
+}
+
+interface ProgressiveLoadState {
+  loadedCount: number;
+  totalCount: number;
+  isLoadingMore: boolean;
+  progress: number; // 0-100
 }
 
 const cursorFetcher = async (
@@ -56,7 +58,6 @@ const cursorFetcher = async (
   if (filters?.search) params.set('search', filters.search);
   
   const url = `/api/patients?${params.toString()}`;
-  console.log('[useSWRPatients] Fetching:', url);
 
   const response = await fetch(url);
   
@@ -72,14 +73,6 @@ const cursorFetcher = async (
     throw new Error(result.message || result.error);
   }
   
-  console.log('[useSWRPatients] Response:', {
-    returned: result.data?.length,
-    hasMore: result.hasMore,
-    duration: result.meta?.durationMs,
-    role: result.meta?.role,
-    scope: result.meta?.scope
-  });
-  
   return result;
 };
 
@@ -93,110 +86,63 @@ export function useSWRAllPatients(
     return options.limit ?? 500;
   }, [options.limit]);
   
-  const autoFetchAll = options.autoFetchAll ?? false; // Default FALSE for safety
+  const progressive = options.progressive ?? false;
   const maxPages = options.maxPages ?? 50;
   const maxRecords = options.maxRecords ?? 500000;
-  const timeout = options.timeout ?? 60000;
+  const timeout = options.timeout ?? 120000;
   const { filters } = options;
   
+  // Progressive loading state
+  const [progressState, setProgressState] = useState<ProgressiveLoadState>({
+    loadedCount: 0,
+    totalCount: 0,
+    isLoadingMore: false,
+    progress: 0
+  });
+  
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const backgroundLoadingRef = useRef(false);
+  
   const key = session && scope
-    ? ['/api/patients', scope.state ?? 'all', scope.district ?? 'all', limit, JSON.stringify(filters), autoFetchAll]
+    ? ['/api/patients', scope.state ?? 'all', scope.district ?? 'all', limit, JSON.stringify(filters)]
     : null;
   
   const { data, error, isLoading, mutate } = useSWR(
     key,
     async () => {
-      if (!autoFetchAll) {
-        return await cursorFetcher(scope, limit, filters, null);
+      // Abort any in-flight background loading
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      backgroundLoadingRef.current = false;
+      
+      // Fetch first page immediately
+      const firstPage = await cursorFetcher(scope, limit, filters, null);
+      
+      if (!progressive) {
+        // Non-progressive mode: return first page only
+        return {
+          data: firstPage.data,
+          nextCursor: firstPage.nextCursor,
+          hasMore: firstPage.hasMore,
+          meta: {
+            ...firstPage.meta,
+            pages: 1,
+            progressive: false
+          }
+        };
       }
       
-      // Auto-pagination with safeguards
-      const allRecords: any[] = [];
-      let cursor: string | null = null;
-      let hasMore = true;
-      let iterations = 0;
-      const startTime = Date.now();
-      const abortController = new AbortController();
-      const timeoutId = setTimeout(() => abortController.abort(), timeout);
-      
-      console.log(`[useSWRPatients] Auto-fetch: maxPages=${maxPages}, maxRecords=${maxRecords}, timeout=${timeout}ms`);
-      
-      try {
-        while (hasMore && iterations < maxPages && allRecords.length < maxRecords) {
-          if (abortController.signal.aborted) {
-            console.warn(`[useSWRPatients] ⚠️ Timeout after ${iterations} pages, ${allRecords.length} records`);
-            break;
-          }
-          
-          const page = await cursorFetcher(scope, limit, filters, cursor);
-          allRecords.push(...page.data);
-          cursor = page.nextCursor;
-          hasMore = page.hasMore;
-          iterations++;
-          
-          console.log(`[useSWRPatients] Page ${iterations}: +${page.data.length}, total: ${allRecords.length}, hasMore: ${hasMore}`);
-          
-          if (!hasMore) break;
-          
-          if (iterations >= maxPages) {
-            console.warn(`[useSWRPatients] ⚠️ Hit maxPages (${maxPages})`);
-            break;
-          }
-          
-          if (allRecords.length >= maxRecords) {
-            console.warn(`[useSWRPatients] ⚠️ Hit maxRecords (${maxRecords})`);
-            break;
-          }
-        }
-      } catch (err) {
-        console.error(`[useSWRPatients] ❌ Error at page ${iterations}:`, err);
-        if (allRecords.length > 0) {
-          console.warn(`[useSWRPatients] Returning partial: ${allRecords.length} records`);
-        } else {
-          throw err;
-        }
-      } finally {
-        clearTimeout(timeoutId);
-      }
-      
-      const durationMs = Date.now() - startTime;
-      const isPartial = hasMore || iterations >= maxPages || allRecords.length >= maxRecords;
-      
-      // Determine cap reason with human-readable message
-      let cappedBy: 'maxPages' | 'maxRecords' | 'timeout' | undefined;
-      let cappedReason: string | undefined;
-      
-      if (isPartial) {
-        if (iterations >= maxPages) {
-          cappedBy = 'maxPages';
-          cappedReason = `Reached maximum page limit (${maxPages} pages). Showing first ${allRecords.length.toLocaleString()} records.`;
-        } else if (allRecords.length >= maxRecords) {
-          cappedBy = 'maxRecords';
-          cappedReason = `Reached maximum record limit (${maxRecords.toLocaleString()} records). Refine filters to see more.`;
-        } else {
-          cappedBy = 'timeout';
-          cappedReason = `Request timed out after ${(timeout / 1000).toFixed(0)}s. Showing ${allRecords.length.toLocaleString()} records loaded so far.`;
-        }
-        console.warn(`[useSWRPatients] ⚠️ PARTIAL: ${cappedReason}`);
-      } else {
-        console.log(`[useSWRPatients] ✅ Complete: ${allRecords.length} in ${iterations} pages (${durationMs}ms)`);
-      }
-      
+      // Progressive mode: return first page, start background loading
       return {
-        data: allRecords,
-        nextCursor: hasMore ? cursor : null,
-        hasMore,
+        data: firstPage.data,
+        nextCursor: firstPage.nextCursor,
+        hasMore: firstPage.hasMore,
         meta: {
-          returned: allRecords.length,
-          requestedLimit: limit,
-          role: scope?.role || 'unknown',
-          durationMs,
-          mode: 'cursor' as const,
-          pages: iterations,
-          autoFetchAll: true,
-          isPartial,
-          cappedBy,
-          cappedReason
+          ...firstPage.meta,
+          pages: 1,
+          progressive: true
         }
       };
     },
@@ -206,45 +152,147 @@ export function useSWRAllPatients(
       dedupingInterval: 30000,
       errorRetryCount: 3,
       errorRetryInterval: 2000,
-      keepPreviousData: true,
+      keepPreviousData: false, // Don't keep stale data on filter change
       onError: (err) => {
         console.error('[useSWRPatients] Error:', err);
       }
     }
   );
-
-  const loadMore = useCallback(async () => {
-    if (autoFetchAll) {
-      console.warn('[useSWRPatients] loadMore() called but autoFetchAll enabled');
+  
+  // Background loading effect
+  useEffect(() => {
+    if (!progressive || !data || !data.hasMore || backgroundLoadingRef.current) {
       return;
     }
     
-    if (!data?.nextCursor || !data?.hasMore) {
-      return;
-    }
+    backgroundLoadingRef.current = true;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     
-    const nextPage = await cursorFetcher(scope, limit, filters, data.nextCursor);
+    (async () => {
+      try {
+        const allRecords = [...data.data];
+        let cursor = data.nextCursor;
+        let hasMore = data.hasMore;
+        let iterations = 1;
+        const startTime = Date.now();
+        
+        console.log('[useSWRPatients] Starting background load from page 2');
+        
+        while (hasMore && iterations < maxPages && allRecords.length < maxRecords) {
+          if (controller.signal.aborted) {
+            console.log('[useSWRPatients] Background load aborted');
+            return;
+          }
+          
+          setProgressState(prev => ({ ...prev, isLoadingMore: true }));
+          
+          const page = await cursorFetcher(scope, limit, filters, cursor);
+          
+          if (controller.signal.aborted) {
+            return;
+          }
+          
+          allRecords.push(...page.data);
+          cursor = page.nextCursor;
+          hasMore = page.hasMore;
+          iterations++;
+          
+          // Update progress
+          setProgressState(prev => ({
+            loadedCount: allRecords.length,
+            totalCount: prev.totalCount,
+            isLoadingMore: hasMore,
+            progress: prev.totalCount > 0 ? Math.round((allRecords.length / prev.totalCount) * 100) : 0
+          }));
+          
+          // Update SWR cache with accumulated data
+          mutate({
+            data: allRecords,
+            nextCursor: cursor,
+            hasMore,
+            meta: {
+              returned: allRecords.length,
+              requestedLimit: limit,
+              role: scope?.role || 'unknown',
+              durationMs: Date.now() - startTime,
+              mode: 'cursor' as const,
+              pages: iterations,
+              progressive: true
+            }
+          }, false);
+          
+          console.log(`[useSWRPatients] Background page ${iterations}: +${page.data.length}, total: ${allRecords.length}`);
+          
+          if (!hasMore) break;
+          
+          if (iterations >= maxPages) {
+            console.warn(`[useSWRPatients] Hit maxPages (${maxPages})`);
+            break;
+          }
+          
+          if (allRecords.length >= maxRecords) {
+            console.warn(`[useSWRPatients] Hit maxRecords (${maxRecords})`);
+            break;
+          }
+        }
+        
+        const durationMs = Date.now() - startTime;
+        console.log(`[useSWRPatients] ✅ Background load complete: ${allRecords.length} in ${iterations} pages (${durationMs}ms)`);
+        
+        setProgressState(prev => ({
+          ...prev,
+          isLoadingMore: false,
+          progress: 100
+        }));
+        
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          console.error('[useSWRPatients] Background load error:', err);
+          setProgressState(prev => ({ ...prev, isLoadingMore: false }));
+        }
+      }
+    })();
     
-    mutate({
-      ...nextPage,
-      data: [...data.data, ...nextPage.data]
-    }, false);
-  }, [autoFetchAll, data, scope, limit, filters, mutate]);
+    return () => {
+      controller.abort();
+      abortControllerRef.current = null;
+    };
+  }, [data, progressive, scope, limit, filters, maxPages, maxRecords, mutate]);
+  
+  // Update total count from external source
+  const setTotalCount = useCallback((total: number) => {
+    setProgressState(prev => ({
+      ...prev,
+      totalCount: total,
+      progress: prev.loadedCount > 0 && total > 0 ? Math.round((prev.loadedCount / total) * 100) : 0
+    }));
+  }, []);
+  
+  // Reset progress on filter change
+  useEffect(() => {
+    setProgressState({
+      loadedCount: data?.data?.length || 0,
+      totalCount: 0,
+      isLoadingMore: false,
+      progress: 0
+    });
+  }, [key, data?.data?.length]);
 
   return {
     patients: data?.data ?? [],
     meta: data?.meta ?? null,
     total: data?.data?.length ?? 0,
-    hasMore: autoFetchAll ? false : (data?.hasMore ?? false),
-    nextCursor: autoFetchAll ? null : (data?.nextCursor ?? null),
+    hasMore: data?.hasMore ?? false,
+    nextCursor: data?.nextCursor ?? null,
     isLoading,
-    isFullyLoaded: autoFetchAll ? (!isLoading && !data?.meta?.isPartial) : (!isLoading && !data?.hasMore),
-    isPartialLoad: data?.meta?.isPartial ?? false,
-    cappedBy: data?.meta?.cappedBy,
-    cappedReason: data?.meta?.cappedReason,
+    isLoadingMore: progressState.isLoadingMore,
+    loadedCount: progressState.loadedCount || (data?.data?.length ?? 0),
+    totalCount: progressState.totalCount,
+    progress: progressState.progress,
     error,
     mutate,
-    loadMore
+    setTotalCount
   };
 }
 

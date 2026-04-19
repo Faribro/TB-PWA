@@ -84,24 +84,25 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     }
   );
 
-  // Fetch patients with filters - auto-fetch ALL pages for complete dataset
+  // Fetch patients with progressive loading
   const { 
     patients: globalPatients, 
     meta, 
     total, 
     isLoading: isLoadingPatients,
-    isFullyLoaded,
-    isPartialLoad,
-    cappedBy,
-    cappedReason,
+    isLoadingMore,
+    loadedCount,
+    totalCount,
+    progress,
     error: patientsError,
-    mutate: mutatePatients 
+    mutate: mutatePatients,
+    setTotalCount
   } = useSWRAllPatients(scope, {
-    limit: 1000, // Use max Supabase limit - will fetch ~20 pages for 20k records
-    autoFetchAll: true, // Auto-pagination enabled
-    maxPages: 50, // Safety: max 50 pages = 50k records
+    limit: 500, // Fixed safe page size
+    progressive: true, // Enable progressive loading
+    maxPages: 100, // Safety: max 100 pages
     maxRecords: 500000, // Safety: max 500k records
-    timeout: 120000, // Safety: 120s timeout for large datasets
+    timeout: 120000, // Safety: 120s timeout
     filters: {
       state: selectedState,
       district: selectedDistrict,
@@ -110,6 +111,13 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
       search: filters.search
     }
   });
+  
+  // Sync total count from summary to hook
+  useEffect(() => {
+    if (summaryData?.total) {
+      setTotalCount(summaryData.total);
+    }
+  }, [summaryData?.total, setTotalCount]);
   
   // SOURCE A: Calendar + metrics data (NEVER use patients for calendar)
   // ONE call for full year calendar data (cached 5min)
@@ -363,42 +371,33 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
           {/* Spacer */}
           <div className="flex-1 min-w-[24px]" />
 
-          {/* Record count with improved partial load warning */}
-          <span className="text-xs text-[#7a7974] tabular-nums whitespace-nowrap">
-            <span className="font-semibold text-[#28251d]">
-              {filteredPatients.length.toLocaleString()}
-            </span>
-            {' / '}
-            {summaryData?.total?.toLocaleString() || total.toLocaleString()}
-            {meta && meta.pages && (
-              <span className="text-[10px] text-slate-400 ml-1">
-                ({meta.pages} pages)
+          {/* Record count with live progress */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[#7a7974] tabular-nums whitespace-nowrap">
+              <span className="font-semibold text-[#28251d]">
+                {loadedCount.toLocaleString()}
               </span>
+              {' / '}
+              <span className="font-semibold text-[#28251d]">
+                {totalCount > 0 ? totalCount.toLocaleString() : summaryData?.total?.toLocaleString() || '...'}
+              </span>
+            </span>
+            
+            {/* Live progress indicator */}
+            {isLoadingMore && (
+              <div className="flex items-center gap-1.5">
+                <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-blue-500 transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <span className="text-[10px] text-blue-600 font-medium">
+                  {progress}%
+                </span>
+              </div>
             )}
-          </span>
-
-          {/* Partial load warning with actionable message */}
-          {isPartialLoad && cappedReason && (
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 border border-amber-200 rounded text-[10px] text-amber-800">
-              <span>⚠️</span>
-              <span className="max-w-xs truncate" title={cappedReason}>
-                {cappedReason}
-              </span>
-              <button
-                onClick={() => mutatePatients()}
-                className="ml-1 underline hover:text-amber-900 font-medium"
-              >
-                Retry
-              </button>
-            </div>
-          )}
-
-          {/* Loading indicator */}
-          {isLoadingPatients && !isFullyLoaded && (
-            <span className="text-[10px] text-blue-600 animate-pulse">
-              Loading pages...
-            </span>
-          )}
+          </div>
 
           {/* Thin divider */}
           <div className="w-px h-5 bg-black/[0.08]" />
