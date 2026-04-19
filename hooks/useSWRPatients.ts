@@ -42,13 +42,18 @@ const cursorFetcher = async (
   scope: SessionScope | null,
   limit: number,
   filters?: UseSWRAllPatientsOptions['filters'],
-  cursor?: string | null
+  cursor?: string | null,
+  fullDetails?: boolean
 ): Promise<CursorPaginationResponse> => {
   const params = new URLSearchParams();
   params.set('limit', String(limit));
   
   if (cursor) {
     params.set('cursor', cursor);
+  }
+  
+  if (fullDetails) {
+    params.set('fullDetails', 'true');
   }
   
   if (filters?.state) params.set('state', filters.state);
@@ -122,7 +127,7 @@ export function useSWRAllPatients(
       backgroundLoadingRef.current = false;
       
       // Fetch first page immediately
-      const firstPage = await cursorFetcher(scope, limit, filters, null);
+      const firstPage = await cursorFetcher(scope, limit, filters, null, true);
       
       if (!progressive) {
         // Non-progressive mode: return first page only
@@ -248,7 +253,7 @@ export function useSWRAllPatients(
           }
           
           console.log(`[useSWRPatients] [${sessionId}] Fetching page ${iterations + 1} with cursor:`, cursor);
-          const page = await cursorFetcher(scope, limit, filtersRef.current, cursor);
+          const page = await cursorFetcher(scope, limit, filtersRef.current, cursor, true);
           console.log(`[useSWRPatients] [${sessionId}] Page ${iterations + 1} response:`, {
             dataLength: page.data.length,
             hasMore: page.hasMore,
