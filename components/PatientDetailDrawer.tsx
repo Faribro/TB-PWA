@@ -1160,14 +1160,14 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                           </>
                         ) : (
                           <>
-                            <ReadOnlyField label="Name of the Staff" value={localPatient?.staff_name || localPatient?.data_collector} />
-                            <ReadOnlyField label="Submitted On" value={localPatient?.submitted_on} />
-                            <ReadOnlyField label="State" value={localPatient?.screening_state} />
-                            <ReadOnlyField label="District" value={localPatient?.screening_district} />
-                            <div className="col-span-2"><ReadOnlyField label="Facility Name" value={localPatient?.facility_name || localPatient?.['Name of Facility']} /></div>
-                            <ReadOnlyField label="Facility Type" value={localPatient?.facility_type} />
-                            <ReadOnlyField label="Date of Screening — CH/X-Ray" value={localPatient?.screening_date} />
-                            <div className="col-span-2"><ReadOnlyField label="Unique ID" value={localPatient?.unique_id} /></div>
+                            <ReadOnlyField label="Name of the Staff" value={editedDemographics.staffname} />
+                            <ReadOnlyField label="Submitted On" value={editedDemographics.submittedon} />
+                            <ReadOnlyField label="State" value={editedDemographics.screeningstate} />
+                            <ReadOnlyField label="District" value={editedDemographics.screeningdistrict} />
+                            <div className="col-span-2"><ReadOnlyField label="Facility Name" value={editedDemographics.facilitycode} /></div>
+                            <ReadOnlyField label="Facility Type" value={editedDemographics.facilitytype} />
+                            <ReadOnlyField label="Date of Screening — CH/X-Ray" value={editedDemographics.screeningdate} />
+                            <div className="col-span-2"><ReadOnlyField label="Unique ID" value={editedDemographics.uniqueid} /></div>
                           </>
                         )}
                       </div>
@@ -1196,13 +1196,13 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                           </>
                         ) : (
                           <>
-                            <div className="col-span-2"><ReadOnlyField label="Inmate Name" value={localPatient?.inmate_name || localPatient?.['Inmate Name'] || localPatient?.patient_name} /></div>
-                            <div className="col-span-2"><ReadOnlyField label="Inmate Type" value={localPatient?.inmate_type} /></div>
-                            <div className="col-span-2"><ReadOnlyField label="Father / Husband's Name" value={localPatient?.father_husband_name || localPatient?.father_name} /></div>
-                            <ReadOnlyField label="Date of Birth" value={localPatient?.date_of_birth || localPatient?.dob} />
-                            <ReadOnlyField label="Age" value={localPatient?.age} />
-                            <ReadOnlyField label="Sex" value={localPatient?.sex || localPatient?.gender} />
-                            <ReadOnlyField label="Contact Number" value={localPatient?.contact_number || localPatient?.phone || localPatient?.mobile} />
+                            <div className="col-span-2"><ReadOnlyField label="Inmate Name" value={editedDemographics.inmatename} /></div>
+                            <div className="col-span-2"><ReadOnlyField label="Inmate Type" value={editedDemographics.inmatetype} /></div>
+                            <div className="col-span-2"><ReadOnlyField label="Father / Husband's Name" value={editedDemographics.fatherhusbandname} /></div>
+                            <ReadOnlyField label="Date of Birth" value={editedDemographics.dateofbirth} />
+                            <ReadOnlyField label="Age" value={editedDemographics.age} />
+                            <ReadOnlyField label="Sex" value={editedDemographics.sex} />
+                            <ReadOnlyField label="Contact Number" value={editedDemographics.contactnumber} />
                           </>
                         )}
                       </div>
@@ -1221,7 +1221,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                         {isEditingDemographics ? (
                           <EditableField label="Address" value={editedDemographics.address} onChange={(v) => setEditedDemographics({...editedDemographics, address: v})} />
                         ) : (
-                          <ReadOnlyField label="Address" value={localPatient?.address || localPatient?.residential_address} />
+                          <ReadOnlyField label="Address" value={editedDemographics.address} />
                         )}
                       </div>
 
@@ -1283,8 +1283,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                           </>
                         ) : (
                           <>
-                            <ReadOnlyField label="10S Symptoms Present" value={localPatient?.symptoms_10s || localPatient?.symptoms_present} />
-                            <ReadOnlyField label="Past History of TB" value={localPatient?.tb_past_history || localPatient?.past_tb_history || localPatient?.tb_history} />
+                            <ReadOnlyField label="10S Symptoms Present" value={editedDemographics.symptoms10s} />
+                            <ReadOnlyField label="Past History of TB" value={editedDemographics.tbpasthistory} />
                           </>
                         )}
                       </div>
