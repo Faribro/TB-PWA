@@ -21,6 +21,10 @@ export interface PatientFilters {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  facilityType?: string;
+  suspected?: string;
+  tbDiagnosed?: string;
+  treatmentStatus?: string;
 }
 
 // Date validation regex and helpers
@@ -188,7 +192,7 @@ export function applyUserFilters<T>(
   query: T,
   filters: PatientFilters
 ): T {
-  const { state, district, dateFrom, dateTo, search } = filters;
+  const { state, district, dateFrom, dateTo, search, facilityType, suspected, tbDiagnosed, treatmentStatus } = filters;
   
   if (state && state !== 'all') {
     const states = normalizeMaharashtraFilter(state);
@@ -213,6 +217,32 @@ export function applyUserFilters<T>(
   
   if (search) {
     (query as any) = (query as any).or(`inmate_name.ilike.%${search}%,unique_id.ilike.%${search}%`);
+  }
+  
+  if (facilityType && facilityType !== 'all') {
+    (query as any) = (query as any).eq('facility_type', facilityType);
+  }
+  
+  if (suspected && suspected !== 'all') {
+    if (suspected === 'Yes') {
+      (query as any) = (query as any).or('xray_result.ilike.%abnormal%,xray_result.ilike.%suspected%,chest_x_ray_result.ilike.%abnormal%,chest_x_ray_result.ilike.%suspected%');
+    } else if (suspected === 'No') {
+      (query as any) = (query as any).or('xray_result.ilike.%normal%,chest_x_ray_result.ilike.%normal%');
+    } else {
+      (query as any) = (query as any).eq('xray_result', suspected);
+    }
+  }
+  
+  if (tbDiagnosed && tbDiagnosed !== 'all') {
+    if (tbDiagnosed.toLowerCase() === 'pending') {
+      (query as any) = (query as any).is('tb_diagnosed', null);
+    } else {
+      (query as any) = (query as any).eq('tb_diagnosed', tbDiagnosed);
+    }
+  }
+  
+  if (treatmentStatus && treatmentStatus !== 'all') {
+    (query as any) = (query as any).eq('treatment_status', treatmentStatus);
   }
   
   return query;

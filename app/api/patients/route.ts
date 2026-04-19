@@ -148,6 +148,10 @@ export async function GET(request: NextRequest) {
         district: validateDistrict(searchParams.get('district') || undefined),
         dateFrom: validateDateFilter(searchParams.get('dateFrom'), 'dateFrom'),
         dateTo: validateDateFilter(searchParams.get('dateTo'), 'dateTo'),
+        facilityType: searchParams.get('facilityType') || undefined,
+        suspected: searchParams.get('suspected') || undefined,
+        tbDiagnosed: searchParams.get('tbDiagnosed') || undefined,
+        treatmentStatus: searchParams.get('treatmentStatus') || undefined,
         search: searchParams.get('search') || undefined,
       };
       

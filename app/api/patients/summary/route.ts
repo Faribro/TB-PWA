@@ -21,6 +21,10 @@ interface SummaryResponse {
   suspected: number;
   diagnosed: number;
   onTreatment: number;
+  todayScreened: number;
+  todaySuspected: number;
+  todayDiagnosed: number;
+  todayPending: number;
   meta: {
     role: string;
     scope: string;
@@ -55,7 +59,12 @@ export async function GET(request: NextRequest) {
         state: searchParams.get('state') || undefined,
         district: searchParams.get('district') || undefined,
         dateFrom: validateDateFilter(searchParams.get('dateFrom'), 'dateFrom'),
-        dateTo: validateDateFilter(searchParams.get('dateTo'), 'dateTo')
+        dateTo: validateDateFilter(searchParams.get('dateTo'), 'dateTo'),
+        facilityType: searchParams.get('facilityType') || undefined,
+        suspected: searchParams.get('suspected') || undefined,
+        tbDiagnosed: searchParams.get('tbDiagnosed') || undefined,
+        treatmentStatus: searchParams.get('treatmentStatus') || undefined,
+        search: searchParams.get('search') || undefined,
       };
       
       // Validate date range logic
@@ -96,6 +105,7 @@ export async function GET(request: NextRequest) {
 
     // Execute aggregation queries in parallel
     const firstDayOfMonth = getFirstDayOfMonth();
+    const todayStr = new Date().toISOString().split('T')[0];
     
     const [
       totalResult,
@@ -104,7 +114,11 @@ export async function GET(request: NextRequest) {
       screenedThisMonthResult,
       suspectedResult,
       diagnosedResult,
-      onTreatmentResult
+      onTreatmentResult,
+      todayScreenedResult,
+      todaySuspectedResult,
+      todayDiagnosedResult,
+      todayPendingResult
     ] = await Promise.all([
       // Total count
       buildCountQuery(),
@@ -131,7 +145,27 @@ export async function GET(request: NextRequest) {
       
       // On treatment (ATT started)
       buildCountQuery()
-        .not('att_start_date', 'is', null)
+        .not('att_start_date', 'is', null),
+        
+      // Today Screened
+      buildCountQuery()
+        .eq('screening_date', todayStr),
+        
+      // Today Suspected
+      buildCountQuery()
+        .eq('screening_date', todayStr)
+        .or('xray_result.ilike.%abnormal%,xray_result.ilike.%suspected%,chest_x_ray_result.ilike.%abnormal%,chest_x_ray_result.ilike.%suspected%'),
+        
+      // Today Diagnosed
+      buildCountQuery()
+        .eq('screening_date', todayStr)
+        .eq('tb_diagnosed', 'Yes'),
+        
+      // Today Pending (no referral, not diagnosed)
+      buildCountQuery()
+        .eq('screening_date', todayStr)
+        .or('tb_diagnosed.is.null,tb_diagnosed.not.eq.Yes')
+        .is('referral_date', null)
     ]);
 
     const durationMs = Date.now() - startTime;
@@ -144,6 +178,10 @@ export async function GET(request: NextRequest) {
       suspected: suspectedResult.count || 0,
       diagnosed: diagnosedResult.count || 0,
       onTreatment: onTreatmentResult.count || 0,
+      todayScreened: todayScreenedResult.count || 0,
+      todaySuspected: todaySuspectedResult.count || 0,
+      todayDiagnosed: todayDiagnosedResult.count || 0,
+      todayPending: todayPendingResult.count || 0,
       meta: {
         role: scope.role,
         scope: scope.sessionState || 'national',
