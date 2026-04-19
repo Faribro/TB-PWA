@@ -247,29 +247,33 @@ export default function UnifiedCommandCenter({
                 </h3>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-baseline gap-4 sm:gap-8 mb-6">
-                <div className="flex items-baseline gap-2 relative group-hover:scale-[1.01] transition-transform duration-700">
+              <div className="flex flex-col sm:flex-row items-center sm:items-baseline gap-6 sm:gap-12 mb-8">
+                {/* TOTAL SECTION */}
+                <div className="flex flex-col items-start gap-1">
+                  <span className="text-[11px] font-black text-slate-400 tracking-[0.2em] uppercase ml-1 drop-shadow-sm">Total</span>
                   <h1 className={cn(
-                    "text-7xl sm:text-[110px] font-black tracking-tighter tabular-nums leading-[0.9] bg-clip-text text-transparent bg-gradient-to-br drop-shadow-[0_4px_12px_rgba(0,0,0,0.05)] pb-2",
+                    "text-7xl sm:text-[110px] font-black tracking-tighter tabular-nums leading-[0.8] bg-clip-text text-transparent bg-gradient-to-br transition-all duration-700",
                     config.textGradient
                   )}>
                     <AnimatePresence mode="popLayout">
-                      <AnimatedNumber key={`total-${activeTab}`} value={totalValue} />
+                      <AnimatedNumber key={`total-${activeTab}-${totalValue}`} value={totalValue} />
                     </AnimatePresence>
                   </h1>
-                  <span className="text-[14px] font-black text-slate-400/80 tracking-widest uppercase mb-3 ml-1 drop-shadow-sm">Total</span>
                 </div>
                 
                 {todayValue !== null && (
-                  <div className="flex items-center gap-6">
-                    <div className="hidden sm:block w-px h-20 bg-gradient-to-b from-transparent via-slate-300 to-transparent rotate-[15deg] shadow-[1px_0_2px_rgba(255,255,255,0.8)]" />
-                    <div className="flex items-baseline gap-2">
-                      <h2 className="text-5xl sm:text-7xl font-black text-slate-800 tracking-tighter tabular-nums leading-none drop-shadow-sm">
+                  <div className="flex items-center gap-8">
+                    {/* Vertical Divider */}
+                    <div className="hidden sm:block w-[2px] h-20 bg-gradient-to-b from-transparent via-slate-200 to-transparent rotate-[12deg] shadow-[1px_0_2px_rgba(255,255,255,0.8)]" />
+                    
+                    {/* TODAY SECTION */}
+                    <div className="flex flex-col items-start gap-1">
+                      <span className="text-[10px] font-black text-slate-500 tracking-[0.2em] uppercase px-2 py-0.5 rounded-md border border-slate-200/60 bg-slate-100/50 backdrop-blur-md">Today</span>
+                      <h2 className="text-5xl sm:text-7xl font-black text-slate-900 tracking-tighter tabular-nums leading-none">
                         <AnimatePresence mode="popLayout">
-                          <AnimatedNumber key={`today-${activeTab}`} value={todayValue} />
+                          <AnimatedNumber key={`today-${activeTab}-${todayValue}`} value={todayValue} />
                         </AnimatePresence>
                       </h2>
-                      <span className="text-[10px] font-extrabold text-slate-500 tracking-widest uppercase mb-2 ml-1 px-2.5 py-1 rounded-md border border-slate-200/60 bg-slate-50/80 shadow-sm backdrop-blur-md">Today</span>
                     </div>
                   </div>
                 )}
