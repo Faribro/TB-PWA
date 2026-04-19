@@ -170,10 +170,22 @@ export const ALL_TOURS: Tour[] = [
         spotlightPadding: 8,
       },
       {
+        id: 'clinical-tab-open',
+        title: 'Switch to the Clinical Tab',
+        body:
+          'In the patient drawer, click the "Clinical" tab to access the clinical update form.',
+        target: '[data-tour-id="clinical-tab"]',
+        placement: 'bottom',
+        route: '/dashboard/vertex',
+        navigateTo: '/dashboard/vertex',
+        action: 'click',
+        spotlightPadding: 4,
+      },
+      {
         id: 'clinical-sputum',
         title: 'Clinical Tab — Sputum & Referral',
         body:
-          'The Clinical tab is the primary update area. Under "Sputum & Referral" you can set ' +
+          'Under "Sputum & Referral" you can set ' +
           'the Referral Date and Referred Facility.',
         target: '[data-tour-id="sputum-referral-section"]',
         placement: 'left',
@@ -238,7 +250,8 @@ export const ALL_TOURS: Tour[] = [
         id: 'completion',
         title: "You're All Set!",
         body:
-          'You have completed the full clinical update workflow.',
+          'You have completed the full clinical update workflow. ' +
+          'Use the Clinical tab daily to record sputum results, diagnosis, and ATT outcomes.',
         target: null,
         placement: 'center',
         route: '/dashboard/vertex',
@@ -494,32 +507,11 @@ export const ALL_TOURS: Tour[] = [
         spotlightPadding: 10,
       },
       {
-        id: 'knowledge-vault-intro',
-        target: '[data-tour-id="sidebar-docs"]',
-        route: '/dashboard/command-hub',
-        navigateTo: '/dashboard/command-hub',
-        action: 'click',
-        title: 'Knowledge Vault — SOPs & Technical Guides',
-        body: "The Knowledge Vault contains 42 complete articles covering SOPs, user manuals, clinical protocols, and technical references. Use Cmd/Ctrl+K to search instantly. Operator insight: When training new users, send them here first — every feature has a detailed guide with screenshots and best practices.",
-        placement: 'right',
-        spotlightPadding: 8,
-      },
-      {
-        id: 'knowledge-vault-home',
-        target: '#kv-search-home',
-        route: '/docs',
-        navigateTo: '/docs',
-        title: 'Inside Knowledge Vault',
-        body: "You are now inside the Knowledge Vault. Use this search bar to quickly find SOPs, user manuals, and technical guides by keyword.",
-        placement: 'bottom',
-        spotlightPadding: 8,
-      },
-      {
         id: 'completion',
         target: null,
-        route: '/docs',
+        route: '/dashboard/command-hub',
         title: "You're Ready to Use SAMADHAAN! ✓",
-        body: "Congratulations! You've completed the comprehensive dashboard tour. You now understand the KPI bar, pipeline flow, screening journey, and module access points. Next steps: Explore the Knowledge Vault for detailed guides, check the GIS Map for spatial insights, and review M&E Tools for your facility targets. Welcome to the SAMADHAAN Health OS.",
+        body: "Congratulations! You've completed the comprehensive dashboard tour. You now understand the KPI bar, pipeline flow, screening journey, and module access points. Next steps: Explore the Vertex module for patient updates, check the GIS Map for spatial insights, and review M&E Tools for your facility targets. Welcome to the SAMADHAAN Health OS.",
         placement: 'center',
       },
     ],
