@@ -86,6 +86,15 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     }
   );
 
+  // Memoize filters object to prevent SWR key changes
+  const stableFilters = useMemo(() => ({
+    state: selectedState,
+    district: selectedDistrict,
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
+    search: filters.search
+  }), [selectedState, selectedDistrict, filters.dateFrom, filters.dateTo, filters.search]);
+
   // Fetch patients with progressive loading
   const { 
     patients: globalPatients, 
@@ -105,13 +114,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     maxPages: 100, // Safety: max 100 pages
     maxRecords: 500000, // Safety: max 500k records
     timeout: 120000, // Safety: 120s timeout
-    filters: {
-      state: selectedState,
-      district: selectedDistrict,
-      dateFrom: filters.dateFrom,
-      dateTo: filters.dateTo,
-      search: filters.search
-    }
+    filters: stableFilters
   });
   
   // Real-time subscription for new Kobo submissions

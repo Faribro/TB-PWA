@@ -638,7 +638,6 @@ export default function Vertex({
 
   // Task 3: Derive Calendar Data from globalPatients (Single Source of Truth) with Filters
   const heatmapData = useMemo(() => {
-    console.log('[Vertex] Recomputing heatmapData, globalPatients.length:', globalPatients?.length);
     if (!globalPatients?.length) return [];
     
     const grouped: Record<string, MonthlyHeatmapData> = {};
@@ -664,9 +663,7 @@ export default function Vertex({
       if (!patient.referral_date) grouped[normalizedDate].breachCount++;
     }
 
-    const result = Object.values(grouped);
-    console.log('[Vertex] heatmapData computed, unique dates:', result.length);
-    return result;
+    return Object.values(grouped);
   }, [globalPatients, filterState, filterDistrict]);
 
   // If the current month has no screening activity dots, automatically jump to
