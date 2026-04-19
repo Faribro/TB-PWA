@@ -102,10 +102,14 @@ export function useSWRAllPatients(
   
   const abortControllerRef = useRef<AbortController | null>(null);
   const backgroundLoadingRef = useRef(false);
+  const currentSessionIdRef = useRef<string | null>(null);
   
   const key = session && scope
     ? ['/api/patients', scope.state ?? 'all', scope.district ?? 'all', limit, JSON.stringify(filters)]
     : null;
+  
+  // Stable key for effect - only changes on filter/scope change, NOT on data updates
+  const stableEffectKey = useMemo(() => key ? JSON.stringify(key) : null, [key ? JSON.stringify(key) : null]);
   
   const { data, error, isLoading, mutate } = useSWR(
     key,
@@ -160,97 +164,69 @@ export function useSWRAllPatients(
   );
   
   // Track initial data to prevent effect re-runs during background loading
-  const initialDataRef = useRef<typeof data | null>(null);
-  const loadingSessionRef = useRef<string | null>(null);
   const filtersRef = useRef(filters);
-  const hasStartedLoadingRef = useRef(false);
+  const [shouldStartLoading, setShouldStartLoading] = useState(false);
   
   // Update filters ref
   useEffect(() => {
     filtersRef.current = filters;
   }, [filters]);
   
-  // Reset hasStartedLoading when data changes from external source (filter change, initial load)
+  // Watch for first page data arrival and trigger loading flag
   useEffect(() => {
-    // Only reset if this is truly new data (length === limit means first page)
-    if (data?.data?.length === limit && data?.meta?.pages === 1) {
-      hasStartedLoadingRef.current = false;
+    if (!progressive || !data?.data) return;
+    
+    // Only trigger if this is first page data (exactly limit records, pages === 1)
+    if (data.data.length === limit && data.meta?.pages === 1 && data.hasMore && data.nextCursor) {
+      console.log('[useSWRPatients] First page data detected, setting shouldStartLoading=true');
+      setShouldStartLoading(true);
     }
-  }, [data?.data?.length, data?.meta?.pages, limit]);
+  }, [data?.data?.length, data?.meta?.pages, data?.hasMore, progressive, limit]);
   
-  // Background loading effect - only triggers on initial data load
+  // Reset loading flag on filter change
   useEffect(() => {
-    console.log('[useSWRPatients] Effect triggered', {
-      progressive,
-      hasData: !!data,
-      backgroundLoading: backgroundLoadingRef.current,
-      hasStartedLoading: hasStartedLoadingRef.current,
-      dataLength: data?.data?.length,
-      hasMore: data?.hasMore,
-      nextCursor: data?.nextCursor
-    });
-    
-    if (!progressive || !data || !data.data) {
-      console.log('[useSWRPatients] Skipping: no progressive or no data');
-      return; // No cleanup needed
+    setShouldStartLoading(false);
+  }, [stableEffectKey]);
+  
+  // Background loading effect - triggers ONCE when shouldStartLoading becomes true
+  // Does NOT depend on data, so cache mutations don't retrigger it
+  useEffect(() => {
+    if (!shouldStartLoading || !progressive) {
+      return;
     }
     
-    // If we've already started loading for this data, don't restart
-    if (hasStartedLoadingRef.current) {
-      console.log('[useSWRPatients] Skipping: already started loading for this data');
-      return; // No cleanup needed - don't abort existing load
-    }
-    
-    // If background loading is already in progress, don't restart
     if (backgroundLoadingRef.current) {
-      console.log('[useSWRPatients] Skipping: background loading already in progress');
-      return; // No cleanup needed
+      console.log('[useSWRPatients] Background loading already in progress');
+      return;
     }
     
-    // Only start if this is the first page (not accumulated data)
-    if (data.data.length > limit) {
-      console.log('[useSWRPatients] Skipping: already have accumulated data');
-      return; // No cleanup needed
+    // Get current data snapshot
+    if (!data?.data || data.data.length !== limit || !data.hasMore || !data.nextCursor) {
+      console.log('[useSWRPatients] Data not ready for background load');
+      return;
     }
     
-    // Additional safety: Only run if this looks like initial SWR data (has meta.pages === 1)
-    if (data.meta?.pages && data.meta.pages > 1) {
-      console.log('[useSWRPatients] Skipping: data already has multiple pages');
-      return; // No cleanup needed
+    // Abort any previous session
+    if (abortControllerRef.current) {
+      console.log('[useSWRPatients] Aborting previous session');
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
     
-    console.log('[useSWRPatients] Starting new background load session');
-    hasStartedLoadingRef.current = true; // Mark that we've started loading
-    initialDataRef.current = data;
     const sessionId = Date.now().toString();
-    loadingSessionRef.current = sessionId;
+    currentSessionIdRef.current = sessionId;
+    backgroundLoadingRef.current = true;
     
-    // Initialize progress state with first page
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    
+    console.log(`[useSWRPatients] [${sessionId}] Starting background load session`);
+    
     setProgressState(prev => ({
       ...prev,
       loadedCount: data.data.length,
-      isLoadingMore: data.hasMore
+      isLoadingMore: true
     }));
-    
-    if (!data.hasMore) {
-      console.log('[useSWRPatients] No more pages to load');
-      return; // No cleanup needed
-    }
-    
-    if (!data.nextCursor) {
-      console.log('[useSWRPatients] No cursor available');
-      return; // No cleanup needed
-    }
-    
-    // Abort any previous controller before starting new one
-    if (abortControllerRef.current) {
-      console.log('[useSWRPatients] Aborting previous controller before starting new session');
-      abortControllerRef.current.abort();
-    }
-    
-    backgroundLoadingRef.current = true;
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
     
     (async () => {
       try {
@@ -344,15 +320,23 @@ export function useSWRAllPatients(
           setProgressState(prev => ({ ...prev, isLoadingMore: false }));
         }
       } finally {
-        console.log(`[useSWRPatients] [${sessionId}] Cleaning up, setting backgroundLoadingRef to false`);
-        backgroundLoadingRef.current = false;
-        abortControllerRef.current = null;
-        // Don't reset hasStartedLoadingRef here - it stays true until new data arrives
+        console.log(`[useSWRPatients] [${sessionId}] Cleaning up`);
+        if (currentSessionIdRef.current === sessionId) {
+          backgroundLoadingRef.current = false;
+          abortControllerRef.current = null;
+        }
       }
     })();
     
-    // NO CLEANUP FUNCTION - we manage abort manually in filter change effect
-  }, [progressive, data, scope, limit, maxPages, maxRecords, mutate]);
+    return () => {
+      console.log(`[useSWRPatients] [${sessionId}] Effect cleanup - aborting session`);
+      controller.abort();
+      if (currentSessionIdRef.current === sessionId) {
+        backgroundLoadingRef.current = false;
+        abortControllerRef.current = null;
+      }
+    };
+  }, [shouldStartLoading, progressive, limit, scope, maxPages, maxRecords, mutate]);
   
   // Update total count from external source
   const setTotalCount = useCallback((total: number) => {
@@ -366,31 +350,15 @@ export function useSWRAllPatients(
     });
   }, [data?.data?.length]);
   
-  // Reset progress on ACTUAL filter change (not on every render)
-  const prevKeyRef = useRef<string | null>(null);
+  // Reset progress on filter/scope change
   useEffect(() => {
-    const currentKey = key ? JSON.stringify(key) : null;
-    
-    // Only reset if key actually changed (not on first mount)
-    if (prevKeyRef.current !== null && prevKeyRef.current !== currentKey) {
-      console.log('[useSWRPatients] Filter change detected, resetting');
-      backgroundLoadingRef.current = false;
-      hasStartedLoadingRef.current = false; // Reset loading flag on filter change
-      initialDataRef.current = null;
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
-      setProgressState({
-        loadedCount: 0,
-        totalCount: 0,
-        isLoadingMore: false,
-        progress: 0
-      });
-    }
-    
-    prevKeyRef.current = currentKey;
-  }, [key ? JSON.stringify(key) : null]);
+    setProgressState({
+      loadedCount: 0,
+      totalCount: 0,
+      isLoadingMore: false,
+      progress: 0
+    });
+  }, [stableEffectKey]);
 
   const currentLoadedCount = data?.data?.length ?? 0;
   const displayProgress = progressState.totalCount > 0 && currentLoadedCount > 0
