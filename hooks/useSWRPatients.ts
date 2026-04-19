@@ -9,6 +9,7 @@ interface UseSWRAllPatientsOptions {
   maxPages?: number; // Safety cap on pages (default: 50)
   maxRecords?: number; // Safety cap on total records (default: 500k)
   timeout?: number; // Timeout in ms (default: 120s)
+  autoFetchAll?: boolean; // Alias for progressive - explicit opt-in for full dataset
   filters?: {
     state?: string;
     district?: string;
@@ -91,7 +92,7 @@ export function useSWRAllPatients(
     return options.limit ?? 500;
   }, [options.limit]);
   
-  const progressive = options.progressive ?? false;
+  const progressive = options.progressive ?? options.autoFetchAll ?? false;
   const maxPages = options.maxPages ?? 50;
   const maxRecords = options.maxRecords ?? 500000;
   const timeout = options.timeout ?? 120000;
@@ -409,6 +410,8 @@ export function useSWRAllPatients(
     loadedCount: currentLoadedCount,
     totalCount: progressState.totalCount,
     progress: displayProgress,
+    isPartialLoad: false, // Kept for interface compatibility
+    cappedReason: null as string | null, // Kept for interface compatibility
     error,
     mutate,
     setTotalCount

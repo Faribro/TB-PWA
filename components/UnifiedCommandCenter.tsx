@@ -158,8 +158,7 @@ export default function UnifiedCommandCenter({
               repeat: Infinity, 
               repeatType: "reverse", 
               ease: "linear",
-              opacity: { duration: 1 },
-              exit: { duration: 0.8 }
+              opacity: { duration: 1 }
             }}
             className={cn("absolute -top-[20%] -right-[10%] w-[900px] h-[900px] blur-[100px] bg-gradient-to-br mix-blend-multiply opacity-70 transition-colors duration-1000", config.bgGradient)}
           />
