@@ -339,23 +339,30 @@ export function useSWRAllPatients(
     });
   }, [data?.data?.length]);
   
-  // Reset progress on filter change
-  const keyStr = useMemo(() => key ? JSON.stringify(key) : null, [key ? JSON.stringify(key) : null]);
+  // Reset progress on ACTUAL filter change (not on every render)
+  const prevKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    console.log('[useSWRPatients] Filter change detected, resetting');
-    backgroundLoadingRef.current = false;
-    initialDataRef.current = null;
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
+    const currentKey = key ? JSON.stringify(key) : null;
+    
+    // Only reset if key actually changed (not on first mount)
+    if (prevKeyRef.current !== null && prevKeyRef.current !== currentKey) {
+      console.log('[useSWRPatients] Filter change detected, resetting');
+      backgroundLoadingRef.current = false;
+      initialDataRef.current = null;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      setProgressState({
+        loadedCount: 0,
+        totalCount: 0,
+        isLoadingMore: false,
+        progress: 0
+      });
     }
-    setProgressState({
-      loadedCount: 0,
-      totalCount: 0,
-      isLoadingMore: false,
-      progress: 0
-    });
-  }, [keyStr]);
+    
+    prevKeyRef.current = currentKey;
+  }, [key ? JSON.stringify(key) : null]);
 
   const currentLoadedCount = data?.data?.length ?? 0;
   const displayProgress = progressState.totalCount > 0 && currentLoadedCount > 0
