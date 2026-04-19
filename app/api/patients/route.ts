@@ -259,12 +259,13 @@ export async function GET(request: NextRequest) {
     console.log(`[patients/GET] User: ${session.user.email}, Role: ${role}, Limit: ${requestedLimit}, Cursor: ${cursor ? 'present' : 'none'}`);
 
     // Build query with keyset pagination
+    // NOTE: Fetch requestedLimit + 1 to check hasMore, bypassing Supabase 1000-row default
+    const fetchLimit = requestedLimit + 1;
     let query = supabase
       .from('patients')
-      .select(selectedColumns)
+      .select(selectedColumns, { count: 'exact' })
       .order('screening_date', { ascending: false, nullsFirst: false })
-      .order('id', { ascending: false })
-      .limit(requestedLimit + 1);
+      .order('id', { ascending: false });
 
     // Apply RBAC filters (server-side, based on session)
     query = applyRBACFilters(query, role, sessionState, staffName);
@@ -289,6 +290,9 @@ export async function GET(request: NextRequest) {
         }, { status: 400 });
       }
     }
+
+    // Apply limit AFTER all filters to bypass Supabase 1000-row default
+    query = query.limit(fetchLimit);
 
     // Execute query
     const { data, error } = await query;
