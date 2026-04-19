@@ -16,6 +16,7 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import useSWR from 'swr';
 import { FeatureShowcase } from '@/components/FeatureShowcase';
 import ProgramMission from '@/components/ProgramMission';
 import InmateJourney from '@/components/InmateJourney';
