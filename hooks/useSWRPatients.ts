@@ -272,12 +272,12 @@ export function useSWRAllPatients(
   // Reset progress on filter change
   useEffect(() => {
     setProgressState({
-      loadedCount: data?.data?.length || 0,
+      loadedCount: 0,
       totalCount: 0,
       isLoadingMore: false,
       progress: 0
     });
-  }, [key, data?.data?.length]);
+  }, [key]);
 
   return {
     patients: data?.data ?? [],
