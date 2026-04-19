@@ -5,7 +5,10 @@ import type { SessionScope } from '@/hooks/useSessionScope';
 
 interface UseSWRAllPatientsOptions {
   limit?: number;
-  autoFetchAll?: boolean; // NEW: Enable auto-pagination to fetch all pages
+  autoFetchAll?: boolean; // Enable auto-pagination (default: false for safety)
+  maxPages?: number; // Safety cap on pages (default: 50)
+  maxRecords?: number; // Safety cap on total records (default: 500k)
+  timeout?: number; // Timeout in ms (default: 60s)
   filters?: {
     state?: string;
     district?: string;
@@ -25,6 +28,10 @@ interface CursorPaginationResponse {
     role: string;
     durationMs: number;
     mode: 'cursor' | 'offset';
+    pages?: number;
+    autoFetchAll?: boolean;
+    isPartial?: boolean;
+    cappedBy?: 'maxPages' | 'maxRecords' | 'timeout';
   };
 }
 
@@ -83,7 +90,10 @@ export function useSWRAllPatients(
     return options.limit ?? 500;
   }, [options.limit]);
   
-  const autoFetchAll = options.autoFetchAll ?? true; // Default to true for Vertex
+  const autoFetchAll = options.autoFetchAll ?? false; // Default FALSE for safety
+  const maxPages = options.maxPages ?? 50;
+  const maxRecords = options.maxRecords ?? 500000;
+  const timeout = options.timeout ?? 60000;
   const { filters } = options;
   
   const key = session && scope
@@ -94,39 +104,71 @@ export function useSWRAllPatients(
     key,
     async () => {
       if (!autoFetchAll) {
-        // Single page mode (for normal browsing)
         return await cursorFetcher(scope, limit, filters, null);
       }
       
-      // Auto-pagination mode (for Vertex/complete dataset)
+      // Auto-pagination with safeguards
       const allRecords: any[] = [];
       let cursor: string | null = null;
       let hasMore = true;
       let iterations = 0;
-      const maxIterations = 100; // Safety: 100 pages * 10k = 1M records max
       const startTime = Date.now();
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), timeout);
       
-      console.log('[useSWRPatients] Auto-pagination enabled, fetching all pages...');
+      console.log(`[useSWRPatients] Auto-fetch: maxPages=${maxPages}, maxRecords=${maxRecords}, timeout=${timeout}ms`);
       
-      while (hasMore && iterations < maxIterations) {
-        const page = await cursorFetcher(scope, limit, filters, cursor);
-        allRecords.push(...page.data);
-        cursor = page.nextCursor;
-        hasMore = page.hasMore;
-        iterations++;
-        
-        console.log(`[useSWRPatients] Page ${iterations}: +${page.data.length} records, total: ${allRecords.length}, hasMore: ${hasMore}`);
-        
-        if (!hasMore) break;
+      try {
+        while (hasMore && iterations < maxPages && allRecords.length < maxRecords) {
+          if (abortController.signal.aborted) {
+            console.warn(`[useSWRPatients] ⚠️ Timeout after ${iterations} pages, ${allRecords.length} records`);
+            break;
+          }
+          
+          const page = await cursorFetcher(scope, limit, filters, cursor);
+          allRecords.push(...page.data);
+          cursor = page.nextCursor;
+          hasMore = page.hasMore;
+          iterations++;
+          
+          console.log(`[useSWRPatients] Page ${iterations}: +${page.data.length}, total: ${allRecords.length}, hasMore: ${hasMore}`);
+          
+          if (!hasMore) break;
+          
+          if (iterations >= maxPages) {
+            console.warn(`[useSWRPatients] ⚠️ Hit maxPages (${maxPages})`);
+            break;
+          }
+          
+          if (allRecords.length >= maxRecords) {
+            console.warn(`[useSWRPatients] ⚠️ Hit maxRecords (${maxRecords})`);
+            break;
+          }
+        }
+      } catch (err) {
+        console.error(`[useSWRPatients] ❌ Error at page ${iterations}:`, err);
+        if (allRecords.length > 0) {
+          console.warn(`[useSWRPatients] Returning partial: ${allRecords.length} records`);
+        } else {
+          throw err;
+        }
+      } finally {
+        clearTimeout(timeoutId);
       }
       
       const durationMs = Date.now() - startTime;
-      console.log(`[useSWRPatients] ✅ Complete: ${allRecords.length} records in ${iterations} pages (${durationMs}ms)`);
+      const isPartial = hasMore || iterations >= maxPages || allRecords.length >= maxRecords;
+      
+      if (isPartial) {
+        console.warn(`[useSWRPatients] ⚠️ PARTIAL: ${allRecords.length} in ${iterations} pages (${durationMs}ms)`);
+      } else {
+        console.log(`[useSWRPatients] ✅ Complete: ${allRecords.length} in ${iterations} pages (${durationMs}ms)`);
+      }
       
       return {
         data: allRecords,
-        nextCursor: null,
-        hasMore: false,
+        nextCursor: hasMore ? cursor : null,
+        hasMore,
         meta: {
           returned: allRecords.length,
           requestedLimit: limit,
@@ -134,7 +176,9 @@ export function useSWRAllPatients(
           durationMs,
           mode: 'cursor' as const,
           pages: iterations,
-          autoFetchAll: true
+          autoFetchAll: true,
+          isPartial,
+          cappedBy: isPartial ? (iterations >= maxPages ? 'maxPages' : allRecords.length >= maxRecords ? 'maxRecords' : 'timeout') : undefined
         }
       };
     },
@@ -153,7 +197,7 @@ export function useSWRAllPatients(
 
   const loadMore = useCallback(async () => {
     if (autoFetchAll) {
-      console.warn('[useSWRPatients] loadMore() called but autoFetchAll already fetched all records');
+      console.warn('[useSWRPatients] loadMore() called but autoFetchAll enabled');
       return;
     }
     
@@ -172,11 +216,12 @@ export function useSWRAllPatients(
   return {
     patients: data?.data ?? [],
     meta: data?.meta ?? null,
-    total: data?.data?.length ?? 0, // Actual total from all fetched pages
+    total: data?.data?.length ?? 0,
     hasMore: autoFetchAll ? false : (data?.hasMore ?? false),
     nextCursor: autoFetchAll ? null : (data?.nextCursor ?? null),
     isLoading,
-    isFullyLoaded: autoFetchAll ? !isLoading : (!isLoading && !data?.hasMore),
+    isFullyLoaded: autoFetchAll ? (!isLoading && !data?.meta?.isPartial) : (!isLoading && !data?.hasMore),
+    isPartialLoad: data?.meta?.isPartial ?? false,
     error,
     mutate,
     loadMore

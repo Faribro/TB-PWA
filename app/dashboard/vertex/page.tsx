@@ -74,6 +74,16 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
   const selectedState = filters.state;
   const selectedDistrict = filters.district;
 
+  // Fetch summary metrics (server-computed aggregates)
+  const { data: summaryData, error: summaryError } = useSWR(
+    scope ? `/api/patients/summary?state=${selectedState || 'all'}&district=${selectedDistrict || 'all'}` : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60000, // 1 min cache
+    }
+  );
+
   // Fetch patients with filters - auto-fetch ALL pages for complete dataset
   const { 
     patients: globalPatients, 
@@ -81,11 +91,15 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     total, 
     isLoading: isLoadingPatients,
     isFullyLoaded,
+    isPartialLoad,
     error: patientsError,
     mutate: mutatePatients 
   } = useSWRAllPatients(scope, {
-    limit: 10000, // Page size for cursor pagination
-    autoFetchAll: true, // Enable auto-pagination to fetch complete dataset
+    limit: 10000,
+    autoFetchAll: true, // Explicit opt-in
+    maxPages: 50, // Safety: max 50 pages
+    maxRecords: 500000, // Safety: max 500k records
+    timeout: 60000, // Safety: 60s timeout
     filters: {
       state: selectedState,
       district: selectedDistrict,
@@ -353,10 +367,15 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
               {filteredPatients.length.toLocaleString()}
             </span>
             {' / '}
-            {total.toLocaleString()}
+            {summaryData?.total?.toLocaleString() || total.toLocaleString()}
             {meta && meta.pages && (
               <span className="text-[10px] text-slate-400 ml-1">
-                ({meta.pages} pages, {meta.returned?.toLocaleString()} records)
+                ({meta.pages} pages)
+              </span>
+            )}
+            {isPartialLoad && (
+              <span className="text-[10px] text-amber-600 ml-1">
+                ⚠️ Partial
               </span>
             )}
             {isLoadingPatients && !isFullyLoaded && (

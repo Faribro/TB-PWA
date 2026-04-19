@@ -16,7 +16,11 @@ const CommandCenter = dynamic(() => import('@/components/CommandCenter'), {
 
 export default function FollowUpPage() {
   const scope = useSessionScope();
-  const { patients: globalPatients = [], isLoading } = useSWRAllPatients(scope);
+  const { patients: globalPatients = [], isLoading } = useSWRAllPatients(scope, {
+    autoFetchAll: true, // Explicit opt-in for complete dataset
+    maxPages: 50,
+    maxRecords: 500000
+  });
 
   return (
     <div className="h-screen">
