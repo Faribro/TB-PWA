@@ -587,6 +587,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
               isLoading={isLoadingPatients}
               filter={null}
               onSetFilter={() => {}}
+              summaryData={summaryData}
             />
           </div>
         )}

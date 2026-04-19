@@ -537,9 +537,19 @@ const GeographicHierarchy = ({
 export default function Vertex({
   externalPatients,
   externalLoading,
+  summaryData,
 }: {
   externalPatients?: any[];
   externalLoading?: boolean;
+  summaryData?: {
+    total: number;
+    pending: number;
+    alertsThisMonth: number;
+    screenedThisMonth: number;
+    suspected: number;
+    diagnosed: number;
+    onTreatment: number;
+  };
 } = {}) {
   const now = useMemo(() => new Date(), []);
   const currentMonthStart = useMemo(
@@ -995,7 +1005,7 @@ export default function Vertex({
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-indigo-500 transition-colors">Total</div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-black text-slate-900 tracking-tighter shadow-sm drop-shadow-sm">
-                      {globalPatients.length.toLocaleString()}
+                      {(summaryData?.total ?? globalPatients.length).toLocaleString()}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400 uppercase">Screened</span>
                   </div>
@@ -1004,11 +1014,11 @@ export default function Vertex({
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-rose-500 transition-colors">Pending</div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-black text-rose-600 tracking-tighter drop-shadow-sm">
-                      {globalPatients.filter((p: any) => {
+                      {(summaryData?.pending ?? globalPatients.filter((p: any) => {
                         const isAbnormal = p.xray_result === 'Suspected TB Case';
                         const noTreatment = !p.att_start_date && !p.referral_date;
                         return isAbnormal && noTreatment;
-                      }).length.toLocaleString()}
+                      }).length).toLocaleString()}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400 uppercase">Alerts</span>
                   </div>
@@ -1017,13 +1027,13 @@ export default function Vertex({
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-emerald-500 transition-colors">This Month</div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-black text-emerald-600 tracking-tighter drop-shadow-sm">
-                      {globalPatients.filter((p: any) => {
+                      {(summaryData?.screenedThisMonth ?? globalPatients.filter((p: any) => {
                         const dateValue = p.screening_date || p.submitted_on;
                         if (!dateValue) return false;
                         const date = new Date(dateValue);
                         const now = new Date();
                         return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-                      }).length.toLocaleString()}
+                      }).length).toLocaleString()}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400 uppercase">Screened</span>
                   </div>

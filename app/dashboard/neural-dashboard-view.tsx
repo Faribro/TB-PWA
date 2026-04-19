@@ -9,6 +9,15 @@ interface NeuralDashboardViewProps {
   onNavigateToPipeline?: () => void;
   filter?: any;
   onSetFilter?: (f: any) => void;
+  summaryData?: {
+    total: number;
+    pending: number;
+    alertsThisMonth: number;
+    screenedThisMonth: number;
+    suspected: number;
+    diagnosed: number;
+    onTreatment: number;
+  };
 }
 
 /* ─── Empty state ─── */
@@ -24,6 +33,7 @@ function EmptyState() {
 const NeuralDashboardView = memo(function NeuralDashboardView({
   globalPatients = [],
   isLoading = false,
+  summaryData,
 }: NeuralDashboardViewProps) {
   // Show loading state while fetching
   if (isLoading) {
@@ -44,7 +54,7 @@ const NeuralDashboardView = memo(function NeuralDashboardView({
 
   return (
     <div className="w-full h-full">
-      <Vertex externalPatients={globalPatients} externalLoading={isLoading} />
+      <Vertex externalPatients={globalPatients} externalLoading={isLoading} summaryData={summaryData} />
     </div>
   );
 });
