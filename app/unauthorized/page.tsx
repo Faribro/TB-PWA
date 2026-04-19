@@ -13,7 +13,7 @@ export default function UnauthorizedPage() {
             Access Denied
           </CardTitle>
           <CardDescription className="text-slate-600">
-            Your account is not authorized to access the TB Command Center
+            Your account is not authorized to access the TB Intelligence Breakdown
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center">

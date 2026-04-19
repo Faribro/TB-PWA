@@ -30,7 +30,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
       <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">TB Command Center</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">TB Intelligence Breakdown</h1>
           <p className="text-gray-600">Sign in to access the clinical dashboard</p>
         </div>
         

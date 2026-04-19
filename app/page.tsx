@@ -21,7 +21,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
       <div className="text-center">
-        <h1 className="text-2xl font-bold text-slate-900 mb-4">TB Command Center</h1>
+        <h1 className="text-2xl font-bold text-slate-900 mb-4">TB Intelligence Breakdown</h1>
         <div className="w-32 h-4 bg-slate-200 animate-pulse rounded-full mx-auto mb-6" />
       </div>
     </div>

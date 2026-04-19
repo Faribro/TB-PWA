@@ -172,7 +172,7 @@ export default function UnifiedCommandCenter({
         <div className="lg:w-[320px] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200/40 bg-white/20 p-6 sm:p-8 flex flex-col gap-8 shadow-[inset_-10px_0_30px_-20px_rgba(0,0,0,0.05)] backdrop-blur-md">
 
           <div className="flex items-center justify-between">
-            <h2 className="text-[11px] font-black tracking-[0.25em] uppercase text-slate-500/80 drop-shadow-sm">Command Center</h2>
+            <h2 className="text-[11px] font-black tracking-[0.25em] uppercase text-slate-500/80 drop-shadow-sm">Intelligence Breakdown</h2>
 
             <button
               onClick={onOpenFilters}

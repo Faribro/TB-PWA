@@ -138,7 +138,7 @@ export default function PremiumDashboard() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-4xl font-black text-white tracking-tight mb-2">
-              Command Center
+              Intelligence Breakdown
             </h1>
             <p className="text-slate-400 text-sm">Real-time TB surveillance dashboard</p>
           </div>
