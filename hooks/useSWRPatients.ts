@@ -163,18 +163,28 @@ export function useSWRAllPatients(
   const initialDataRef = useRef<typeof data | null>(null);
   const loadingSessionRef = useRef<string | null>(null);
   const filtersRef = useRef(filters);
+  const hasStartedLoadingRef = useRef(false);
   
   // Update filters ref
   useEffect(() => {
     filtersRef.current = filters;
   }, [filters]);
   
-  // Background loading effect - only triggers on data change, NOT on isLoading change
+  // Reset hasStartedLoading when data changes from external source (filter change, initial load)
+  useEffect(() => {
+    // Only reset if this is truly new data (length === limit means first page)
+    if (data?.data?.length === limit && data?.meta?.pages === 1) {
+      hasStartedLoadingRef.current = false;
+    }
+  }, [data?.data?.length, data?.meta?.pages, limit]);
+  
+  // Background loading effect - only triggers on initial data load
   useEffect(() => {
     console.log('[useSWRPatients] Effect triggered', {
       progressive,
       hasData: !!data,
       backgroundLoading: backgroundLoadingRef.current,
+      hasStartedLoading: hasStartedLoadingRef.current,
       dataLength: data?.data?.length,
       hasMore: data?.hasMore,
       nextCursor: data?.nextCursor
@@ -182,6 +192,12 @@ export function useSWRAllPatients(
     
     if (!progressive || !data || !data.data) {
       console.log('[useSWRPatients] Skipping: no progressive or no data');
+      return;
+    }
+    
+    // If we've already started loading for this data, don't restart
+    if (hasStartedLoadingRef.current) {
+      console.log('[useSWRPatients] Skipping: already started loading for this data');
       return;
     }
     
@@ -197,7 +213,14 @@ export function useSWRAllPatients(
       return;
     }
     
+    // Additional safety: Only run if this looks like initial SWR data (has meta.pages === 1)
+    if (data.meta?.pages && data.meta.pages > 1) {
+      console.log('[useSWRPatients] Skipping: data already has multiple pages');
+      return;
+    }
+    
     console.log('[useSWRPatients] Starting new background load session');
+    hasStartedLoadingRef.current = true; // Mark that we've started loading
     initialDataRef.current = data;
     const sessionId = Date.now().toString();
     loadingSessionRef.current = sessionId;
@@ -317,6 +340,7 @@ export function useSWRAllPatients(
       } finally {
         console.log(`[useSWRPatients] [${sessionId}] Cleaning up, setting backgroundLoadingRef to false`);
         backgroundLoadingRef.current = false;
+        // Don't reset hasStartedLoadingRef here - it stays true until new data arrives
       }
     })();
     
@@ -348,6 +372,7 @@ export function useSWRAllPatients(
     if (prevKeyRef.current !== null && prevKeyRef.current !== currentKey) {
       console.log('[useSWRPatients] Filter change detected, resetting');
       backgroundLoadingRef.current = false;
+      hasStartedLoadingRef.current = false; // Reset loading flag on filter change
       initialDataRef.current = null;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
