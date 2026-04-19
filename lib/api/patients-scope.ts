@@ -117,7 +117,19 @@ export async function validateAndExtractScope(): Promise<PatientScope> {
   const role = normalizeRole(session.user.role) ?? Role.ME_OFFICER;
   const sessionState = session.user.state;
   const staffName = (session.user as any).staffName;
+  
+  // CRITICAL FIX: Admin and PM should ALWAYS have national access regardless of state field
   const isNational = role === Role.ADMIN || role === Role.PROGRAM_MANAGER;
+  
+  console.log('[validateAndExtractScope] Debug:', {
+    rawRole: session.user.role,
+    normalizedRole: role,
+    sessionState,
+    isNational,
+    roleAdminConstant: Role.ADMIN,
+    rolePMConstant: Role.PROGRAM_MANAGER,
+    exactMatch: role === Role.ADMIN
+  });
 
   return {
     session,
