@@ -230,10 +230,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Apply range AFTER all filters to bypass Supabase 1000-row default
-    // PostgREST has a hard 1000-row limit that .limit() cannot override
-    // Use .range() instead which bypasses this limit
-    query = query.range(0, fetchLimit - 1);
+    // Apply limit AFTER all filters (including cursor)
+    // Use .limit() which works correctly with keyset pagination
+    query = query.limit(fetchLimit);
 
     // Execute query
     const { data, error } = await query;
