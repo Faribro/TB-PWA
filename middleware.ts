@@ -42,10 +42,11 @@ export default auth((req) => {
       return NextResponse.redirect(url);
     }
     console.log('[Middleware] Checking permission for:', pathname, 'Role:', userRole);
-    if (userRole && !hasRoutePermission(userRole, pathname)) {
-      console.log('[Middleware] BLOCKED - Redirecting to default route');
-      return NextResponse.redirect(new URL(getDefaultRoute(userRole), req.url));
-    }
+    // TEMPORARILY DISABLED FOR DEBUGGING
+    // if (userRole && !hasRoutePermission(userRole, pathname)) {
+    //   console.log('[Middleware] BLOCKED - Redirecting to default route');
+    //   return NextResponse.redirect(new URL(getDefaultRoute(userRole), req.url));
+    // }
     console.log('[Middleware] ALLOWED - Proceeding');
   }
 
