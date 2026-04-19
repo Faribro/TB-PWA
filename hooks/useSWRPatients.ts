@@ -179,24 +179,26 @@ export function useSWRAllPatients(
   }, [filters]);
   
   // Watch for first page data arrival and trigger loading flag
+  // CRITICAL: This should ONLY trigger once when first page arrives, never during background load
   useEffect(() => {
     if (!progressive || !data?.data) return;
     
+    // NEVER trigger if background loading has ever started for this filter set
+    if (backgroundLoadingRef.current || hasCompletedLoadRef.current || shouldStartLoading) {
+      return;
+    }
+    
     // Only trigger if this is first page data (exactly limit records, pages === 1)
-    // AND we haven't already completed a load for this filter set
-    // AND we're not currently loading
     if (
       data.data.length === limit && 
       data.meta?.pages === 1 && 
       data.hasMore && 
-      data.nextCursor && 
-      !hasCompletedLoadRef.current &&
-      !backgroundLoadingRef.current
+      data.nextCursor
     ) {
       console.log('[useSWRPatients] First page data detected, setting shouldStartLoading=true');
       setShouldStartLoading(true);
     }
-  }, [data?.data?.length, data?.meta?.pages, data?.hasMore, progressive, limit]);
+  }, [data?.data?.length, data?.meta?.pages, data?.hasMore, progressive, limit, shouldStartLoading]);
   
   // Reset loading flag on filter change
   useEffect(() => {
