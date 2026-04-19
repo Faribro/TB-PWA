@@ -166,6 +166,7 @@ export function useSWRAllPatients(
   // Track initial data to prevent effect re-runs during background loading
   const filtersRef = useRef(filters);
   const [shouldStartLoading, setShouldStartLoading] = useState(false);
+  const hasCompletedLoadRef = useRef(false);
   
   // Update filters ref
   useEffect(() => {
@@ -177,7 +178,8 @@ export function useSWRAllPatients(
     if (!progressive || !data?.data) return;
     
     // Only trigger if this is first page data (exactly limit records, pages === 1)
-    if (data.data.length === limit && data.meta?.pages === 1 && data.hasMore && data.nextCursor) {
+    // AND we haven't already completed a load for this filter set
+    if (data.data.length === limit && data.meta?.pages === 1 && data.hasMore && data.nextCursor && !hasCompletedLoadRef.current) {
       console.log('[useSWRPatients] First page data detected, setting shouldStartLoading=true');
       setShouldStartLoading(true);
     }
@@ -186,6 +188,7 @@ export function useSWRAllPatients(
   // Reset loading flag on filter change
   useEffect(() => {
     setShouldStartLoading(false);
+    hasCompletedLoadRef.current = false;
   }, [stableEffectKey]);
   
   // Background loading effect - triggers ONCE when shouldStartLoading becomes true
@@ -307,6 +310,9 @@ export function useSWRAllPatients(
         
         const durationMs = Date.now() - startTime;
         console.log(`[useSWRPatients] [${sessionId}] ✅ Background load complete: ${allRecords.length} in ${iterations + 1} pages (${durationMs}ms)`);
+        
+        // Mark as completed to prevent re-triggering
+        hasCompletedLoadRef.current = true;
         
         setProgressState(prev => ({
           ...prev,
