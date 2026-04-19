@@ -124,21 +124,20 @@ export async function GET(request: NextRequest) {
     const cursor = searchParams.get('cursor');
     
     // Parse limit with validation
+    // CRITICAL: Cap at 1000 to work within Supabase PostgREST limits
+    // Clients should use cursor pagination for larger datasets
     let requestedLimit = 500; // Default
     if (limitParam) {
       requestedLimit = parseInt(limitParam, 10);
     } else if (pageSizeParam) {
-      // Backward compatibility: map pageSize to limit
-      const parsed = parseInt(pageSizeParam, 10);
-      // Cap extremely large pageSize requests (e.g., 100000 from vertex)
-      requestedLimit = parsed > 10000 ? 10000 : parsed;
+      requestedLimit = parseInt(pageSizeParam, 10);
     }
     
-    // Validate and cap limit
+    // Validate and cap limit - NEVER exceed 1000
     if (isNaN(requestedLimit) || requestedLimit < 1) {
       requestedLimit = 500;
     }
-    requestedLimit = Math.min(requestedLimit, 10000); // Hard cap at 10k
+    requestedLimit = Math.min(requestedLimit, 1000); // Hard cap at 1k (Supabase limit)
     
     // Validate and sanitize filters
     let filters: PatientFilters;
@@ -205,14 +204,12 @@ export async function GET(request: NextRequest) {
       .order('id', { ascending: false });
 
     // Apply RBAC + user filters via shared utility
-    console.log('[patients/GET] Before buildScopedQuery:', {
+    console.log('[patients/GET] RBAC applied:', {
       role: scope.role,
-      sessionState: scope.sessionState,
       isNational: scope.isNational,
-      filters
+      hasFilters: Object.keys(filters).length > 0
     });
     query = buildScopedQuery(query, scope, filters);
-    console.log('[patients/GET] After buildScopedQuery - filters applied');
 
     // Apply cursor for keyset pagination
     if (cursor) {
@@ -283,8 +280,7 @@ export async function GET(request: NextRequest) {
         durationMs,
         mode: 'cursor',
         scope: scope.sessionState || 'national',
-        // Backward compatibility: include total for first page only
-        ...((!cursor && records.length > 0) ? { total: records.length } : {})
+        // Note: total is NOT included - use /api/patients/summary for true totals
       }
     };
 
