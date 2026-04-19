@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import useSWR from 'swr';
+import useSWR, { mutate } from 'swr';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope, isSuperuser } from '@/hooks/useSessionScope';
 import { useEntityStore } from '@/stores/useEntityStore';
@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Filter, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { LinesAndDotsLoader } from '@/components/LinesAndDotsLoader';
+import { createClient } from '@supabase/supabase-js';
 
 // Simple fetcher for SWR
 const fetcher = (url: string) => fetch(url).then(r => r.json());
@@ -66,6 +67,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
+  const [newDataToast, setNewDataToast] = useState(false);
   const national = isSuperuser(scope);
   const setFilter = useEntityStore(s => s.setGlobalFilter);
 
@@ -111,6 +113,47 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
       search: filters.search
     }
   });
+  
+  // Real-time subscription for new Kobo submissions
+  useEffect(() => {
+    if (!scope) return;
+    
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    
+    console.log('[Vertex] Setting up real-time subscription for new patients');
+    
+    const channel = supabase
+      .channel('patients-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'patients'
+        },
+        (payload) => {
+          console.log('[Vertex] New patient inserted:', payload.new);
+          
+          // Show toast notification
+          setNewDataToast(true);
+          setTimeout(() => setNewDataToast(false), 3000);
+          
+          // Revalidate SWR cache to fetch latest data
+          mutatePatients();
+          // Also revalidate summary
+          mutate('/api/patients/summary');
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      console.log('[Vertex] Cleaning up real-time subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [scope, mutatePatients]);
   
   // Sync total count from summary to hook (guarded to prevent loops)
   const prevTotalRef = useRef<number>(0);
@@ -286,6 +329,23 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      {/* New data toast notification */}
+      <AnimatePresence>
+        {newDataToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-4 right-4 z-50 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="text-sm font-medium">New patient data received</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
       {/* Single compact header */}
       <div className="flex-shrink-0 sticky top-0 z-20 bg-[#f9f8f5]/95
                       backdrop-blur-sm border-b border-black/[0.06]">
@@ -583,8 +643,8 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
         ) : (
           <div className="h-full">
             <NeuralDashboard
-              globalPatients={filteredPatients}
-              isLoading={isLoadingPatients}
+              globalPatients={globalPatients}
+              isLoading={isLoadingPatients || isLoadingMore}
               filter={null}
               onSetFilter={() => {}}
               summaryData={summaryData}
