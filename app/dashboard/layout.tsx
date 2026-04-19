@@ -11,8 +11,6 @@ import {
 import { toast } from 'sonner';
 import Link from 'next/link';
 import Image from 'next/image';
-
-const MotionLink = motion.create(Link);
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope } from '@/hooks/useSessionScope';
 import { EntityDataSync } from '@/components/EntityDataSync';
@@ -71,31 +69,33 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
 }) {
   const Icon = tab.icon;
   return (
-    <MotionLink
-      href={tab.path}
-      data-tour-id={dataTourId}
-      onClick={async () => {
-        try {
-          const s = await initSounds();
-          s.navTab?.();
-        } catch (e) {
-          // Silent fail
-        }
-      }}
+    <motion.div
       initial={{ opacity: 0, x: -16 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay, ease: [0.22, 1, 0.36, 1], duration: 0.35 }}
-      aria-current={isActive ? 'page' : undefined}
-      title={isCollapsed ? tab.label : undefined}
-      className={`
-        group relative w-full flex items-center gap-4 rounded-2xl transition-all duration-300 cursor-pointer
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900
-        ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}
-        ${isActive
-          ? 'bg-slate-900/[0.04] border border-slate-900/10 shadow-sm'
-          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-900/5'}
-      `}
     >
+      <Link
+        href={tab.path}
+        data-tour-id={dataTourId}
+        onClick={async () => {
+          try {
+            const s = await initSounds();
+            s.navTab?.();
+          } catch (e) {
+            // Silent fail
+          }
+        }}
+        aria-current={isActive ? 'page' : undefined}
+        title={isCollapsed ? tab.label : undefined}
+        className={`
+          group relative w-full flex items-center gap-4 rounded-2xl transition-all duration-300 cursor-pointer
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900
+          ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}
+          ${isActive
+            ? 'bg-slate-900/[0.04] border border-slate-900/10 shadow-sm'
+            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-900/5'}
+        `}
+      >
         {isActive && (
           <motion.div
             layoutId="sidebar-active-pill"
@@ -138,7 +138,8 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
             </motion.div>
           )}
         </AnimatePresence>
-    </MotionLink>
+      </Link>
+    </motion.div>
   );
 }
 
