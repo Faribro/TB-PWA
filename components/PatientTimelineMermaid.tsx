@@ -63,7 +63,7 @@ graph TB
     classDef pending fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,stroke-dasharray: 4 4,color:#64748b,rx:12,ry:12
     classDef merge fill:transparent,stroke:none
     
-    style Confirmatory fill:rgba(253,250,237,0.3),stroke:#fde047,stroke-width:1px,stroke-dasharray: 3 3,rx:20,ry:20
+    style Confirmatory fill:#fdfaed,fill-opacity:0.3,stroke:#fde047,stroke-width:1px,stroke-dasharray: 3 3,rx:20,ry:20
   `;
 
   useEffect(() => {
