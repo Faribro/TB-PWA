@@ -150,26 +150,12 @@ export function applyRBACFilters<T>(
 ): T {
   const { role, sessionState, staffName, isNational } = scope;
   
-  // Debug logging
-  console.log('[RBAC Debug]', {
-    role,
-    sessionState,
-    isNational,
-    roleAdmin: Role.ADMIN,
-    rolePM: Role.PROGRAM_MANAGER,
-    comparison: {
-      isAdmin: role === Role.ADMIN,
-      isPM: role === Role.PROGRAM_MANAGER
-    }
-  });
-  
-  // National access - no RBAC filter
-  if (isNational) {
-    console.log('[RBAC] National access - NO filters applied');
+  // CRITICAL: Admin and Program Manager ALWAYS have national access
+  // Ignore sessionState field for these roles
+  if (role === 'admin' || role === 'Program Manager') {
+    console.log('[RBAC] Admin/PM detected - NO filters applied (national access)');
     return query;
   }
-  
-  console.log('[RBAC] State/Staff access - applying filters');
   
   // State-level access
   if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
