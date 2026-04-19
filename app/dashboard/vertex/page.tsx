@@ -74,16 +74,18 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
   const selectedState = filters.state;
   const selectedDistrict = filters.district;
 
-  // Fetch patients with filters - ONLY for table view
+  // Fetch patients with filters - auto-fetch ALL pages for complete dataset
   const { 
     patients: globalPatients, 
     meta, 
     total, 
-    isLoading: isLoadingPatients, 
+    isLoading: isLoadingPatients,
+    isFullyLoaded,
     error: patientsError,
     mutate: mutatePatients 
   } = useSWRAllPatients(scope, {
-    limit: 10000,
+    limit: 10000, // Page size for cursor pagination
+    autoFetchAll: true, // Enable auto-pagination to fetch complete dataset
     filters: {
       state: selectedState,
       district: selectedDistrict,
@@ -352,9 +354,14 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
             </span>
             {' / '}
             {total.toLocaleString()}
-            {meta && (
+            {meta && meta.pages && (
               <span className="text-[10px] text-slate-400 ml-1">
-                (fetched {meta.returned?.toLocaleString()} in {Math.ceil((meta.returned || 0) / 500)} batches)
+                ({meta.pages} pages, {meta.returned?.toLocaleString()} records)
+              </span>
+            )}
+            {isLoadingPatients && !isFullyLoaded && (
+              <span className="text-[10px] text-blue-600 ml-1 animate-pulse">
+                Loading...
               </span>
             )}
           </span>

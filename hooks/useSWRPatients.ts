@@ -5,6 +5,7 @@ import type { SessionScope } from '@/hooks/useSessionScope';
 
 interface UseSWRAllPatientsOptions {
   limit?: number;
+  autoFetchAll?: boolean; // NEW: Enable auto-pagination to fetch all pages
   filters?: {
     state?: string;
     district?: string;
@@ -82,15 +83,61 @@ export function useSWRAllPatients(
     return options.limit ?? 500;
   }, [options.limit]);
   
+  const autoFetchAll = options.autoFetchAll ?? true; // Default to true for Vertex
   const { filters } = options;
   
   const key = session && scope
-    ? ['/api/patients', scope.state ?? 'all', scope.district ?? 'all', limit, JSON.stringify(filters)]
+    ? ['/api/patients', scope.state ?? 'all', scope.district ?? 'all', limit, JSON.stringify(filters), autoFetchAll]
     : null;
   
   const { data, error, isLoading, mutate } = useSWR(
     key,
-    () => cursorFetcher(scope, limit, filters, null),
+    async () => {
+      if (!autoFetchAll) {
+        // Single page mode (for normal browsing)
+        return await cursorFetcher(scope, limit, filters, null);
+      }
+      
+      // Auto-pagination mode (for Vertex/complete dataset)
+      const allRecords: any[] = [];
+      let cursor: string | null = null;
+      let hasMore = true;
+      let iterations = 0;
+      const maxIterations = 100; // Safety: 100 pages * 10k = 1M records max
+      const startTime = Date.now();
+      
+      console.log('[useSWRPatients] Auto-pagination enabled, fetching all pages...');
+      
+      while (hasMore && iterations < maxIterations) {
+        const page = await cursorFetcher(scope, limit, filters, cursor);
+        allRecords.push(...page.data);
+        cursor = page.nextCursor;
+        hasMore = page.hasMore;
+        iterations++;
+        
+        console.log(`[useSWRPatients] Page ${iterations}: +${page.data.length} records, total: ${allRecords.length}, hasMore: ${hasMore}`);
+        
+        if (!hasMore) break;
+      }
+      
+      const durationMs = Date.now() - startTime;
+      console.log(`[useSWRPatients] ✅ Complete: ${allRecords.length} records in ${iterations} pages (${durationMs}ms)`);
+      
+      return {
+        data: allRecords,
+        nextCursor: null,
+        hasMore: false,
+        meta: {
+          returned: allRecords.length,
+          requestedLimit: limit,
+          role: scope?.role || 'unknown',
+          durationMs,
+          mode: 'cursor' as const,
+          pages: iterations,
+          autoFetchAll: true
+        }
+      };
+    },
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -99,12 +146,17 @@ export function useSWRAllPatients(
       errorRetryInterval: 2000,
       keepPreviousData: true,
       onError: (err) => {
-        console.error('[useSWRPatients]', err);
+        console.error('[useSWRPatients] Error:', err);
       }
     }
   );
 
   const loadMore = useCallback(async () => {
+    if (autoFetchAll) {
+      console.warn('[useSWRPatients] loadMore() called but autoFetchAll already fetched all records');
+      return;
+    }
+    
     if (!data?.nextCursor || !data?.hasMore) {
       return;
     }
@@ -115,15 +167,16 @@ export function useSWRAllPatients(
       ...nextPage,
       data: [...data.data, ...nextPage.data]
     }, false);
-  }, [data, scope, limit, filters, mutate]);
+  }, [autoFetchAll, data, scope, limit, filters, mutate]);
 
   return {
     patients: data?.data ?? [],
     meta: data?.meta ?? null,
-    total: data?.data?.length ?? 0,
-    hasMore: data?.hasMore ?? false,
-    nextCursor: data?.nextCursor ?? null,
+    total: data?.data?.length ?? 0, // Actual total from all fetched pages
+    hasMore: autoFetchAll ? false : (data?.hasMore ?? false),
+    nextCursor: autoFetchAll ? null : (data?.nextCursor ?? null),
     isLoading,
+    isFullyLoaded: autoFetchAll ? !isLoading : (!isLoading && !data?.hasMore),
     error,
     mutate,
     loadMore
