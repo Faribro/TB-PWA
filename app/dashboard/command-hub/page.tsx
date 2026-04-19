@@ -20,7 +20,7 @@ import useSWR from 'swr';
 import { FeatureShowcase } from '@/components/FeatureShowcase';
 import ProgramMission from '@/components/ProgramMission';
 import InmateJourney from '@/components/InmateJourney';
-import PatientTimeline from '@/components/PatientTimeline';
+import PatientTimelineMermaid from '@/components/PatientTimelineMermaid';
 import ScrollProgressBar from '@/components/ScrollProgressBar';
 import SectionDivider from '@/components/SectionDivider';
 import StatsTicker from '@/components/StatsTicker';
@@ -504,7 +504,7 @@ export default function CommandHubPage() {
         <InmateJourney />
       </div>
       <div className="relative z-10 border-t border-white/40" data-tour-id="patient-timeline">
-        <PatientTimeline />
+        <PatientTimelineMermaid />
       </div>
       
       <CommandFooter data-tour-id="command-footer" />
