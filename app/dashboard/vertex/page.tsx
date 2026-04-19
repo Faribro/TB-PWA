@@ -275,7 +275,13 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
       if (filters.state && p.screening_state !== filters.state) return false;
       if (filters.district && p.screening_district !== filters.district) return false;
       if (filters.facilityType && p.facility_type !== filters.facilityType) return false;
-      if (filters.suspected !== 'all' && p.tb_suspected !== filters.suspected) return false;
+      
+      // X-Ray Result filter (suspected field maps to xray_result)
+      if (filters.suspected !== 'all') {
+        const xrayResult = p.xray_result || p.chest_x_ray_result;
+        if (xrayResult !== filters.suspected) return false;
+      }
+      
       if (filters.tbDiagnosed !== 'all' && p.tb_diagnosed !== filters.tbDiagnosed) return false;
       if (filters.treatmentStatus !== 'all' && p.treatment_status !== filters.treatmentStatus) return false;
       if (selectedCalendarDate && p.screening_date !== selectedCalendarDate) return false;
@@ -582,7 +588,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
                   { label: 'State', key: 'state' as const, options: ['', 'Maharashtra', 'Madhya Pradesh', 'Rajasthan', 'Uttar Pradesh', 'Gujarat'] },
                   { label: 'District', key: 'district' as const, options: ['', 'Mumbai', 'Dewas', 'Jaipur', 'Lucknow'] },
                   { label: 'Facility', key: 'facilityType' as const, options: ['', 'CHC', 'PHC', 'Prison', 'DH', 'DRTB Centre'] },
-                  { label: 'Suspected', key: 'suspected' as const, options: ['all', 'Yes', 'No'] },
+                  { label: 'X-Ray Result', key: 'suspected' as const, options: ['all', 'Suspected TB Case', 'Normal', 'Other Abnormality'] },
                   { label: 'TB Status', key: 'tbDiagnosed' as const, options: ['all', 'Yes', 'No', 'Pending'] },
                   { label: 'Treatment', key: 'treatmentStatus' as const, options: ['all', 'Ongoing', 'Completed', 'Defaulted', 'Died', 'Not Started'] },
                 ].map(({ label, key, options }) => (
