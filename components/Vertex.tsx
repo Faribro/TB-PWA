@@ -387,7 +387,7 @@ const GeographicHierarchy = ({
   const [expandedStates, setExpandedStates] = useState<Set<string>>(new Set());
   const [expandedDistricts, setExpandedDistricts] = useState<Set<string>>(new Set());
 
-  const toggleState = (stateName: string) => {
+  const toggleState = useCallback((stateName: string) => {
     setExpandedStates(prev => {
       const next = new Set(prev);
       if (next.has(stateName)) {
@@ -397,9 +397,9 @@ const GeographicHierarchy = ({
       }
       return next;
     });
-  };
+  }, []);
 
-  const toggleDistrict = (districtKey: string) => {
+  const toggleDistrict = useCallback((districtKey: string) => {
     setExpandedDistricts(prev => {
       const next = new Set(prev);
       if (next.has(districtKey)) {
@@ -409,7 +409,7 @@ const GeographicHierarchy = ({
       }
       return next;
     });
-  };
+  }, []);
 
   return (
     <div className="space-y-4" data-tour-id="geo-case-distribution">
