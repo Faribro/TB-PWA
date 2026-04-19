@@ -222,6 +222,7 @@ export function useSWRAllPatients(
     isLoading,
     isFullyLoaded: autoFetchAll ? (!isLoading && !data?.meta?.isPartial) : (!isLoading && !data?.hasMore),
     isPartialLoad: data?.meta?.isPartial ?? false,
+    cappedBy: data?.meta?.cappedBy,
     error,
     mutate,
     loadMore

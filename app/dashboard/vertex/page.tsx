@@ -92,6 +92,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     isLoading: isLoadingPatients,
     isFullyLoaded,
     isPartialLoad,
+    cappedBy,
     error: patientsError,
     mutate: mutatePatients 
   } = useSWRAllPatients(scope, {
@@ -373,9 +374,9 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
                 ({meta.pages} pages)
               </span>
             )}
-            {isPartialLoad && (
-              <span className="text-[10px] text-amber-600 ml-1">
-                ⚠️ Partial
+            {isPartialLoad && cappedBy && (
+              <span className="text-[10px] text-amber-600 ml-1" title={`Capped by ${cappedBy}`}>
+                ⚠️ Partial ({cappedBy})
               </span>
             )}
             {isLoadingPatients && !isFullyLoaded && (

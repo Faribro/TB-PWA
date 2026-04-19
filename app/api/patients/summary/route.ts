@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { createServerClient } from '@/lib/supabase-server-admin';
-import { normalizeRole, Role } from '@/lib/constants/roles';
+import { 
+  validateAndExtractScope, 
+  buildScopedQuery, 
+  logApiRequest, 
+  logApiResponse,
+  type PatientFilters 
+} from '@/lib/api/patients-scope';
 
 export const maxDuration = 30;
 export const dynamic = 'force-dynamic';
@@ -23,76 +28,50 @@ interface SummaryResponse {
 }
 
 /**
- * GET /api/patients/summary - Aggregate metrics only
- * Returns server-computed KPIs without fetching all records
- * Respects RBAC filtering
+ * GET /api/patients/summary - Server-computed aggregate metrics
+ * 
+ * Optimizations:
+ * - Only selects 'id' column for counts (minimal payload)
+ * - Uses shared RBAC/filter utility (no duplication)
+ * - Parallel query execution
+ * - Structured logging (no PII)
+ * - 60s cache with stale-while-revalidate
  */
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
   
   try {
-    const session = await auth();
-    
-    if (!session?.user) {
-      return NextResponse.json({ 
-        error: 'Unauthorized',
-        message: 'Authentication required' 
-      }, { status: 401 });
-    }
+    // Validate auth and extract RBAC scope
+    const scope = await validateAndExtractScope();
 
     const { searchParams } = new URL(request.url);
-    const state = searchParams.get('state') || undefined;
-    const district = searchParams.get('district') || undefined;
-    const dateFrom = searchParams.get('dateFrom') || undefined;
-    const dateTo = searchParams.get('dateTo') || undefined;
+    
+    // Parse user filters
+    const filters: PatientFilters = {
+      state: searchParams.get('state') || undefined,
+      district: searchParams.get('district') || undefined,
+      dateFrom: searchParams.get('dateFrom') || undefined,
+      dateTo: searchParams.get('dateTo') || undefined
+    };
+    
+    // Structured logging
+    logApiRequest('/api/patients/summary', scope, {
+      filters: Object.keys(filters).filter(k => filters[k as keyof PatientFilters])
+    });
     
     const supabase = createServerClient();
-    const sessionState = session.user.state;
-    const staffName = (session.user as any).staffName;
-    const role = normalizeRole(session.user.role) ?? Role.ME_OFFICER;
 
-    console.log(`[patients/summary] User: ${session.user.email}, Role: ${role}`);
-
-    // Build base query with RBAC filters
-    let baseQuery = supabase.from('patients').select('*', { count: 'exact', head: false });
-    
-    // Apply RBAC filters
-    if (role === Role.ADMIN || role === Role.PROGRAM_MANAGER) {
-      // National access - no filter
-    } else if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
-      if (sessionState && sessionState !== 'All') {
-        if (sessionState === 'Maharashtra') {
-          baseQuery = baseQuery.in('screening_state', ['Maharashtra', 'Mumbai']);
-        } else {
-          baseQuery = baseQuery.eq('screening_state', sessionState);
-        }
-      }
-    } else if (role === Role.PRISON_COORDINATOR) {
-      if (staffName) {
-        baseQuery = baseQuery.ilike('staff_name', staffName.trim());
-      }
-    }
-    
-    // Apply user filters
-    if (state && state !== 'all') {
-      if (state === 'Maharashtra') {
-        baseQuery = baseQuery.in('screening_state', ['Maharashtra', 'Mumbai']);
-      } else {
-        baseQuery = baseQuery.eq('screening_state', state);
-      }
-    }
-    
-    if (district && district !== 'all') {
-      baseQuery = baseQuery.eq('screening_district', district);
-    }
-    
-    if (dateFrom) {
-      baseQuery = baseQuery.gte('screening_date', dateFrom);
-    }
-    
-    if (dateTo) {
-      baseQuery = baseQuery.lte('screening_date', dateTo);
-    }
+    /**
+     * Build base query with RBAC + user filters
+     * OPTIMIZATION: select('id') only - minimal payload for counting
+     */
+    const buildBaseQuery = () => {
+      const query = supabase
+        .from('patients')
+        .select('id', { count: 'exact', head: true });
+      
+      return buildScopedQuery(query, scope, filters);
+    };
 
     // Execute aggregation queries in parallel
     const now = new Date();
@@ -108,30 +87,30 @@ export async function GET(request: NextRequest) {
       onTreatmentResult
     ] = await Promise.all([
       // Total count
-      baseQuery.select('id', { count: 'exact', head: true }),
+      buildBaseQuery(),
       
       // Pending (no referral date)
-      baseQuery.select('id', { count: 'exact', head: true }).is('referral_date', null),
+      buildBaseQuery().is('referral_date', null),
       
       // Alerts this month (screening date this month, no diagnosis)
-      baseQuery.select('id', { count: 'exact', head: true })
+      buildBaseQuery()
         .gte('screening_date', firstDayOfMonth)
         .is('tb_diagnosed', null),
       
       // Screened this month
-      baseQuery.select('id', { count: 'exact', head: true })
+      buildBaseQuery()
         .gte('screening_date', firstDayOfMonth),
       
       // Suspected (xray abnormal)
-      baseQuery.select('id', { count: 'exact', head: true })
+      buildBaseQuery()
         .or('xray_result.ilike.%abnormal%,xray_result.ilike.%suspected%'),
       
       // Diagnosed (TB positive)
-      baseQuery.select('id', { count: 'exact', head: true })
+      buildBaseQuery()
         .eq('tb_diagnosed', 'Yes'),
       
       // On treatment (ATT started)
-      baseQuery.select('id', { count: 'exact', head: true })
+      buildBaseQuery()
         .not('att_start_date', 'is', null)
     ]);
 
@@ -146,28 +125,45 @@ export async function GET(request: NextRequest) {
       diagnosed: diagnosedResult.count || 0,
       onTreatment: onTreatmentResult.count || 0,
       meta: {
-        role,
-        scope: sessionState || 'national',
+        role: scope.role,
+        scope: scope.sessionState || 'national',
         durationMs,
         cached: false
       }
     };
 
-    console.log(`[patients/summary] ✅ Computed in ${durationMs}ms:`, summary);
+    // Structured logging (no PII)
+    logApiResponse('/api/patients/summary', durationMs, {
+      status: 'success',
+      total: summary.total,
+      role: scope.role
+    });
 
     return NextResponse.json(summary, {
       headers: {
         'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
-        'X-Duration-Ms': String(durationMs)
+        'X-Duration-Ms': String(durationMs),
+        'X-Scope': scope.sessionState || 'national'
       }
     });
   } catch (error) {
     const durationMs = Date.now() - startTime;
-    console.error('[patients/summary] Exception:', error);
+    
+    // Handle auth errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ 
+        error: 'Unauthorized',
+        message: 'Authentication required' 
+      }, { status: 401 });\n    }
+    
+    logApiResponse('/api/patients/summary', durationMs, {
+      status: 'exception',
+      error: error instanceof Error ? error.message : 'Unknown'
+    });
     
     return NextResponse.json({ 
       error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: 'Failed to compute summary metrics'
     }, { status: 500 });
   }
 }

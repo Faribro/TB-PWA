@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { createServerClient } from '@/lib/supabase-server-admin';
 import { getSupabaseClient } from '@/lib/supabase-server';
-import { normalizeRole, Role } from '@/lib/constants/roles';
+import { Role } from '@/lib/constants/roles';
 import { logAudit } from '@/lib/audit-log';
+import { 
+  validateAndExtractScope, 
+  buildScopedQuery, 
+  logApiRequest, 
+  logApiResponse,
+  type PatientFilters 
+} from '@/lib/api/patients-scope';
 
 export const maxDuration = 30;
 export const dynamic = 'force-dynamic';
@@ -38,16 +44,27 @@ interface CursorPaginationResponse {
   };
 }
 
-function encodeCursor(screening_date: string | null, id: string): string {
-  const payload = `${screening_date || 'null'}::${id}`;
+/**
+ * Encodes cursor for keyset pagination
+ * Uses created_at + id for stable, deterministic ordering
+ * created_at is NOT NULL (has default), ensuring no ordering issues
+ */
+function encodeCursor(created_at: string, id: string): string {
+  const payload = `${created_at}::${id}`;
   return Buffer.from(payload).toString('base64url');
 }
 
-function decodeCursor(cursor: string): [string | null, string] {
+/**
+ * Decodes cursor for keyset pagination
+ */
+function decodeCursor(cursor: string): [string, string] {
   try {
     const decoded = Buffer.from(cursor, 'base64url').toString('utf-8');
-    const [date, id] = decoded.split('::');
-    return [date === 'null' ? null : date, id];
+    const [created_at, id] = decoded.split('::');
+    if (!created_at || !id) {
+      throw new Error('Invalid cursor format');
+    }
+    return [created_at, id];
   } catch {
     throw new Error('Invalid cursor');
   }
@@ -103,70 +120,14 @@ function validateDistrict(district: string | undefined): string | undefined {
   return district;
 }
 
-function applyRBACFilters(query: any, role: string, sessionState: string | undefined, staffName: string | undefined) {
-  if (role === Role.ADMIN || role === Role.PROGRAM_MANAGER) {
-    return query;
-  }
-  
-  if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
-    if (sessionState && sessionState !== 'All') {
-      if (sessionState === 'Maharashtra') {
-        query = query.in('screening_state', ['Maharashtra', 'Mumbai']);
-      } else {
-        query = query.eq('screening_state', sessionState);
-      }
-    }
-  } else if (role === Role.PRISON_COORDINATOR) {
-    if (staffName) {
-      query = query.ilike('staff_name', staffName.trim());
-    }
-  }
-  
-  return query;
-}
-
-function applyUserFilters(
-  query: any,
-  filters: {
-    state?: string;
-    district?: string;
-    dateFrom?: string;
-    dateTo?: string;
-    search?: string;
-  }
-) {
-  if (filters.state && filters.state !== 'all') {
-    if (filters.state === 'Maharashtra') {
-      query = query.in('screening_state', ['Maharashtra', 'Mumbai']);
-    } else {
-      query = query.eq('screening_state', filters.state);
-    }
-  }
-  
-  if (filters.district && filters.district !== 'all') {
-    query = query.eq('screening_district', filters.district);
-  }
-  
-  if (filters.dateFrom) {
-    query = query.gte('screening_date', filters.dateFrom);
-  }
-  
-  if (filters.dateTo) {
-    query = query.lte('screening_date', filters.dateTo);
-  }
-  
-  if (filters.search) {
-    query = query.or(`inmate_name.ilike.%${filters.search}%,unique_id.ilike.%${filters.search}%`);
-  }
-  
-  return query;
-}
-
 /**
- * GET /api/patients - Cursor-based pagination
+ * GET /api/patients - Cursor-based pagination with stable ordering
+ * 
+ * Ordering: created_at DESC, id DESC (deterministic, no NULLs)
+ * Cursor: base64(created_at::id)
  * 
  * Backward compatible params:
- * - pageSize -> mapped to limit (for old consumers)
+ * - pageSize -> mapped to limit
  * - limit -> preferred param
  * - cursor -> for pagination
  */
@@ -174,14 +135,8 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now();
   
   try {
-    const session = await auth();
-    
-    if (!session?.user) {
-      return NextResponse.json({ 
-        error: 'Unauthorized',
-        message: 'Authentication required' 
-      }, { status: 401 });
-    }
+    // Validate auth and extract RBAC scope
+    const scope = await validateAndExtractScope();
 
     const { searchParams } = new URL(request.url);
     
@@ -208,13 +163,7 @@ export async function GET(request: NextRequest) {
     requestedLimit = Math.min(requestedLimit, 10000); // Hard cap at 10k
     
     // Validate and sanitize filters
-    let filters: {
-      state?: string;
-      district?: string;
-      dateFrom?: string;
-      dateTo?: string;
-      search?: string;
-    };
+    let filters: PatientFilters;
     
     try {
       filters = {
@@ -247,42 +196,43 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
     
-    // Column selection
+    // Column selection - minimize payload
     const fullDetails = searchParams.get('fullDetails') === 'true';
     const selectedColumns = fullDetails ? FULL_COLUMNS : LIST_COLUMNS;
     
     const supabase = createServerClient();
-    const sessionState = session.user.state;
-    const staffName = (session.user as any).staffName;
-    const role = normalizeRole(session.user.role) ?? Role.ME_OFFICER;
 
-    console.log(`[patients/GET] User: ${session.user.email}, Role: ${role}, Limit: ${requestedLimit}, Cursor: ${cursor ? 'present' : 'none'}`);
+    // Structured logging
+    logApiRequest('/api/patients', scope, {
+      limit: requestedLimit,
+      hasCursor: !!cursor,
+      fullDetails,
+      filters: Object.keys(filters).filter(k => filters[k as keyof PatientFilters])
+    });
 
-    // Build query with keyset pagination
-    // NOTE: Fetch requestedLimit + 1 to check hasMore, bypassing Supabase 1000-row default
+    /**
+     * Build query with stable keyset pagination
+     * Order by: created_at DESC, id DESC
+     * - created_at has NOT NULL constraint (stable)
+     * - id is unique (deterministic tie-breaker)
+     * - No NULL ordering issues
+     */
     const fetchLimit = requestedLimit + 1;
     let query = supabase
       .from('patients')
-      .select(selectedColumns, { count: 'exact' })
-      .order('screening_date', { ascending: false, nullsFirst: false })
+      .select(selectedColumns)
+      .order('created_at', { ascending: false })
       .order('id', { ascending: false });
 
-    // Apply RBAC filters (server-side, based on session)
-    query = applyRBACFilters(query, role, sessionState, staffName);
-    
-    // Apply user filters (on top of RBAC)
-    query = applyUserFilters(query, filters);
+    // Apply RBAC + user filters via shared utility
+    query = buildScopedQuery(query, scope, filters);
 
-    // Apply cursor if present
+    // Apply cursor for keyset pagination
     if (cursor) {
       try {
-        const [lastDate, lastId] = decodeCursor(cursor);
-        
-        if (lastDate) {
-          query = query.or(`screening_date.lt.${lastDate},and(screening_date.eq.${lastDate},id.lt.${lastId})`);
-        } else {
-          query = query.is('screening_date', null).lt('id', lastId);
-        }
+        const [lastCreatedAt, lastId] = decodeCursor(cursor);
+        // Keyset: WHERE (created_at < last) OR (created_at = last AND id < lastId)
+        query = query.or(`created_at.lt.${lastCreatedAt},and(created_at.eq.${lastCreatedAt},id.lt.${lastId})`);
       } catch (err) {
         return NextResponse.json({ 
           error: 'Invalid cursor',
@@ -298,7 +248,10 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query;
 
     if (error) {
-      console.error('[patients/GET] Query error:', error);
+      logApiResponse('/api/patients', Date.now() - startTime, {
+        status: 'error',
+        error: error.message
+      });
       return NextResponse.json({ 
         error: 'Database query failed',
         message: error.message
@@ -309,15 +262,22 @@ export async function GET(request: NextRequest) {
     const hasMore = data.length > requestedLimit;
     const records = hasMore ? data.slice(0, requestedLimit) : data;
 
-    // Generate next cursor
+    // Generate next cursor using stable created_at + id
     let nextCursor: string | null = null;
     if (hasMore && records.length > 0) {
       const lastRecord = records[records.length - 1] as any;
-      nextCursor = encodeCursor(lastRecord.screening_date ?? null, lastRecord.id);
+      nextCursor = encodeCursor(lastRecord.created_at, lastRecord.id);
     }
 
     const durationMs = Date.now() - startTime;
-    console.log(`[patients/GET] ✅ Returned ${records.length} records in ${durationMs}ms, hasMore: ${hasMore}`);
+    
+    // Structured logging
+    logApiResponse('/api/patients', durationMs, {
+      status: 'success',
+      returned: records.length,
+      hasMore,
+      role: scope.role
+    });
 
     const response: CursorPaginationResponse = {
       data: records,
@@ -326,9 +286,10 @@ export async function GET(request: NextRequest) {
       meta: {
         returned: records.length,
         requestedLimit,
-        role,
+        role: scope.role,
         durationMs,
         mode: 'cursor',
+        scope: scope.sessionState || 'national',
         // Backward compatibility: include total for first page only
         ...((!cursor && records.length > 0) ? { total: records.length } : {})
       }
@@ -344,7 +305,19 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     const durationMs = Date.now() - startTime;
-    console.error('[patients/GET] Exception:', error);
+    
+    // Handle auth errors
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ 
+        error: 'Unauthorized',
+        message: 'Authentication required' 
+      }, { status: 401 });
+    }
+    
+    logApiResponse('/api/patients', durationMs, {
+      status: 'exception',
+      error: error instanceof Error ? error.message : 'Unknown'
+    });
     
     return NextResponse.json({ 
       error: 'Internal server error',
@@ -358,15 +331,11 @@ export async function GET(request: NextRequest) {
  * POST /api/patients - Upsert patient data
  */
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
-    const session = await auth();
-    
-    if (!session?.user) {
-      return NextResponse.json({ 
-        error: 'Unauthorized',
-        message: 'Authentication required' 
-      }, { status: 401 });
-    }
+    // Validate auth and extract scope
+    const scope = await validateAndExtractScope();
 
     const body = await request.json();
     const { id, ...data } = body;
@@ -395,15 +364,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Check state-scoped access
-    const userRole = session.user.role;
-    const userState = session.user.state;
-    const isAdmin = userRole === Role.ADMIN || userRole === Role.PROGRAM_MANAGER;
+    const isAdmin = scope.isNational;
     
-    if (!isAdmin && userState && userState !== 'All' && existingPatient.screening_state !== userState) {
-      console.warn(`[patients/POST] Access denied: ${session.user.email} tried to update patient in ${existingPatient.screening_state}`);
+    if (!isAdmin && scope.sessionState && scope.sessionState !== 'All' && existingPatient.screening_state !== scope.sessionState) {
+      logApiResponse('/api/patients', Date.now() - startTime, {
+        status: 'forbidden',
+        patientState: existingPatient.screening_state,
+        userScope: scope.sessionState
+      });
       return NextResponse.json({ 
         error: 'Access denied',
-        message: `You can only update patients in ${userState}` 
+        message: `You can only update patients in ${scope.sessionState}` 
       }, { status: 403 });
     }
     
@@ -436,16 +407,38 @@ export async function POST(request: NextRequest) {
       action: 'UPDATE',
       old_data: oldData,
       new_data: result,
-      changed_by: session.user.email || 'unknown',
+      changed_by: scope.session.user.email || 'unknown',
       ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
       user_agent: request.headers.get('user-agent') || undefined
-    }).catch(err => console.error('[patients/POST] Audit log failed:', err));
+    }).catch(err => {
+      logApiResponse('/api/patients', Date.now() - startTime, {
+        status: 'audit_failed',
+        error: err instanceof Error ? err.message : 'Unknown'
+      });
+    });
 
-    console.log(`[patients/POST] ✅ Upserted patient ${id} by ${session.user.email}`);
+    logApiResponse('/api/patients', Date.now() - startTime, {
+      status: 'updated',
+      patientId: id
+    });
     
     return NextResponse.json({ result }, { status: 200 });
   } catch (err) {
-    console.error('[patients/POST] Exception:', err);
+    const durationMs = Date.now() - startTime;
+    
+    // Handle auth errors
+    if (err instanceof Error && err.message === 'Unauthorized') {
+      return NextResponse.json({ 
+        error: 'Unauthorized',
+        message: 'Authentication required' 
+      }, { status: 401 });
+    }
+    
+    logApiResponse('/api/patients', durationMs, {
+      status: 'exception',
+      error: err instanceof Error ? err.message : 'Unknown'
+    });
+    
     return NextResponse.json({ 
       error: 'Internal server error',
       message: err instanceof Error ? err.message : 'Unknown error'
