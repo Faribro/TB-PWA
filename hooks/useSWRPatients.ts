@@ -161,7 +161,19 @@ export function useSWRAllPatients(
   
   // Background loading effect
   useEffect(() => {
-    if (!progressive || !data || !data.hasMore || backgroundLoadingRef.current) {
+    if (!progressive || !data || backgroundLoadingRef.current) {
+      return;
+    }
+    
+    // Initialize progress state with first page
+    setProgressState(prev => ({
+      ...prev,
+      loadedCount: data.data.length,
+      isLoadingMore: data.hasMore
+    }));
+    
+    if (!data.hasMore) {
+      console.log('[useSWRPatients] No more pages to load');
       return;
     }
     
@@ -177,15 +189,13 @@ export function useSWRAllPatients(
         let iterations = 1;
         const startTime = Date.now();
         
-        console.log('[useSWRPatients] Starting background load from page 2');
+        console.log('[useSWRPatients] Starting background load from page 2, cursor:', cursor);
         
-        while (hasMore && iterations < maxPages && allRecords.length < maxRecords) {
+        while (hasMore && cursor && iterations < maxPages && allRecords.length < maxRecords) {
           if (controller.signal.aborted) {
             console.log('[useSWRPatients] Background load aborted');
             return;
           }
-          
-          setProgressState(prev => ({ ...prev, isLoadingMore: true }));
           
           const page = await cursorFetcher(scope, limit, filters, cursor);
           
@@ -203,7 +213,7 @@ export function useSWRAllPatients(
             loadedCount: allRecords.length,
             totalCount: prev.totalCount,
             isLoadingMore: hasMore,
-            progress: prev.totalCount > 0 ? Math.round((allRecords.length / prev.totalCount) * 100) : 0
+            progress: prev.totalCount > 0 ? Math.min(100, Math.round((allRecords.length / prev.totalCount) * 100)) : 0
           }));
           
           // Update SWR cache with accumulated data
@@ -222,9 +232,9 @@ export function useSWRAllPatients(
             }
           }, false);
           
-          console.log(`[useSWRPatients] Background page ${iterations}: +${page.data.length}, total: ${allRecords.length}`);
+          console.log(`[useSWRPatients] Background page ${iterations + 1}: +${page.data.length}, total: ${allRecords.length}, hasMore: ${hasMore}, cursor: ${cursor}`);
           
-          if (!hasMore) break;
+          if (!hasMore || !cursor) break;
           
           if (iterations >= maxPages) {
             console.warn(`[useSWRPatients] Hit maxPages (${maxPages})`);
@@ -238,7 +248,7 @@ export function useSWRAllPatients(
         }
         
         const durationMs = Date.now() - startTime;
-        console.log(`[useSWRPatients] ✅ Background load complete: ${allRecords.length} in ${iterations} pages (${durationMs}ms)`);
+        console.log(`[useSWRPatients] ✅ Background load complete: ${allRecords.length} in ${iterations + 1} pages (${durationMs}ms)`);
         
         setProgressState(prev => ({
           ...prev,
@@ -251,6 +261,8 @@ export function useSWRAllPatients(
           console.error('[useSWRPatients] Background load error:', err);
           setProgressState(prev => ({ ...prev, isLoadingMore: false }));
         }
+      } finally {
+        backgroundLoadingRef.current = false;
       }
     })();
     
@@ -258,20 +270,24 @@ export function useSWRAllPatients(
       controller.abort();
       abortControllerRef.current = null;
     };
-  }, [data, progressive, scope, limit, filters, maxPages, maxRecords, mutate]);
+  }, [data?.hasMore, data?.nextCursor, data?.data?.length, progressive, scope, limit, JSON.stringify(filters), maxPages, maxRecords, mutate]);
   
   // Update total count from external source
   const setTotalCount = useCallback((total: number) => {
-    setProgressState(prev => ({
-      ...prev,
-      totalCount: total,
-      progress: prev.loadedCount > 0 && total > 0 ? Math.round((prev.loadedCount / total) * 100) : 0
-    }));
-  }, []);
+    setProgressState(prev => {
+      const loadedCount = prev.loadedCount || (data?.data?.length ?? 0);
+      return {
+        ...prev,
+        totalCount: total,
+        progress: loadedCount > 0 && total > 0 ? Math.min(100, Math.round((loadedCount / total) * 100)) : 0
+      };
+    });
+  }, [data?.data?.length]);
   
   // Reset progress on filter change
   const keyStr = useMemo(() => key ? JSON.stringify(key) : null, [key ? JSON.stringify(key) : null]);
   useEffect(() => {
+    backgroundLoadingRef.current = false;
     setProgressState({
       loadedCount: 0,
       totalCount: 0,
@@ -279,6 +295,11 @@ export function useSWRAllPatients(
       progress: 0
     });
   }, [keyStr]);
+
+  const currentLoadedCount = data?.data?.length ?? 0;
+  const displayProgress = progressState.totalCount > 0 && currentLoadedCount > 0
+    ? Math.min(100, Math.round((currentLoadedCount / progressState.totalCount) * 100))
+    : 0;
 
   return {
     patients: data?.data ?? [],
@@ -288,9 +309,9 @@ export function useSWRAllPatients(
     nextCursor: data?.nextCursor ?? null,
     isLoading,
     isLoadingMore: progressState.isLoadingMore,
-    loadedCount: progressState.loadedCount || (data?.data?.length ?? 0),
+    loadedCount: currentLoadedCount,
     totalCount: progressState.totalCount,
-    progress: progressState.progress,
+    progress: displayProgress,
     error,
     mutate,
     setTotalCount
