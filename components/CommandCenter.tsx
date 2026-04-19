@@ -103,6 +103,15 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
   const [sortBy, setSortBy] = useState('submitted_on');
   const [page, setPage] = useState(1);
   const pageSize = 50;
+  
+  // Stable handlers to prevent re-renders from resetting state
+  const handleViewModeChange = useCallback((mode: 'table' | 'grid') => {
+    setViewMode(mode);
+  }, []);
+  
+  const handleDashboardToggle = useCallback(() => {
+    setShowDashboard(prev => !prev);
+  }, []);
 
   // Mock user session - replace with actual auth
   const userRole = 'State M&E';
@@ -344,7 +353,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1 bg-white/50 rounded-2xl p-1.5 border border-white shadow-inner">
               <button
-                onClick={() => setViewMode('table')}
+                onClick={() => handleViewModeChange('table')}
                 aria-label="Switch to table view"
                 className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
                   viewMode === 'table' 
@@ -356,7 +365,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
                 <span>List</span>
               </button>
               <button
-                onClick={() => setViewMode('grid')}
+                onClick={() => handleViewModeChange('grid')}
                 aria-label="Switch to grid view"
                 className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
                   viewMode === 'grid' 
@@ -369,7 +378,7 @@ export default memo(function CommandCenter({ globalPatients = [], isLoading = fa
               </button>
             </div>
             <Button
-              onClick={() => setShowDashboard(!showDashboard)}
+              onClick={handleDashboardToggle}
               variant="outline"
               size="sm"
               className="bg-white border-2 border-slate-300 text-slate-900 hover:bg-slate-100 hover:border-slate-400 shadow-lg font-bold"
