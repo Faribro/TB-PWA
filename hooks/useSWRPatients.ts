@@ -253,7 +253,7 @@ export function useSWRAllPatients(
     
     (async () => {
       try {
-        const allRecords = [...data.data];
+        let allRecords = [...data.data];
         let cursor = data.nextCursor;
         let hasMore = data.hasMore;
         let iterations = 1;
@@ -280,7 +280,7 @@ export function useSWRAllPatients(
             return;
           }
           
-          allRecords.push(...page.data);
+          allRecords = [...allRecords, ...page.data];
           cursor = page.nextCursor;
           hasMore = page.hasMore;
           iterations++;
