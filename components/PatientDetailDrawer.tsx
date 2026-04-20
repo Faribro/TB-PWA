@@ -256,7 +256,17 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     if (!scope || !localPatient) return true;
     
     // CRITICAL: Admin and PM have unrestricted access
-    if (isSuperuser(scope)) return true;
+    const superuserCheck = isSuperuser(scope);
+    console.log('[PatientDetailDrawer] SUPERUSER CHECK:', {
+      scope,
+      isSuperuser: superuserCheck,
+      roleFromScope: scope.role,
+      expectedRoles: ['admin', 'Program Manager'],
+      matchesAdmin: scope.role === 'admin',
+      matchesPM: scope.role === 'Program Manager'
+    });
+    
+    if (superuserCheck) return true;
     
     if (!scope.state) return true;
     
@@ -268,7 +278,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       userState,
       patientStateRaw: localPatient.screening_state,
       userStateRaw: scope.state,
-      isSuperuser: isSuperuser(scope),
+      isSuperuser: superuserCheck,
       role: scope.role
     });
     
