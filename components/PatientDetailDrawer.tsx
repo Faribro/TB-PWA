@@ -254,7 +254,10 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   // Authorization check with Maharashtra-Mumbai grouping
   const isAuthorized = useMemo(() => {
     if (!scope || !localPatient) return true;
+    
+    // CRITICAL: Admin and PM have unrestricted access
     if (isSuperuser(scope)) return true;
+    
     if (!scope.state) return true;
     
     const patientState = localPatient.screening_state?.trim();
@@ -265,7 +268,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       userState,
       patientStateRaw: localPatient.screening_state,
       userStateRaw: scope.state,
-      isSuperuser: isSuperuser(scope)
+      isSuperuser: isSuperuser(scope),
+      role: scope.role
     });
     
     // Direct match
@@ -329,10 +333,13 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         { revalidate: false }
       );
 
-      const res = await fetch('/api/patients', {
+      const res = await fetch('/api/patient-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          patientId: localPatient.id,
+          updates: payload
+        })
       });
 
       if (!res.ok) {
@@ -474,10 +481,13 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         updated_at:          new Date().toISOString()
       };
 
-      const res = await fetch('/api/patients', {
+      const res = await fetch('/api/patient-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          patientId: localPatient.id,
+          updates: payload
+        })
       });
 
       if (!res.ok) {

@@ -105,7 +105,9 @@ export async function GET(request: NextRequest) {
 
     // Execute aggregation queries in parallel
     const firstDayOfMonth = getFirstDayOfMonth();
-    const todayStr = new Date().toISOString().split('T')[0];
+    // Use local timezone for today's date
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     
     const [
       totalResult,

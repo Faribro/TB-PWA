@@ -20,6 +20,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabase-server';
+import { normalizeState, normalizeDistrict } from '@/lib/stateMapper';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,7 +31,7 @@ export const maxDuration = 60;
 // ═══════════════════════════════════════════════════════════════════════════
 
 const KOBO_WEBHOOK_SECRET = process.env.KOBO_WEBHOOK_SECRET;
-const ENABLE_SHEETS_SYNC = process.env.ENABLE_SHEETS_SYNC === 'true'; // Default: false
+const ENABLE_SHEETS_SYNC = process.env.ENABLE_SHEETS_SYNC !== 'false'; // Default: true (production)
 const GOOGLE_SCRIPT_WEBHOOK_URL = process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
 
 const KOBO_CORS_HEADERS = {
@@ -54,6 +55,37 @@ function getField(obj: Record<string, unknown>, keys: string[]): unknown {
     }
   }
   return null;
+}
+
+/**
+ * Normalize date to YYYY-MM-DD format (UTC)
+ * Handles ISO timestamps, dd/mm/yyyy, and other formats
+ */
+function normalizeDateToYYYYMMDD(dateValue: unknown): string | null {
+  if (!dateValue) return null;
+  
+  try {
+    const dateStr = String(dateValue).trim();
+    if (!dateStr) return null;
+    
+    // Try parsing as ISO date
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      // Return YYYY-MM-DD in UTC
+      return date.toISOString().split('T')[0];
+    }
+    
+    // Try dd/mm/yyyy format
+    const ddmmyyyyMatch = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (ddmmyyyyMatch) {
+      const [, day, month, year] = ddmmyyyyMatch;
+      return `${year}-${month}-${day}`;
+    }
+    
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -95,20 +127,20 @@ function normalizeKoboPayload(payload: Record<string, unknown>): Record<string, 
       ? new Date(String(payload['_submission_time'])).toISOString()
       : new Date().toISOString(),
     
-    // Location
-    screening_state: getField(payload, [
+    // Location (with normalization)
+    screening_state: normalizeState(getField(payload, [
       'grp_screening/screening_state',
       'screening_state',
       'grp_screening/State',
       'State'
-    ]) as string | null,
+    ]) as string | null),
     
-    screening_district: getField(payload, [
+    screening_district: normalizeDistrict(getField(payload, [
       'grp_screening/screening_district',
       'screening_district',
       'grp_screening/District',
       'District'
-    ]) as string | null,
+    ]) as string | null),
     
     // Facility
     facility_name: getField(payload, [
@@ -125,13 +157,13 @@ function normalizeKoboPayload(payload: Record<string, unknown>): Record<string, 
       'Facility_type'
     ]) as string | null,
     
-    // Screening
-    screening_date: getField(payload, [
+    // Screening (normalize to YYYY-MM-DD)
+    screening_date: normalizeDateToYYYYMMDD(getField(payload, [
       'grp_screening/screening_date',
       'screening_date',
       'grp_screening/Date_of_Screening_CH_x_ray_dd_mm_yy',
       'Date_of_Screening_CH_x_ray_dd_mm_yy'
-    ]) as string | null,
+    ])),
     
     // Patient Demographics
     inmate_name: getField(payload, [
@@ -155,12 +187,12 @@ function normalizeKoboPayload(payload: Record<string, unknown>): Record<string, 
       'Father_Husband_s_Name'
     ]) as string | null,
     
-    date_of_birth: getField(payload, [
+    date_of_birth: normalizeDateToYYYYMMDD(getField(payload, [
       'grp_demo/date_of_birth',
       'date_of_birth',
       'grp_demo/Date_of_Birth',
       'Date_of_Birth'
-    ]) as string | null,
+    ])),
     
     age: getField(payload, [
       'grp_demo/age',
@@ -213,13 +245,13 @@ function normalizeKoboPayload(payload: Record<string, unknown>): Record<string, 
       'Whether_any_past_history_of_TB_Y_N'
     ]) as string | null,
     
-    // Referral & Diagnosis
-    referral_date: getField(payload, [
+    // Referral & Diagnosis (normalize dates)
+    referral_date: normalizeDateToYYYYMMDD(getField(payload, [
       'grp_referral/referral_date',
       'referral_date',
       'grp_referral/Date_of_referral_for_ion_sputum_dd_mm_yy',
       'Date_of_referral_for_ion_sputum_dd_mm_yy'
-    ]) as string | null,
+    ])),
     
     referred_facility: getField(payload, [
       'grp_referral/referred_facility',
@@ -235,12 +267,12 @@ function normalizeKoboPayload(payload: Record<string, unknown>): Record<string, 
       'TB_diagnosed'
     ]) as string | null,
     
-    tb_diagnosis_date: getField(payload, [
+    tb_diagnosis_date: normalizeDateToYYYYMMDD(getField(payload, [
       'grp_referral/tb_diagnosis_date',
       'tb_diagnosis_date',
       'grp_referral/Date_of_TB_Diagnosed_dd_mm_yy',
       'Date_of_TB_Diagnosed_dd_mm_yy'
-    ]) as string | null,
+    ])),
     
     tb_type: getField(payload, [
       'grp_referral/tb_type',
@@ -249,20 +281,20 @@ function normalizeKoboPayload(payload: Record<string, unknown>): Record<string, 
       'Type_of_TB_Diagnosed_P_EP'
     ]) as string | null,
     
-    // Treatment
-    att_start_date: getField(payload, [
+    // Treatment (normalize dates)
+    att_start_date: normalizeDateToYYYYMMDD(getField(payload, [
       'grp_referral/att_start_date',
       'att_start_date',
       'grp_referral/Date_of_starting_ATT_dd_mm_yyyy',
       'Date_of_starting_ATT_dd_mm_yyyy'
-    ]) as string | null,
+    ])),
     
-    att_completion_date: getField(payload, [
+    att_completion_date: normalizeDateToYYYYMMDD(getField(payload, [
       'grp_referral/att_completion_date',
       'att_completion_date',
       'grp_referral/Date_of_Treatment_Completion_dd_mm_yyyy',
       'Date_of_Treatment_Completion_dd_mm_yyyy'
-    ]) as string | null,
+    ])),
     
     // HIV/ART
     hiv_status: getField(payload, [
@@ -294,12 +326,12 @@ function normalizeKoboPayload(payload: Record<string, unknown>): Record<string, 
       'NIKSHAY_ABHA_ID'
     ]) as string | null,
     
-    registration_date: getField(payload, [
+    registration_date: normalizeDateToYYYYMMDD(getField(payload, [
       'grp_reg/nikshay_registration_date',
       'nikshay_registration_date',
       'grp_reg/Date_of_registration_dd_mm_yyyy',
       'Date_of_registration_dd_mm_yyyy'
-    ]) as string | null,
+    ])),
     
     // Remarks
     remarks: getField(payload, [

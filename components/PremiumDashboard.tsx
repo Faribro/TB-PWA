@@ -43,18 +43,28 @@ export default function PremiumDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month'>('today');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Calculate today's patients
+  // Calculate today's patients (use local timezone date)
   const todayPatients = useMemo(() => {
     if (!patients) return [];
-    const today = new Date().toISOString().split('T')[0];
-    return patients.filter(p => p.screening_date === today);
+    // Get today's date in local timezone (YYYY-MM-DD)
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    
+    return patients.filter(p => {
+      if (!p.screening_date) return false;
+      // Extract date part only (ignore time)
+      const screeningDate = p.screening_date.split('T')[0];
+      return screeningDate === today;
+    });
   }, [patients]);
 
   // Calculate metrics
   const metrics = useMemo((): MetricCard[] => {
     if (!summaryData || !patients) return [];
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    // Get today's date in local timezone
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     
     // Today's stats (from first page - sufficient for today)
     const todayScreened = todayPatients.length;
