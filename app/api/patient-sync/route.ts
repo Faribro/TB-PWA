@@ -108,20 +108,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fire-and-forget Sheets sync
-    updatePatientInSheets(updatedPatient)
-      .then(async (result) => {
-        const syncUpdate = result.success
-          ? { synced_to_sheets: true, sheets_synced_at: new Date().toISOString(), sheets_sync_error: null }
-          : {
-              sheets_sync_attempts: (existing.sheets_sync_attempts ?? 0) + 1,
-              sheets_sync_error: result.error,
-            };
-        await supabase.from('patients').update(syncUpdate).eq('id', patientId);
-      })
-      .catch((err) => console.error('[patient-sync] Sheets sync error:', err));
+    // Sync to Google Sheets (await for status)
+    const syncResult = await updatePatientInSheets(updatedPatient);
+    
+    // Update sync status in DB
+    const syncUpdate = syncResult.success
+      ? { synced_to_sheets: true, sheets_synced_at: new Date().toISOString(), sheets_sync_error: null }
+      : {
+          sheets_sync_attempts: (existing.sheets_sync_attempts ?? 0) + 1,
+          sheets_sync_error: syncResult.error,
+        };
+    await supabase.from('patients').update(syncUpdate).eq('id', patientId);
 
-    return NextResponse.json({ success: true, patient: updatedPatient, syncStatus: 'queued' });
+    return NextResponse.json({ 
+      success: true, 
+      patient: updatedPatient, 
+      sheetsSync: syncResult.success,
+      sheetsSyncError: syncResult.error ?? null
+    });
   } catch (error: unknown) {
     console.error('[patient-sync] Unhandled error:', error);
     return NextResponse.json(

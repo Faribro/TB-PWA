@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     // Handle manual sync trigger from AdvancedFilterBar
     if (payload.action === 'TRIGGER_SYNC') {
       // Forward to Google Apps Script
-      const gasResponse = await fetch(process.env.GOOGLE_APPSCRIPT_URL!, {
+      const gasResponse = await fetch(process.env.GOOGLE_SCRIPT_WEBHOOK_URL!, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'TRIGGER_SYNC' }),

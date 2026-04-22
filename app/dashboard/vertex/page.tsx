@@ -159,8 +159,24 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
             };
           }, false); // Don't revalidate - just update cache
           
-          // Also revalidate summary (lightweight)
+          // Revalidate summary and calendar metrics immediately
           mutate('/api/patients/summary');
+          mutate((key) => typeof key === 'string' && key.startsWith('/api/vertex/metrics'));
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'patients'
+        },
+        (payload) => {
+          console.log('[Vertex] Patient updated:', payload.new);
+          
+          // Revalidate metrics on UPDATE as well
+          mutate('/api/patients/summary');
+          mutate((key) => typeof key === 'string' && key.startsWith('/api/vertex/metrics'));
         }
       )
       .subscribe();
@@ -192,7 +208,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
       : null,
     fetcher,
     {
-      dedupingInterval: 300000, // 5 min — calendar data
+      dedupingInterval: 30000, // 30 sec — calendar data (reduced from 5 min for real-time updates)
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
     }

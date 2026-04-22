@@ -21,7 +21,8 @@ CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA net;
 CREATE OR REPLACE FUNCTION notify_sheets_sync()
 RETURNS TRIGGER AS $$
 DECLARE
-  webhook_url TEXT := 'https://script.google.com/macros/s/AKfycbyBwLUKiFDY-eLdNOIzNZRsyem0rWiTA6IvelapBjHg8sGdtkTuhQs2hGbXrydeUZSu/exec';
+  -- IMPORTANT: Replace the URL below with your Google Apps Script Web App URL before running
+  webhook_url TEXT := 'REPLACE_WITH_GOOGLE_SCRIPT_WEBHOOK_URL';
   webhook_secret TEXT := 'samadhaan_sheets_sync_secure_2026';
   payload JSONB;
   request_id BIGINT;
