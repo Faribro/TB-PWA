@@ -10,9 +10,9 @@ import { appendPatientToSheets, PatientRecord } from '@/lib/sheetsSync';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const MAX_RETRY_ATTEMPTS = 2;
+const MAX_RETRY_ATTEMPTS = 1; // Single attempt only (no retries)
 const RETRY_DELAY_MS = 500;
-const BATCH_SIZE = 5; // Process 5 records in parallel
+const BATCH_SIZE = 3; // Process 3 records in parallel (faster)
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
@@ -168,7 +168,7 @@ export async function POST(req: NextRequest) {
     
     const { data: patients, error: queryError } = await query
       .order('created_at', { ascending: true })
-      .limit(limit);
+      .limit(Math.min(limit, 5)); // Max 5 records per API call
 
     if (queryError) {
       console.error('[backfill] Query error:', queryError);
