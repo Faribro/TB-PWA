@@ -80,24 +80,30 @@ async function syncPatientViaAPI(patient: any): Promise<{ success: boolean; erro
     attempt++;
     
     try {
-      // Try Google Sheets API first (if configured)
-      if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
-        const patientRecord: PatientRecord = patient;
-        const syncResult = await appendPatientToSheets(patientRecord);
-        
-        if (syncResult.success) {
-          return { success: true };
-        } else {
-          lastError = syncResult.error;
+      // Try Google Sheets API first (if properly configured)
+      const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+      if (serviceAccountKey && serviceAccountKey.trim().length > 0) {
+        try {
+          const patientRecord: PatientRecord = patient;
+          const syncResult = await appendPatientToSheets(patientRecord);
+          
+          if (syncResult.success) {
+            return { success: true };
+          } else {
+            lastError = syncResult.error;
+          }
+        } catch (apiError: any) {
+          console.log('[backfill] API sync failed, trying webhook fallback:', apiError.message);
+          lastError = apiError.message;
         }
+      }
+      
+      // Fallback to webhook (always try if API failed or not configured)
+      const webhookResult = await syncPatientViaWebhook(patient);
+      if (webhookResult.success) {
+        return { success: true };
       } else {
-        // Fallback to webhook
-        const webhookResult = await syncPatientViaWebhook(patient);
-        if (webhookResult.success) {
-          return { success: true };
-        } else {
-          lastError = webhookResult.error;
-        }
+        lastError = webhookResult.error;
       }
 
       if (attempt < MAX_RETRY_ATTEMPTS) {
