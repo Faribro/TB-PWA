@@ -1,7 +1,6 @@
-const CACHE = 'samadhaan-v3'
+const CACHE = 'samadhaan-v4'
 const PRECACHE = [
-  '/dashboard/submit-new',
-  '/dashboard/my-submissions',
+  // Removed non-existent routes to prevent 404 errors
 ]
 
 self.addEventListener('install', e => {
