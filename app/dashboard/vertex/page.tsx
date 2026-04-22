@@ -66,8 +66,8 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
+  const [currentYear, setCurrentYear] = useState(2026);
+  const [currentMonth, setCurrentMonth] = useState(4);
   const [newDataToast, setNewDataToast] = useState(false);
   const [updatedCalendarDates, setUpdatedCalendarDates] = useState<Set<string>>(new Set());
   const [countPulse, setCountPulse] = useState(false);
