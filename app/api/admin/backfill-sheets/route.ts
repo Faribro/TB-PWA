@@ -225,14 +225,21 @@ export async function POST(req: NextRequest) {
             // Update Supabase sync status
             const currentAttempts = patient.sheets_sync_attempts || 0;
             const updateData: any = {
-              synced_to_sheets: syncResult.success,
               sheets_sync_attempts: (retryStuck && syncResult.success) ? 0 : currentAttempts + 1
             };
 
             if (syncResult.success) {
+              updateData.synced_to_sheets = true;
               updateData.sheets_sync_error = null;
               updateData.sheets_synced_at = new Date().toISOString();
               results.synced++;
+            } else if (syncResult.error?.includes('duplicates:')) {
+              // Record is already in sheet (duplicate) - mark as synced
+              updateData.synced_to_sheets = true;
+              updateData.sheets_sync_error = null;
+              updateData.sheets_synced_at = new Date().toISOString();
+              results.synced++;
+              console.log(`[backfill] Duplicate detected for patient ${patient.id}, marking as synced`);
             } else {
               updateData.sheets_sync_error = syncResult.error;
               results.failed++;
