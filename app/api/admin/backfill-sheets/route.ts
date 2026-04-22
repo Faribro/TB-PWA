@@ -210,63 +210,58 @@ export async function POST(req: NextRequest) {
     };
 
     // Process in batches of BATCH_SIZE
-    for (let i = 0; i < patients.length; i += BATCH_SIZE) {
-      const batch = patients.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < patients.length; i++) {
+      const patient = patients[i];
       
-      console.log(`[backfill] Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(patients.length / BATCH_SIZE)}`);
+      console.log(`[backfill] Processing ${i + 1}/${patients.length}`);
 
-      // Process batch in parallel
-      await Promise.all(
-        batch.map(async (patient: any) => {
-          try {
-            // Sync to Google Sheets via API
-            const syncResult = await syncPatientViaAPI(patient);
+      try {
+        // Sync to Google Sheets via API
+        const syncResult = await syncPatientViaAPI(patient);
 
-            // Update Supabase sync status
-            const currentAttempts = patient.sheets_sync_attempts || 0;
-            const updateData: any = {
-              sheets_sync_attempts: (retryStuck && syncResult.success) ? 0 : currentAttempts + 1
-            };
+        // Update Supabase sync status
+        const currentAttempts = patient.sheets_sync_attempts || 0;
+        const updateData: any = {
+          sheets_sync_attempts: (retryStuck && syncResult.success) ? 0 : currentAttempts + 1
+        };
 
-            if (syncResult.success) {
-              updateData.synced_to_sheets = true;
-              updateData.sheets_sync_error = null;
-              updateData.sheets_synced_at = new Date().toISOString();
-              results.synced++;
-            } else if (syncResult.error?.includes('duplicates:')) {
-              // Record is already in sheet (duplicate) - mark as synced
-              updateData.synced_to_sheets = true;
-              updateData.sheets_sync_error = null;
-              updateData.sheets_synced_at = new Date().toISOString();
-              results.synced++;
-              console.log(`[backfill] Duplicate detected for patient ${patient.id}, marking as synced`);
-            } else {
-              updateData.sheets_sync_error = syncResult.error;
-              results.failed++;
-              results.failures.push({
-                id: Number(patient.id),
-                inmate_name: patient.inmate_name || 'Unknown',
-                error: syncResult.error || 'Unknown error'
-              });
-            }
+        if (syncResult.success) {
+          updateData.synced_to_sheets = true;
+          updateData.sheets_sync_error = null;
+          updateData.sheets_synced_at = new Date().toISOString();
+          results.synced++;
+        } else if (syncResult.error?.includes('duplicates:')) {
+          // Record is already in sheet (duplicate) - mark as synced
+          updateData.synced_to_sheets = true;
+          updateData.sheets_sync_error = null;
+          updateData.sheets_synced_at = new Date().toISOString();
+          results.synced++;
+          console.log(`[backfill] Duplicate detected for patient ${patient.id}, marking as synced`);
+        } else {
+          updateData.sheets_sync_error = syncResult.error;
+          results.failed++;
+          results.failures.push({
+            id: Number(patient.id),
+            inmate_name: patient.inmate_name || 'Unknown',
+            error: syncResult.error || 'Unknown error'
+          });
+        }
 
-            // Update Supabase
-            await supabase
-              .from('patients')
-              .update(updateData)
-              .eq('id', patient.id);
+        // Update Supabase
+        await supabase
+          .from('patients')
+          .update(updateData)
+          .eq('id', patient.id);
 
-          } catch (error: any) {
-            console.error(`[backfill] Error processing patient ${patient.id}:`, error);
-            results.failed++;
-            results.failures.push({
-              id: Number(patient.id),
-              inmate_name: patient.inmate_name || 'Unknown',
-              error: error.message
-            });
-          }
-        })
-      );
+      } catch (error: any) {
+        console.error(`[backfill] Error processing patient ${patient.id}:`, error);
+        results.failed++;
+        results.failures.push({
+          id: Number(patient.id),
+          inmate_name: patient.inmate_name || 'Unknown',
+          error: error.message
+        });
+      }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
