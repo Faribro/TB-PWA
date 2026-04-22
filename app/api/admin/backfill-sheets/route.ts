@@ -77,11 +77,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check for retry-stuck query parameter
-    const url = new URL(req.url);
-    const retryStuck = url.searchParams.get('retry-stuck') === 'true';
+    // Check for query parameters
+    const body = await req.json().catch(() => ({}));
+    const retryStuck = body.retry_stuck === true;
+    const limit = Math.min(body.limit || 200, 200); // Max 200 per batch
 
-    console.log('[backfill] Starting backfill process...', { retryStuck });
+    console.log('[backfill] Starting backfill process...', { retryStuck, limit });
 
     // ═══════════════════════════════════════════════════════════════════════
     // STEP 2: Query unsynced patients
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
     
     const { data: patients, error: queryError } = await query
       .order('created_at', { ascending: true })
-      .limit(200);
+      .limit(limit);
 
     if (queryError) {
       console.error('[backfill] Query error:', queryError);
