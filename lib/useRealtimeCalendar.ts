@@ -59,8 +59,10 @@ export function useRealtimeCalendar({
     const date = patient.screening_date?.split('T')[0];
     if (!date) return;
     
+    // Filter by year
     if (!date.startsWith(`${year}-`)) return;
     
+    // Filter by state (client-side since Supabase doesn't support OR in filters)
     if (state && state !== 'all') {
       const patientState = patient.screening_state;
       if (state === 'Maharashtra') {
@@ -70,6 +72,7 @@ export function useRealtimeCalendar({
       }
     }
     
+    // Filter by district
     if (district && district !== 'all') {
       if (patient.screening_district !== district) return;
     }
@@ -85,8 +88,8 @@ export function useRealtimeCalendar({
     
     const isSuspected = patient.xray_result === 'Suspected TB Case';
     const isDiagnosed = patient.tb_diagnosed === 'Y' || patient.tb_diagnosed === 'Yes';
-    const isAttStarted = patient.att_start_date !== null;
-    const isReferred = patient.referral_date !== null;
+    const isAttStarted = !!patient.att_start_date;
+    const isReferred = !!patient.referral_date;
     
     existing.count++;
     if (isDiagnosed) existing.tbPositive++;
@@ -126,38 +129,28 @@ export function useRealtimeCalendar({
     
     setStatus('connecting');
     
-    const filters: any = {
-      event: '*',
-      schema: 'public',
-      table: 'patients'
-    };
-    
-    if (state && state !== 'all') {
-      if (state === 'Maharashtra') {
-        filters.filter = `screening_state=in.(Maharashtra,Mumbai)`;
-      } else {
-        filters.filter = `screening_state=eq.${state}`;
-      }
-    }
-    
-    if (district && district !== 'all') {
-      const existingFilter = filters.filter || '';
-      filters.filter = existingFilter 
-        ? `${existingFilter},screening_district=eq.${district}`
-        : `screening_district=eq.${district}`;
-    }
+    let channelName = `calendar-realtime-${year}`;
+    if (state && state !== 'all') channelName += `-${state}`;
+    if (district && district !== 'all') channelName += `-${district}`;
     
     const channel = supabase
-      .channel('calendar-realtime')
-      .on('postgres_changes', filters, (payload) => {
-        console.log('[useRealtimeCalendar] Event received:', payload.eventType);
-        if (payload.eventType === 'INSERT') {
-          aggregatePatient(payload.new);
-        } else if (payload.eventType === 'UPDATE') {
-          if (payload.old) aggregatePatient(payload.old);
-          if (payload.new) aggregatePatient(payload.new);
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'patients',
+        },
+        (payload) => {
+          console.log('[useRealtimeCalendar] Event received:', payload.eventType);
+          if (payload.eventType === 'INSERT') {
+            aggregatePatient(payload.new);
+          } else if (payload.eventType === 'UPDATE') {
+            aggregatePatient(payload.new);
+          }
         }
-      })
+      )
       .subscribe((s) => {
         console.log('[useRealtimeCalendar] Subscription status:', s);
         if (s === 'SUBSCRIBED') {
