@@ -109,6 +109,10 @@ export const RoutePermissions: Record<string, readonly UserRole[]> = {
     Role.ME_OFFICER,
     Role.PRISON_COORDINATOR,
   ],
+  '/dashboard/admin': [
+    Role.ADMIN,
+    Role.PROGRAM_MANAGER,
+  ],
   '/admin': [
     Role.ADMIN,
     Role.PROGRAM_MANAGER,
