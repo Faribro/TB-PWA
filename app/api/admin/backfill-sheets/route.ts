@@ -24,6 +24,33 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * Sync patient via Google Apps Script webhook (fallback method)
+ */
+async function syncPatientViaWebhook(patient: any): Promise<{ success: boolean; error?: string }> {
+  const webhookUrl = process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
+  
+  if (!webhookUrl) {
+    return { success: false, error: 'GOOGLE_SCRIPT_WEBHOOK_URL not configured' };
+  }
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patient)
+    });
+
+    if (!response.ok) {
+      return { success: false, error: `Webhook returned ${response.status}` };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Sync patient via Google Sheets API
  */
 async function syncPatientViaAPI(patient: any): Promise<{ success: boolean; error?: string }> {
@@ -34,13 +61,24 @@ async function syncPatientViaAPI(patient: any): Promise<{ success: boolean; erro
     attempt++;
     
     try {
-      const patientRecord: PatientRecord = patient;
-      const syncResult = await appendPatientToSheets(patientRecord);
-      
-      if (syncResult.success) {
-        return { success: true };
+      // Try Google Sheets API first (if configured)
+      if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+        const patientRecord: PatientRecord = patient;
+        const syncResult = await appendPatientToSheets(patientRecord);
+        
+        if (syncResult.success) {
+          return { success: true };
+        } else {
+          lastError = syncResult.error;
+        }
       } else {
-        lastError = syncResult.error;
+        // Fallback to webhook
+        const webhookResult = await syncPatientViaWebhook(patient);
+        if (webhookResult.success) {
+          return { success: true };
+        } else {
+          lastError = webhookResult.error;
+        }
       }
 
       if (attempt < MAX_RETRY_ATTEMPTS) {
