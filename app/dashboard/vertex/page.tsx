@@ -206,6 +206,8 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     state: selectedState,
     district: selectedDistrict,
     onUpdate: (date) => {
+      // Play sound notification
+      sounds.newSubmission();
       // Add date to updated set
       setUpdatedCalendarDates(prev => new Set([...prev, date]));
       // Clear after animation completes (2 seconds)
