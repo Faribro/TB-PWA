@@ -10,9 +10,9 @@ import { appendPatientToSheets, PatientRecord } from '@/lib/sheetsSync';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const MAX_RETRY_ATTEMPTS = 3;
-const RETRY_DELAY_MS = 1000;
-const RATE_LIMIT_DELAY_MS = 500;
+const MAX_RETRY_ATTEMPTS = 2;
+const RETRY_DELAY_MS = 500;
+const BATCH_SIZE = 5; // Process 5 records in parallel
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
     console.log(`[backfill] Found ${patients.length} unsynced patients`);
 
     // ═══════════════════════════════════════════════════════════════════════
-    // STEP 3: Process each patient with rate limiting
+    // STEP 3: Process patients in parallel batches (faster, no rate limit)
     // ═══════════════════════════════════════════════════════════════════════
     const results = {
       total: patients.length,
@@ -133,61 +133,57 @@ export async function POST(req: NextRequest) {
       failures: [] as Array<{ id: number; inmate_name: string; error: string }>
     };
 
-    for (let i = 0; i < patients.length; i++) {
-      const patient = patients[i] as PatientRecord;
+    // Process in batches of BATCH_SIZE
+    for (let i = 0; i < patients.length; i += BATCH_SIZE) {
+      const batch = patients.slice(i, i + BATCH_SIZE);
       
-      console.log(`[backfill] Processing ${i + 1}/${patients.length}: ${patient.inmate_name} (ID: ${patient.id})`);
+      console.log(`[backfill] Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(patients.length / BATCH_SIZE)}`);
 
-      try {
-        // Sync to Google Sheets via API
-        const syncResult = await syncPatientViaAPI(patient);
+      // Process batch in parallel
+      await Promise.all(
+        batch.map(async (patient: any) => {
+          try {
+            // Sync to Google Sheets via API
+            const syncResult = await syncPatientViaAPI(patient);
 
-        // Update Supabase sync status
-        const currentAttempts = patient.sheets_sync_attempts || 0;
-        const updateData: any = {
-          synced_to_sheets: syncResult.success,
-          // Reset attempts to 1 if this was a stuck record retry, otherwise increment
-          sheets_sync_attempts: (retryStuck && syncResult.success) ? 0 : currentAttempts + 1
-        };
+            // Update Supabase sync status
+            const currentAttempts = patient.sheets_sync_attempts || 0;
+            const updateData: any = {
+              synced_to_sheets: syncResult.success,
+              sheets_sync_attempts: (retryStuck && syncResult.success) ? 0 : currentAttempts + 1
+            };
 
-        if (syncResult.success) {
-          updateData.sheets_sync_error = null;
-          updateData.sheets_synced_at = new Date().toISOString();
-          results.synced++;
-        } else {
-          updateData.sheets_sync_error = syncResult.error;
-          results.failed++;
-          results.failures.push({
-            id: Number(patient.id),
-            inmate_name: patient.inmate_name || 'Unknown',
-            error: syncResult.error || 'Unknown error'
-          });
-        }
+            if (syncResult.success) {
+              updateData.sheets_sync_error = null;
+              updateData.sheets_synced_at = new Date().toISOString();
+              results.synced++;
+            } else {
+              updateData.sheets_sync_error = syncResult.error;
+              results.failed++;
+              results.failures.push({
+                id: Number(patient.id),
+                inmate_name: patient.inmate_name || 'Unknown',
+                error: syncResult.error || 'Unknown error'
+              });
+            }
 
-        // Update Supabase
-        const { error: updateError } = await supabase
-          .from('patients')
-          .update(updateData)
-          .eq('id', patient.id);
+            // Update Supabase
+            await supabase
+              .from('patients')
+              .update(updateData)
+              .eq('id', patient.id);
 
-        if (updateError) {
-          console.error(`[backfill] Failed to update patient ${patient.id}:`, updateError);
-        }
-
-        // Rate limiting delay (except for last patient)
-        if (i < patients.length - 1) {
-          await sleep(RATE_LIMIT_DELAY_MS);
-        }
-
-      } catch (error: any) {
-        console.error(`[backfill] Error processing patient ${patient.id}:`, error);
-        results.failed++;
-        results.failures.push({
-          id: Number(patient.id),
-          inmate_name: patient.inmate_name || 'Unknown',
-          error: error.message
-        });
-      }
+          } catch (error: any) {
+            console.error(`[backfill] Error processing patient ${patient.id}:`, error);
+            results.failed++;
+            results.failures.push({
+              id: Number(patient.id),
+              inmate_name: patient.inmate_name || 'Unknown',
+              error: error.message
+            });
+          }
+        })
+      );
     }
 
     // ═══════════════════════════════════════════════════════════════════════

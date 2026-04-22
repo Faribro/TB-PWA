@@ -11,7 +11,7 @@ Write-Host ""
 # Configuration
 $envPath = "C:\Users\farid\Desktop\TB-PWA-Clean\.env.local"
 $apiUrl = "https://samadhaan.allianceindia.org/api/admin/backfill-sheets"
-$batchSize = 50  # Process 50 records per batch (25 seconds max)
+$batchSize = 10  # Process 10 records per batch (under 10s timeout)
 $maxBatches = 10  # Safety limit
 $delayBetweenBatches = 2  # Seconds between batches
 
