@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react';
 import { useSessionScope } from '@/hooks/useSessionScope';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { calculatePatientPhase } from '@/lib/phase-engine';
-import { createClient } from '@/lib/supabase-client';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { fuzzyStaffLookup } from '@/lib/fuzzy-staff-lookup';
 import { useRealtimePatients } from '@/lib/useRealtimePatients';
 import { ScreeningCalendar } from '@/components/ScreeningCalendar';
@@ -43,7 +43,7 @@ export default function MySubmissionsPage() {
   const { data: session } = useSession();
   const scope = useSessionScope();
   const { pendingCount, isSyncing, syncPending, isOnline } = useOfflineSync();
-  const supabase = createClient();
+  const supabase = getSupabaseBrowserClient();
 
   const [patients, setPatients] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
