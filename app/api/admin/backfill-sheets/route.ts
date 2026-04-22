@@ -40,10 +40,10 @@ async function syncPatientViaWebhook(patient: any): Promise<{ success: boolean; 
   }
 
   try {
-    // Format payload for Google Apps Script INSERT handler
+    // Format payload for Google Apps Script batch handler
     const payload = {
-      type: 'INSERT',
-      record: patient
+      batch: [patient],
+      batch_id: `backfill-${patient.id || Date.now()}`
     };
     
     console.log('[backfill] Sending to webhook:', webhookUrl.substring(0, 50) + '...');
@@ -63,8 +63,11 @@ async function syncPatientViaWebhook(patient: any): Promise<{ success: boolean; 
 
     const result = JSON.parse(text);
     
-    if (result.error || !result.success) {
-      return { success: false, error: result.error || 'Webhook returned success=false' };
+    if (result.status !== 'success' || result.appended_count === 0) {
+      return { 
+        success: false, 
+        error: result.error || `No records appended (duplicates: ${result.duplicate_count || 0})` 
+      };
     }
 
     return { success: true };
