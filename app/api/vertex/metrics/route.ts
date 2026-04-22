@@ -44,13 +44,6 @@ export async function GET(request: NextRequest) {
     // Generate cache key based on all parameters
     const cacheKey = `metrics:${view}:${year}:${month}:${filterState || 'all'}:${filterDistrict || 'all'}:${session.user.role}:${session.user.state || 'all'}`;
 
-    // Try three-layer cache (Memory → Redis → Database)
-    const responseData = await getCachedWithMemory(
-      cacheKey,
-      async () => {
-        // Database fetch logic
-        const supabase = createServerClient();
-    
     // Apply RBAC filters
     const rawRole = session.user.role ?? 'ME';
     const role = normalizeRole(rawRole) ?? Role.ME_OFFICER;
@@ -91,6 +84,12 @@ export async function GET(request: NextRequest) {
       
       return query;
     };
+
+    // Try three-layer cache (Memory → Redis → Database)
+    const responseData = await getCachedWithMemory(
+      cacheKey,
+      async () => {
+        const supabase = createServerClient();
 
     if (view === 'year') {
       // YEAR VIEW: Single query for full year data
@@ -195,16 +194,6 @@ export async function GET(request: NextRequest) {
             totalRecords: yearData?.length ?? 0
           }
         };
-      },
-      30 // TTL in seconds
-    );
-
-    return NextResponse.json(responseData, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
-        'X-Cache': 'MULTI-LAYER'
-      }
-    });
     } else {
       // MONTH VIEW: Single month query (existing behavior, optimized)
       const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
@@ -290,7 +279,7 @@ export async function GET(request: NextRequest) {
         a.date.localeCompare(b.date)
       );
 
-      const responseData = {
+      return {
         screened: totalScreened,
         suspected: totalSuspected,
         diagnosed: totalDiagnosed,
@@ -308,17 +297,17 @@ export async function GET(request: NextRequest) {
           totalRecords: monthData?.length ?? 0
         }
       };
-
-      // Cache the response for 30 seconds
-      await setCached(cacheKey, responseData, 30);
-
-      return NextResponse.json(responseData, {
-        headers: {
-          'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30',
-          'X-Cache': 'MISS'
-        }
-      });
     }
+      },
+      30
+    );
+
+    return NextResponse.json(responseData, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+        'X-Cache': 'MULTI-LAYER'
+      }
+    });
   } catch (error) {
     console.error('[/api/vertex/metrics] Error:', error);
     return NextResponse.json({ 
