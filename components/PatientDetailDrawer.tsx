@@ -372,21 +372,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       const { result } = await res.json();
       setSyncing();
       
-      console.log('[PatientDetailDrawer] ✅ Save successful, result:', {
-        persistedFields: {
-          tb_diagnosed: result.patient?.tb_diagnosed,
-          tb_diagnosis_date: result.patient?.tb_diagnosis_date,
-          tb_type: result.patient?.tb_type,
-          att_start_date: result.patient?.att_start_date,
-          att_completion_date: result.patient?.att_completion_date,
-          hiv_status: result.patient?.hiv_status,
-          art_status: result.patient?.art_status,
-          art_number: result.patient?.art_number,
-          nikshay_abha_id: result.patient?.nikshay_abha_id,
-          registration_date: result.patient?.registration_date
-        },
-        sheetsSync: result.sheetsSync
-      });
+      console.log('[PatientDetailDrawer] ✅ Save successful');
       
       // Revalidate to ensure consistency
       await mutate(
@@ -404,12 +390,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       reset(getValues(), { keepValues: true });
       setHasUnsavedChanges(false);
       
-      // Show conditional toast based on Sheets sync status
-      if (result.sheetsSync) {
-        toast.success('✅ Saved & synced to Google Sheets', { id: 'clinical-save' });
-      } else {
-        toast.success('✅ Saved to database. Sheets sync pending...', { id: 'clinical-save', icon: '⏳' });
-      }
+      toast.success('✅ Saved successfully', { id: 'clinical-save' });
       
       // FIX 3: Re-fetch from DB to confirm exact persisted state
       const { data: freshPatient, error: fetchError } = await supabaseClient
@@ -553,12 +534,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       const currentValues = getValues();
       reset(currentValues, { keepValues: true });
 
-      // Show conditional toast based on Sheets sync status
-      if (result.sheetsSync) {
-        toast.success('✅ Demographics saved & synced to Google Sheets', { id: 'demo-save' });
-      } else {
-        toast.success('✅ Demographics saved. Sheets sync pending...', { id: 'demo-save', icon: '⏳' });
-      }
+      toast.success('✅ Demographics saved successfully', { id: 'demo-save' });
       
       // FIX 3: Re-fetch from DB to confirm exact persisted state
       const { data: freshPatient, error: fetchError } = await supabaseClient
