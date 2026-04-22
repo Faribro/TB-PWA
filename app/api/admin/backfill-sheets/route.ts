@@ -40,7 +40,12 @@ async function syncPatientViaWebhook(patient: any): Promise<{ success: boolean; 
   }
 
   try {
-    const payload = { batch: [patient] };
+    // Format payload for Google Apps Script INSERT handler
+    const payload = {
+      type: 'INSERT',
+      record: patient
+    };
+    
     console.log('[backfill] Sending to webhook:', webhookUrl.substring(0, 50) + '...');
     
     const response = await fetch(webhookUrl, {
@@ -58,8 +63,8 @@ async function syncPatientViaWebhook(patient: any): Promise<{ success: boolean; 
 
     const result = JSON.parse(text);
     
-    if (result.error) {
-      return { success: false, error: result.error };
+    if (result.error || !result.success) {
+      return { success: false, error: result.error || 'Webhook returned success=false' };
     }
 
     return { success: true };
