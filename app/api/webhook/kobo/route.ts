@@ -21,6 +21,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabase-server';
 import { normalizeState, normalizeDistrict } from '@/lib/stateMapper';
+import { syncToSheetsAsync } from '@/lib/sheetsSync';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -341,10 +342,6 @@ function normalizeKoboPayload(payload: Record<string, unknown>): Record<string, 
       'Remarks'
     ]) as string | null,
     
-    // Sync metadata
-    synced_to_sheets: false,
-    sheets_sync_attempts: 0,
-    
     // Timestamps
     updated_at: new Date().toISOString(),
   };
@@ -399,44 +396,7 @@ async function upsertPatient(
   return { success: false, error: 'Max retries exceeded' };
 }
 
-/**
- * Optional downstream Sheets sync (best-effort, non-blocking)
- * Only called if ENABLE_SHEETS_SYNC=true
- * Sends data in batch format expected by Apps Script v4.0
- */
-async function syncToSheets(payload: Record<string, unknown>): Promise<'success' | 'failed' | 'disabled'> {
-  if (!ENABLE_SHEETS_SYNC || !GOOGLE_SCRIPT_WEBHOOK_URL) {
-    return 'disabled';
-  }
 
-  try {
-    // Apps Script expects batch format
-    const batchPayload = {
-      batch: [payload],
-      batch_id: `nextjs-${Date.now()}`
-    };
-
-    const response = await fetch(GOOGLE_SCRIPT_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(batchPayload),
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      console.log('[webhook] Sheets sync: success', result);
-      return 'success';
-    } else {
-      const text = await response.text();
-      console.error('[webhook] Sheets sync failed:', response.status, text);
-      return 'failed';
-    }
-  } catch (error) {
-    console.error('[webhook] Sheets sync error:', error);
-    return 'failed';
-  }
-}
 
 /**
  * Create structured JSON response
@@ -558,9 +518,11 @@ export async function POST(req: NextRequest) {
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // 5. OPTIONAL DOWNSTREAM SHEETS SYNC (BEST-EFFORT)
+    // 5. FIRE-AND-FORGET SHEETS MIRROR SYNC (NON-BLOCKING)
     // ─────────────────────────────────────────────────────────────────────
-    const sheetsStatus = await syncToSheets(normalized);
+    if (ENABLE_SHEETS_SYNC) {
+      syncToSheetsAsync(normalized, upsertResult.operation === 'inserted' ? 'insert' : 'update');
+    }
 
     // ─────────────────────────────────────────────────────────────────────
     // 6. SUCCESS RESPONSE
@@ -572,7 +534,6 @@ export async function POST(req: NextRequest) {
       success: true,
       kobo_uuid: String(uuid),
       operation: upsertResult.operation,
-      sheets_sync: sheetsStatus,
       duration_ms: duration
     }, 200);
 

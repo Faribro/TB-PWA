@@ -2,6 +2,7 @@
 
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope } from '@/hooks/useSessionScope';
+import { usePatientRealtime } from '@/hooks/usePatientRealtime';
 import dynamic from 'next/dynamic';
 import { LinesAndDotsLoader } from '@/components/LinesAndDotsLoader';
 
@@ -26,6 +27,12 @@ export default function FollowUpPage() {
     autoFetchAll: true, // Explicit opt-in for complete dataset
     maxPages: 50,
     maxRecords: 500000
+  });
+
+  // Subscribe to real-time patient updates
+  usePatientRealtime(() => {
+    console.log('[FollowUp] Patient change detected, refreshing data...');
+    mutate(); // Refresh SWR cache on any patient change
   });
 
   return (

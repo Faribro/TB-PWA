@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabase-server';
 import { getSessionScope } from '@/lib/session-scope';
-import { updatePatientInSheets } from '@/lib/sheetsSync';
+import { syncToSheetsAsync } from '@/lib/sheetsSync';
 import { sanitizePatientUpdate } from '@/lib/db/sanitizePatientUpdate';
 
 const FIELD_MAPPING: Record<string, string | null> = {
@@ -77,10 +77,10 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseClient();
 
-    // Ownership check (done once, outside any retry)
+    // Ownership check
     const { data: existing, error: fetchError } = await supabase
       .from('patients')
-      .select('id, screening_state, sheets_sync_attempts')
+      .select('id, screening_state')
       .eq('id', patientId)
       .single();
 
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     // Write to Supabase
     const { data: updatedPatient, error: dbError } = await supabase
       .from('patients')
-      .update({ ...dbUpdates, synced_to_sheets: false, sheets_sync_attempts: 0 })
+      .update(dbUpdates)
       .eq('id', patientId)
       .select()
       .single();
@@ -108,23 +108,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Sync to Google Sheets (await for status)
-    const syncResult = await updatePatientInSheets(updatedPatient);
-    
-    // Update sync status in DB
-    const syncUpdate = syncResult.success
-      ? { synced_to_sheets: true, sheets_synced_at: new Date().toISOString(), sheets_sync_error: null }
-      : {
-          sheets_sync_attempts: (existing.sheets_sync_attempts ?? 0) + 1,
-          sheets_sync_error: syncResult.error,
-        };
-    await supabase.from('patients').update(syncUpdate).eq('id', patientId);
+    // Fire-and-forget mirror sync to Sheets
+    syncToSheetsAsync(updatedPatient, 'update');
 
     return NextResponse.json({ 
       success: true, 
-      patient: updatedPatient, 
-      sheetsSync: syncResult.success,
-      sheetsSyncError: syncResult.error ?? null
+      patient: updatedPatient
     });
   } catch (error: unknown) {
     console.error('[patient-sync] Unhandled error:', error);

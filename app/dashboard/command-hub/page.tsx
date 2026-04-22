@@ -19,7 +19,7 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import useSWR from 'swr';
+import useSWR, { mutate } from 'swr';
 import { FeatureShowcase } from '@/components/FeatureShowcase';
 import ProgramMission from '@/components/ProgramMission';
 import InmateJourney from '@/components/InmateJourney';
@@ -32,6 +32,7 @@ import CommandFooter from '@/components/CommandFooter';
 import UnifiedCommandCenter from '@/components/UnifiedCommandCenter';
 import CommandFilterDrawer, { CommandCenterFilters, DEFAULT_COMMAND_FILTERS } from '@/components/CommandFilterDrawer';
 import { useSessionScope } from '@/hooks/useSessionScope';
+import { usePatientRealtime } from '@/hooks/usePatientRealtime';
 
 const BackgroundGrid = memo(() => (
   <div 
@@ -142,6 +143,12 @@ export default function CommandHubPage() {
       dedupingInterval: 2000, // Reduced to 2s to make filter 'Apply' feel more responsive
     }
   );
+
+  // Subscribe to real-time patient updates
+  usePatientRealtime(() => {
+    console.log('[CommandHub] Patient change detected, refreshing summary...');
+    mutate(`/api/patients/summary?${queryString}`);
+  });
 
   const firstName = useMemo(
     () => session?.user?.name?.split(' ')[0] || 'Officer',

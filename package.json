@@ -30,7 +30,11 @@
     "test:upload-modal": "node scripts/test-upload-modal.js",
     "test:rls": "bun run scripts/test-rls-normalization.ts",
     "seed:knowledge": "bun run scripts/seed-knowledge-articles.ts",
-    "test:sheets-sync": "node scripts/test-sheets-sync.js"
+    "test:sheets-sync": "bun scripts/test-sheets-sync.ts",
+    "test:webhook-refactor": "bun scripts/test-webhook-refactor.ts",
+    "test:patient-sync-refactor": "bun scripts/test-patient-sync-refactor.ts",
+    "test:realtime": "bun scripts/test-realtime.ts",
+    "test:refactor": "bun scripts/test-refactor.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.43",
