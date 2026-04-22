@@ -24,6 +24,7 @@ import { FeatureShowcase } from '@/components/FeatureShowcase';
 import ProgramMission from '@/components/ProgramMission';
 import InmateJourney from '@/components/InmateJourney';
 import PatientTimelineMermaid from '@/components/PatientTimelineMermaid';
+import NeuralTimelineOverview from '@/components/NeuralTimelineOverview';
 import ScrollProgressBar from '@/components/ScrollProgressBar';
 import SectionDivider from '@/components/SectionDivider';
 import StatsTicker from '@/components/StatsTicker';
@@ -228,6 +229,9 @@ export default function CommandHubPage() {
       
       <div className="relative z-10" data-tour-id="journey-cube">
         <InmateJourney />
+      </div>
+      <div className="relative z-10" data-tour-id="neural-timeline">
+        <NeuralTimelineOverview />
       </div>
       <div className="relative z-10 border-t border-white/40" data-tour-id="patient-timeline">
         <PatientTimelineMermaid />
