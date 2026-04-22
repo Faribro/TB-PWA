@@ -293,67 +293,125 @@ export async function appendPatientToSheets(
 
 /**
  * Update existing row in Google Sheets by kobo_uuid
+ * Primary: Google Sheets API, Fallback: Webhook
  */
 export async function updatePatientInSheets(
   patient: PatientRecord
 ): Promise<SheetsSyncResult> {
-  try {
-    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
-    
-    if (!spreadsheetId) {
-      throw new Error('GOOGLE_SHEET_ID not configured');
-    }
-
-    const sheets = getGoogleSheetsClient();
-    
-    // Find row by kobo_uuid (column 33, index AG)
-    const searchResponse = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${SHEET_NAME}!AG:AG` // kobo_uuid column
-    });
-
-    const rows = searchResponse.data.values || [];
-    const koboUuid = patient.kobo_uuid;
-    
-    if (!koboUuid) {
-      // If no kobo_uuid, append as new row
-      return appendPatientToSheets(patient);
-    }
-
-    const rowIndex = rows.findIndex(row => row[0] === koboUuid);
-
-    if (rowIndex === -1) {
-      // Row not found, append as new
-      console.log('[sheetsSync] kobo_uuid not found, appending new row');
-      return appendPatientToSheets(patient);
-    }
-
-    // Update existing row (rowIndex is 0-based, sheet rows are 1-based + header)
-    const sheetRowNumber = rowIndex + 2; // +1 for 0-index, +1 for header
-    const row = mapPatientToSheetRow(patient);
-
-    await withRetry(() =>
-      sheets.spreadsheets.values.update({
+  const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+  const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  const webhookUrl = process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
+  
+  // Try API first if configured
+  if (spreadsheetId && serviceAccountKey && serviceAccountKey.trim().length > 0) {
+    try {
+      const sheets = getGoogleSheetsClient();
+      
+      // Find row by kobo_uuid (column 33, index AG)
+      const searchResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `${SHEET_NAME}!A${sheetRowNumber}:AI${sheetRowNumber}`,
-        valueInputOption: 'USER_ENTERED',
-        requestBody: {
-          values: [row]
-        }
-      })
-    );
+        range: `${SHEET_NAME}!AG:AG`
+      });
 
-    console.log('[sheetsSync] ✅ Successfully updated row in Google Sheets:', {
-      rowNumber: sheetRowNumber,
-      koboUuid
-    });
+      const rows = searchResponse.data.values || [];
+      const koboUuid = patient.kobo_uuid;
+      
+      if (!koboUuid) {
+        return appendPatientToSheets(patient);
+      }
 
+      // Normalize UUID for comparison
+      const normalizedSearchUuid = String(koboUuid).replace(/^uuid:/i, '');
+      const rowIndex = rows.findIndex(row => {
+        const rowUuid = String(row[0] || '').replace(/^uuid:/i, '');
+        return rowUuid === normalizedSearchUuid;
+      });
+
+      if (rowIndex === -1) {
+        console.log('[sheetsSync] kobo_uuid not found, appending new row');
+        return appendPatientToSheets(patient);
+      }
+
+      const sheetRowNumber = rowIndex + 2;
+      const row = mapPatientToSheetRow(patient);
+
+      await withRetry(() =>
+        sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `${SHEET_NAME}!A${sheetRowNumber}:AI${sheetRowNumber}`,
+          valueInputOption: 'USER_ENTERED',
+          requestBody: {
+            values: [row]
+          }
+        })
+      );
+
+      console.log('[sheetsSync] ✅ Successfully updated via API:', {
+        rowNumber: sheetRowNumber,
+        koboUuid
+      });
+
+      return {
+        success: true,
+        message: `Row ${sheetRowNumber} updated successfully`,
+        rowsAppended: 1
+      };
+    } catch (apiError: any) {
+      console.log('[sheetsSync] API failed, trying webhook fallback:', apiError.message);
+    }
+  }
+  
+  // Fallback to webhook
+  if (!webhookUrl) {
     return {
-      success: true,
-      message: `Row ${sheetRowNumber} updated successfully`,
-      rowsAppended: 1
+      success: false,
+      message: 'Neither API nor webhook configured',
+      error: 'GOOGLE_SERVICE_ACCOUNT_KEY and GOOGLE_SCRIPT_WEBHOOK_URL not configured'
+    };
+  }
+
+  try {
+    const koboUuid = patient.kobo_uuid;
+    if (!koboUuid) {
+      return {
+        success: false,
+        message: 'Missing kobo_uuid',
+        error: 'Cannot update without kobo_uuid'
+      };
+    }
+
+    console.log('[sheetsSync] Updating via webhook fallback');
+
+    const payload = {
+      action: 'update_patient',
+      uuid: koboUuid,
+      uniqueId: koboUuid,
+      updates: patient
     };
 
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Webhook returned ${response.status}: ${text}`);
+    }
+
+    const result = await response.json();
+
+    if (result.success) {
+      console.log('[sheetsSync] ✅ Successfully updated via webhook');
+      return {
+        success: true,
+        message: result.message || 'Updated successfully',
+        rowsAppended: 1
+      };
+    } else {
+      throw new Error(result.error || 'Webhook returned success=false');
+    }
   } catch (error: any) {
     console.error('[sheetsSync] ❌ Error updating Google Sheets:', error);
     
