@@ -14,7 +14,7 @@
 // CONFIGURATION
 // ============================================================================
 
-const SHEET_NAME = 'TB Screening Data'; // Your Google Sheet name
+const SHEET_NAME = 'Patient Linelist_TB'; // Updated to match actual sheet name
 const WEBHOOK_SECRET = 'alliance_kobo_secure_2026';
 
 // ============================================================================

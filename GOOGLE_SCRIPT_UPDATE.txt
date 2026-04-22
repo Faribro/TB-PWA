@@ -1,0 +1,25 @@
+GOOGLE APPS SCRIPT UPDATE REQUIRED
+===================================
+
+The backfill is failing because the Google Apps Script has the wrong sheet name.
+
+STEPS TO FIX:
+1. Open Google Apps Script: https://script.google.com/home
+2. Find your webhook script (the one with the deployment URL)
+3. Change line 18 from:
+   const SHEET_NAME = 'TB Screening Data';
+   
+   TO:
+   const SHEET_NAME = 'Patient Linelist_TB';
+
+4. Click "Deploy" > "Manage deployments"
+5. Click the pencil icon (Edit)
+6. Change "Version" to "New version"
+7. Click "Deploy"
+
+ALTERNATIVE - Copy Updated Script:
+Open: google-apps-script/doPost-dual-hybrid.js
+Copy the entire contents and paste into your Google Apps Script editor.
+
+After updating, run the backfill script again:
+powershell -ExecutionPolicy Bypass -File "scripts\backfill-sheets-batched.ps1"
