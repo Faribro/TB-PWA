@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Filter, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { LinesAndDotsLoader } from '@/components/LinesAndDotsLoader';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { useRealtimeCalendar } from '@/lib/useRealtimeCalendar';
 
 // Simple fetcher for SWR
@@ -123,10 +123,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
   useEffect(() => {
     if (!scope) return;
     
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabase = getSupabaseBrowserClient();
     
     console.log('[Vertex] Setting up real-time subscription for new patients');
     
