@@ -62,32 +62,57 @@ export function useRealtimeCalendar({
     {
       dedupingInterval: 30000,
       revalidateOnFocus: false,
-      revalidateOnReconnect: false
+      revalidateOnReconnect: false,
+      onSuccess: (data) => {
+        console.log('[useRealtimeCalendar] API data received:', {
+          dailyBreakdown: data?.dailyBreakdown?.length,
+          dates: data?.dailyBreakdown?.map((d: any) => d.date)
+        });
+      }
     }
   );
   
   const aggregatePatient = useCallback((patient: any) => {
     const date = patient.screening_date?.split('T')[0];
+    console.log('[useRealtimeCalendar] Processing patient:', {
+      date,
+      state: patient.screening_state,
+      district: patient.screening_district,
+      patientId: patient.id
+    });
+
     if (!date) return;
 
     const { year: currentYear, state: currentState, district: currentDistrict } = filterParamsRef.current;
 
     // Filter by year
-    if (!date.startsWith(`${currentYear}-`)) return;
+    if (!date.startsWith(`${currentYear}-`)) {
+      console.log('[useRealtimeCalendar] Filtered out: wrong year', { date, currentYear });
+      return;
+    }
 
     // Filter by state (client-side since Supabase doesn't support OR in filters)
     if (currentState && currentState !== 'all') {
       const patientState = patient.screening_state;
       if (currentState === 'Maharashtra') {
-        if (patientState !== 'Maharashtra' && patientState !== 'Mumbai') return;
+        if (patientState !== 'Maharashtra' && patientState !== 'Mumbai') {
+          console.log('[useRealtimeCalendar] Filtered out: wrong state', { patientState, currentState });
+          return;
+        }
       } else {
-        if (patientState !== currentState) return;
+        if (patientState !== currentState) {
+          console.log('[useRealtimeCalendar] Filtered out: wrong state', { patientState, currentState });
+          return;
+        }
       }
     }
 
     // Filter by district
     if (currentDistrict && currentDistrict !== 'all') {
-      if (patient.screening_district !== currentDistrict) return;
+      if (patient.screening_district !== currentDistrict) {
+        console.log('[useRealtimeCalendar] Filtered out: wrong district', { patientDistrict: patient.screening_district, currentDistrict });
+        return;
+      }
     }
 
     const existing = realtimeMapRef.current.get(date) || {
@@ -156,7 +181,13 @@ export function useRealtimeCalendar({
           table: 'patients',
         },
         (payload) => {
-          console.log('[useRealtimeCalendar] Event received:', payload.eventType);
+          console.log('[useRealtimeCalendar] Event received:', {
+            eventType: payload.eventType,
+            patientId: payload.new?.id,
+            screeningDate: payload.new?.screening_date,
+            state: payload.new?.screening_state,
+            district: payload.new?.screening_district
+          });
           if (payload.eventType === 'INSERT') {
             aggregatePatient(payload.new);
           } else if (payload.eventType === 'UPDATE') {

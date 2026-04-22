@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { createServerClient } from '@/lib/supabase-server-admin';
 import { normalizeRole, Role } from '@/lib/constants/roles';
-import { getCached, setCached } from '@/lib/redis';
+import { getCachedWithMemory } from '@/lib/memory-cache';
 
 export const maxDuration = 15;
 export const dynamic = 'force-dynamic';
@@ -44,19 +44,12 @@ export async function GET(request: NextRequest) {
     // Generate cache key based on all parameters
     const cacheKey = `metrics:${view}:${year}:${month}:${filterState || 'all'}:${filterDistrict || 'all'}:${session.user.role}:${session.user.state || 'all'}`;
 
-    // Try to get from cache first
-    const cached = await getCached(cacheKey);
-    if (cached) {
-      console.log('[/api/vertex/metrics] Cache hit for:', cacheKey);
-      return NextResponse.json(cached, {
-        headers: {
-          'Cache-Control': 'private, max-age=30',
-          'X-Cache': 'HIT'
-        }
-      });
-    }
-
-    const supabase = createServerClient();
+    // Try three-layer cache (Memory → Redis → Database)
+    const responseData = await getCachedWithMemory(
+      cacheKey,
+      async () => {
+        // Database fetch logic
+        const supabase = createServerClient();
     
     // Apply RBAC filters
     const rawRole = session.user.role ?? 'ME';
@@ -185,33 +178,33 @@ export async function GET(request: NextRequest) {
         a.date.localeCompare(b.date)
       );
 
-      const responseData = {
-        screened: totalScreened,
-        suspected: totalSuspected,
-        diagnosed: totalDiagnosed,
-        attStarted: totalAttStarted,
-        referred: totalReferred,
-        dailyBreakdown,
-        _meta: {
-          year,
-          view: 'year',
-          yearStart,
-          yearEnd,
-          role,
-          state: state || null,
-          totalRecords: yearData?.length ?? 0
-        }
-      };
+        return {
+          screened: totalScreened,
+          suspected: totalSuspected,
+          diagnosed: totalDiagnosed,
+          attStarted: totalAttStarted,
+          referred: totalReferred,
+          dailyBreakdown,
+          _meta: {
+            year,
+            view: 'year',
+            yearStart,
+            yearEnd,
+            role,
+            state: state || null,
+            totalRecords: yearData?.length ?? 0
+          }
+        };
+      },
+      30 // TTL in seconds
+    );
 
-      // Cache the response for 30 seconds
-      await setCached(cacheKey, responseData, 30);
-
-      return NextResponse.json(responseData, {
-        headers: {
-          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
-          'X-Cache': 'MISS'
-        }
-      });
+    return NextResponse.json(responseData, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+        'X-Cache': 'MULTI-LAYER'
+      }
+    });
     } else {
       // MONTH VIEW: Single month query (existing behavior, optimized)
       const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
