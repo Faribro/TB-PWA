@@ -15,7 +15,7 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   // Allow public routes before any auth check
-  const publicRoutes = ['/login', '/unauthorized', '/api/auth', '/auth-test'];
+  const publicRoutes = ['/login', '/unauthorized', '/api/auth', '/auth-test', '/api/webhook', '/api/patch-screening-dates'];
   if (publicRoutes.some(route => pathname.startsWith(route))) {
     return NextResponse.next();
   }
