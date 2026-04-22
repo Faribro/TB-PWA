@@ -70,6 +70,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [newDataToast, setNewDataToast] = useState(false);
   const [updatedCalendarDates, setUpdatedCalendarDates] = useState<Set<string>>(new Set());
+  const [countPulse, setCountPulse] = useState(false);
   const national = isSuperuser(scope);
   const setFilter = useEntityStore(s => s.setGlobalFilter);
 
@@ -208,6 +209,9 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     onUpdate: (date) => {
       // Play sound notification
       sounds.newSubmission();
+      // Trigger count pulse animation
+      setCountPulse(true);
+      setTimeout(() => setCountPulse(false), 500);
       // Add date to updated set
       setUpdatedCalendarDates(prev => new Set([...prev, date]));
       // Clear after animation completes (2 seconds)
@@ -484,7 +488,16 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
 
           {/* Record count with live progress */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-[#7a7974] tabular-nums whitespace-nowrap">
+            <motion.div
+              className="w-2 h-2 rounded-full bg-emerald-500"
+              animate={{ opacity: [0.4, 1, 0.4] }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            />
+            <motion.span
+              className="text-xs text-[#7a7974] tabular-nums whitespace-nowrap"
+              animate={countPulse ? { scale: [1, 1.1, 1] } : {}}
+              transition={{ duration: 0.3 }}
+            >
               <span className="font-semibold text-[#28251d]">
                 {filteredPatients.length.toLocaleString()}
               </span>
@@ -492,7 +505,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
               <span className="font-semibold text-[#28251d]">
                 {totalCount > 0 ? totalCount.toLocaleString() : summaryData?.total?.toLocaleString() || '...'}
               </span>
-            </span>
+            </motion.span>
             
             {/* Live indicator - always spinning */}
             <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 border border-emerald-200 rounded-full">
