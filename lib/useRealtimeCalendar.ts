@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import useSWR from 'swr';
-import { createClient } from '@/lib/supabase-browser';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface ScreeningDay {
@@ -18,6 +18,7 @@ interface UseRealtimeCalendarOptions {
   year: number;
   state?: string | null;
   district?: string | null;
+  onUpdate?: (date: string) => void;
 }
 
 interface UseRealtimeCalendarReturn {
@@ -32,7 +33,8 @@ const fetcher = (url: string) => fetch(url).then(r => r.json());
 export function useRealtimeCalendar({
   year,
   state,
-  district
+  district,
+  onUpdate
 }: UseRealtimeCalendarOptions): UseRealtimeCalendarReturn {
   
   const [realtimeData, setRealtimeData] = useState<ScreeningDay[]>([]);
@@ -98,7 +100,10 @@ export function useRealtimeCalendar({
       .sort((a, b) => a.date.localeCompare(b.date));
     
     setRealtimeData(updatedArray);
-  }, [year, state, district]);
+    
+    // Notify parent that this date was updated
+    onUpdate?.(date);
+  }, [year, state, district, onUpdate]);
   
   const mergedData = useCallback(() => {
     if (!apiData?.dailyBreakdown) return realtimeData;
@@ -117,7 +122,7 @@ export function useRealtimeCalendar({
   }, [apiData?.dailyBreakdown, realtimeData]);
   
   useEffect(() => {
-    const supabase = createClient();
+    const supabase = getSupabaseBrowserClient();
     
     setStatus('connecting');
     

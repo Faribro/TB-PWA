@@ -69,6 +69,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [newDataToast, setNewDataToast] = useState(false);
+  const [updatedCalendarDates, setUpdatedCalendarDates] = useState<Set<string>>(new Set());
   const national = isSuperuser(scope);
   const setFilter = useEntityStore(s => s.setGlobalFilter);
 
@@ -198,15 +199,27 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
   }, [summaryData?.total, setTotalCount]);
   
   // SOURCE A: Calendar data with LIVE websocket updates
-  const { 
-    data: calendarData, 
+  const {
+    data: calendarData,
     error: yearMetricsError,
     isLoading: isLoadingYearMetrics,
     status: realtimeStatus
   } = useRealtimeCalendar({
     year: currentYear,
     state: selectedState,
-    district: selectedDistrict
+    district: selectedDistrict,
+    onUpdate: (date) => {
+      // Add date to updated set
+      setUpdatedCalendarDates(prev => new Set([...prev, date]));
+      // Clear after animation completes (2 seconds)
+      setTimeout(() => {
+        setUpdatedCalendarDates(prev => {
+          const next = new Set(prev);
+          next.delete(date);
+          return next;
+        });
+      }, 2000);
+    }
   });
 
   // Separate call for selected month totals panel
@@ -697,6 +710,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
                 data={calendarData}
                 onDayClick={handleDayClick}
                 selectedDate={selectedCalendarDate}
+                updatedDates={updatedCalendarDates}
               />
             )}
           </>

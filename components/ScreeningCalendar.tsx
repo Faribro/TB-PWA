@@ -19,6 +19,7 @@ interface Props {
   data: ScreeningDay[]
   onDayClick: (date: string) => void
   selectedDate: string | null
+  updatedDates?: Set<string>
 }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun',
@@ -35,7 +36,7 @@ function getColor(count: number, max: number): string {
   return 'bg-[#0f3638]'
 }
 
-export function ScreeningCalendar({ data, onDayClick, selectedDate }: Props) {
+export function ScreeningCalendar({ data, onDayClick, selectedDate, updatedDates }: Props) {
   const now = new Date()
   const [viewYear, setViewYear] = useState(now.getFullYear())
   const calendarRef = useRef<HTMLDivElement>(null)
@@ -189,12 +190,28 @@ export function ScreeningCalendar({ data, onDayClick, selectedDate }: Props) {
                     const isSelected = selectedDate === dateStr
                     const isToday = dateStr === now.toISOString().split('T')[0]
                     const isFuture = dateStr > now.toISOString().split('T')[0]
+                    const isUpdated = updatedDates?.has(dateStr)
 
                     return (
                       <motion.button
                         key={dateStr}
                         whileHover={{ scale: 1.2 }}
                         whileTap={{ scale: 0.9 }}
+                        initial={false}
+                        animate={isUpdated ? {
+                          scale: [1, 1.3, 1],
+                          backgroundColor: [
+                            getColor(count, maxCount).replace('bg-', ''),
+                            '#01696f',
+                            getColor(count, maxCount).replace('bg-', '')
+                          ]
+                        } : {}}
+                        transition={{ duration: 0.5, ease: 'easeInOut' }}
+                        onAnimationComplete={() => {
+                          if (isUpdated) {
+                            // Parent will remove from set
+                          }
+                        }}
                         onClick={() => {
                           if (!isFuture) {
                             sounds.calendarClick();
@@ -213,6 +230,7 @@ export function ScreeningCalendar({ data, onDayClick, selectedDate }: Props) {
                           isFuture ? 'bg-[#f3f0ec]/50' : getColor(count, maxCount),
                           isSelected && 'ring-2 ring-[#01696f] ring-offset-1',
                           isToday && !isSelected && 'ring-2 ring-[#964219] ring-offset-1',
+                          isUpdated && 'ring-2 ring-[#10b981] ring-offset-1 shadow-lg shadow-emerald-500/50',
                         )}
                       />
                     )
