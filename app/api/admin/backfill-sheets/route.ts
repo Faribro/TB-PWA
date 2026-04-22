@@ -29,23 +29,34 @@ function sleep(ms: number): Promise<void> {
 async function syncPatientViaWebhook(patient: any): Promise<{ success: boolean; error?: string }> {
   const webhookUrl = process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
   
+  console.log('[backfill] Webhook sync attempt:', {
+    hasUrl: !!webhookUrl,
+    patientId: patient.id,
+    koboUuid: patient.kobo_uuid
+  });
+  
   if (!webhookUrl) {
     return { success: false, error: 'GOOGLE_SCRIPT_WEBHOOK_URL not configured' };
   }
 
   try {
+    const payload = { batch: [patient] };
+    console.log('[backfill] Sending to webhook:', webhookUrl.substring(0, 50) + '...');
+    
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ batch: [patient] }) // Webhook expects batch format
+      body: JSON.stringify(payload)
     });
 
+    const text = await response.text();
+    console.log('[backfill] Webhook response:', { status: response.status, body: text.substring(0, 200) });
+
     if (!response.ok) {
-      const text = await response.text();
       return { success: false, error: `Webhook returned ${response.status}: ${text}` };
     }
 
-    const result = await response.json();
+    const result = JSON.parse(text);
     
     if (result.error) {
       return { success: false, error: result.error };
@@ -53,6 +64,7 @@ async function syncPatientViaWebhook(patient: any): Promise<{ success: boolean; 
 
     return { success: true };
   } catch (error: any) {
+    console.error('[backfill] Webhook error:', error);
     return { success: false, error: error.message };
   }
 }
@@ -128,6 +140,11 @@ export async function POST(req: NextRequest) {
     const limit = Math.min(body.limit || 200, 200); // Max 200 per batch
 
     console.log('[backfill] Starting backfill process...', { retryStuck, limit });
+    console.log('[backfill] Environment check:', {
+      hasServiceAccountKey: !!process.env.GOOGLE_SERVICE_ACCOUNT_KEY,
+      hasWebhookUrl: !!process.env.GOOGLE_SCRIPT_WEBHOOK_URL,
+      webhookUrl: process.env.GOOGLE_SCRIPT_WEBHOOK_URL?.substring(0, 50) + '...'
+    });
 
     // ═══════════════════════════════════════════════════════════════════════
     // STEP 2: Query unsynced patients
