@@ -37,11 +37,18 @@ async function syncPatientViaWebhook(patient: any): Promise<{ success: boolean; 
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patient)
+      body: JSON.stringify({ batch: [patient] }) // Webhook expects batch format
     });
 
     if (!response.ok) {
-      return { success: false, error: `Webhook returned ${response.status}` };
+      const text = await response.text();
+      return { success: false, error: `Webhook returned ${response.status}: ${text}` };
+    }
+
+    const result = await response.json();
+    
+    if (result.error) {
+      return { success: false, error: result.error };
     }
 
     return { success: true };
