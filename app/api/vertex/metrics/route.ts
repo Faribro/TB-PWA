@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { createServerClient } from '@/lib/supabase-server-admin';
 import { normalizeRole, Role } from '@/lib/constants/roles';
+import { getCached, setCached } from '@/lib/redis';
 
 export const maxDuration = 15;
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,7 @@ interface DailyStats {
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    
+
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -35,10 +36,25 @@ export async function GET(request: NextRequest) {
     const year = parseInt(searchParams.get('year') ?? new Date().getFullYear().toString(), 10);
     const month = parseInt(searchParams.get('month') ?? (new Date().getMonth() + 1).toString(), 10);
     const view = searchParams.get('view') ?? 'month'; // 'month' or 'year'
-    
+
     // Optional state/district filters from query params (for future filter bar integration)
     const filterState = searchParams.get('state');
     const filterDistrict = searchParams.get('district');
+
+    // Generate cache key based on all parameters
+    const cacheKey = `metrics:${view}:${year}:${month}:${filterState || 'all'}:${filterDistrict || 'all'}:${session.user.role}:${session.user.state || 'all'}`;
+
+    // Try to get from cache first
+    const cached = await getCached(cacheKey);
+    if (cached) {
+      console.log('[/api/vertex/metrics] Cache hit for:', cacheKey);
+      return NextResponse.json(cached, {
+        headers: {
+          'Cache-Control': 'private, max-age=30',
+          'X-Cache': 'HIT'
+        }
+      });
+    }
 
     const supabase = createServerClient();
     
@@ -87,7 +103,7 @@ export async function GET(request: NextRequest) {
       // YEAR VIEW: Single query for full year data
       const yearStart = `${year}-01-01`;
       const yearEnd = `${year}-12-31`;
-      
+
       // ONE query fetches patient records for the year (limit 5k for performance)
       const queryPromise = applyFilters(
         supabase
@@ -98,11 +114,11 @@ export async function GET(request: NextRequest) {
           .not('screening_date', 'is', null)
           .limit(5000)
       );
-      
+
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Query timeout')), 8000)
       );
-      
+
       let yearData;
       try {
         const result = await Promise.race([queryPromise, timeoutPromise]);
@@ -110,18 +126,18 @@ export async function GET(request: NextRequest) {
         yearData = result.data;
       } catch (yearError: any) {
         console.error('[/api/vertex/metrics] Year query error:', yearError);
-        return NextResponse.json({ 
+        return NextResponse.json({
           error: 'Database query timeout',
           details: yearError.message,
           fallback: true
-        }, { 
+        }, {
           status: 200,
           headers: {
             'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200'
           }
         });
       }
-      
+
       // Aggregate in JavaScript - O(n) single pass
       const dailyMap = new Map<string, DailyStats>();
       let totalScreened = 0;
@@ -129,22 +145,22 @@ export async function GET(request: NextRequest) {
       let totalDiagnosed = 0;
       let totalAttStarted = 0;
       let totalReferred = 0;
-      
+
       (yearData as PatientRecord[] || []).forEach((record) => {
         const date = record.screening_date;
         totalScreened++;
-        
+
         // Count metrics
         const isSuspected = record.xray_result === 'Suspected TB Case';
         const isDiagnosed = record.tb_diagnosed === 'Y';
         const isAttStarted = record.att_start_date !== null;
         const isReferred = record.referral_date !== null;
-        
+
         if (isSuspected) totalSuspected++;
         if (isDiagnosed) totalDiagnosed++;
         if (isAttStarted) totalAttStarted++;
         if (isReferred) totalReferred++;
-        
+
         // Daily breakdown
         if (!dailyMap.has(date)) {
           dailyMap.set(date, {
@@ -156,7 +172,7 @@ export async function GET(request: NextRequest) {
             referred: 0
           });
         }
-        
+
         const dayStats = dailyMap.get(date)!;
         dayStats.count++;
         if (isDiagnosed) dayStats.tbPositive++;
@@ -164,12 +180,12 @@ export async function GET(request: NextRequest) {
         if (isAttStarted) dayStats.attStarted++;
         if (isReferred) dayStats.referred++;
       });
-      
-      const dailyBreakdown = Array.from(dailyMap.values()).sort((a, b) => 
+
+      const dailyBreakdown = Array.from(dailyMap.values()).sort((a, b) =>
         a.date.localeCompare(b.date)
       );
-      
-      return NextResponse.json({
+
+      const responseData = {
         screened: totalScreened,
         suspected: totalSuspected,
         diagnosed: totalDiagnosed,
@@ -185,9 +201,15 @@ export async function GET(request: NextRequest) {
           state: state || null,
           totalRecords: yearData?.length ?? 0
         }
-      }, {
+      };
+
+      // Cache the response for 30 seconds
+      await setCached(cacheKey, responseData, 30);
+
+      return NextResponse.json(responseData, {
         headers: {
-          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60'
+          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+          'X-Cache': 'MISS'
         }
       });
     } else {
@@ -271,11 +293,11 @@ export async function GET(request: NextRequest) {
         if (isReferred) dayStats.referred++;
       });
       
-      const dailyBreakdown = Array.from(dailyMap.values()).sort((a, b) => 
+      const dailyBreakdown = Array.from(dailyMap.values()).sort((a, b) =>
         a.date.localeCompare(b.date)
       );
-      
-      return NextResponse.json({
+
+      const responseData = {
         screened: totalScreened,
         suspected: totalSuspected,
         diagnosed: totalDiagnosed,
@@ -292,9 +314,15 @@ export async function GET(request: NextRequest) {
           state: state || null,
           totalRecords: monthData?.length ?? 0
         }
-      }, {
+      };
+
+      // Cache the response for 30 seconds
+      await setCached(cacheKey, responseData, 30);
+
+      return NextResponse.json(responseData, {
         headers: {
-          'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30'
+          'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30',
+          'X-Cache': 'MISS'
         }
       });
     }

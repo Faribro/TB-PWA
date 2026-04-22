@@ -22,6 +22,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabase-server';
 import { normalizeState, normalizeDistrict } from '@/lib/stateMapper';
 import { syncToSheetsAsync } from '@/lib/sheetsSync';
+import { invalidateMetricsCache } from '@/lib/redis';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -369,6 +370,8 @@ async function upsertPatient(
       if (!error) {
         const operation = status === 201 ? 'inserted' : 'updated';
         console.log(`[webhook] Supabase ${operation}: ${kobo_uuid}`);
+        // Invalidate metrics cache
+        await invalidateMetricsCache();
         return { success: true, operation };
       }
 

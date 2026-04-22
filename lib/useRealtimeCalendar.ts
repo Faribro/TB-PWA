@@ -39,11 +39,22 @@ export function useRealtimeCalendar({
   
   const [realtimeData, setRealtimeData] = useState<ScreeningDay[]>([]);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('connecting');
-  
+
   const channelRef = useRef<RealtimeChannel | null>(null);
   const realtimeMapRef = useRef<Map<string, ScreeningDay>>(new Map());
+  const onUpdateRef = useRef(onUpdate);
+  const filterParamsRef = useRef({ year, state, district });
   
   const apiUrl = `/api/vertex/metrics?year=${year}&view=year&state=${state || 'all'}&district=${district || 'all'}`;
+
+  // Update refs when props change (prevents re-subscription)
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
+
+  useEffect(() => {
+    filterParamsRef.current = { year, state, district };
+  }, [year, state, district]);
   
   const { data: apiData, error, isLoading } = useSWR(
     apiUrl,
@@ -58,25 +69,27 @@ export function useRealtimeCalendar({
   const aggregatePatient = useCallback((patient: any) => {
     const date = patient.screening_date?.split('T')[0];
     if (!date) return;
-    
+
+    const { year: currentYear, state: currentState, district: currentDistrict } = filterParamsRef.current;
+
     // Filter by year
-    if (!date.startsWith(`${year}-`)) return;
-    
+    if (!date.startsWith(`${currentYear}-`)) return;
+
     // Filter by state (client-side since Supabase doesn't support OR in filters)
-    if (state && state !== 'all') {
+    if (currentState && currentState !== 'all') {
       const patientState = patient.screening_state;
-      if (state === 'Maharashtra') {
+      if (currentState === 'Maharashtra') {
         if (patientState !== 'Maharashtra' && patientState !== 'Mumbai') return;
       } else {
-        if (patientState !== state) return;
+        if (patientState !== currentState) return;
       }
     }
-    
+
     // Filter by district
-    if (district && district !== 'all') {
-      if (patient.screening_district !== district) return;
+    if (currentDistrict && currentDistrict !== 'all') {
+      if (patient.screening_district !== currentDistrict) return;
     }
-    
+
     const existing = realtimeMapRef.current.get(date) || {
       date,
       count: 0,
@@ -85,28 +98,28 @@ export function useRealtimeCalendar({
       attStarted: 0,
       referred: 0
     };
-    
+
     const isSuspected = patient.xray_result === 'Suspected TB Case';
     const isDiagnosed = patient.tb_diagnosed === 'Y' || patient.tb_diagnosed === 'Yes';
     const isAttStarted = !!patient.att_start_date;
     const isReferred = !!patient.referral_date;
-    
+
     existing.count++;
     if (isDiagnosed) existing.tbPositive++;
     if (isSuspected) existing.suspected++;
     if (isAttStarted) existing.attStarted++;
     if (isReferred) existing.referred++;
-    
+
     realtimeMapRef.current.set(date, existing);
-    
+
     const updatedArray = Array.from(realtimeMapRef.current.values())
       .sort((a, b) => a.date.localeCompare(b.date));
-    
+
     setRealtimeData(updatedArray);
-    
+
     // Notify parent that this date was updated
-    onUpdate?.(date);
-  }, [year, state, district, onUpdate]);
+    onUpdateRef.current?.(date);
+  }, []); // Empty dependency array - uses refs internally
   
   const mergedData = useCallback(() => {
     if (!apiData?.dailyBreakdown) return realtimeData;
@@ -126,13 +139,13 @@ export function useRealtimeCalendar({
   
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
-    
+
     setStatus('connecting');
-    
+
     let channelName = `calendar-realtime-${year}`;
     if (state && state !== 'all') channelName += `-${state}`;
     if (district && district !== 'all') channelName += `-${district}`;
-    
+
     const channel = supabase
       .channel(channelName)
       .on(
@@ -161,15 +174,15 @@ export function useRealtimeCalendar({
           setStatus('error');
         }
       });
-    
+
     channelRef.current = channel;
-    
+
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, [year, state, district, aggregatePatient]);
+  }, [year, state, district]); // Only recreate subscription when filters change, not when callbacks change
   
   return {
     data: mergedData(),

@@ -73,6 +73,7 @@
     "@tanstack/react-virtual": "^3.13.21",
     "@types/canvas-confetti": "^1.9.0",
     "@types/d3": "^7.4.3",
+    "@upstash/redis": "^1.37.0",
     "@vapi-ai/web": "^2.5.2",
     "@vercel/analytics": "^2.0.1",
     "@vitalets/google-translate-api": "^9.2.1",

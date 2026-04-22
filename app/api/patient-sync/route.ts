@@ -3,6 +3,7 @@ import { getSupabaseClient } from '@/lib/supabase-server';
 import { getSessionScope } from '@/lib/session-scope';
 import { syncToSheetsAsync } from '@/lib/sheetsSync';
 import { sanitizePatientUpdate } from '@/lib/db/sanitizePatientUpdate';
+import { invalidateMetricsCache } from '@/lib/redis';
 
 const FIELD_MAPPING: Record<string, string | null> = {
   inmate_name: 'inmate_name',
@@ -107,6 +108,9 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Invalidate metrics cache
+    await invalidateMetricsCache();
 
     // Fire-and-forget mirror sync to Sheets
     syncToSheetsAsync(updatedPatient, 'update');
