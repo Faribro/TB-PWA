@@ -189,6 +189,12 @@ export const sounds = {
     playTone(700, 0.06, 0.1, 'triangle', 0.001, 0.04)
   },
 
+  // New submission notification — gentle ascending chime
+  newSubmission: () => {
+    playTone(659.25, 0.15, 0.1, 'sine')  // E5
+    setTimeout(() => playTone(783.99, 0.2, 0.08, 'sine'), 80)  // G5
+  },
+
   // Export / download — descending sweep
   download: () => {
     const ctx = getCtx()

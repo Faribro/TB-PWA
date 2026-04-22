@@ -9,6 +9,7 @@ import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { calculatePatientPhase } from '@/lib/phase-engine';
 import { createClient } from '@/lib/supabase-client';
 import { fuzzyStaffLookup } from '@/lib/fuzzy-staff-lookup';
+import { useRealtimePatients } from '@/lib/useRealtimePatients';
 import { ScreeningCalendar } from '@/components/ScreeningCalendar';
 import { cn } from '@/lib/utils';
 import { sounds } from '@/lib/sound';
@@ -53,6 +54,25 @@ export default function MySubmissionsPage() {
   const staffName = scope?.staffName || session?.user?.staffName || session?.user?.name;
   const userName = session?.user?.name || 'Officer';
   const userFacility = session?.user?.district || 'Your Facility';
+
+  // Realtime subscription for live updates
+  const { status: realtimeStatus } = useRealtimePatients({
+    onInsert: (patient) => {
+      // Only add if it matches current user's staff name
+      const patientStaffName = patient.staff_name as string;
+      if (patientStaffName && staffName && 
+          patientStaffName.toLowerCase().includes(staffName.toLowerCase())) {
+        setPatients(prev => [patient, ...prev]);
+        sounds.newSubmission?.();
+      }
+    },
+    onUpdate: (patient) => {
+      setPatients(prev => 
+        prev.map(p => p.id === patient.id ? { ...p, ...patient } : p)
+      );
+    },
+    showToasts: false, // Disable default toasts since this is personal view
+  });
 
   // Fetch submissions with fuzzy lookup
   useEffect(() => {
@@ -176,22 +196,43 @@ export default function MySubmissionsPage() {
             transition={{ duration: 0.5 }}
             className="mb-12"
           >
-            <h1 className="text-4xl font-black text-slate-900 mb-2">
-              Welcome, {userName}
-            </h1>
-            <p className="text-lg text-slate-600 font-medium">
-              Here are your screening submissions from <span className="font-bold text-emerald-600">{userFacility}</span>
-            </p>
-            {process.env.NODE_ENV === 'development' && staffName && (
-              <p className="text-xs text-slate-500 mt-2 font-mono">
-                Searching as: <strong className="text-emerald-600">{staffName}</strong>
-                {matchStrategy && (
-                  <span className="ml-2 px-2 py-0.5 bg-slate-100 rounded text-[10px]">
-                    match: {matchStrategy}
-                  </span>
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="text-4xl font-black text-slate-900 mb-2">
+                  Welcome, {userName}
+                </h1>
+                <p className="text-lg text-slate-600 font-medium">
+                  Here are your screening submissions from <span className="font-bold text-emerald-600">{userFacility}</span>
+                </p>
+                {process.env.NODE_ENV === 'development' && staffName && (
+                  <p className="text-xs text-slate-500 mt-2 font-mono">
+                    Searching as: <strong className="text-emerald-600">{staffName}</strong>
+                    {matchStrategy && (
+                      <span className="ml-2 px-2 py-0.5 bg-slate-100 rounded text-[10px]">
+                        match: {matchStrategy}
+                      </span>
+                    )}
+                  </p>
                 )}
-              </p>
-            )}
+              </div>
+              
+              {/* Realtime Status Indicator */}
+              <div className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg shadow-sm">
+                <div className={cn(
+                  "w-2 h-2 rounded-full",
+                  realtimeStatus === 'connected' && "bg-emerald-500 animate-pulse",
+                  realtimeStatus === 'connecting' && "bg-amber-500 animate-pulse",
+                  realtimeStatus === 'disconnected' && "bg-slate-400",
+                  realtimeStatus === 'error' && "bg-red-500"
+                )} />
+                <span className="text-xs font-medium text-slate-600">
+                  {realtimeStatus === 'connected' && 'Live'}
+                  {realtimeStatus === 'connecting' && 'Connecting...'}
+                  {realtimeStatus === 'disconnected' && 'Offline'}
+                  {realtimeStatus === 'error' && 'Error'}
+                </span>
+              </div>
+            </div>
           </motion.div>
 
           {/* No Staff Name Warning */}
