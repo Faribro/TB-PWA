@@ -18,8 +18,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { useSWRConfig } from 'swr';
 import { toast } from 'sonner';
 import { useSessionScope, isSuperuser } from '@/hooks/useSessionScope';
-import { SyncStatusBadge } from './ui/SyncStatusBadge';
-import { useSyncStatus } from '@/lib/useSyncStatus';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseClient = createClient(
@@ -99,7 +97,6 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const scope = useSessionScope();
   const [localPatient, setLocalPatient] = useState(patient);
   const { mutate } = useSWRConfig();
-  const { status, setSaving, setSyncing, setSynced, setError, reset: resetSyncStatus } = useSyncStatus(patient?.id ?? null);
 
   useEffect(() => {
     if (patient && Object.keys(patient).length > 0) {
@@ -294,7 +291,6 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
   const handleSaveClinical = async () => {
     const formData = getValues();
-    setSaving();
     setIsSubmitting(true);
 
     try {
@@ -365,12 +361,10 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
           undefined,
           { revalidate: true }
         );
-        setError(errorData.error || 'Sync failed');
         throw new Error(errorData.error || 'Sync failed');
       }
 
       const { result } = await res.json();
-      setSyncing();
       
       console.log('[PatientDetailDrawer] ✅ Save successful');
       
@@ -403,57 +397,13 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       }
     } catch (error) {
       console.error('Save failed:', error);
-      setError('Failed to sync');
       toast.error('❌ Failed to save. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Realtime listener for sync confirmation
-  useEffect(() => {
-    if (!patient?.id) return;
 
-    const channel = supabaseClient
-      .channel(`patient-updates-${patient.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'patients',
-          filter: `id=eq.${patient.id}`
-        },
-        (payload) => {
-          console.log('[PatientDetailDrawer] Realtime update received:', payload.new);
-          
-          // Update local state with new data
-          setLocalPatient(payload.new);
-          setEditedDemographics(mapDemographics(payload.new));
-          
-          // Update SWR cache
-          mutate(
-            (key: unknown) => {
-              if (Array.isArray(key) &&
-                  ['patients', 'allPatients', 'patient'].includes(key[0] as string)) return true;
-              return false;
-            },
-            undefined,
-            { revalidate: false }
-          );
-          
-          // Check if sheets sync completed
-          if (payload.new.synced_to_sheets === true && status.state === 'syncing') {
-            setSynced(payload.new.sheets_synced_at || new Date().toISOString());
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabaseClient.removeChannel(channel);
-    };
-  }, [patient?.id, status.state, setSynced, mutate]);
 
   const handleSaveDemographics = async () => {
     setIsSavingDemographics(true);
@@ -692,11 +642,6 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                       <span className="w-1 h-1 rounded-full bg-white/50" />
                       {phase ?? 'Screening'}
                     </span>
-                    <SyncStatusBadge
-                      state={status.state}
-                      message={status.message}
-                      lastSyncedAt={status.lastSyncedAt}
-                    />
                   </div>
                 </div>
                 <button onClick={() => handleClose(false)} className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center flex-shrink-0 transition-colors duration-150" aria-label="Close drawer">
