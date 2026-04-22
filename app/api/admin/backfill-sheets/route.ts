@@ -176,7 +176,7 @@ export async function POST(req: NextRequest) {
     
     const { data: patients, error: queryError } = await query
       .order('created_at', { ascending: true })
-      .limit(Math.min(limit, 5)); // Max 5 records per API call
+      .limit(Math.min(limit, 1)); // Max 1 record per API call
 
     if (queryError) {
       console.error('[backfill] Query error:', queryError);
