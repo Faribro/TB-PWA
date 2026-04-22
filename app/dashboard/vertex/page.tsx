@@ -16,6 +16,7 @@ import { Search, Filter, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { LinesAndDotsLoader } from '@/components/LinesAndDotsLoader';
 import { createClient } from '@supabase/supabase-js';
+import { useRealtimeCalendar } from '@/lib/useRealtimeCalendar';
 
 // Simple fetcher for SWR
 const fetcher = (url: string) => fetch(url).then(r => r.json());
@@ -196,23 +197,17 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     }
   }, [summaryData?.total, setTotalCount]);
   
-  // SOURCE A: Calendar + metrics data (NEVER use patients for calendar)
-  // ONE call for full year calendar data (cached 5min)
+  // SOURCE A: Calendar data with LIVE websocket updates
   const { 
-    data: yearMetrics, 
+    data: calendarData, 
     error: yearMetricsError,
-    isLoading: isLoadingYearMetrics
-  } = useSWR(
-    view === 'calendar' 
-      ? `/api/vertex/metrics?year=${currentYear}&view=year&state=${selectedState || 'all'}&district=${selectedDistrict || 'all'}`
-      : null,
-    fetcher,
-    {
-      dedupingInterval: 30000, // 30 sec — calendar data (reduced from 5 min for real-time updates)
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-    }
-  );
+    isLoading: isLoadingYearMetrics,
+    status: realtimeStatus
+  } = useRealtimeCalendar({
+    year: currentYear,
+    state: selectedState,
+    district: selectedDistrict
+  });
 
   // Separate call for selected month totals panel
   const { 
@@ -305,10 +300,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     });
   }, [globalPatients, filters, selectedCalendarDate]);
 
-  // Calendar dots use yearMetrics
-  const calendarData = useMemo(() => {
-    return yearMetrics?.dailyBreakdown || [];
-  }, [yearMetrics]);
+  // Calendar data comes directly from useRealtimeCalendar hook (no memoization needed)
 
   // Monthly overview panel uses monthMetrics
   const monthlyStats = useMemo(() => {
