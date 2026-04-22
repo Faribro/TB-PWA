@@ -41,7 +41,7 @@ export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(15000) // 15s timeout for Google Sheets
+        signal: AbortSignal.timeout(8000)
       });
 
       if (response.ok) {

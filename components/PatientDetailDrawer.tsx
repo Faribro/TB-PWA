@@ -18,6 +18,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { useSWRConfig } from 'swr';
 import { toast } from 'sonner';
 import { useSessionScope, isSuperuser } from '@/hooks/useSessionScope';
+import { SyncStatusBadge } from './ui/SyncStatusBadge';
+import { useSyncStatus } from '@/lib/useSyncStatus';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseClient = createClient(
@@ -97,6 +99,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const scope = useSessionScope();
   const [localPatient, setLocalPatient] = useState(patient);
   const { mutate } = useSWRConfig();
+  const { status, setSaving, setSyncing, setSynced, setError, reset: resetSyncStatus } = useSyncStatus(patient?.id ?? null);
 
   useEffect(() => {
     if (patient && Object.keys(patient).length > 0) {
@@ -291,6 +294,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
   const handleSaveClinical = async () => {
     const formData = getValues();
+    setSaving();
     setIsSubmitting(true);
 
     try {
@@ -361,12 +365,28 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
           undefined,
           { revalidate: true }
         );
+        setError(errorData.error || 'Sync failed');
         throw new Error(errorData.error || 'Sync failed');
       }
 
       const { result } = await res.json();
+      setSyncing();
       
-      console.log('[PatientDetailDrawer] ✅ Save successful');
+      console.log('[PatientDetailDrawer] ✅ Save successful, result:', {
+        persistedFields: {
+          tb_diagnosed: result.patient?.tb_diagnosed,
+          tb_diagnosis_date: result.patient?.tb_diagnosis_date,
+          tb_type: result.patient?.tb_type,
+          att_start_date: result.patient?.att_start_date,
+          att_completion_date: result.patient?.att_completion_date,
+          hiv_status: result.patient?.hiv_status,
+          art_status: result.patient?.art_status,
+          art_number: result.patient?.art_number,
+          nikshay_abha_id: result.patient?.nikshay_abha_id,
+          registration_date: result.patient?.registration_date
+        },
+        sheetsSync: result.sheetsSync
+      });
       
       // Revalidate to ensure consistency
       await mutate(
@@ -384,7 +404,12 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       reset(getValues(), { keepValues: true });
       setHasUnsavedChanges(false);
       
-      toast.success('✅ Saved successfully', { id: 'clinical-save' });
+      // Show conditional toast based on Sheets sync status
+      if (result.sheetsSync) {
+        toast.success('✅ Saved & synced to Google Sheets', { id: 'clinical-save' });
+      } else {
+        toast.success('✅ Saved to database. Sheets sync pending...', { id: 'clinical-save', icon: '⏳' });
+      }
       
       // FIX 3: Re-fetch from DB to confirm exact persisted state
       const { data: freshPatient, error: fetchError } = await supabaseClient
@@ -397,13 +422,57 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       }
     } catch (error) {
       console.error('Save failed:', error);
+      setError('Failed to sync');
       toast.error('❌ Failed to save. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Realtime listener for sync confirmation
+  useEffect(() => {
+    if (!patient?.id) return;
 
+    const channel = supabaseClient
+      .channel(`patient-updates-${patient.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'patients',
+          filter: `id=eq.${patient.id}`
+        },
+        (payload) => {
+          console.log('[PatientDetailDrawer] Realtime update received:', payload.new);
+          
+          // Update local state with new data
+          setLocalPatient(payload.new);
+          setEditedDemographics(mapDemographics(payload.new));
+          
+          // Update SWR cache
+          mutate(
+            (key: unknown) => {
+              if (Array.isArray(key) &&
+                  ['patients', 'allPatients', 'patient'].includes(key[0] as string)) return true;
+              return false;
+            },
+            undefined,
+            { revalidate: false }
+          );
+          
+          // Check if sheets sync completed
+          if (payload.new.synced_to_sheets === true && status.state === 'syncing') {
+            setSynced(payload.new.sheets_synced_at || new Date().toISOString());
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabaseClient.removeChannel(channel);
+    };
+  }, [patient?.id, status.state, setSynced, mutate]);
 
   const handleSaveDemographics = async () => {
     setIsSavingDemographics(true);
@@ -484,7 +553,12 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       const currentValues = getValues();
       reset(currentValues, { keepValues: true });
 
-      toast.success('✅ Demographics saved successfully', { id: 'demo-save' });
+      // Show conditional toast based on Sheets sync status
+      if (result.sheetsSync) {
+        toast.success('✅ Demographics saved & synced to Google Sheets', { id: 'demo-save' });
+      } else {
+        toast.success('✅ Demographics saved. Sheets sync pending...', { id: 'demo-save', icon: '⏳' });
+      }
       
       // FIX 3: Re-fetch from DB to confirm exact persisted state
       const { data: freshPatient, error: fetchError } = await supabaseClient
@@ -642,6 +716,11 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                       <span className="w-1 h-1 rounded-full bg-white/50" />
                       {phase ?? 'Screening'}
                     </span>
+                    <SyncStatusBadge
+                      state={status.state}
+                      message={status.message}
+                      lastSyncedAt={status.lastSyncedAt}
+                    />
                   </div>
                 </div>
                 <button onClick={() => handleClose(false)} className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center flex-shrink-0 transition-colors duration-150" aria-label="Close drawer">

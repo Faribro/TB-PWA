@@ -101,8 +101,19 @@ export function usePatientMutations(
       const result = await response.json();
 
       // Phase 3: Update sync states based on result
-      setSyncState(prev => ({ ...prev, statusKobo: 'success', statusSheets: 'success' }));
-      toast.success('✅ Saved successfully', { id: toastId, duration: 4000 });
+      setSyncState(prev => ({ ...prev, statusKobo: 'success' }));
+
+      if (result.warnings && result.warnings.length > 0) {
+        setSyncState(prev => ({ ...prev, statusSheets: 'error' }));
+        toast.warning('⚠️ Saved to database. Google Sheets sync failed.', {
+          id: toastId,
+          duration: 6000,
+        });
+      } else {
+        setSyncState(prev => ({ ...prev, statusSheets: 'success' }));
+        const sheetsMessage = result.googleSheets?.message || 'Synced to all systems';
+        toast.success(`✅ ${sheetsMessage}`, { id: toastId, duration: 4000 });
+      }
 
       // Revalidate caches
       mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
