@@ -275,7 +275,7 @@ export async function GET(request: NextRequest) {
       try {
         const cachedData = await redis.get(cacheKey);
         if (cachedData) {
-          // Upstash Redis auto-deserializes, no need for JSON.parse
+          // Upstash Redis auto-deserializes - data is already an object
           cached = cachedData;
           isCached = true;
           console.log(`[vertex/aggregates] Cache HIT: ${cacheKey}`);

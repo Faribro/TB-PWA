@@ -60,7 +60,8 @@ export async function setCached<T>(
   if (!client) return;
 
   try {
-    await client.setex(key, ttlSeconds, JSON.stringify(value));
+    // Upstash Redis auto-serializes, no need for JSON.stringify
+    await client.setex(key, ttlSeconds, value);
     console.log(`[Redis] Cache SET: ${key} (TTL: ${ttlSeconds}s)`);
   } catch (error) {
     console.error('[Redis] Set error:', error);
@@ -122,4 +123,11 @@ export async function invalidatePattern(pattern: string): Promise<void> {
  */
 export async function invalidateMetricsCache(): Promise<void> {
   await invalidatePattern('metrics:*');
+}
+
+/**
+ * Flush all vertex cache (use after schema changes)
+ */
+export async function flushVertexCache(): Promise<void> {
+  await invalidatePattern('vertex:*');
 }
