@@ -275,7 +275,8 @@ export async function GET(request: NextRequest) {
       try {
         const cachedData = await redis.get(cacheKey);
         if (cachedData) {
-          cached = JSON.parse(cachedData as string);
+          // Upstash Redis auto-deserializes, no need for JSON.parse
+          cached = cachedData;
           isCached = true;
           console.log(`[vertex/aggregates] Cache HIT: ${cacheKey}`);
         }
@@ -373,7 +374,8 @@ export async function GET(request: NextRequest) {
 
     if (redis) {
       try {
-        await redis.set(cacheKey, JSON.stringify(result), { ex: 30 });
+        // Upstash Redis auto-serializes, no need for JSON.stringify
+        await redis.set(cacheKey, result, { ex: 30 });
         console.log(`[vertex/aggregates] Cache SET: ${cacheKey} (30s TTL)`);
       } catch (err) {
         console.error('[vertex/aggregates] Redis write error:', err);
