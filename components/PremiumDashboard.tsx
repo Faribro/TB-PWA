@@ -42,13 +42,22 @@ export default function PremiumDashboard() {
   
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month'>('today');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Memoize current date to prevent hydration mismatch
+  const now = useMemo(() => new Date(), []);
+  const today = useMemo(() => 
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
+    [now]
+  );
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Calculate today's patients (use local timezone date)
   const todayPatients = useMemo(() => {
-    if (!patients) return [];
-    // Get today's date in local timezone (YYYY-MM-DD)
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if (!patients || !mounted) return [];
     
     return patients.filter(p => {
       if (!p.screening_date) return false;
@@ -56,15 +65,11 @@ export default function PremiumDashboard() {
       const screeningDate = p.screening_date.split('T')[0];
       return screeningDate === today;
     });
-  }, [patients]);
+  }, [patients, today, mounted]);
 
   // Calculate metrics
   const metrics = useMemo((): MetricCard[] => {
-    if (!summaryData || !patients) return [];
-
-    // Get today's date in local timezone
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if (!summaryData || !patients || !mounted) return [];
     
     // Today's stats (from first page - sufficient for today)
     const todayScreened = todayPatients.length;
@@ -73,7 +78,7 @@ export default function PremiumDashboard() {
     const todayBreaches = todayPatients.filter(p => {
       const screeningDate = p.screening_date ? new Date(p.screening_date) : null;
       if (!screeningDate) return false;
-      const daysSince = (Date.now() - screeningDate.getTime()) / (1000 * 60 * 60 * 24);
+      const daysSince = (now.getTime() - screeningDate.getTime()) / (1000 * 60 * 60 * 24);
       return !p.referral_date && daysSince > 7;
     }).length;
 
@@ -125,7 +130,7 @@ export default function PremiumDashboard() {
         gradient: 'from-red-500 to-rose-400'
       }
     ];
-  }, [summaryData, patients, todayPatients]);
+  }, [summaryData, patients, todayPatients, now, mounted]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
