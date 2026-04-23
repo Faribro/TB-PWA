@@ -979,7 +979,6 @@ export default function Vertex({
         </>
       );
     } else {
-      const now = new Date();
       const monthYear = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
       const monthTotal = globalPatients.filter((p: any) => {
         const dateValue = p.screening_date || p.submitted_on;
@@ -993,7 +992,7 @@ export default function Vertex({
         </>
       );
     }
-  }, [selectedDate, dailySparks, globalPatients]);
+  }, [selectedDate, dailySparks, globalPatients, now]);
 
   return (
     <div className="relative w-full font-outfit overflow-x-hidden">
