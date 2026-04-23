@@ -1076,7 +1076,6 @@ export default function Vertex({
                         const dateValue = p.screening_date || p.submitted_on;
                         if (!dateValue) return false;
                         const date = new Date(dateValue);
-                        const now = new Date();
                         return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
                       }).length).toLocaleString()}
                     </span>
