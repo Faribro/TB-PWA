@@ -611,29 +611,6 @@ export default function Vertex({
   const { isReviewOpen } = useReconciliationStore();
   const { mutate } = useSWRConfig();
 
-  // Realtime subscription for targeted cache invalidation
-  useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
-    const channel = supabase
-      .channel('vertex-realtime-invalidation')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'patients' },
-        (payload) => {
-          console.log('[Vertex] Realtime event:', payload.eventType);
-          // Optimistic invalidation: mutate only affected keys
-          mutateHeatmap();
-          mutateMonthSummary();
-          if (selectedDate) mutateDaily();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [mutateHeatmap, mutateMonthSummary, mutateDaily, selectedDate]);
-
   // Update currentDate when data loads and most recent date changes
   useEffect(() => {
     if (!isLoading && mostRecentDateWithData) {
@@ -660,6 +637,29 @@ export default function Vertex({
     filterState === 'All' ? undefined : filterState,
     filterDistrict === 'All' ? undefined : filterDistrict
   );
+
+  // Realtime subscription for targeted cache invalidation
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    const channel = supabase
+      .channel('vertex-realtime-invalidation')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'patients' },
+        (payload) => {
+          console.log('[Vertex] Realtime event:', payload.eventType);
+          // Optimistic invalidation: mutate only affected keys
+          mutateHeatmap();
+          mutateMonthSummary();
+          if (selectedDate) mutateDaily();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [mutateHeatmap, mutateMonthSummary, mutateDaily, selectedDate]);
 
   // Extract available states and districts (memoized with proper dependencies)
   const { availableStates, availableDistricts } = useMemo(() => {
