@@ -1,7 +1,6 @@
 const CACHE = 'samadhaan-v3'
 const PRECACHE = [
-  '/dashboard/submit-new',
-  '/dashboard/my-submissions',
+  // Remove routes that redirect - only cache static assets
 ]
 
 self.addEventListener('install', e => {
@@ -32,6 +31,10 @@ self.addEventListener('fetch', e => {
   
   // Skip API routes (let them go through normally)
   if (e.request.url.includes('/api/')) return
+  
+  // Skip cross-origin requests
+  const url = new URL(e.request.url)
+  if (url.origin !== self.location.origin) return
   
   e.respondWith(
     caches.match(e.request).then(cached => {
