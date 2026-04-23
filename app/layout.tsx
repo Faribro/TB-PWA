@@ -10,6 +10,7 @@ import { AudioContextInitializer } from "@/components/AudioContextInitializer";
 import { ScopeInitializer } from "@/components/ScopeInitializer";
 import TourProvider from "@/components/TourProvider";
 import { Analytics } from "@vercel/analytics/next";
+import { PostHogProvider } from "@/components/PostHogProvider";
 
 const outfit = Outfit({ subsets: ["latin"], weight: ['400', '700'], variable: '--font-outfit' });
 const shareTechMono = Share_Tech_Mono({ subsets: ["latin"], weight: ['400'], variable: '--font-share-tech-mono' });
@@ -53,14 +54,16 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <Providers>
-          <ScopeInitializer />
-          <ServiceWorkerRegistration />
-          <AudioContextInitializer />
-          <DataPacketChase />
-          <TourProvider>
-            {children}
-          </TourProvider>
-          <Analytics />
+          <PostHogProvider>
+            <ScopeInitializer />
+            <ServiceWorkerRegistration />
+            <AudioContextInitializer />
+            <DataPacketChase />
+            <TourProvider>
+              {children}
+            </TourProvider>
+            <Analytics />
+          </PostHogProvider>
           <svg xmlns="http://www.w3.org/2000/svg" version="1.1" className="goo-filter">
             <defs>
               <filter id="goo">
