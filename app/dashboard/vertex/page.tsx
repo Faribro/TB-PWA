@@ -147,14 +147,14 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
           setNewDataToast(true);
           setTimeout(() => setNewDataToast(false), 3000);
           
-          // Optimistic update: append new patient to existing data
+          // Optimistic update: prepend new patient to existing data
           mutatePatients((currentData) => {
             if (!currentData || !currentData.data) return currentData;
             
-            // Append new patient to the array
+            // Prepend new patient to the beginning of array
             const newData = {
               ...currentData,
-              data: [...currentData.data, payload.new],
+              data: [payload.new, ...currentData.data],
               meta: {
                 ...currentData.meta,
                 returned: currentData.data.length + 1
