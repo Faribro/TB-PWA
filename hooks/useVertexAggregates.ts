@@ -6,10 +6,12 @@
  * - Scoped by role/state/district
  * - Precise mutation support
  * - Realtime-compatible
+ * - Prefetching for instant UX
  */
 
 import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
+import { useEffect } from 'react';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -36,6 +38,7 @@ interface DailySummary {
 
 /**
  * Fetch yearly heatmap data
+ * Prefetches adjacent months for instant navigation
  */
 export function useVertexHeatmap(
   year: number,
@@ -58,6 +61,20 @@ export function useVertexHeatmap(
     keepPreviousData: true,
   });
 
+  // Prefetch adjacent years for instant navigation
+  useEffect(() => {
+    if (!session) return;
+    const prevYear = year - 1;
+    const nextYear = year + 1;
+    const stateParam = state || 'all';
+    const districtParam = district || 'all';
+    
+    // Prefetch previous year
+    fetch(`/api/vertex/aggregates?type=heatmap&year=${prevYear}&state=${stateParam}&district=${districtParam}`);
+    // Prefetch next year
+    fetch(`/api/vertex/aggregates?type=heatmap&year=${nextYear}&state=${stateParam}&district=${districtParam}`);
+  }, [year, state, district, session]);
+
   return {
     heatmap: data?.heatmap || [],
     meta: data?.meta,
@@ -69,6 +86,7 @@ export function useVertexHeatmap(
 
 /**
  * Fetch monthly summary data
+ * Prefetches adjacent months for instant navigation
  */
 export function useVertexMonthSummary(
   year: number,
@@ -91,6 +109,26 @@ export function useVertexMonthSummary(
     revalidateOnReconnect: false,
     keepPreviousData: true,
   });
+
+  // Prefetch adjacent months for instant navigation
+  useEffect(() => {
+    if (!session) return;
+    const stateParam = state || 'all';
+    const districtParam = district || 'all';
+    
+    // Calculate previous month
+    const prevMonth = month === 1 ? 12 : month - 1;
+    const prevYear = month === 1 ? year - 1 : year;
+    
+    // Calculate next month
+    const nextMonth = month === 12 ? 1 : month + 1;
+    const nextYear = month === 12 ? year + 1 : year;
+    
+    // Prefetch previous month
+    fetch(`/api/vertex/aggregates?type=month&year=${prevYear}&month=${prevMonth}&state=${stateParam}&district=${districtParam}`);
+    // Prefetch next month
+    fetch(`/api/vertex/aggregates?type=month&year=${nextYear}&month=${nextMonth}&state=${stateParam}&district=${districtParam}`);
+  }, [year, month, state, district, session]);
 
   return {
     monthSummary: data?.monthSummary,

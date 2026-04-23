@@ -43,6 +43,9 @@ import { useReconciliationStore } from '@/stores/useReconciliationStore';
 import { RegisterUploadModal } from '@/components/RegisterUploadModal';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope } from '@/hooks/useSessionScope';
+import { useVertexHeatmap, useVertexMonthSummary, useVertexDaily } from '@/hooks/useVertexAggregates';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // TypeScript Interfaces
 interface MonthlyHeatmapData {
@@ -608,12 +611,55 @@ export default function Vertex({
   const { isReviewOpen } = useReconciliationStore();
   const { mutate } = useSWRConfig();
 
+  // Realtime subscription for targeted cache invalidation
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    const channel = supabase
+      .channel('vertex-realtime-invalidation')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'patients' },
+        (payload) => {
+          console.log('[Vertex] Realtime event:', payload.eventType);
+          // Optimistic invalidation: mutate only affected keys
+          mutateHeatmap();
+          mutateMonthSummary();
+          if (selectedDate) mutateDaily();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [mutateHeatmap, mutateMonthSummary, mutateDaily, selectedDate]);
+
   // Update currentDate when data loads and most recent date changes
   useEffect(() => {
     if (!isLoading && mostRecentDateWithData) {
       setCurrentDate(clampToCurrentMonth(mostRecentDateWithData));
     }
   }, [mostRecentDateWithData, isLoading, clampToCurrentMonth]);
+
+  // Redis-backed aggregates (instant reads)
+  const { heatmap: cachedHeatmap, mutate: mutateHeatmap } = useVertexHeatmap(
+    currentDate.getFullYear(),
+    filterState === 'All' ? undefined : filterState,
+    filterDistrict === 'All' ? undefined : filterDistrict
+  );
+
+  const { monthSummary: cachedMonthSummary, mutate: mutateMonthSummary } = useVertexMonthSummary(
+    currentDate.getFullYear(),
+    currentDate.getMonth() + 1,
+    filterState === 'All' ? undefined : filterState,
+    filterDistrict === 'All' ? undefined : filterDistrict
+  );
+
+  const { dailySummary: cachedDailySummary, mutate: mutateDaily } = useVertexDaily(
+    selectedDate,
+    filterState === 'All' ? undefined : filterState,
+    filterDistrict === 'All' ? undefined : filterDistrict
+  );
 
   // Extract available states and districts (memoized with proper dependencies)
   const { availableStates, availableDistricts } = useMemo(() => {
@@ -636,35 +682,14 @@ export default function Vertex({
     };
   }, [globalPatients]);
 
-  // Task 3: Derive Calendar Data from globalPatients (Single Source of Truth) with Filters
+  // Use Redis-backed heatmap (instant reads)
   const heatmapData = useMemo(() => {
-    if (!globalPatients?.length) return [];
-    
-    const grouped: Record<string, MonthlyHeatmapData> = {};
-    
-    for (let i = 0; i < globalPatients.length; i++) {
-      const patient = globalPatients[i];
-      // ✅ NULL SAFETY: Guard against null/undefined patients
-      if (!patient) continue;
-      
-      // Apply geographic filters early
-      if (filterState !== 'All' && patient.screening_state !== filterState) continue;
-      if (filterDistrict !== 'All' && patient.screening_district !== filterDistrict) continue;
-      
-      const dateValue = patient.screening_date || patient.submitted_on;
-      const normalizedDate = getLocalYMD(dateValue);
-      
-      if (!normalizedDate) continue;
-      
-      if (!grouped[normalizedDate]) {
-        grouped[normalizedDate] = { date: normalizedDate, screenedCount: 0, breachCount: 0 };
-      }
-      grouped[normalizedDate].screenedCount++;
-      if (!patient.referral_date) grouped[normalizedDate].breachCount++;
-    }
-
-    return Object.values(grouped);
-  }, [globalPatients, filterState, filterDistrict]);
+    return cachedHeatmap.map(day => ({
+      date: day.date,
+      screenedCount: day.screenedCount,
+      breachCount: day.breachCount
+    }));
+  }, [cachedHeatmap]);
 
   // FIXED: Auto-jump to latest month with data (responds to new data)
   useEffect(() => {
@@ -729,15 +754,19 @@ export default function Vertex({
     return result;
   }, [selectedDate, globalPatients, filterState, filterDistrict]);
 
-  // Task 1: Data Aggregation - Daily Sparks
+  // Use Redis-backed daily summary (instant reads)
   const dailySparks = useMemo((): DailySparks => {
+    if (cachedDailySummary) {
+      return cachedDailySummary;
+    }
+    // Fallback to client-side computation only if cache miss
     const totalScreened = patientsForSelectedDate.length;
     const pendingSputum = patientsForSelectedDate.filter((p: any) => !p.referral_date).length;
     const diagnosed = patientsForSelectedDate.filter((p: any) => p.tb_diagnosed === 'Y').length;
     const suspected = patientsForSelectedDate.filter((p: any) => p.xray_result === 'Suspected TB Case').length;
 
     return { totalScreened, pendingSputum, diagnosed, onTrack: suspected };
-  }, [patientsForSelectedDate]);
+  }, [cachedDailySummary, patientsForSelectedDate]);
 
   // Task 1: Data Aggregation - Grouped Geography (optimized)
   const groupedGeography = useMemo((): StateData[] => {
@@ -873,19 +902,29 @@ export default function Vertex({
   }, [patientsForSelectedFacility]);
 
   const handlePrevMonth = () => {
-    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    const prev = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    setCurrentDate(prev);
+    // Prefetch adjacent month for instant navigation
+    const prefetchYear = prev.getFullYear();
+    const prefetchMonth = prev.getMonth() + 1;
+    fetch(`/api/vertex/aggregates?type=month&year=${prefetchYear}&month=${prefetchMonth}&state=${filterState === 'All' ? 'all' : filterState}&district=${filterDistrict === 'All' ? 'all' : filterDistrict}`);
   };
 
   const handleNextMonth = () => {
-    setCurrentDate(prev => {
-      const next = new Date(prev.getFullYear(), prev.getMonth() + 1, 1);
-      return clampToCurrentMonth(next);
-    });
+    const next = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+    const clamped = clampToCurrentMonth(next);
+    setCurrentDate(clamped);
+    // Prefetch adjacent month for instant navigation
+    const prefetchYear = clamped.getFullYear();
+    const prefetchMonth = clamped.getMonth() + 1;
+    fetch(`/api/vertex/aggregates?type=month&year=${prefetchYear}&month=${prefetchMonth}&state=${filterState === 'All' ? 'all' : filterState}&district=${filterDistrict === 'All' ? 'all' : filterDistrict}`);
   };
 
   const handleDateSelect = (date: string) => {
     sounds.calendarClick();
     setSelectedDate(date);
+    // Prefetch daily data for instant drilldown
+    fetch(`/api/vertex/aggregates?type=daily&date=${date}&state=${filterState === 'All' ? 'all' : filterState}&district=${filterDistrict === 'All' ? 'all' : filterDistrict}`);
   };
 
   const handleClearDate = () => {
@@ -905,6 +944,10 @@ export default function Vertex({
   };
 
   const handlePatientUpdate = () => {
+    // Optimistic invalidation: mutate all affected aggregate keys
+    mutateHeatmap();
+    mutateMonthSummary();
+    mutateDaily();
     mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
   };
 
