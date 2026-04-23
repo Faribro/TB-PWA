@@ -230,10 +230,10 @@ const CalendarGrid = ({
 }) => {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDay = useMemo(() => new Date(year, month, 1).getDay(), [year, month]);
+  const daysInMonth = useMemo(() => new Date(year, month + 1, 0).getDate(), [year, month]);
   
-  const days = Array.from({ length: 42 }, (_, i) => {
+  const days = useMemo(() => Array.from({ length: 42 }, (_, i) => {
     const dayNum = i - firstDay + 1;
     if (dayNum < 1 || dayNum > daysInMonth) return null;
     
@@ -241,7 +241,7 @@ const CalendarGrid = ({
     const dayData = heatmapData.find(d => d.date === dateStr);
     
     return { dayNum, dateStr, data: dayData };
-  });
+  }), [firstDay, daysInMonth, year, month, heatmapData]);
 
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
