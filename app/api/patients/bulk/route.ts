@@ -74,16 +74,6 @@ export async function GET(request: NextRequest) {
         
         query = buildScopedQuery(query, scope, filters);
         
-        // First, get count to determine strategy
-        const { count: totalCount } = await supabase
-          .from('patients')
-          .select('*', { count: 'exact', head: true });
-        
-        if (totalCount && totalCount > MAX_BULK_SIZE) {
-          console.warn(`[patients/bulk] Dataset too large (${totalCount}), limiting to ${MAX_BULK_SIZE}`);
-          query = query.limit(MAX_BULK_SIZE);
-        }
-        
         const { data, error, count } = await query;
         
         if (error) {
@@ -103,7 +93,6 @@ export async function GET(request: NextRequest) {
             scope: scope.sessionState || 'national',
             durationMs,
             cached: false,
-            limited: totalCount ? totalCount > MAX_BULK_SIZE : false,
           },
         };
         });
