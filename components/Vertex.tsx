@@ -642,18 +642,17 @@ export default function Vertex({
   const { isReviewOpen } = useReconciliationStore();
   const { mutate } = useSWRConfig();
   const hasAutoJumpedRef = useRef(false);
+  const currentDateRef = useRef(currentDate);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    currentDateRef.current = currentDate;
+  }, [currentDate]);
 
   useEffect(() => {
     console.log('[Vertex] Mounting component, setting mounted=true');
     setMounted(true);
   }, []);
-
-  // Update currentDate when data loads and most recent date changes
-  useEffect(() => {
-    if (!isLoading && mostRecentDateWithData) {
-      setCurrentDate(clampToCurrentMonth(mostRecentDateWithData));
-    }
-  }, [mostRecentDateWithData, isLoading, clampToCurrentMonth]);
 
   // Redis-backed aggregates (instant reads)
   const { heatmap: cachedHeatmap, mutate: mutateHeatmap } = useVertexHeatmap(
@@ -737,7 +736,7 @@ export default function Vertex({
     const monthKey = (d: Date) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
-    const currentKey = monthKey(currentDate);
+    const currentKey = monthKey(currentDateRef.current); // ✅ Use ref instead of state
 
     const hasAnyInCurrentMonth = heatmapData.some(
       d => d?.date?.startsWith(currentKey) && (d?.screenedCount ?? 0) > 0
@@ -779,7 +778,7 @@ export default function Vertex({
     } else {
       hasAutoJumpedRef.current = true; // ✅ Mark as complete if no jump needed
     }
-  }, [heatmapData, selectedDate, currentDate, clampToCurrentMonth]);
+  }, [heatmapData, selectedDate]); // ⚠️ REMOVED currentDate and clampToCurrentMonth from dependencies
 
   const patientsForSelectedDate = useMemo(() => {
     if (!selectedDate || !globalPatients?.length) return [];
