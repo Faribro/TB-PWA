@@ -140,6 +140,9 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
         (payload) => {
           console.log('[Vertex] New patient inserted:', payload.new);
           
+          // Play calm water drop sound
+          sounds.waterDrop();
+          
           // Show toast notification
           setNewDataToast(true);
           setTimeout(() => setNewDataToast(false), 3000);
@@ -149,7 +152,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
             if (!currentData || !currentData.data) return currentData;
             
             // Append new patient to the array
-            return {
+            const newData = {
               ...currentData,
               data: [...currentData.data, payload.new],
               meta: {
@@ -157,6 +160,12 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
                 returned: currentData.data.length + 1
               }
             };
+            
+            // Trigger count pulse animation
+            setCountPulse(true);
+            setTimeout(() => setCountPulse(false), 500);
+            
+            return newData;
           }, false); // Don't revalidate - just update cache
           
           // Revalidate summary and calendar metrics immediately

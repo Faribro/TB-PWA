@@ -195,6 +195,42 @@ export const sounds = {
     setTimeout(() => playTone(783.99, 0.2, 0.08, 'sine'), 80)  // G5
   },
 
+  // Water drop — calm, relaxing notification for new patient entry
+  waterDrop: () => {
+    if (!shouldPlay()) return
+    try {
+      const ctx = getCtx()
+      const now = ctx.currentTime
+      
+      // Drop impact — high frequency with quick decay
+      const drop = ctx.createOscillator()
+      const dropGain = ctx.createGain()
+      drop.type = 'sine'
+      drop.frequency.setValueAtTime(1200, now)
+      drop.frequency.exponentialRampToValueAtTime(400, now + 0.08)
+      dropGain.gain.setValueAtTime(0.15, now)
+      dropGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
+      drop.connect(dropGain)
+      dropGain.connect(ctx.destination)
+      drop.start(now)
+      drop.stop(now + 0.15)
+      
+      // Ripple — soft resonance
+      const ripple = ctx.createOscillator()
+      const rippleGain = ctx.createGain()
+      ripple.type = 'sine'
+      ripple.frequency.setValueAtTime(300, now + 0.05)
+      ripple.frequency.exponentialRampToValueAtTime(250, now + 0.4)
+      rippleGain.gain.setValueAtTime(0, now + 0.05)
+      rippleGain.gain.linearRampToValueAtTime(0.08, now + 0.1)
+      rippleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4)
+      ripple.connect(rippleGain)
+      rippleGain.connect(ctx.destination)
+      ripple.start(now + 0.05)
+      ripple.stop(now + 0.4)
+    } catch (e) {}
+  },
+
   // Export / download — descending sweep
   download: () => {
     const ctx = getCtx()

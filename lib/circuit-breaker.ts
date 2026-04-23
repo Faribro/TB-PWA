@@ -1,44 +1,79 @@
-interface CircuitBreakerOptions {
-  timeout?: number;
-  maxRetries?: number;
-  retryDelay?: number;
-  fallback?: () => any;
+/**
+ * Circuit Breaker Pattern for API Resilience
+ * 
+ * Prevents cascading failures by:
+ * 1. Tracking failure rates
+ * 2. Opening circuit after threshold
+ * 3. Half-open state for recovery testing
+ * 4. Automatic recovery
+ */
+
+interface CircuitBreakerState {
+  failures: number;
+  lastFailureTime: number;
+  state: 'CLOSED' | 'OPEN' | 'HALF_OPEN';
 }
 
-export async function withCircuitBreaker<T>(
-  fn: () => Promise<T>,
-  options: CircuitBreakerOptions = {}
-): Promise<T> {
-  const {
-    timeout = 5000,
-    maxRetries = 3,
-    retryDelay = 1000,
-    fallback
-  } = options;
+class CircuitBreaker {
+  private state: CircuitBreakerState = {
+    failures: 0,
+    lastFailureTime: 0,
+    state: 'CLOSED',
+  };
 
-  let lastError: Error | null = null;
+  private readonly failureThreshold = 5; // Open after 5 failures
+  private readonly timeout = 60000; // Try recovery after 60s
+  private readonly successThreshold = 2; // Close after 2 successes in half-open
 
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
+  async execute<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.state.state === 'OPEN') {
+      // Check if timeout has passed
+      if (Date.now() - this.state.lastFailureTime > this.timeout) {
+        console.log('[CircuitBreaker] Entering HALF_OPEN state');
+        this.state.state = 'HALF_OPEN';
+      } else {
+        throw new Error('Circuit breaker is OPEN - service unavailable');
+      }
+    }
+
     try {
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Circuit breaker timeout')), timeout)
-      );
-
-      const result = await Promise.race([fn(), timeoutPromise]);
+      const result = await fn();
+      this.onSuccess();
       return result;
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      
-      if (attempt < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, retryDelay * (attempt + 1)));
-      }
+      this.onFailure();
+      throw error;
     }
   }
 
-  if (fallback) {
-    console.warn('[CircuitBreaker] All retries failed, using fallback');
-    return fallback();
+  private onSuccess() {
+    if (this.state.state === 'HALF_OPEN') {
+      console.log('[CircuitBreaker] Success in HALF_OPEN, closing circuit');
+      this.state = {
+        failures: 0,
+        lastFailureTime: 0,
+        state: 'CLOSED',
+      };
+    } else {
+      this.state.failures = 0;
+    }
   }
 
-  throw lastError || new Error('Circuit breaker failed');
+  private onFailure() {
+    this.state.failures++;
+    this.state.lastFailureTime = Date.now();
+
+    if (this.state.failures >= this.failureThreshold) {
+      console.error('[CircuitBreaker] Threshold reached, opening circuit');
+      this.state.state = 'OPEN';
+    }
+  }
+
+  getState() {
+    return this.state.state;
+  }
 }
+
+// Global circuit breakers for different services
+export const patientsCircuitBreaker = new CircuitBreaker();
+export const metricsCircuitBreaker = new CircuitBreaker();

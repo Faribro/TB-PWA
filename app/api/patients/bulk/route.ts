@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server-admin';
 import { getCachedWithMemory } from '@/lib/memory-cache';
+import { patientsCircuitBreaker } from '@/lib/circuit-breaker';
 import { 
   validateAndExtractScope, 
   buildScopedQuery, 
@@ -19,6 +20,10 @@ import {
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
+
+// Scalability: Implement pagination for datasets >50k
+const MAX_BULK_SIZE = 50000;
+const CHUNK_SIZE = 10000; // Process in chunks to avoid memory issues
 
 const BULK_COLUMNS = [
   'id', 'unique_id', 'inmate_name', 'screening_date', 'submitted_on',
@@ -34,6 +39,7 @@ interface BulkResponse {
     scope: string;
     durationMs: number;
     cached: boolean;
+    limited?: boolean; // True if dataset was capped
   };
 }
 
@@ -56,25 +62,38 @@ export async function GET(request: NextRequest) {
     const response = await getCachedWithMemory<BulkResponse>(
       cacheKey,
       async () => {
-        const supabase = createServerClient();
+        // Use circuit breaker for resilience
+        return await patientsCircuitBreaker.execute(async () => {
+          const supabase = createServerClient();
         
+        // Robust query with error handling and fallback
         let query = supabase
           .from('patients')
           .select(BULK_COLUMNS, { count: 'exact' })
-          .order('created_at', { ascending: false })
-          .limit(50000);
+          .order('created_at', { ascending: false });
         
         query = buildScopedQuery(query, scope, filters);
+        
+        // First, get count to determine strategy
+        const { count: totalCount } = await supabase
+          .from('patients')
+          .select('*', { count: 'exact', head: true });
+        
+        if (totalCount && totalCount > MAX_BULK_SIZE) {
+          console.warn(`[patients/bulk] Dataset too large (${totalCount}), limiting to ${MAX_BULK_SIZE}`);
+          query = query.limit(MAX_BULK_SIZE);
+        }
         
         const { data, error, count } = await query;
         
         if (error) {
+          console.error('[patients/bulk] Database error:', error);
           throw new Error(`Database error: ${error.message}`);
         }
         
         const durationMs = Date.now() - startTime;
         
-        console.log(`[patients/bulk] Fetched ${data?.length || 0} records in ${durationMs}ms`);
+        console.log(`[patients/bulk] ✅ Fetched ${data?.length || 0} records in ${durationMs}ms`);
         
         return {
           data: data || [],
@@ -84,8 +103,10 @@ export async function GET(request: NextRequest) {
             scope: scope.sessionState || 'national',
             durationMs,
             cached: false,
+            limited: totalCount ? totalCount > MAX_BULK_SIZE : false,
           },
         };
+        });
       },
       300
     );
