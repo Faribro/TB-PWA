@@ -243,10 +243,24 @@ const CalendarGrid = ({
 }) => {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
-  const firstDay = useMemo(() => new Date(year, month, 1).getDay(), [year, month]);
-  const daysInMonth = useMemo(() => new Date(year, month + 1, 0).getDate(), [year, month]);
   
-  const days = useMemo(() => Array.from({ length: 42 }, (_, i) => {
+  console.log('[CalendarGrid] Render - year:', year, 'month:', month, 'heatmapData length:', heatmapData.length);
+  
+  const firstDay = useMemo(() => {
+    const day = new Date(year, month, 1).getDay();
+    console.log('[CalendarGrid] firstDay:', day);
+    return day;
+  }, [year, month]);
+  
+  const daysInMonth = useMemo(() => {
+    const days = new Date(year, month + 1, 0).getDate();
+    console.log('[CalendarGrid] daysInMonth:', days);
+    return days;
+  }, [year, month]);
+  
+  const days = useMemo(() => {
+    console.log('[CalendarGrid] Computing days array - firstDay:', firstDay, 'daysInMonth:', daysInMonth);
+    return Array.from({ length: 42 }, (_, i) => {
     const dayNum = i - firstDay + 1;
     if (dayNum < 1 || dayNum > daysInMonth) return null;
     
@@ -628,6 +642,7 @@ export default function Vertex({
   const { mutate } = useSWRConfig();
 
   useEffect(() => {
+    console.log('[Vertex] Mounting component, setting mounted=true');
     setMounted(true);
   }, []);
 
@@ -1052,6 +1067,7 @@ export default function Vertex({
                 mounted={mounted}
               />
               <div>
+                {console.log('[Vertex] Rendering calendar area, mounted:', mounted)}
                 {mounted && (
                   <CalendarGrid
                     heatmapData={heatmapData}
