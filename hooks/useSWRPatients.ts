@@ -130,6 +130,7 @@ export function useSWRAllPatients(
       const result = await response.json();
       console.log('[useSWRPatients] Bulk response:', {
         total: result.data.length,
+        metaTotal: result.meta.total,
         cached: result.meta.cached,
         durationMs: result.meta.durationMs
       });
@@ -174,7 +175,7 @@ export function useSWRAllPatients(
   return {
     patients: data?.data ?? [],
     meta: data?.meta ?? null,
-    total: data?.data?.length ?? 0,
+    total: data?.meta?.total ?? data?.data?.length ?? 0,
     hasMore: false,
     nextCursor: null,
     isLoading,

@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       dateTo: searchParams.get('dateTo') || undefined,
     };
     
-    const cacheKey = `patients:bulk:${scope.role}:${scope.sessionState || 'all'}:${JSON.stringify(filters)}`;
+    const cacheKey = `patients:bulk:v2:${scope.role}:${scope.sessionState || 'all'}:${JSON.stringify(filters)}`;
     
     const response = await getCachedWithMemory<BulkResponse>(
       cacheKey,
