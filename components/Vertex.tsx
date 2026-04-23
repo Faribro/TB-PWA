@@ -554,6 +554,12 @@ export default function Vertex({
     onTreatment: number;
   };
 } = {}) {
+  const [isClient, setIsClient] = useState(false);
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   const now = useMemo(() => new Date(), []);
   const currentMonthStart = useMemo(
     () => new Date(now.getFullYear(), now.getMonth(), 1),
@@ -960,8 +966,16 @@ export default function Vertex({
       })
     : '';
 
-  // Dynamic Calendar Sentence
+  // Dynamic Calendar Sentence (client-only to prevent hydration mismatch)
+  const [isClient, setIsClient] = useState(false);
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   const dynamicSentence = useMemo(() => {
+    if (!isClient) return null; // Prevent hydration mismatch
+    
     if (selectedDate) {
       const dateObj = new Date(selectedDate);
       const formattedDateShort = dateObj.toLocaleDateString('en-US', {
@@ -991,7 +1005,7 @@ export default function Vertex({
         </>
       );
     }
-  }, [selectedDate, dailySparks, globalPatients]);
+  }, [selectedDate, dailySparks, globalPatients, isClient]);
 
   return (
     <div className="relative w-full font-outfit overflow-x-hidden">
