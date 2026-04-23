@@ -120,298 +120,86 @@ export function useSWRAllPatients(
   const { data, error, isLoading, mutate } = useSWR(
     key,
     async () => {
-      // Abort any in-flight background loading
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
-      backgroundLoadingRef.current = false;
+      // Use bulk endpoint for faster loading
+      const params = new URLSearchParams();
+      if (filters?.state) params.set('state', filters.state);
+      if (filters?.district) params.set('district', filters.district);
+      if (filters?.dateFrom) params.set('dateFrom', filters.dateFrom);
+      if (filters?.dateTo) params.set('dateTo', filters.dateTo);
       
-      // Fetch first page immediately
-      const firstPage = await cursorFetcher(scope, limit, filters, null, true);
+      const url = `/api/patients/bulk?${params.toString()}`;
+      console.log('[useSWRPatients] Fetching bulk:', url);
       
-      if (!progressive) {
-        // Non-progressive mode: return first page only
-        return {
-          data: firstPage.data,
-          nextCursor: firstPage.nextCursor,
-          hasMore: firstPage.hasMore,
-          meta: {
-            ...firstPage.meta,
-            pages: 1,
-            progressive: false
-          }
-        };
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Bulk API error: ${response.status}`);
       }
       
-      // Progressive mode: return first page, start background loading
+      const result = await response.json();
+      console.log('[useSWRPatients] Bulk response:', {
+        total: result.data.length,
+        cached: result.meta.cached,
+        durationMs: result.meta.durationMs
+      });
+      
+      // Return in expected format
       return {
-        data: firstPage.data,
-        nextCursor: firstPage.nextCursor,
-        hasMore: firstPage.hasMore,
+        data: result.data,
+        nextCursor: null,
+        hasMore: false,
         meta: {
-          ...firstPage.meta,
+          returned: result.data.length,
+          requestedLimit: result.data.length,
+          role: result.meta.role,
+          durationMs: result.meta.durationMs,
+          mode: 'bulk' as const,
           pages: 1,
-          progressive: true
+          progressive: false
         }
       };
     },
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      refreshInterval: 0, // Disable global polling to prevent background loop aborts
+      refreshInterval: 0,
       dedupingInterval: 30000,
       errorRetryCount: 3,
       errorRetryInterval: 2000,
-      keepPreviousData: false, // Don't keep stale data on filter change
+      keepPreviousData: false,
       onError: (err) => {
         console.error('[useSWRPatients] Error:', err);
       }
     }
   );
   
-  // Track initial data to prevent effect re-runs during background loading
-  const filtersRef = useRef(filters);
-  const [shouldStartLoading, setShouldStartLoading] = useState(false);
-  const hasCompletedLoadRef = useRef(false);
-  
-  // Update filters ref
-  useEffect(() => {
-    filtersRef.current = filters;
-  }, [filters]);
-  
-  // Watch for first page data arrival and trigger loading flag
-  // CRITICAL: This should ONLY trigger once when first page arrives, never during background load
-  useEffect(() => {
-    if (!progressive || !data?.data) return;
-    
-    // NEVER trigger if background loading has ever started for this filter set
-    if (backgroundLoadingRef.current || hasCompletedLoadRef.current || shouldStartLoading) {
-      return;
-    }
-    
-    // Only trigger if this is first page data (exactly limit records, pages === 1)
-    if (
-      data.data.length === limit && 
-      data.meta?.pages === 1 && 
-      data.hasMore && 
-      data.nextCursor
-    ) {
-      console.log('[useSWRPatients] First page data detected, setting shouldStartLoading=true');
-      setShouldStartLoading(true);
-    }
-  }, [data?.data?.length, data?.meta?.pages, data?.hasMore, progressive, limit, shouldStartLoading]);
-  
-  // Reset loading flag on filter change
-  useEffect(() => {
-    setShouldStartLoading(false);
-    hasCompletedLoadRef.current = false;
-  }, [stableEffectKey]);
-  
-  // Background loading effect - triggers ONCE when shouldStartLoading becomes true
-  // Does NOT depend on data, so cache mutations don't retrigger it
-  useEffect(() => {
-    if (!shouldStartLoading || !progressive) {
-      return;
-    }
-    
-    if (backgroundLoadingRef.current) {
-      console.log('[useSWRPatients] Background loading already in progress');
-      return;
-    }
-    
-    if (hasCompletedLoadRef.current) {
-      console.log('[useSWRPatients] Load already completed for this filter set');
-      return;
-    }
-    
-    // Get current data snapshot
-    if (!data?.data || data.data.length !== limit || !data.hasMore || !data.nextCursor) {
-      console.log('[useSWRPatients] Data not ready for background load');
-      return;
-    }
-    
-    // Abort any previous session
-    if (abortControllerRef.current) {
-      console.log('[useSWRPatients] Aborting previous session');
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    
-    const sessionId = Date.now().toString();
-    currentSessionIdRef.current = sessionId;
-    backgroundLoadingRef.current = true;
-    
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    
-    console.log(`[useSWRPatients] [${sessionId}] Starting background load session`);
-    
-    setProgressState(prev => ({
-      ...prev,
-      loadedCount: data.data.length,
-      isLoadingMore: true
-    }));
-    
-    (async () => {
-      try {
-        let allRecords = [...data.data];
-        let cursor = data.nextCursor;
-        let hasMore = data.hasMore;
-        let iterations = 1;
-        const startTime = Date.now();
-        
-        console.log(`[useSWRPatients] [${sessionId}] Starting background load from page 2, cursor:`, cursor);
-        
-        while (hasMore && cursor && iterations < maxPages && allRecords.length < maxRecords) {
-          if (controller.signal.aborted) {
-            console.log(`[useSWRPatients] [${sessionId}] Background load aborted`);
-            return;
-          }
-          
-          console.log(`[useSWRPatients] [${sessionId}] Fetching page ${iterations + 1} with cursor:`, cursor);
-          const page = await cursorFetcher(scope, limit, filtersRef.current, cursor, true);
-          console.log(`[useSWRPatients] [${sessionId}] Page ${iterations + 1} response:`, {
-            dataLength: page.data.length,
-            hasMore: page.hasMore,
-            nextCursor: page.nextCursor
-          });
-          
-          if (controller.signal.aborted) {
-            console.log(`[useSWRPatients] [${sessionId}] Aborted after fetch`);
-            return;
-          }
-          
-          allRecords = [...allRecords, ...page.data];
-          cursor = page.nextCursor;
-          hasMore = page.hasMore;
-          iterations++;
-          
-          // Update progress
-          setProgressState(prev => ({
-            loadedCount: allRecords.length,
-            totalCount: prev.totalCount,
-            isLoadingMore: hasMore,
-            progress: prev.totalCount > 0 ? Math.min(100, Math.round((allRecords.length / prev.totalCount) * 100)) : 0
-          }));
-          
-          // Update SWR cache with accumulated data (revalidate: false prevents effect re-trigger)
-          console.log(`[useSWRPatients] [${sessionId}] Updating cache with ${allRecords.length} records`);
-          mutate({
-            data: allRecords,
-            nextCursor: cursor,
-            hasMore,
-            meta: {
-              returned: allRecords.length,
-              requestedLimit: limit,
-              role: scope?.role || 'unknown',
-              durationMs: Date.now() - startTime,
-              mode: 'cursor' as const,
-              pages: iterations,
-              progressive: true
-            }
-          }, { revalidate: false });
-          
-          console.log(`[useSWRPatients] [${sessionId}] Background page ${iterations + 1}: +${page.data.length}, total: ${allRecords.length}, hasMore: ${hasMore}, cursor: ${cursor}`);
-          
-          if (!hasMore || !cursor) {
-            console.log(`[useSWRPatients] [${sessionId}] Breaking: hasMore=${hasMore}, cursor=${cursor}`);
-            break;
-          }
-          
-          if (iterations >= maxPages) {
-            console.warn(`[useSWRPatients] [${sessionId}] Hit maxPages (${maxPages})`);
-            break;
-          }
-          
-          if (allRecords.length >= maxRecords) {
-            console.warn(`[useSWRPatients] [${sessionId}] Hit maxRecords (${maxRecords})`);
-            break;
-          }
-        }
-        
-        const durationMs = Date.now() - startTime;
-        console.log(`[useSWRPatients] [${sessionId}] ✅ Background load complete: ${allRecords.length} in ${iterations + 1} pages (${durationMs}ms)`);
-        
-        // Mark as completed to prevent re-triggering
-        hasCompletedLoadRef.current = true;
-        
-        setProgressState(prev => ({
-          ...prev,
-          isLoadingMore: false,
-          progress: 100
-        }));
-        
-      } catch (err) {
-        if (!controller.signal.aborted) {
-          console.error(`[useSWRPatients] [${sessionId}] Background load error:`, err);
-          setProgressState(prev => ({ ...prev, isLoadingMore: false }));
-        }
-      } finally {
-        console.log(`[useSWRPatients] [${sessionId}] Cleaning up`);
-        if (currentSessionIdRef.current === sessionId) {
-          backgroundLoadingRef.current = false;
-          abortControllerRef.current = null;
-        }
-      }
-    })();
-    
-    return () => {
-      console.log(`[useSWRPatients] [${sessionId}] Effect cleanup - aborting session`);
-      controller.abort();
-      if (currentSessionIdRef.current === sessionId) {
-        backgroundLoadingRef.current = false;
-        abortControllerRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shouldStartLoading, progressive, limit, scope, maxPages, maxRecords]);
-  
-  // Update total count from external source
+  // No progressive loading needed with bulk endpoint
+  const [progressState] = useState<ProgressiveLoadState>({
+    loadedCount: 0,
+    totalCount: 0,
+    isLoadingMore: false,
+    progress: 100
+  });
+
   const setTotalCount = useCallback((total: number) => {
-    setProgressState(prev => {
-      const loadedCount = prev.loadedCount || (data?.data?.length ?? 0);
-      return {
-        ...prev,
-        totalCount: total,
-        progress: loadedCount > 0 && total > 0 ? Math.min(100, Math.round((loadedCount / total) * 100)) : 0
-      };
-    });
-  }, [data?.data?.length]);
-  
-  // Reset progress on filter/scope change
-  useEffect(() => {
-    setProgressState({
-      loadedCount: 0,
-      totalCount: 0,
-      isLoadingMore: false,
-      progress: 0
-    });
-  }, [stableEffectKey]);
+    // No-op with bulk endpoint
+  }, []);
 
   const currentLoadedCount = data?.data?.length ?? 0;
-  const displayProgress = progressState.totalCount > 0 && currentLoadedCount > 0
-    ? Math.min(100, Math.round((currentLoadedCount / progressState.totalCount) * 100))
-    : 0;
-
-  // Debug: Log when data.data.length changes
-  useEffect(() => {
-    console.log('[useSWRPatients] Hook returning patients array length:', currentLoadedCount);
-  }, [currentLoadedCount]);
+  const displayProgress = 100;
 
   return {
     patients: data?.data ?? [],
     meta: data?.meta ?? null,
     total: data?.data?.length ?? 0,
-    hasMore: data?.hasMore ?? false,
-    nextCursor: data?.nextCursor ?? null,
+    hasMore: false,
+    nextCursor: null,
     isLoading,
-    isLoadingMore: progressState.isLoadingMore,
+    isLoadingMore: false,
     loadedCount: currentLoadedCount,
-    totalCount: progressState.totalCount,
+    totalCount: currentLoadedCount,
     progress: displayProgress,
-    isPartialLoad: false, // Kept for interface compatibility
-    cappedReason: null as string | null, // Kept for interface compatibility
+    isPartialLoad: false,
+    cappedReason: null as string | null,
     error,
     mutate,
     setTotalCount

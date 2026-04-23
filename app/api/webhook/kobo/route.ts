@@ -370,9 +370,9 @@ async function upsertPatient(
       if (!error) {
         const operation = status === 201 ? 'inserted' : 'updated';
         console.log(`[webhook] Supabase ${operation}: ${kobo_uuid}`);
-        // Invalidate all cache layers (memory + Redis)
-        await invalidateAllLayers('patients:*'); // Clear patients list cache
-        await invalidateAllLayers('metrics:*'); // Clear metrics cache
+        // Invalidate all cache layers
+        await invalidateAllLayers('patients:*'); // Clears both paginated and bulk
+        await invalidateAllLayers('metrics:*');
         return { success: true, operation };
       }
 
