@@ -967,12 +967,6 @@ export default function Vertex({
     : '';
 
   // Dynamic Calendar Sentence (client-only to prevent hydration mismatch)
-  const [isClient, setIsClient] = useState(false);
-  
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
   const dynamicSentence = useMemo(() => {
     if (!isClient) return null; // Prevent hydration mismatch
     
