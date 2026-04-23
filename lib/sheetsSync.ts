@@ -13,6 +13,12 @@ export interface PatientRecord {
   [key: string]: any;
 }
 
+export interface SyncResult {
+  success: boolean;
+  error?: string;
+  message?: string;
+}
+
 /**
  * Fire-and-forget sync to Google Sheets
  * Never blocks, never throws, logs errors only
@@ -54,4 +60,47 @@ export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 
       console.error(`[sheetsSync] ❌ Mirror sync error:`, error.message);
     }
   })().catch(() => {}); // Swallow all errors
+}
+
+/**
+ * Legacy function for backward compatibility
+ * Uses fire-and-forget webhook sync
+ */
+export async function appendPatientToSheets(patient: PatientRecord): Promise<SyncResult> {
+  const webhookUrl = process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
+  
+  if (!webhookUrl) {
+    return { success: false, error: 'Webhook not configured' };
+  }
+
+  try {
+    const payload = {
+      batch: [patient],
+      batch_id: `legacy-append-${Date.now()}`
+    };
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(8000)
+    });
+
+    if (response.ok) {
+      return { success: true, message: 'Synced via webhook' };
+    } else {
+      const text = await response.text();
+      return { success: false, error: `Webhook failed: ${response.status}` };
+    }
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Legacy function for backward compatibility
+ * Uses fire-and-forget webhook sync
+ */
+export async function updatePatientInSheets(patient: PatientRecord): Promise<SyncResult> {
+  return appendPatientToSheets(patient); // Same implementation for webhook
 }
