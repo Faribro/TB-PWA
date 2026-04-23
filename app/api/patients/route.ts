@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase-server-admin';
 import { getSupabaseClient } from '@/lib/supabase-server';
 import { Role } from '@/lib/constants/roles';
 import { logAudit } from '@/lib/audit-log';
+import { getCachedWithMemory } from '@/lib/memory-cache';
 import { 
   validateAndExtractScope, 
   buildScopedQuery, 
@@ -181,7 +182,14 @@ export async function GET(request: NextRequest) {
     const fullDetails = searchParams.get('fullDetails') === 'true';
     const selectedColumns = fullDetails ? FULL_COLUMNS : LIST_COLUMNS;
     
-    const supabase = createServerClient();
+    // Generate cache key based on all parameters
+    const cacheKey = `patients:${scope.role}:${scope.sessionState || 'all'}:${cursor || 'first'}:${requestedLimit}:${JSON.stringify(filters)}:${fullDetails}`;
+    
+    // Try cache first (30s TTL)
+    const cachedResponse = await getCachedWithMemory<CursorPaginationResponse>(
+      cacheKey,
+      async () => {
+        const supabase = createServerClient();
 
     // Structured logging
     logApiRequest('/api/patients', scope, {
@@ -288,12 +296,18 @@ export async function GET(request: NextRequest) {
       }
     };
 
-    return NextResponse.json(response, {
+    return response;
+      },
+      30 // 30s TTL
+    );
+
+    return NextResponse.json(cachedResponse, {
       headers: {
-        'Cache-Control': 'private, max-age=300, stale-while-revalidate=600',
-        'X-Returned': String(records.length),
-        'X-Has-More': String(hasMore),
-        'X-Duration-Ms': String(durationMs)
+        'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+        'X-Returned': String(cachedResponse.data.length),
+        'X-Has-More': String(cachedResponse.hasMore),
+        'X-Duration-Ms': String(cachedResponse.meta.durationMs),
+        'X-Cache': 'MULTI-LAYER'
       }
     });
   } catch (error) {
