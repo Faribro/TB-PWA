@@ -641,6 +641,7 @@ export default function Vertex({
   const [mounted, setMounted] = useState(false);
   const { isReviewOpen } = useReconciliationStore();
   const { mutate } = useSWRConfig();
+  const hasAutoJumpedRef = useRef(false);
 
   useEffect(() => {
     console.log('[Vertex] Mounting component, setting mounted=true');
@@ -727,10 +728,11 @@ export default function Vertex({
     }));
   }, [cachedHeatmap]);
 
-  // FIXED: Auto-jump to latest month with data (responds to new data)
+  // FIXED: Auto-jump to latest month with data (ONE-TIME ONLY)
   useEffect(() => {
     if (!heatmapData.length) return;
     if (selectedDate) return; // Don't auto-jump if user selected a date
+    if (hasAutoJumpedRef.current) return; // ✅ Prevent re-triggering after first jump
 
     const monthKey = (d: Date) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -741,7 +743,10 @@ export default function Vertex({
       d => d?.date?.startsWith(currentKey) && (d?.screenedCount ?? 0) > 0
     );
 
-    if (hasAnyInCurrentMonth) return; // Current month has data, stay here
+    if (hasAnyInCurrentMonth) {
+      hasAutoJumpedRef.current = true; // ✅ Mark as complete
+      return; // Current month has data, stay here
+    }
 
     // Find latest date with activity
     let latestDateStr: string | null = null;
@@ -750,19 +755,29 @@ export default function Vertex({
       if (!latestDateStr || d.date > latestDateStr) latestDateStr = d.date;
     }
 
-    if (!latestDateStr) return;
+    if (!latestDateStr) {
+      hasAutoJumpedRef.current = true; // ✅ Mark as complete even if no data
+      return;
+    }
 
     const [yStr, mStr] = latestDateStr.split('-');
     const y = Number(yStr);
     const m = Number(mStr);
-    if (!y || !m) return;
+    if (!y || !m) {
+      hasAutoJumpedRef.current = true;
+      return;
+    }
 
     const next = new Date(y, m - 1, 1);
     const nextClamped = clampToCurrentMonth(next);
     
     // Only jump if different from current month
     if (monthKey(nextClamped) !== currentKey) {
+      console.log('[Vertex] Auto-jumping to latest month:', nextClamped);
       setCurrentDate(nextClamped);
+      hasAutoJumpedRef.current = true; // ✅ Mark as complete after jump
+    } else {
+      hasAutoJumpedRef.current = true; // ✅ Mark as complete if no jump needed
     }
   }, [heatmapData, selectedDate, currentDate, clampToCurrentMonth]);
 
