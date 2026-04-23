@@ -993,7 +993,7 @@ export default function Vertex({
         </>
       );
     }
-  }, [selectedDate, dailySparks, globalPatients, isClient]);
+  }, [selectedDate, dailySparks, globalPatients]);
 
   return (
     <div className="relative w-full font-outfit overflow-x-hidden">
