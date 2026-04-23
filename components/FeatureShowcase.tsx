@@ -84,11 +84,13 @@ SlideNumber.displayName = 'SlideNumber';
 
 const SlideDate = memo<{ isActive: boolean; isEven: boolean }>(({ isActive, isEven }) => {
   const [time, setTime] = useState('');
+  const [date, setDate] = useState('');
 
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
       setTime(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+      setDate(now.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase());
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
@@ -109,7 +111,7 @@ const SlideDate = memo<{ isActive: boolean; isEven: boolean }>(({ isActive, isEv
       <div className="flex items-center gap-6">
         <div className={`w-16 h-px ${isEven ? 'bg-slate-900' : 'bg-white'}`} />
         <span>
-          {new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
+          {date}
           <span className="opacity-25 ml-2">{time}</span>
         </span>
       </div>
