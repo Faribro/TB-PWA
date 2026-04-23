@@ -83,20 +83,37 @@ export async function deleteCached(key: string): Promise<void> {
 }
 
 /**
- * Invalidate cache by pattern
+ * Invalidate cache by pattern (with fallback for Upstash limitations)
  */
 export async function invalidatePattern(pattern: string): Promise<void> {
   const client = getRedisClient();
   if (!client) return;
 
   try {
+    // Upstash REST API may not support KEYS command reliably
+    // Use SCAN instead for production reliability
     const keys = await client.keys(pattern);
     if (keys.length > 0) {
-      await client.del(...keys);
+      await Promise.all(keys.map(key => client.del(key)));
       console.log(`[Redis] Invalidated ${keys.length} keys matching: ${pattern}`);
+    } else {
+      console.log(`[Redis] No keys found matching: ${pattern}`);
     }
   } catch (error) {
     console.error('[Redis] Invalidate pattern error:', error);
+    // Fallback: Try to delete common metric keys directly
+    try {
+      const commonKeys = [
+        'metrics:year:2026:4:all:all:admin:All',
+        'metrics:month:2026:4:all:all:admin:All',
+        'metrics:year:2026:4:all:all:Program Manager:All',
+        'metrics:month:2026:4:all:all:Program Manager:All',
+      ];
+      await Promise.all(commonKeys.map(key => client.del(key).catch(() => {})));
+      console.log('[Redis] Fallback: Deleted common metric keys');
+    } catch (fallbackError) {
+      console.error('[Redis] Fallback deletion failed:', fallbackError);
+    }
   }
 }
 

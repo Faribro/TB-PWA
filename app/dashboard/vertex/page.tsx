@@ -235,8 +235,9 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     `/api/vertex/metrics?year=${currentYear}&month=${currentMonth}&view=month&state=${selectedState || 'all'}&district=${selectedDistrict || 'all'}`,
     fetcher,
     {
-      dedupingInterval: 60000,
+      dedupingInterval: 0, // Allow immediate refetch
       revalidateOnFocus: false,
+      refreshInterval: 0, // Disable polling - rely on realtime
     }
   );
   

@@ -56,13 +56,14 @@ export function useRealtimeCalendar({
     filterParamsRef.current = { year, state, district };
   }, [year, state, district]);
   
-  const { data: apiData, error, isLoading } = useSWR(
+  const { data: apiData, error, isLoading, mutate: mutateCalendar } = useSWR(
     apiUrl,
     fetcher,
     {
-      dedupingInterval: 30000,
+      dedupingInterval: 0, // Allow immediate refetch
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
+      refreshInterval: 0, // Disable polling - rely on realtime
       onSuccess: (data) => {
         console.log('[useRealtimeCalendar] API data received:', {
           dailyBreakdown: data?.dailyBreakdown?.length,
@@ -190,8 +191,12 @@ export function useRealtimeCalendar({
           });
           if (payload.eventType === 'INSERT') {
             aggregatePatient(payload.new);
+            // Force SWR refetch to get fresh aggregated data
+            mutateCalendar();
           } else if (payload.eventType === 'UPDATE') {
             aggregatePatient(payload.new);
+            // Force SWR refetch to get fresh aggregated data
+            mutateCalendar();
           }
         }
       )
@@ -213,7 +218,7 @@ export function useRealtimeCalendar({
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, [year, state, district]); // Only recreate subscription when filters change, not when callbacks change
+  }, [year, state, district, aggregatePatient, mutateCalendar]); // Include mutateCalendar
   
   return {
     data: mergedData(),

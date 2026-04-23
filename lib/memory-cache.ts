@@ -111,13 +111,17 @@ export async function getCachedWithMemory<T>(
 }
 
 /**
- * Invalidate all cache layers
+ * Invalidate all cache layers for metrics
  */
 export async function invalidateAllLayers(pattern: string): Promise<void> {
-  // Clear memory cache
-  memoryCache.clear();
+  console.log(`[Cache] Invalidating all layers for pattern: ${pattern}`);
   
-  // Clear Redis
+  // Clear memory cache completely (it's small, so this is safe)
+  memoryCache.clear();
+  console.log('[Cache] Memory cache cleared');
+  
+  // Clear Redis with pattern
   const { invalidatePattern } = await import('./redis');
   await invalidatePattern(pattern);
+  console.log('[Cache] Redis invalidation complete');
 }
