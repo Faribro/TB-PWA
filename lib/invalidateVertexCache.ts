@@ -5,7 +5,7 @@
  * Uses deterministic key computation based on affected dimensions
  */
 
-import { redis } from '@/lib/redis';
+import { getRedisClient } from '@/lib/redis';
 
 interface PatientChange {
   screening_date?: string;
@@ -62,6 +62,7 @@ function computeAffectedKeys(patient: PatientChange): string[] {
  * Production-safe: no KEYS scan, direct DEL operations
  */
 export async function invalidateVertexCache(patient: PatientChange) {
+  const redis = getRedisClient();
   if (!redis) {
     console.warn('[invalidateVertexCache] Redis not available');
     return;

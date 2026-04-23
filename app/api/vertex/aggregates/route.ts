@@ -17,7 +17,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { createServerClient } from '@/lib/supabase-server-admin';
 import { normalizeRole, Role } from '@/lib/constants/roles';
-import { redis } from '@/lib/redis';
+import { getRedisClient } from '@/lib/redis';
 
 export const maxDuration = 15;
 export const dynamic = 'force-dynamic';
@@ -270,6 +270,7 @@ export async function GET(request: NextRequest) {
     let cached: any = null;
     let isCached = false;
 
+    const redis = getRedisClient();
     if (redis) {
       try {
         const cachedData = await redis.get(cacheKey);
