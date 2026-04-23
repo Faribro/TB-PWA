@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
         };
         });
       },
-      300
+      600
     );
     
     const totalDuration = Date.now() - startTime;

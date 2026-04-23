@@ -98,14 +98,6 @@ export function useSWRAllPatients(
   const timeout = options.timeout ?? 120000;
   const { filters } = options;
   
-  // Progressive loading state
-  const [progressState, setProgressState] = useState<ProgressiveLoadState>({
-    loadedCount: 0,
-    totalCount: 0,
-    isLoadingMore: false,
-    progress: 0
-  });
-  
   const abortControllerRef = useRef<AbortController | null>(null);
   const backgroundLoadingRef = useRef(false);
   const currentSessionIdRef = useRef<string | null>(null);
@@ -162,24 +154,16 @@ export function useSWRAllPatients(
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       refreshInterval: 0,
-      dedupingInterval: 30000,
+      dedupingInterval: 0,
       errorRetryCount: 3,
       errorRetryInterval: 2000,
-      keepPreviousData: false,
+      keepPreviousData: true,
       onError: (err) => {
         console.error('[useSWRPatients] Error:', err);
       }
     }
   );
   
-  // No progressive loading needed with bulk endpoint
-  const [progressState] = useState<ProgressiveLoadState>({
-    loadedCount: 0,
-    totalCount: 0,
-    isLoadingMore: false,
-    progress: 100
-  });
-
   const setTotalCount = useCallback((total: number) => {
     // No-op with bulk endpoint
   }, []);
