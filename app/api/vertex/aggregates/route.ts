@@ -81,7 +81,7 @@ function getCacheKey(
   }
 }
 
-function applyRBACFilters(query: any, role: Role, state?: string | null, staffName?: string | null) {
+function applyRBACFilters(query: any, role: typeof Role[keyof typeof Role], state?: string | null, staffName?: string | null) {
   if (role === Role.ADMIN || role === Role.PROGRAM_MANAGER) {
     return query;
   } else if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
@@ -117,7 +117,7 @@ function applyFilterParams(query: any, filterState?: string, filterDistrict?: st
 async function computeYearlyHeatmap(
   supabase: any,
   year: number,
-  role: Role,
+  role: typeof Role[keyof typeof Role],
   state?: string | null,
   staffName?: string | null,
   filterState?: string,
@@ -159,7 +159,7 @@ async function computeMonthlySummary(
   supabase: any,
   year: number,
   month: number,
-  role: Role,
+  role: typeof Role[keyof typeof Role],
   state?: string | null,
   staffName?: string | null,
   filterState?: string,
@@ -203,7 +203,7 @@ async function computeMonthlySummary(
 async function computeDailySummary(
   supabase: any,
   date: string,
-  role: Role,
+  role: typeof Role[keyof typeof Role],
   state?: string | null,
   staffName?: string | null,
   filterState?: string,
