@@ -129,7 +129,8 @@ const CalendarHeader = ({
   onFilterStateChange,
   onFilterDistrictChange,
   availableStates,
-  availableDistricts
+  availableDistricts,
+  mounted
 }: { 
   currentDate: Date; 
   onPrevMonth: () => void; 
@@ -140,7 +141,16 @@ const CalendarHeader = ({
   onFilterDistrictChange: (value: string) => void;
   availableStates: string[];
   availableDistricts: string[];
-}) => (
+  mounted: boolean;
+}) => {
+  // Memoize formatted date to prevent hydration mismatch
+  const formattedMonth = useMemo(() => {
+    if (!mounted) return 'Loading...';
+    console.log('[CalendarHeader] Formatting date:', currentDate.toISOString());
+    return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }, [currentDate, mounted]);
+
+  return (
   <div className="space-y-3 mb-4 px-1">
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -149,7 +159,7 @@ const CalendarHeader = ({
         </div>
         <div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tighter">
-            {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            {formattedMonth}
           </h2>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Neural Timeline Overview</p>
         </div>
@@ -216,6 +226,7 @@ const CalendarHeader = ({
     </div>
   </div>
 );
+};
 
 const CalendarGrid = ({ 
   heatmapData, 
@@ -1038,6 +1049,7 @@ export default function Vertex({
                 onFilterDistrictChange={setFilterDistrict}
                 availableStates={availableStates}
                 availableDistricts={availableDistricts}
+                mounted={mounted}
               />
               <div>
                 {mounted && (
