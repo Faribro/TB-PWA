@@ -554,11 +554,7 @@ export default function Vertex({
     onTreatment: number;
   };
 } = {}) {
-  const [isClient, setIsClient] = useState(false);
-  
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+
 
   const now = useMemo(() => new Date(), []);
   const currentMonthStart = useMemo(
@@ -966,10 +962,8 @@ export default function Vertex({
       })
     : '';
 
-  // Dynamic Calendar Sentence (client-only to prevent hydration mismatch)
+  // Dynamic Calendar Sentence
   const dynamicSentence = useMemo(() => {
-    if (!isClient) return null; // Prevent hydration mismatch
-    
     if (selectedDate) {
       const dateObj = new Date(selectedDate);
       const formattedDateShort = dateObj.toLocaleDateString('en-US', {
