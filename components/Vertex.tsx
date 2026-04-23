@@ -1,3 +1,5 @@
+// Vertex Dashboard - Neural Timeline Calendar with Redis-backed aggregates
+// Last updated: 2025-01-23 - Hydration fixes applied
 'use client';
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
