@@ -69,8 +69,9 @@ export async function GET(request: NextRequest) {
         // Robust query with error handling and fallback
         let query = supabase
           .from('patients')
-          .select(BULK_COLUMNS, { count: 'exact' })
-          .order('created_at', { ascending: false });
+          .select(BULK_COLUMNS, { count: 'exact', head: false })
+          .order('created_at', { ascending: false })
+          .range(0, 99999);
         
         query = buildScopedQuery(query, scope, filters);
         

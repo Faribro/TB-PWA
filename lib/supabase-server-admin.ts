@@ -15,7 +15,11 @@ export function createServerClient(): SupabaseClient {
   _adminClient = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
     db: { schema: 'public' },
-    global: { headers: { Prefer: 'return=representation' } },
+    global: { 
+      headers: { 
+        'Prefer': 'return=representation',
+      } 
+    },
   });
 
   return _adminClient;
