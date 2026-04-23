@@ -261,14 +261,15 @@ const CalendarGrid = ({
   const days = useMemo(() => {
     console.log('[CalendarGrid] Computing days array - firstDay:', firstDay, 'daysInMonth:', daysInMonth);
     return Array.from({ length: 42 }, (_, i) => {
-    const dayNum = i - firstDay + 1;
-    if (dayNum < 1 || dayNum > daysInMonth) return null;
-    
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-    const dayData = heatmapData.find(d => d.date === dateStr);
-    
-    return { dayNum, dateStr, data: dayData };
-  }), [firstDay, daysInMonth, year, month, heatmapData]);
+      const dayNum = i - firstDay + 1;
+      if (dayNum < 1 || dayNum > daysInMonth) return null;
+      
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+      const dayData = heatmapData.find(d => d.date === dateStr);
+      
+      return { dayNum, dateStr, data: dayData };
+    });
+  }, [firstDay, daysInMonth, year, month, heatmapData]);
 
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -1067,7 +1068,6 @@ export default function Vertex({
                 mounted={mounted}
               />
               <div>
-                {console.log('[Vertex] Rendering calendar area, mounted:', mounted)}
                 {mounted && (
                   <CalendarGrid
                     heatmapData={heatmapData}
