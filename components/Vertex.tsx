@@ -565,10 +565,10 @@ export default function Vertex({
     return monthStart;
   }, [currentMonthStart]);
 
-  // Use external data when provided (avoids duplicate fetch + 400 errors)
+  // FIXED: Always use fresh SWR data, ignore stale externalPatients
   const { patients: swrData = [], isLoading: swrLoading } = useSWRAllPatients(null);
-  const globalPatients: any[] = externalPatients ?? swrData;
-  const isLoading = externalLoading ?? swrLoading;
+  const globalPatients: any[] = swrData; // Always use fresh SWR data
+  const isLoading = swrLoading;
 
   // Find the most recent month with screening activity
   const mostRecentDateWithData = useMemo(() => {
@@ -666,13 +666,10 @@ export default function Vertex({
     return Object.values(grouped);
   }, [globalPatients, filterState, filterDistrict]);
 
-  // If the current month has no screening activity dots, automatically jump to
-  // the most recent month that has activity and pre-select a day with activity.
-  const hasAutoJumped = useRef(false);
+  // FIXED: Auto-jump to latest month with data (responds to new data)
   useEffect(() => {
-    if (hasAutoJumped.current) return;
     if (!heatmapData.length) return;
-    if (selectedDate) return;
+    if (selectedDate) return; // Don't auto-jump if user selected a date
 
     const monthKey = (d: Date) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -683,8 +680,9 @@ export default function Vertex({
       d => d?.date?.startsWith(currentKey) && (d?.screenedCount ?? 0) > 0
     );
 
-    if (hasAnyInCurrentMonth) return;
+    if (hasAnyInCurrentMonth) return; // Current month has data, stay here
 
+    // Find latest date with activity
     let latestDateStr: string | null = null;
     for (const d of heatmapData) {
       if ((d?.screenedCount ?? 0) <= 0) continue;
@@ -699,10 +697,13 @@ export default function Vertex({
     if (!y || !m) return;
 
     const next = new Date(y, m - 1, 1);
-    setCurrentDate(clampToCurrentMonth(next));
-    setSelectedDate(latestDateStr);
-    hasAutoJumped.current = true;
-  }, [heatmapData.length, selectedDate, currentDate, clampToCurrentMonth]);
+    const nextClamped = clampToCurrentMonth(next);
+    
+    // Only jump if different from current month
+    if (monthKey(nextClamped) !== currentKey) {
+      setCurrentDate(nextClamped);
+    }
+  }, [heatmapData, selectedDate, currentDate, clampToCurrentMonth]);
 
   const patientsForSelectedDate = useMemo(() => {
     if (!selectedDate || !globalPatients?.length) return [];

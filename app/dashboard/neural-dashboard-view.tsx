@@ -54,7 +54,7 @@ const NeuralDashboardView = memo(function NeuralDashboardView({
 
   return (
     <div className="w-full h-full">
-      <Vertex externalPatients={globalPatients} externalLoading={isLoading} summaryData={summaryData} />
+      <Vertex summaryData={summaryData} />
     </div>
   );
 });
