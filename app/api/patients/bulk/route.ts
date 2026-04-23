@@ -70,10 +70,10 @@ export async function GET(request: NextRequest) {
         let query = supabase
           .from('patients')
           .select(BULK_COLUMNS, { count: 'exact', head: false })
-          .order('created_at', { ascending: false })
-          .range(0, 99999);
+          .order('created_at', { ascending: false });
         
         query = buildScopedQuery(query, scope, filters);
+        query = query.range(0, 99999);
         
         const { data, error, count } = await query;
         
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
         
         const durationMs = Date.now() - startTime;
         
-        console.log(`[patients/bulk] ✅ Fetched ${data?.length || 0} records in ${durationMs}ms`);
+        console.log(`[patients/bulk] ✅ Fetched ${data?.length || 0} / ${count || 0} records in ${durationMs}ms`);
         
         return {
           data: data || [],
