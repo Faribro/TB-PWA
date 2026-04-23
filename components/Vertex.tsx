@@ -612,8 +612,13 @@ export default function Vertex({
   const [filterDistrict, setFilterDistrict] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'volume' | 'breaches'>('volume');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { isReviewOpen } = useReconciliationStore();
   const { mutate } = useSWRConfig();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Update currentDate when data loads and most recent date changes
   useEffect(() => {
@@ -1035,13 +1040,15 @@ export default function Vertex({
                 availableDistricts={availableDistricts}
               />
               <div>
-                <CalendarGrid
-                  heatmapData={heatmapData}
-                  currentDate={currentDate}
-                  selectedDate={selectedDate}
-                  onDateSelect={handleDateSelect}
-                  viewMode={viewMode}
-                />
+                {mounted && (
+                  <CalendarGrid
+                    heatmapData={heatmapData}
+                    currentDate={currentDate}
+                    selectedDate={selectedDate}
+                    onDateSelect={handleDateSelect}
+                    viewMode={viewMode}
+                  />
+                )}
               </div>
             </div>
             
