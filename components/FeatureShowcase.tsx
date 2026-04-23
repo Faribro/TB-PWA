@@ -83,10 +83,12 @@ const SlideNumber = memo<{ number: number; isActive: boolean; isEven: boolean }>
 SlideNumber.displayName = 'SlideNumber';
 
 const SlideDate = memo<{ isActive: boolean; isEven: boolean }>(({ isActive, isEven }) => {
-  const [time, setTime] = useState('');
-  const [date, setDate] = useState('');
+  const [time, setTime] = useState('--:--');
+  const [date, setDate] = useState('-- --- ----');
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const updateTime = () => {
       const now = new Date();
       setTime(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
@@ -96,6 +98,8 @@ const SlideDate = memo<{ isActive: boolean; isEven: boolean }>(({ isActive, isEv
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  if (!mounted) return null;
 
   return (
     <motion.div
