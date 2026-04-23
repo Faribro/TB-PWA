@@ -60,10 +60,11 @@ export function useRealtimeCalendar({
     apiUrl,
     fetcher,
     {
-      dedupingInterval: 0, // Allow immediate refetch
+      dedupingInterval: 0,
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      refreshInterval: 0, // Disable polling - rely on realtime
+      refreshInterval: 0,
+      keepPreviousData: true,
       onSuccess: (data) => {
         console.log('[useRealtimeCalendar] API data received:', {
           dailyBreakdown: data?.dailyBreakdown?.length,
@@ -191,12 +192,12 @@ export function useRealtimeCalendar({
           });
           if (payload.eventType === 'INSERT') {
             aggregatePatient(payload.new);
-            // Force SWR refetch to get fresh aggregated data
-            mutateCalendar();
+            // Force immediate refetch with revalidate=true
+            mutateCalendar(undefined, { revalidate: true });
           } else if (payload.eventType === 'UPDATE') {
             aggregatePatient(payload.new);
-            // Force SWR refetch to get fresh aggregated data
-            mutateCalendar();
+            // Force immediate refetch with revalidate=true
+            mutateCalendar(undefined, { revalidate: true });
           }
         }
       )
