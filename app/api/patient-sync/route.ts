@@ -3,7 +3,7 @@ import { getSupabaseClient } from '@/lib/supabase-server';
 import { getSessionScope } from '@/lib/session-scope';
 import { syncToSheetsAsync } from '@/lib/sheetsSync';
 import { sanitizePatientUpdate } from '@/lib/db/sanitizePatientUpdate';
-import { invalidateMetricsCache } from '@/lib/redis';
+import { invalidatePatientCaches } from '@/lib/cache-version';
 
 const FIELD_MAPPING: Record<string, string | null> = {
   inmate_name: 'inmate_name',
@@ -109,8 +109,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Invalidate metrics cache
-    await invalidateMetricsCache();
+    // Invalidate all patient-related caches (versioned keys)
+    await invalidatePatientCaches();
+    console.log('[patient-sync] ✅ Cache invalidated');
 
     // Fire-and-forget mirror sync to Sheets
     syncToSheetsAsync(updatedPatient, 'update');

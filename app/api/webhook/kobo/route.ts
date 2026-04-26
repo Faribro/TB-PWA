@@ -22,8 +22,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabase-server';
 import { normalizeState, normalizeDistrict } from '@/lib/stateMapper';
 import { syncToSheetsAsync } from '@/lib/sheetsSync';
-import { invalidateAllLayers } from '@/lib/memory-cache';
-import { invalidateVertexCache } from '@/lib/invalidateVertexCache';
+import { invalidatePatientCaches } from '@/lib/cache-version';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -372,12 +371,9 @@ async function upsertPatient(
         const operation = status === 201 ? 'inserted' : 'updated';
         console.log(`[webhook] Supabase ${operation}: ${kobo_uuid}`);
         
-        // Invalidate all cache layers
-        await invalidateAllLayers('patients:*');
-        await invalidateAllLayers('metrics:*');
-        
-        // Targeted Vertex cache invalidation
-        await invalidateVertexCache(data as any);
+        // Invalidate all patient-related caches (versioned keys)
+        await invalidatePatientCaches();
+        console.log('[webhook] ✅ Cache invalidated');
         
         return { success: true, operation };
       }
