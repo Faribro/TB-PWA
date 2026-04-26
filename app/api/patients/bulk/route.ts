@@ -62,9 +62,13 @@ export async function GET(request: NextRequest) {
     
     const cacheKey = `patients:bulk:v2:${scope.role}:${scope.sessionState || 'all'}:${JSON.stringify(filters)}`;
     
+    console.log('[patients/bulk] Cache key:', cacheKey);
+    console.log('[patients/bulk] About to check cache...');
+    
     const response = await getCachedWithMemory<BulkResponse>(
       cacheKey,
       async () => {
+        console.log('[patients/bulk] Cache MISS - executing query...');
         // Use circuit breaker for resilience
         return await patientsCircuitBreaker.execute(async () => {
           const supabase = createServerClient();
