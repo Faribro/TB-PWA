@@ -96,7 +96,8 @@ export async function GET(request: NextRequest) {
       const yearStart = `${year}-01-01`;
       const yearEnd = `${year}-12-31`;
 
-      // ONE query fetches patient records for the year (no limit for complete data)
+      // ONE query fetches patient records for the year
+      // CRITICAL: Explicit range to bypass Supabase PostgREST 1000-row default limit
       const queryPromise = applyFilters(
         supabase
           .from('patients')
@@ -104,6 +105,7 @@ export async function GET(request: NextRequest) {
           .gte('screening_date', yearStart)
           .lte('screening_date', yearEnd)
           .not('screening_date', 'is', null)
+          .range(0, 99999)
       );
 
       const timeoutPromise = new Promise<never>((_, reject) =>
@@ -199,7 +201,8 @@ export async function GET(request: NextRequest) {
       const lastDay = new Date(year, month, 0).getDate();
       const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
       
-      // Single query for month data (no limit for complete data)
+      // Single query for month data
+      // CRITICAL: Explicit range to bypass Supabase PostgREST 1000-row default limit
       const queryPromise = applyFilters(
         supabase
           .from('patients')
@@ -207,6 +210,7 @@ export async function GET(request: NextRequest) {
           .gte('screening_date', monthStart)
           .lte('screening_date', monthEnd)
           .not('screening_date', 'is', null)
+          .range(0, 99999)
       );
       
       const timeoutPromise = new Promise<never>((_, reject) =>

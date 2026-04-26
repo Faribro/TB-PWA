@@ -781,7 +781,12 @@ export default function Vertex({
   }, [heatmapData, selectedDate]); // ⚠️ REMOVED currentDate and clampToCurrentMonth from dependencies
 
   const patientsForSelectedDate = useMemo(() => {
-    if (!selectedDate || !globalPatients?.length) return [];
+    if (!selectedDate || !globalPatients?.length) {
+      console.log('[Vertex] patientsForSelectedDate: empty - selectedDate:', selectedDate, 'globalPatients.length:', globalPatients?.length);
+      return [];
+    }
+    
+    console.log('[Vertex] patientsForSelectedDate: filtering for date:', selectedDate, 'from', globalPatients.length, 'patients');
     
     const result = [];
     for (let i = 0; i < globalPatients.length; i++) {
@@ -800,6 +805,8 @@ export default function Vertex({
       
       result.push(patient);
     }
+    
+    console.log('[Vertex] patientsForSelectedDate: found', result.length, 'patients for date', selectedDate);
     
     return result;
   }, [selectedDate, globalPatients, filterState, filterDistrict]);

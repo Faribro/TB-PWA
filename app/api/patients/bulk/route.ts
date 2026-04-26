@@ -73,8 +73,10 @@ export async function GET(request: NextRequest) {
           .order('created_at', { ascending: false });
         
         query = buildScopedQuery(query, scope, filters);
-        // No range limit - fetch all matching records
-        // query = query.range(0, 99999);
+        
+        // CRITICAL: Explicit range to bypass Supabase PostgREST 1000-row default limit
+        // Without this, only first 1000 rows are returned regardless of actual count
+        query = query.range(0, 99999);
         
         const { data, error, count } = await query;
         
