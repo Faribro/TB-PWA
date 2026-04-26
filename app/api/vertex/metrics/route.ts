@@ -104,31 +104,49 @@ export async function GET(request: NextRequest) {
         const supabase = createServerClient();
 
     if (view === 'year') {
-      // YEAR VIEW: Single query for full year data
+      // YEAR VIEW: Paginated fetch for full year data
+      // CRITICAL: Supabase PostgREST caps at 1000 rows by default.
+      // .range(0, 99999) does NOT bypass this cap — we must paginate in 1000-row chunks.
       const yearStart = `${year}-01-01`;
       const yearEnd = `${year}-12-31`;
 
-      // ONE query fetches patient records for the year
-      // CRITICAL: Explicit range to bypass Supabase PostgREST 1000-row default limit
-      const queryPromise = applyFilters(
-        supabase
-          .from('patients')
-          .select('screening_date, tb_diagnosed, xray_result, att_start_date, referral_date')
-          .gte('screening_date', yearStart)
-          .lte('screening_date', yearEnd)
-          .not('screening_date', 'is', null)
-          .range(0, 99999)
-      );
+      const PAGE_SIZE = 1000;
+      let yearData: PatientRecord[] = [];
+      let page = 0;
+      let totalCount = 0;
 
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Query timeout')), 8000)
-      );
-
-      let yearData;
       try {
-        const result = await Promise.race([queryPromise, timeoutPromise]);
-        if (result.error) throw result.error;
-        yearData = result.data;
+        while (page < 50) { // Safety: max 50 pages (50k rows)
+          const start = page * PAGE_SIZE;
+          const end = start + PAGE_SIZE - 1;
+
+          let pageQuery = supabase
+            .from('patients')
+            .select('screening_date, tb_diagnosed, xray_result, att_start_date, referral_date', { count: page === 0 ? 'exact' : null })
+            .gte('screening_date', yearStart)
+            .lte('screening_date', yearEnd)
+            .not('screening_date', 'is', null)
+            .order('screening_date', { ascending: true })
+            .range(start, end);
+
+          pageQuery = applyFilters(pageQuery);
+
+          const { data: pageData, error, count } = await pageQuery;
+
+          if (error) throw error;
+          if (page === 0 && count) totalCount = count;
+
+          const rowsThisPage = pageData?.length || 0;
+          yearData = yearData.concat(pageData || []);
+
+          console.log(`[/api/vertex/metrics] Year page ${page}: ${rowsThisPage} rows (total: ${yearData.length} / ${totalCount || '?'})`);
+
+          if (rowsThisPage === 0) break;
+          if (totalCount > 0 && yearData.length >= totalCount) break;
+          if (rowsThisPage < PAGE_SIZE) break;
+
+          page++;
+        }
       } catch (yearError: any) {
         console.error('[/api/vertex/metrics] Year query error:', yearError);
         return NextResponse.json({
@@ -213,32 +231,50 @@ export async function GET(request: NextRequest) {
           }
         };
     } else {
-      // MONTH VIEW: Single month query (existing behavior, optimized)
+      // MONTH VIEW: Paginated fetch for single month data
+      // CRITICAL: Supabase PostgREST caps at 1000 rows by default.
+      // .range(0, 99999) does NOT bypass this cap — we must paginate in 1000-row chunks.
       const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
       const lastDay = new Date(year, month, 0).getDate();
       const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
       
-      // Single query for month data
-      // CRITICAL: Explicit range to bypass Supabase PostgREST 1000-row default limit
-      const queryPromise = applyFilters(
-        supabase
-          .from('patients')
-          .select('screening_date, tb_diagnosed, xray_result, att_start_date, referral_date')
-          .gte('screening_date', monthStart)
-          .lte('screening_date', monthEnd)
-          .not('screening_date', 'is', null)
-          .range(0, 99999)
-      );
+      const PAGE_SIZE = 1000;
+      let monthData: PatientRecord[] = [];
+      let page = 0;
+      let totalCount = 0;
       
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Query timeout')), 8000)
-      );
-      
-      let monthData;
       try {
-        const result = await Promise.race([queryPromise, timeoutPromise]);
-        if (result.error) throw result.error;
-        monthData = result.data;
+        while (page < 50) { // Safety: max 50 pages (50k rows)
+          const start = page * PAGE_SIZE;
+          const end = start + PAGE_SIZE - 1;
+
+          let pageQuery = supabase
+            .from('patients')
+            .select('screening_date, tb_diagnosed, xray_result, att_start_date, referral_date', { count: page === 0 ? 'exact' : null })
+            .gte('screening_date', monthStart)
+            .lte('screening_date', monthEnd)
+            .not('screening_date', 'is', null)
+            .order('screening_date', { ascending: true })
+            .range(start, end);
+
+          pageQuery = applyFilters(pageQuery);
+
+          const { data: pageData, error, count } = await pageQuery;
+
+          if (error) throw error;
+          if (page === 0 && count) totalCount = count;
+
+          const rowsThisPage = pageData?.length || 0;
+          monthData = monthData.concat(pageData || []);
+
+          console.log(`[/api/vertex/metrics] Month page ${page}: ${rowsThisPage} rows (total: ${monthData.length} / ${totalCount || '?'})`);
+
+          if (rowsThisPage === 0) break;
+          if (totalCount > 0 && monthData.length >= totalCount) break;
+          if (rowsThisPage < PAGE_SIZE) break;
+
+          page++;
+        }
       } catch (monthError: any) {
         console.error('[/api/vertex/metrics] Month query error:', monthError);
         return NextResponse.json({ 

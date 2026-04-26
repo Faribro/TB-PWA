@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { motion } from 'framer-motion';
 import { Button } from './ui/button';
 import { RefreshCw, Search, AlertCircle, Filter, X, LayoutGrid, List, Zap, Edit3, Save, Download, FileSpreadsheet } from 'lucide-react';
@@ -14,10 +14,7 @@ import { PatientDetailDrawer } from './PatientDetailDrawer';
 import { LinesAndDotsLoader } from './LinesAndDotsLoader';
 import * as XLSX from 'xlsx';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const supabase = getSupabaseBrowserClient();
 
 interface DataTableProps {
   showDuplicates?: boolean;

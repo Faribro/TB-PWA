@@ -1,13 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { motion } from 'framer-motion';
 import { Users, Activity, Calendar, AlertTriangle } from 'lucide-react';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const supabase = getSupabaseBrowserClient();
 
 export default function RealTimeStats() {
   const [stats, setStats] = useState({ screened: 0, diagnosed: 0, referred: 0, ltfu: 0 });

@@ -20,12 +20,9 @@ import { toast } from 'sonner';
 import { useSessionScope, isSuperuser } from '@/hooks/useSessionScope';
 import { SyncStatusBadge } from './ui/SyncStatusBadge';
 import { useSyncStatus } from '@/lib/useSyncStatus';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 
-const supabaseClient = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const supabaseClient = getSupabaseBrowserClient();
 
 interface PatientDetailDrawerProps {
   patient: any;

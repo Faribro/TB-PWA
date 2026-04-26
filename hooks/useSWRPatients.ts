@@ -102,8 +102,9 @@ export function useSWRAllPatients(
   const backgroundLoadingRef = useRef(false);
   const currentSessionIdRef = useRef<string | null>(null);
   
-  const key = session && scope
-    ? ['/api/patients', scope.state ?? 'all', scope.district ?? 'all', limit, JSON.stringify(filters)]
+  // SWR key: Only requires session to exist. Scope is optional — bulk API handles RBAC internally.
+  const key = session
+    ? ['/api/patients/bulk', scope?.state ?? 'all', scope?.district ?? 'all', limit, JSON.stringify(filters)]
     : null;
   
   // Stable key for effect - only changes on filter/scope change, NOT on data updates

@@ -118,6 +118,39 @@ function applyFilterParams(query: any, filterState?: string, filterDistrict?: st
   return query;
 }
 
+// Shared paginated fetch helper — Supabase PostgREST caps at 1000 rows by default.
+// .range(0, 99999) does NOT bypass this cap — we must paginate in 1000-row chunks.
+async function fetchAllPages(
+  supabase: any,
+  baseQueryFn: (rangeStart: number, rangeEnd: number, isFirstPage: boolean) => any
+): Promise<any[]> {
+  const PAGE_SIZE = 1000;
+  let allData: any[] = [];
+  let page = 0;
+  let totalCount = 0;
+
+  while (page < 50) {
+    const start = page * PAGE_SIZE;
+    const end = start + PAGE_SIZE - 1;
+    const query = baseQueryFn(start, end, page === 0);
+    const { data, error, count } = await query;
+    if (error) throw error;
+    if (page === 0 && count) totalCount = count;
+
+    const rowsThisPage = data?.length || 0;
+    allData = allData.concat(data || []);
+
+    if (rowsThisPage === 0) break;
+    if (totalCount > 0 && allData.length >= totalCount) break;
+    if (rowsThisPage < PAGE_SIZE) break;
+
+    page++;
+  }
+
+  console.log(`[fetchAllPages] Fetched ${allData.length} / ${totalCount || '?'} rows (${page + 1} pages)`);
+  return allData;
+}
+
 async function computeYearlyHeatmap(
   supabase: any,
   year: number,
@@ -130,19 +163,19 @@ async function computeYearlyHeatmap(
   const yearStart = `${year}-01-01`;
   const yearEnd = `${year}-12-31`;
 
-  let query = supabase
-    .from('patients')
-    .select('screening_date, referral_date')
-    .gte('screening_date', yearStart)
-    .lte('screening_date', yearEnd)
-    .not('screening_date', 'is', null)
-    .range(0, 99999); // Bypass Supabase 1000-row default limit
-
-  query = applyRBACFilters(query, role, state, staffName);
-  query = applyFilterParams(query, filterState, filterDistrict);
-
-  const { data, error } = await query;
-  if (error) throw error;
+  const data = await fetchAllPages(supabase, (start, end, isFirstPage) => {
+    let query = supabase
+      .from('patients')
+      .select('screening_date, referral_date', { count: isFirstPage ? 'exact' : null })
+      .gte('screening_date', yearStart)
+      .lte('screening_date', yearEnd)
+      .not('screening_date', 'is', null)
+      .order('screening_date', { ascending: true })
+      .range(start, end);
+    query = applyRBACFilters(query, role, state, staffName);
+    query = applyFilterParams(query, filterState, filterDistrict);
+    return query;
+  });
 
   const dailyMap = new Map<string, HeatmapDay>();
   
@@ -173,19 +206,19 @@ async function computeMonthlySummary(
   const lastDay = new Date(year, month, 0).getDate();
   const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-  let query = supabase
-    .from('patients')
-    .select('screening_date, xray_result, tb_diagnosed, att_start_date, referral_date')
-    .gte('screening_date', monthStart)
-    .lte('screening_date', monthEnd)
-    .not('screening_date', 'is', null)
-    .range(0, 99999); // Bypass Supabase 1000-row default limit
-
-  query = applyRBACFilters(query, role, state, staffName);
-  query = applyFilterParams(query, filterState, filterDistrict);
-
-  const { data, error } = await query;
-  if (error) throw error;
+  const data = await fetchAllPages(supabase, (start, end, isFirstPage) => {
+    let query = supabase
+      .from('patients')
+      .select('screening_date, xray_result, tb_diagnosed, att_start_date, referral_date', { count: isFirstPage ? 'exact' : null })
+      .gte('screening_date', monthStart)
+      .lte('screening_date', monthEnd)
+      .not('screening_date', 'is', null)
+      .order('screening_date', { ascending: true })
+      .range(start, end);
+    query = applyRBACFilters(query, role, state, staffName);
+    query = applyFilterParams(query, filterState, filterDistrict);
+    return query;
+  });
 
   let screened = 0;
   let suspected = 0;
@@ -213,17 +246,17 @@ async function computeDailySummary(
   filterState?: string,
   filterDistrict?: string
 ): Promise<DailySummary> {
-  let query = supabase
-    .from('patients')
-    .select('screening_date, xray_result, tb_diagnosed, referral_date')
-    .eq('screening_date', date)
-    .range(0, 99999); // Bypass Supabase 1000-row default limit
-
-  query = applyRBACFilters(query, role, state, staffName);
-  query = applyFilterParams(query, filterState, filterDistrict);
-
-  const { data, error } = await query;
-  if (error) throw error;
+  const data = await fetchAllPages(supabase, (start, end, isFirstPage) => {
+    let query = supabase
+      .from('patients')
+      .select('screening_date, xray_result, tb_diagnosed, referral_date', { count: isFirstPage ? 'exact' : null })
+      .eq('screening_date', date)
+      .order('screening_date', { ascending: true })
+      .range(start, end);
+    query = applyRBACFilters(query, role, state, staffName);
+    query = applyFilterParams(query, filterState, filterDistrict);
+    return query;
+  });
 
   let totalScreened = 0;
   let pendingSputum = 0;

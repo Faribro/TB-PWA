@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, User, MapPin, Activity, ClipboardList, Pill } from 'lucide-react'
-import { createClient } from '@/lib/supabase-client'
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
 import { useEffect, useState } from 'react'
 
 type Patient = {
@@ -61,7 +61,7 @@ function cn(...classes: (string | undefined | null | false)[]) {
 export function PatientDetailPanel({ patientId, onClose, canEdit }: PatientDetailPanelProps) {
   const [patient, setPatient] = useState<Patient | null>(null)
   const [loading, setLoading] = useState(false)
-  const supabase = createClient()
+  const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
     if (!patientId) return

@@ -11,15 +11,12 @@ import { normalizeGeographicKey } from '@/lib/normalizeGeographicKey';
 import { SpatialBreadcrumb } from './SpatialBreadcrumb';
 import { calculatePatientPhase } from '@/lib/phase-engine';
 import { Button } from './ui/button';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { Z_INDEX } from '@/lib/zIndex';
 import { sounds } from '@/lib/sound';
 import { useRealtimePatients } from '@/lib/useRealtimePatients';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+const supabase = getSupabaseBrowserClient();
 
 interface Patient {
   id: number;

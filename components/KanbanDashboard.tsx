@@ -1,14 +1,11 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, AlertTriangle, Activity, CheckCircle, User, MapPin } from 'lucide-react';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const supabase = getSupabaseBrowserClient();
 
 interface Patient {
   id: number;

@@ -12,14 +12,11 @@ import { Button } from './ui/button';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSWRConfig } from 'swr';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { LinesAndDotsLoader } from './LinesAndDotsLoader';
 import { Z_INDEX } from '@/lib/zIndex';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+const supabase = getSupabaseBrowserClient();
 
 interface Patient {
   id: number;

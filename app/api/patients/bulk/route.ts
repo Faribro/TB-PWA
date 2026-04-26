@@ -75,16 +75,16 @@ export async function GET(request: NextRequest) {
       
       baseQuery = buildScopedQuery(baseQuery, scope, filters);
       
-      // PAGINATED FETCH LOOP: Fetch in 5000-row chunks to bypass Supabase limit
-      const PAGE_SIZE = 5000;
+      // PAGINATED FETCH LOOP: Supabase PostgREST caps at 1000 rows by default.
+      // We MUST use .range() with 1000-row pages and loop until all rows are fetched.
+      const PAGE_SIZE = 1000; // Must match Supabase's default max-rows cap
       let allData: any[] = [];
       let page = 0;
-      let hasMore = true;
       let totalCount = 0;
       
-      console.log('[patients/bulk] Starting paginated fetch...');
+      console.log('[patients/bulk] Starting paginated fetch (PAGE_SIZE=1000)...');
       
-      while (hasMore && page < 20) { // Safety: max 20 pages (100k rows)
+      while (page < 100) { // Safety: max 100 pages (100k rows)
         const start = page * PAGE_SIZE;
         const end = start + PAGE_SIZE - 1;
         
@@ -108,20 +108,26 @@ export async function GET(request: NextRequest) {
           totalCount = count;
         }
         
+        const rowsThisPage = pageData?.length || 0;
         allData = allData.concat(pageData || []);
         
-        console.log(`[patients/bulk] Page ${page}: Fetched ${pageData?.length || 0} rows (total so far: ${allData.length})`);
+        console.log(`[patients/bulk] Page ${page}: Fetched ${rowsThisPage} rows (total so far: ${allData.length} / ${totalCount || '?'})`);
         
-        hasMore = (pageData?.length || 0) === PAGE_SIZE;
+        // Stop if: no rows returned, or we've fetched all known rows
+        if (rowsThisPage === 0) break;
+        if (totalCount > 0 && allData.length >= totalCount) break;
+        // If we got fewer rows than PAGE_SIZE, this was the last page
+        if (rowsThisPage < PAGE_SIZE) break;
+        
         page++;
       }
       
       const durationMs = Date.now() - startTime;
       
-      console.log(`[patients/bulk] ✅ Fetched ${allData.length} / ${totalCount} records in ${durationMs}ms (${page} pages)`);
+      console.log(`[patients/bulk] ✅ Fetched ${allData.length} / ${totalCount} records in ${durationMs}ms (${page + 1} pages)`);
       
-      if (page >= 20) {
-        console.warn('[patients/bulk] ⚠️ WARNING: Hit 20-page safety cap (100k rows)!');
+      if (page >= 99) {
+        console.warn('[patients/bulk] ⚠️ WARNING: Hit 100-page safety cap (100k rows)!');
       }
       
       return {
