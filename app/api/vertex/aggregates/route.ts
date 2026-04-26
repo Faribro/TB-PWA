@@ -20,6 +20,7 @@ import { auth } from '@/auth';
 import { createServerClient } from '@/lib/supabase-server-admin';
 import { normalizeRole, Role } from '@/lib/constants/roles';
 import { getRedisClient } from '@/lib/redis';
+import { CacheNamespace, buildVersionedKey } from '@/lib/cache-version';
 
 export const maxDuration = 15;
 export const dynamic = 'force-dynamic';
@@ -261,14 +262,20 @@ export async function GET(request: NextRequest) {
     const state = session.user.state;
     const staffName = (session.user as any).staffName;
 
-    const cacheKey = getCacheKey(type, {
-      year,
-      month,
-      date: date || undefined,
-      state: filterState,
-      district: filterDistrict,
-      role: rawRole,
-    });
+    // Build VERSIONED cache key
+    const namespace = type === 'heatmap' ? CacheNamespace.VERTEX_HEATMAP :
+                      type === 'month' ? CacheNamespace.VERTEX_MONTH :
+                      CacheNamespace.VERTEX_DAILY;
+    
+    const cacheKey = await buildVersionedKey(
+      namespace,
+      String(year),
+      String(month),
+      date || 'none',
+      filterState || 'all',
+      filterDistrict || 'all',
+      rawRole
+    );
 
     let cached: any = null;
     let isCached = false;

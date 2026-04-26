@@ -4,6 +4,7 @@ import { getSupabaseClient } from '@/lib/supabase-server';
 import { Role } from '@/lib/constants/roles';
 import { logAudit } from '@/lib/audit-log';
 import { getCachedWithMemory } from '@/lib/memory-cache';
+import { invalidatePatientCaches } from '@/lib/cache-version';
 import { 
   validateAndExtractScope, 
   buildScopedQuery, 
@@ -426,6 +427,10 @@ export async function POST(request: NextRequest) {
       status: 'updated',
       patientId: id
     });
+    
+    // CRITICAL: Invalidate all patient-related caches
+    await invalidatePatientCaches();
+    console.log('[patients/POST] ✅ Cache invalidated after patient update');
     
     return NextResponse.json({ result }, { status: 200 });
   } catch (err) {

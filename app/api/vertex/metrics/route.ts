@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { createServerClient } from '@/lib/supabase-server-admin';
 import { normalizeRole, Role } from '@/lib/constants/roles';
 import { getCachedWithMemory } from '@/lib/memory-cache';
+import { CacheNamespace, buildVersionedKey } from '@/lib/cache-version';
 
 // Version 2.0.1 - Fixed Supabase 1000-row default cap
 export const maxDuration = 15;
@@ -43,8 +44,17 @@ export async function GET(request: NextRequest) {
     const filterState = searchParams.get('state');
     const filterDistrict = searchParams.get('district');
 
-    // Generate cache key based on all parameters
-    const cacheKey = `metrics:${view}:${year}:${month}:${filterState || 'all'}:${filterDistrict || 'all'}:${session.user.role}:${session.user.state || 'all'}`;
+    // Generate VERSIONED cache key
+    const cacheKey = await buildVersionedKey(
+      CacheNamespace.VERTEX_METRICS,
+      view,
+      String(year),
+      String(month),
+      filterState || 'all',
+      filterDistrict || 'all',
+      session.user.role || 'ME',
+      session.user.state || 'all'
+    );
 
     // Apply RBAC filters
     const rawRole = session.user.role ?? 'ME';

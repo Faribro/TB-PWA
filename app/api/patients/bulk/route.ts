@@ -60,18 +60,12 @@ export async function GET(request: NextRequest) {
       dateTo: searchParams.get('dateTo') || undefined,
     };
     
-    const cacheKey = `patients:bulk:v2:${scope.role}:${scope.sessionState || 'all'}:${JSON.stringify(filters)}`;
+    console.log('[patients/bulk] Executing fresh query (no Redis cache for raw data)');
     
-    console.log('[patients/bulk] Cache key:', cacheKey);
-    console.log('[patients/bulk] About to check cache...');
-    
-    const response = await getCachedWithMemory<BulkResponse>(
-      cacheKey,
-      async () => {
-        console.log('[patients/bulk] Cache MISS - executing query...');
-        // Use circuit breaker for resilience
-        return await patientsCircuitBreaker.execute(async () => {
-          const supabase = createServerClient();
+    // NO REDIS CACHE - Raw patient data must always be fresh
+    // Use circuit breaker for resilience
+    const response = await patientsCircuitBreaker.execute(async () => {
+      const supabase = createServerClient();
         
         // Build base query
         let baseQuery = supabase
@@ -141,30 +135,19 @@ export async function GET(request: NextRequest) {
           },
         };
         });
-      },
-      30 // 30s TTL - short cache for frequently changing data
-    );
+    });
     
     const totalDuration = Date.now() - startTime;
     
-    console.log(`[patients/bulk] Returning response: ${response.data.length} records, cached: ${totalDuration < 100}`);
+    console.log(`[patients/bulk] Returning response: ${response.data.length} records`);
     
     return NextResponse.json(
-      {
-        ...response,
-        meta: {
-          ...response.meta,
-          durationMs: totalDuration,
-          cached: totalDuration < 100,
-        },
-      },
+      response,
       {
         headers: {
-          'Cache-Control': 'private, max-age=30, stale-while-revalidate=60, must-revalidate',
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
           'X-Total': String(response.data.length),
           'X-Duration-Ms': String(totalDuration),
-          'X-Cache': totalDuration < 100 ? 'HIT' : 'MISS',
-          'X-Cache-Key': cacheKey,
         },
       }
     );

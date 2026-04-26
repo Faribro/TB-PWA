@@ -147,6 +147,9 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
           setNewDataToast(true);
           setTimeout(() => setNewDataToast(false), 3000);
           
+          // Trigger cache invalidation on server
+          fetch('/api/cache/invalidate', { method: 'POST' }).catch(console.error);
+          
           // Optimistic update: prepend new patient to existing data
           mutatePatients((currentData) => {
             if (!currentData || !currentData.data) return currentData;
