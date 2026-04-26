@@ -11,6 +11,8 @@
  * - Stale-while-revalidate (30s TTL)
  * - Scoped keys (year/month/state/district/role)
  * - Targeted invalidation on patient changes
+ * 
+ * Version: 2.0.1 - Fixed Supabase 1000-row default cap
  */
 
 import { NextRequest, NextResponse } from 'next/server';

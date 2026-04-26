@@ -6,6 +6,8 @@
  * 2. Aggressive Redis caching (5min TTL)
  * 3. Minimal column selection
  * 4. Background cache warming
+ * 
+ * Version: 2.0.1 - Fixed Supabase 1000-row default cap
  */
 
 import { NextRequest, NextResponse } from 'next/server';
