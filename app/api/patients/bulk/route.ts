@@ -69,38 +69,67 @@ export async function GET(request: NextRequest) {
         return await patientsCircuitBreaker.execute(async () => {
           const supabase = createServerClient();
         
-        // Robust query with error handling and fallback
-        let query = supabase
+        // Build base query
+        let baseQuery = supabase
           .from('patients')
           .select(BULK_COLUMNS, { count: 'exact', head: false })
           .order('created_at', { ascending: false });
         
-        query = buildScopedQuery(query, scope, filters);
+        baseQuery = buildScopedQuery(baseQuery, scope, filters);
         
-        // CRITICAL: Explicit range to bypass Supabase PostgREST 1000-row default limit
-        // Without this, only first 1000 rows are returned regardless of actual count
-        query = query.range(0, 99999);
+        // PAGINATED FETCH LOOP: Fetch in 5000-row chunks to bypass Supabase limit
+        const PAGE_SIZE = 5000;
+        let allData: any[] = [];
+        let page = 0;
+        let hasMore = true;
+        let totalCount = 0;
         
-        const { data, error, count } = await query;
+        console.log('[patients/bulk] Starting paginated fetch...');
         
-        if (error) {
-          console.error('[patients/bulk] Database error:', error);
-          throw new Error(`Database error: ${error.message}`);
+        while (hasMore && page < 20) { // Safety: max 20 pages (100k rows)
+          const start = page * PAGE_SIZE;
+          const end = start + PAGE_SIZE - 1;
+          
+          // Build query with RBAC filters for this page
+          let pageQuery = supabase
+            .from('patients')
+            .select(BULK_COLUMNS, { count: page === 0 ? 'exact' : null, head: false })
+            .order('created_at', { ascending: false });
+          
+          pageQuery = buildScopedQuery(pageQuery, scope, filters);
+          pageQuery = pageQuery.range(start, end);
+          
+          const { data: pageData, error, count } = await pageQuery;
+          
+          if (error) {
+            console.error(`[patients/bulk] Page ${page} error:`, error);
+            throw new Error(`Database error: ${error.message}`);
+          }
+          
+          if (page === 0 && count) {
+            totalCount = count;
+          }
+          
+          allData = allData.concat(pageData || []);
+          
+          console.log(`[patients/bulk] Page ${page}: Fetched ${pageData?.length || 0} rows (total so far: ${allData.length})`);
+          
+          hasMore = (pageData?.length || 0) === PAGE_SIZE;
+          page++;
         }
         
         const durationMs = Date.now() - startTime;
         
-        console.log(`[patients/bulk] ✅ Fetched ${data?.length || 0} / ${count || 0} records in ${durationMs}ms (range: 0-99999)`);
+        console.log(`[patients/bulk] ✅ Fetched ${allData.length} / ${totalCount} records in ${durationMs}ms (${page} pages)`);
         
-        // VERIFICATION: Log if we hit the range cap
-        if (data?.length === 100000) {
-          console.warn('[patients/bulk] ⚠️ WARNING: Hit 100k row cap - dataset may be larger!');
+        if (page >= 20) {
+          console.warn('[patients/bulk] ⚠️ WARNING: Hit 20-page safety cap (100k rows)!');
         }
         
         return {
-          data: data || [],
+          data: allData,
           meta: {
-            total: count || 0,
+            total: totalCount || allData.length,
             role: scope.role,
             scope: scope.sessionState || 'national',
             durationMs,
