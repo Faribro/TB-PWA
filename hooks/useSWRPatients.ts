@@ -119,6 +119,9 @@ export function useSWRAllPatients(
       if (filters?.dateFrom) params.set('dateFrom', filters.dateFrom);
       if (filters?.dateTo) params.set('dateTo', filters.dateTo);
       
+      // Add cache-busting timestamp to force fresh data
+      params.set('_t', Date.now().toString());
+      
       const url = `/api/patients/bulk?${params.toString()}`;
       console.log('[useSWRPatients] Fetching bulk:', url);
       
@@ -156,7 +159,7 @@ export function useSWRAllPatients(
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       refreshInterval: 0,
-      dedupingInterval: 0,
+      dedupingInterval: 5000, // 5s deduping instead of 0
       errorRetryCount: 3,
       errorRetryInterval: 2000,
       keepPreviousData: true,

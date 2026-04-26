@@ -142,10 +142,12 @@ export async function GET(request: NextRequest) {
         };
         });
       },
-      600
+      30 // 30s TTL - short cache for frequently changing data
     );
     
     const totalDuration = Date.now() - startTime;
+    
+    console.log(`[patients/bulk] Returning response: ${response.data.length} records, cached: ${totalDuration < 100}`);
     
     return NextResponse.json(
       {
@@ -158,10 +160,11 @@ export async function GET(request: NextRequest) {
       },
       {
         headers: {
-          'Cache-Control': 'private, max-age=300, stale-while-revalidate=600',
+          'Cache-Control': 'private, max-age=30, stale-while-revalidate=60, must-revalidate',
           'X-Total': String(response.data.length),
           'X-Duration-Ms': String(totalDuration),
           'X-Cache': totalDuration < 100 ? 'HIT' : 'MISS',
+          'X-Cache-Key': cacheKey,
         },
       }
     );
