@@ -73,7 +73,8 @@ export async function GET(request: NextRequest) {
           .order('created_at', { ascending: false });
         
         query = buildScopedQuery(query, scope, filters);
-        query = query.range(0, 99999);
+        // No range limit - fetch all matching records
+        // query = query.range(0, 99999);
         
         const { data, error, count } = await query;
         

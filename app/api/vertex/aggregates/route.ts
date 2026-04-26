@@ -131,8 +131,7 @@ async function computeYearlyHeatmap(
     .select('screening_date, referral_date')
     .gte('screening_date', yearStart)
     .lte('screening_date', yearEnd)
-    .not('screening_date', 'is', null)
-    .limit(10000);
+    .not('screening_date', 'is', null);
 
   query = applyRBACFilters(query, role, state, staffName);
   query = applyFilterParams(query, filterState, filterDistrict);
@@ -174,8 +173,7 @@ async function computeMonthlySummary(
     .select('screening_date, xray_result, tb_diagnosed, att_start_date, referral_date')
     .gte('screening_date', monthStart)
     .lte('screening_date', monthEnd)
-    .not('screening_date', 'is', null)
-    .limit(5000);
+    .not('screening_date', 'is', null);
 
   query = applyRBACFilters(query, role, state, staffName);
   query = applyFilterParams(query, filterState, filterDistrict);
@@ -212,8 +210,7 @@ async function computeDailySummary(
   let query = supabase
     .from('patients')
     .select('screening_date, xray_result, tb_diagnosed, referral_date')
-    .eq('screening_date', date)
-    .limit(1000);
+    .eq('screening_date', date);
 
   query = applyRBACFilters(query, role, state, staffName);
   query = applyFilterParams(query, filterState, filterDistrict);

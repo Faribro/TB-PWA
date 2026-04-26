@@ -147,7 +147,8 @@ export function useSWRAllPatients(
           durationMs: result.meta.durationMs,
           mode: 'bulk' as const,
           pages: 1,
-          progressive: false
+          progressive: false,
+          total: result.meta.total
         }
       };
     },
@@ -170,18 +171,19 @@ export function useSWRAllPatients(
   }, []);
 
   const currentLoadedCount = data?.data?.length ?? 0;
+  const apiTotalCount = data?.meta?.total ?? currentLoadedCount;
   const displayProgress = 100;
 
   return {
     patients: data?.data ?? [],
     meta: data?.meta ?? null,
-    total: data?.meta?.total ?? data?.data?.length ?? 0,
+    total: apiTotalCount,
     hasMore: false,
     nextCursor: null,
     isLoading,
     isLoadingMore: false,
     loadedCount: currentLoadedCount,
-    totalCount: currentLoadedCount,
+    totalCount: apiTotalCount,
     progress: displayProgress,
     isPartialLoad: false,
     cappedReason: null as string | null,

@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
     // Try cache first (30s TTL)
     const cachedResponse = await getCachedWithMemory<CursorPaginationResponse>(
       cacheKey,
-      async () => {
+      async (): Promise<CursorPaginationResponse> => {
         const supabase = createServerClient();
 
     // Structured logging
@@ -252,10 +252,7 @@ export async function GET(request: NextRequest) {
         error: error.message,
         code: error.code
       });
-      return NextResponse.json({ 
-        error: 'Database query failed',
-        message: error.message
-      }, { status: 500 });
+      throw new Error(error.message);
     }
 
     // Determine if there are more results

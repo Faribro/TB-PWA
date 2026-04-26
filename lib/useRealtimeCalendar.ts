@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import useSWR from 'swr';
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import type { RealtimeChannel } from '@supabase/supabase-js';
@@ -30,24 +30,46 @@ interface UseRealtimeCalendarReturn {
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
+// Stable empty array reference — prevents new [] on every render during loading
+const EMPTY_DATA: ScreeningDay[] = [];
+
+/**
+ * useRealtimeCalendar
+ *
+ * Architecture:
+ * - Server is the single source of truth (via /api/vertex/metrics)
+ * - Supabase Realtime is ONLY a trigger to revalidate SWR cache
+ * - No local state accumulation (prevents drift from server)
+ * - useMemo for merged output (prevents render churn)
+ * - Subscription only recreates when scope (year/state/district) changes
+ */
 export function useRealtimeCalendar({
   year,
   state,
   district,
   onUpdate
 }: UseRealtimeCalendarOptions): UseRealtimeCalendarReturn {
-  
-  const [realtimeData, setRealtimeData] = useState<ScreeningDay[]>([]);
+
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('connecting');
 
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const realtimeMapRef = useRef<Map<string, ScreeningDay>>(new Map());
   const onUpdateRef = useRef(onUpdate);
   const filterParamsRef = useRef({ year, state, district });
-  
+
   const apiUrl = `/api/vertex/metrics?year=${year}&view=year&state=${state || 'all'}&district=${district || 'all'}`;
 
-  // Update refs when props change (prevents re-subscription)
+  // SWR is the primary data source — server = truth
+  const { data: apiData, error, isLoading, mutate } = useSWR(
+    apiUrl,
+    fetcher,
+    {
+      dedupingInterval: 5000,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true
+    }
+  );
+
+  // Keep refs in sync without triggering re-subscription
   useEffect(() => {
     onUpdateRef.current = onUpdate;
   }, [onUpdate]);
@@ -55,115 +77,37 @@ export function useRealtimeCalendar({
   useEffect(() => {
     filterParamsRef.current = { year, state, district };
   }, [year, state, district]);
-  
-  const { data: apiData, error, isLoading, mutate: mutateCalendar } = useSWR(
-    apiUrl,
-    fetcher,
-    {
-      dedupingInterval: 0,
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      refreshInterval: 0,
-      keepPreviousData: true,
-      onSuccess: (data) => {
-        console.log('[useRealtimeCalendar] API data received:', {
-          dailyBreakdown: data?.dailyBreakdown?.length,
-          dates: data?.dailyBreakdown?.map((d: any) => d.date)
-        });
-      }
-    }
-  );
-  
-  const aggregatePatient = useCallback((patient: any) => {
-    const date = patient.screening_date?.split('T')[0];
-    console.log('[useRealtimeCalendar] Processing patient:', {
-      date,
-      state: patient.screening_state,
-      district: patient.screening_district,
-      patientId: patient.id
-    });
 
-    if (!date) return;
+  // Check if a realtime event is relevant to current scope (via ref for stable closure)
+  const isEventInScopeRef = useRef((payload: any): boolean => {
+    const patient = payload.new || payload.old;
+    if (!patient) return false;
 
     const { year: currentYear, state: currentState, district: currentDistrict } = filterParamsRef.current;
 
-    // Filter by year
-    if (!date.startsWith(`${currentYear}-`)) {
-      console.log('[useRealtimeCalendar] Filtered out: wrong year', { date, currentYear });
-      return;
-    }
+    // Check date is in current year
+    const date = patient.screening_date?.split('T')[0];
+    if (!date || !date.startsWith(`${currentYear}-`)) return false;
 
-    // Filter by state (client-side since Supabase doesn't support OR in filters)
+    // Check state filter
     if (currentState && currentState !== 'all') {
       const patientState = patient.screening_state;
       if (currentState === 'Maharashtra') {
-        if (patientState !== 'Maharashtra' && patientState !== 'Mumbai') {
-          console.log('[useRealtimeCalendar] Filtered out: wrong state', { patientState, currentState });
-          return;
-        }
+        if (patientState !== 'Maharashtra' && patientState !== 'Mumbai') return false;
       } else {
-        if (patientState !== currentState) {
-          console.log('[useRealtimeCalendar] Filtered out: wrong state', { patientState, currentState });
-          return;
-        }
+        if (patientState !== currentState) return false;
       }
     }
 
-    // Filter by district
+    // Check district filter
     if (currentDistrict && currentDistrict !== 'all') {
-      if (patient.screening_district !== currentDistrict) {
-        console.log('[useRealtimeCalendar] Filtered out: wrong district', { patientDistrict: patient.screening_district, currentDistrict });
-        return;
-      }
+      if (patient.screening_district !== currentDistrict) return false;
     }
 
-    const existing = realtimeMapRef.current.get(date) || {
-      date,
-      count: 0,
-      tbPositive: 0,
-      suspected: 0,
-      attStarted: 0,
-      referred: 0
-    };
+    return true;
+  });
 
-    const isSuspected = patient.xray_result === 'Suspected TB Case';
-    const isDiagnosed = patient.tb_diagnosed === 'Y' || patient.tb_diagnosed === 'Yes';
-    const isAttStarted = !!patient.att_start_date;
-    const isReferred = !!patient.referral_date;
-
-    existing.count++;
-    if (isDiagnosed) existing.tbPositive++;
-    if (isSuspected) existing.suspected++;
-    if (isAttStarted) existing.attStarted++;
-    if (isReferred) existing.referred++;
-
-    realtimeMapRef.current.set(date, existing);
-
-    const updatedArray = Array.from(realtimeMapRef.current.values())
-      .sort((a, b) => a.date.localeCompare(b.date));
-
-    setRealtimeData(updatedArray);
-
-    // Notify parent that this date was updated
-    onUpdateRef.current?.(date);
-  }, []); // Empty dependency array - uses refs internally
-  
-  const mergedData = useCallback(() => {
-    if (!apiData?.dailyBreakdown) return realtimeData;
-    
-    const mergedMap = new Map<string, ScreeningDay>();
-    apiData.dailyBreakdown.forEach((day: ScreeningDay) => {
-      mergedMap.set(day.date, { ...day });
-    });
-    
-    realtimeData.forEach(day => {
-      mergedMap.set(day.date, day);
-    });
-    
-    return Array.from(mergedMap.values())
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [apiData?.dailyBreakdown, realtimeData]);
-  
+  // Realtime subscription — only re-subscribes when scope changes
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
 
@@ -183,26 +127,18 @@ export function useRealtimeCalendar({
           table: 'patients',
         },
         (payload) => {
-          console.log('[useRealtimeCalendar] Event received:', {
-            eventType: payload.eventType,
-            patientId: payload.new?.id,
-            screeningDate: payload.new?.screening_date,
-            state: payload.new?.screening_state,
-            district: payload.new?.screening_district
-          });
-          if (payload.eventType === 'INSERT') {
-            aggregatePatient(payload.new);
-            // Force immediate refetch with revalidate=true
-            mutateCalendar(undefined, { revalidate: true });
-          } else if (payload.eventType === 'UPDATE') {
-            aggregatePatient(payload.new);
-            // Force immediate refetch with revalidate=true
-            mutateCalendar(undefined, { revalidate: true });
-          }
+          if (!isEventInScopeRef.current(payload)) return;
+
+          const date = (payload.new || payload.old)?.screening_date?.split('T')[0];
+
+          // Notify parent for visual feedback (sound, animation)
+          if (date) onUpdateRef.current?.(date);
+
+          // Revalidate SWR cache — server is truth, not local accumulation
+          mutate();
         }
       )
       .subscribe((s) => {
-        console.log('[useRealtimeCalendar] Subscription status:', s);
         if (s === 'SUBSCRIBED') {
           setStatus('connected');
         } else if (s === 'CLOSED') {
@@ -219,10 +155,24 @@ export function useRealtimeCalendar({
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, [year, state, district, aggregatePatient, mutateCalendar]); // Include mutateCalendar
-  
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year, state, district]); // Only recreate subscription when scope changes
+
+  // Memoized data — stable reference, no new array on every render
+  const data = useMemo<ScreeningDay[]>(() => {
+    if (!apiData?.dailyBreakdown) return EMPTY_DATA;
+    return apiData.dailyBreakdown.map((day: any) => ({
+      date: day.date,
+      count: day.count,
+      tbPositive: day.tbPositive ?? day.tb_positive ?? 0,
+      suspected: day.suspected ?? 0,
+      attStarted: day.attStarted ?? day.att_started ?? 0,
+      referred: day.referred ?? 0
+    }));
+  }, [apiData?.dailyBreakdown]);
+
   return {
-    data: mergedData(),
+    data,
     isLoading,
     error,
     status

@@ -8,6 +8,7 @@
  * 4. No sync tracking fields in response
  */
 
+(async () => {
 const WEBHOOK_URL = 'http://localhost:3000/api/webhook/kobo';
 const WEBHOOK_SECRET = process.env.KOBO_WEBHOOK_SECRET || 'alliance_kobo_secure_2026';
 
@@ -133,3 +134,4 @@ async function testWebhook() {
 testWebhook().then(() => {
   setTimeout(() => process.exit(0), 2000);
 });
+})();

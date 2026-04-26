@@ -52,7 +52,7 @@ export function usePatientRealtime(
         (payload) => {
           console.log('[Realtime] Patient change detected:', {
             event: payload.eventType,
-            id: payload.new?.id || payload.old?.id,
+            id: (payload.new as any)?.id || (payload.old as any)?.id,
             timestamp: new Date().toISOString()
           });
           

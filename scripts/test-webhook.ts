@@ -5,6 +5,7 @@
  * Tests POST /api/webhook/kobo endpoint
  */
 
+(async () => {
 const WEBHOOK_URL = 'http://localhost:3000/api/webhook/kobo';
 const WEBHOOK_SECRET = 'alliance_kobo_secure_2026';
 
@@ -160,3 +161,4 @@ runTests().catch(error => {
   console.error('\n❌ Fatal error:', error);
   process.exit(1);
 });
+})();
