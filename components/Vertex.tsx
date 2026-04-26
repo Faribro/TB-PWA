@@ -46,7 +46,6 @@ import { RegisterUploadModal } from '@/components/RegisterUploadModal';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope } from '@/hooks/useSessionScope';
 import { useVertexHeatmap, useVertexMonthSummary, useVertexDaily } from '@/hooks/useVertexAggregates';
-import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // TypeScript Interfaces
