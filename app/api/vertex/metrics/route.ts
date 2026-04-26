@@ -7,6 +7,7 @@ import { getCachedWithMemory } from '@/lib/memory-cache';
 // Version 2.0.1 - Fixed Supabase 1000-row default cap
 export const maxDuration = 15;
 export const dynamic = 'force-dynamic';
+export const revalidate = 0; // Force no caching
 
 interface PatientRecord {
   screening_date: string;

@@ -23,6 +23,7 @@ import { getRedisClient } from '@/lib/redis';
 
 export const maxDuration = 15;
 export const dynamic = 'force-dynamic';
+export const revalidate = 0; // Force no caching
 
 interface HeatmapDay {
   date: string;
