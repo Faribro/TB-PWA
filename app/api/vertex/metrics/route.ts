@@ -177,6 +177,11 @@ export async function GET(request: NextRequest) {
       const dailyBreakdown = Array.from(dailyMap.values()).sort((a, b) =>
         a.date.localeCompare(b.date)
       );
+      
+      console.log(`[/api/vertex/metrics] Year ${year}: Aggregated ${totalScreened} records into ${dailyBreakdown.length} days`);
+      if (totalScreened === 1000) {
+        console.warn(`[/api/vertex/metrics] ⚠️ WARNING: Exactly 1000 records - may indicate Supabase cap!`);
+      }
 
         return {
           screened: totalScreened,
@@ -280,6 +285,11 @@ export async function GET(request: NextRequest) {
       const dailyBreakdown = Array.from(dailyMap.values()).sort((a, b) =>
         a.date.localeCompare(b.date)
       );
+      
+      console.log(`[/api/vertex/metrics] Month ${year}-${month}: Aggregated ${totalScreened} records into ${dailyBreakdown.length} days`);
+      if (totalScreened === 1000) {
+        console.warn(`[/api/vertex/metrics] ⚠️ WARNING: Exactly 1000 records - may indicate Supabase cap!`);
+      }
 
       return {
         screened: totalScreened,

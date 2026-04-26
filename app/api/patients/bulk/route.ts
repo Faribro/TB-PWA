@@ -87,7 +87,12 @@ export async function GET(request: NextRequest) {
         
         const durationMs = Date.now() - startTime;
         
-        console.log(`[patients/bulk] ✅ Fetched ${data?.length || 0} / ${count || 0} records in ${durationMs}ms`);
+        console.log(`[patients/bulk] ✅ Fetched ${data?.length || 0} / ${count || 0} records in ${durationMs}ms (range: 0-99999)`);
+        
+        // VERIFICATION: Log if we hit the range cap
+        if (data?.length === 100000) {
+          console.warn('[patients/bulk] ⚠️ WARNING: Hit 100k row cap - dataset may be larger!');
+        }
         
         return {
           data: data || [],
