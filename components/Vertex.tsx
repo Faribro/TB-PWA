@@ -827,6 +827,8 @@ export default function Vertex({
 
   // Task 1: Data Aggregation - Grouped Geography (optimized)
   const groupedGeography = useMemo((): StateData[] => {
+    console.log('[Vertex] groupedGeography: computing from', patientsForSelectedDate.length, 'patients');
+    
     if (!patientsForSelectedDate.length) return [];
     
     const stateMap = new Map<string, Map<string, Map<string, any[]>>>();
