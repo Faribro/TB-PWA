@@ -103,7 +103,7 @@ function getOpenRouterApiKey(): string {
  * Log AI usage to database for cost monitoring and analytics
  */
 async function logAIUsage(log: AIUsageLog): Promise<void> {
-  const { getSupabaseClient } = await import('@/lib/db/supabase');
+  const { getSupabaseClient } = await import('@/lib/supabase-server');
   const supabase = getSupabaseClient();
   
   // Calculate estimated cost

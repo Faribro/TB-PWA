@@ -453,7 +453,6 @@ export async function matchRowsScoped(
   // ═══════════════════════════════════════════════════════════
   // CROSS-DATE AI SEARCH for empty-scope fallback
   // ═══════════════════════════════════════════════════════════
-  const isEmptyScope = candidates.length === 0;
   let crossDateCandidates: PatientRow[] = [];
   
   if (useAI && isEmptyScope && extractedRows.length > 0) {
