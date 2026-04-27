@@ -1,8 +1,8 @@
 -- Bulk Query Optimization for /api/patients/bulk
 -- Optimizes the paginated fetch loop for large datasets
 
--- Drop old composite index if exists
-DROP INDEX CONCURRENTLY IF EXISTS idx_patients_created_state_district;
+-- Drop old composite index if exists (cannot use CONCURRENTLY in transaction)
+DROP INDEX IF EXISTS idx_patients_created_state_district;
 
 -- Perfect composite index for the actual query pattern
 -- Covers: ORDER BY created_at DESC + WHERE screening_state + screening_district + screening_date
