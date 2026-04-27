@@ -412,7 +412,7 @@ const GeographicHierarchy = ({
   onFacilityClick: (facilityName: string, state: string, district: string) => void;
 }) => {
   const [expandedStates, setExpandedStates] = useState<Set<string>>(new Set());
-  const [expandedDistricts, setExpandedDistricts] = useState<Set<string>>(new Set>());
+  const [expandedDistricts, setExpandedDistricts] = useState<Set<string>>(new Set());
 
   // Sort states by patient count descending
   const sortedGeography = useMemo(() => {
@@ -457,6 +457,27 @@ const GeographicHierarchy = ({
       return next;
     });
   }, []);
+
+  // Stable ID helpers for accessibility
+  const statePanelId = (name: string) => `geo-state-panel-${name.replace(/\s+/g, '-').toLowerCase()}`;
+  const stateHeaderId = (name: string) => `geo-state-header-${name.replace(/\s+/g, '-').toLowerCase()}`;
+  const distPanelId = (key: string) => `geo-district-panel-${key.replace(/\s+/g, '-').toLowerCase()}`;
+  const distHeaderId = (key: string) => `geo-district-header-${key.replace(/\s+/g, '-').toLowerCase()}`;
+
+  // Keyboard navigation for accordion headers
+  const handleStateKeyDown = useCallback((e: React.KeyboardEvent, stateName: string) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleState(stateName);
+    }
+  }, [toggleState]);
+
+  const handleDistrictKeyDown = useCallback((e: React.KeyboardEvent, districtKey: string) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleDistrict(districtKey);
+    }
+  }, [toggleDistrict]);
 
   return (
     <div className="space-y-4" data-tour-id="geo-case-distribution">
@@ -950,11 +971,11 @@ export default function Vertex({
   const patientsForSelectedFacility = useMemo(() => {
     if (!selectedFacility) return [];
     return patientsForSelectedDate.filter((p: any) =>
-      p.facility_name === selectedFacility.name &&
-      p.screening_state === selectedFacility.state &&
-      p.screening_district === selectedFacility.district
+      p.facility_name === selectedFacility &&
+      p.screening_state === filterState &&
+      p.screening_district === filterDistrict
     );
-  }, [selectedFacility, patientsForSelectedDate]);
+  }, [selectedFacility, patientsForSelectedDate, filterState, filterDistrict]);
 
   // Task 2: SLA Auto-Sort Engine (Triage Intelligence)
   const sortedFacilityPatients = useMemo(() => {
@@ -1038,7 +1059,7 @@ export default function Vertex({
   };
 
   const handleFacilityClick = (facilityName: string, state: string, district: string) => {
-    setSelectedFacility({ name: facilityName, state, district });
+    setSelectedFacility(facilityName);
   };
 
   const handleOpenPatientDrawer = (patient: any) => {
@@ -1625,7 +1646,7 @@ export default function Vertex({
               <div className="flex items-center justify-between">
                 <div>
                   <SheetTitle className="text-lg font-black text-slate-900 leading-tight">
-                    {selectedFacility?.name}
+                    {selectedFacility}
                   </SheetTitle>
                   <p className="text-xs font-medium text-slate-500 mt-0.5">
                     {patientsForSelectedFacility.length} patients screened
