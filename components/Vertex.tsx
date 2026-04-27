@@ -33,6 +33,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { sounds } from '@/lib/sound';
@@ -43,6 +44,7 @@ import { useSWRConfig } from 'swr';
 import { RegisterReconciliation } from '@/components/RegisterReconciliation';
 import { useReconciliationStore } from '@/stores/useReconciliationStore';
 import { RegisterUploadModal } from '@/components/RegisterUploadModal';
+import useSWR from 'swr';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope } from '@/hooks/useSessionScope';
 import { useVertexHeatmap, useVertexMonthSummary, useVertexDaily } from '@/hooks/useVertexAggregates';
@@ -665,9 +667,9 @@ export default function Vertex({
     return monthStart;
   }, [currentMonthStart]);
 
-  // FIXED: Always use fresh SWR data, ignore stale externalPatients
+  // Background load all patients for VertexChart and legacy fallbacks
   const { patients: swrData = [], isLoading: swrLoading } = useSWRAllPatients(null);
-  const globalPatients: any[] = swrData; // Always use fresh SWR data
+  const globalPatients: any[] = swrData;
   const isLoading = swrLoading;
 
   // Find the most recent month with screening activity
@@ -697,7 +699,7 @@ export default function Vertex({
 
   const [currentDate, setCurrentDate] = useState(() => clampToCurrentMonth(mostRecentDateWithData));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedFacility, setSelectedFacility] = useState<string | null>(null);
+  const [selectedFacility, setSelectedFacility] = useState<{ name: string; state: string; district: string } | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [showAttChart, setShowAttChart] = useState(true);
   const sessionScope = useSessionScope();
@@ -711,6 +713,37 @@ export default function Vertex({
   const { mutate } = useSWRConfig();
   const hasAutoJumpedRef = useRef(false);
   const currentDateRef = useRef(currentDate);
+
+  // ── TIERED DATA ARCHITECTURE ──────────────────────────────────────────
+  // Tier 1: Instant shell (already rendered above)
+  // Tier 2: Fast aggregates (heatmap, month summary, daily summary via Redis)
+  // Tier 3: Lazy detail data (geo-summary, patients-by-date, patients-by-facility)
+
+  // TIER 2: Geo-summary for selected date (server-side aggregation, replaces client-side grouping)
+  const { data: geoSummaryData, mutate: mutateGeoSummary } = useSWR(
+    selectedDate ? `/api/vertex/geo-summary?date=${selectedDate}&state=${filterState === 'All' ? 'all' : filterState}&district=${filterDistrict === 'All' ? 'all' : filterDistrict}` : null,
+    (url: string) => fetch(url).then(r => r.json()),
+    { revalidateOnFocus: false, revalidateOnReconnect: false, dedupingInterval: 5000 }
+  );
+
+  // TIER 3: Patient detail rows for selected date (scoped, minimal columns)
+  const { data: patientsByDateData, mutate: mutatePatientsByDate } = useSWR(
+    selectedDate ? `/api/vertex/patients-by-date?date=${selectedDate}&state=${filterState === 'All' ? 'all' : filterState}&district=${filterDistrict === 'All' ? 'all' : filterDistrict}` : null,
+    (url: string) => fetch(url).then(r => r.json()),
+    { revalidateOnFocus: false, revalidateOnReconnect: false, dedupingInterval: 5000 }
+  );
+
+  // TIER 3: Patient detail rows for selected facility
+  const { data: patientsByFacilityData, mutate: mutatePatientsByFacility } = useSWR(
+    selectedFacility && selectedDate ? `/api/vertex/patients-by-date?date=${selectedDate}&facility=${encodeURIComponent(selectedFacility.name)}&state=${selectedFacility.state}&district=${selectedFacility.district}` : null,
+    (url: string) => fetch(url).then(r => r.json()),
+    { revalidateOnFocus: false, revalidateOnReconnect: false, dedupingInterval: 5000 }
+  );
+
+  // Server-provided data (preferred over client-side derivation)
+  const serverGeoSummary = geoSummaryData?.geoSummary || null;
+  const serverPatientsByDate = patientsByDateData?.data || null;
+  const serverPatientsByFacility = patientsByFacilityData?.data || null;
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -742,49 +775,39 @@ export default function Vertex({
     filterDistrict === 'All' ? undefined : filterDistrict
   );
 
-  // Realtime subscription for targeted cache invalidation
+  // Realtime invalidation for aggregates (heatmap, month, daily, geo-summary, patients-by-date)
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     const channel = supabase
-      .channel('vertex-realtime-invalidation')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'patients' },
-        (payload) => {
-          console.log('[Vertex] Realtime event:', payload.eventType);
-          // Optimistic invalidation: mutate only affected keys
-          mutateHeatmap();
-          mutateMonthSummary();
-          if (selectedDate) mutateDaily();
+      .channel('vertex-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, () => {
+        mutateHeatmap();
+        mutateMonthSummary();
+        if (selectedDate) {
+          mutateDaily();
+          mutateGeoSummary();
+          mutatePatientsByDate();
+          if (selectedFacility) {
+            mutatePatientsByFacility();
+          }
         }
-      )
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [mutateHeatmap, mutateMonthSummary, mutateDaily, selectedDate]);
+  }, [mutateHeatmap, mutateMonthSummary, mutateDaily, selectedDate, mutateGeoSummary, mutatePatientsByDate, mutatePatientsByFacility, selectedFacility]);
 
-  // Extract available states and districts (memoized with proper dependencies)
-  const { availableStates, availableDistricts } = useMemo(() => {
-    if (!globalPatients?.length) return { availableStates: [], availableDistricts: [] };
-    
-    const states = new Set<string>();
-    const districts = new Set<string>();
-    
-    for (let i = 0; i < globalPatients.length; i++) {
-      const patient = globalPatients[i];
-      // ✅ NULL SAFETY: Guard against null/undefined patients
-      if (!patient) continue;
-      if (patient.screening_state) states.add(patient.screening_state);
-      if (patient.screening_district) districts.add(patient.screening_district);
-    }
-    
-    return {
-      availableStates: Array.from(states).sort(),
-      availableDistricts: Array.from(districts).sort()
-    };
-  }, [globalPatients]);
+  // TIER 2: Filters endpoint for available states/districts (lightweight, no full patient fetch)
+  const { data: filtersData } = useSWR(
+    '/api/vertex/filters',
+    (url: string) => fetch(url).then(r => r.json()),
+    { revalidateOnFocus: false, revalidateOnReconnect: false, dedupingInterval: 300000 } // 5min cache
+  );
+
+  const availableStates = filtersData?.availableStates || [];
+  const availableDistricts = filtersData?.availableDistricts || [];
 
   // Use Redis-backed heatmap (instant reads)
   const heatmapData = useMemo(() => {
@@ -848,18 +871,16 @@ export default function Vertex({
     }
   }, [heatmapData, selectedDate]); // ⚠️ REMOVED currentDate and clampToCurrentMonth from dependencies
 
+  // Use server-provided patients for selected date when available, fall back to client-side
   const patientsForSelectedDate = useMemo(() => {
+    if (serverPatientsByDate) return serverPatientsByDate;
     if (!selectedDate || !globalPatients?.length) {
-      console.log('[Vertex] patientsForSelectedDate: empty - selectedDate:', selectedDate, 'globalPatients.length:', globalPatients?.length);
       return [];
     }
-    
-    console.log('[Vertex] patientsForSelectedDate: filtering for date:', selectedDate, 'from', globalPatients.length, 'patients');
     
     const result = [];
     for (let i = 0; i < globalPatients.length; i++) {
       const patient = globalPatients[i];
-      // ✅ NULL SAFETY: Guard against null/undefined patients
       if (!patient) continue;
       
       const dateValue = patient.screening_date || patient.submitted_on;
@@ -867,17 +888,14 @@ export default function Vertex({
       
       if (normalizedDate !== selectedDate) continue;
       
-      // Apply geographic filters
       if (filterState !== 'All' && patient.screening_state !== filterState) continue;
       if (filterDistrict !== 'All' && patient.screening_district !== filterDistrict) continue;
       
       result.push(patient);
     }
     
-    console.log('[Vertex] patientsForSelectedDate: found', result.length, 'patients for date', selectedDate);
-    
     return result;
-  }, [selectedDate, globalPatients, filterState, filterDistrict]);
+  }, [serverPatientsByDate, selectedDate, globalPatients, filterState, filterDistrict]);
 
   // Use Redis-backed daily summary (instant reads)
   const dailySparks = useMemo((): DailySparks => {
@@ -893,9 +911,9 @@ export default function Vertex({
     return { totalScreened, pendingSputum, diagnosed, onTrack: suspected };
   }, [cachedDailySummary, patientsForSelectedDate]);
 
-  // Task 1: Data Aggregation - Grouped Geography (optimized)
+  // Task 1: Data Aggregation - Grouped Geography (use server summary when available)
   const groupedGeography = useMemo((): StateData[] => {
-    console.log('[Vertex] groupedGeography: computing from', patientsForSelectedDate.length, 'patients');
+    if (serverGeoSummary) return serverGeoSummary;
     
     if (!patientsForSelectedDate.length) return [];
     
@@ -903,7 +921,6 @@ export default function Vertex({
 
     for (let i = 0; i < patientsForSelectedDate.length; i++) {
       const patient = patientsForSelectedDate[i];
-      // ✅ NULL SAFETY: Guard against null/undefined patients
       if (!patient) continue;
       
       const state = patient.screening_state || 'Unknown State';
@@ -967,15 +984,16 @@ export default function Vertex({
     return result;
   }, [patientsForSelectedDate]);
 
-  // Task 3: Filter patients for selected facility (match name + state + district to avoid cross-state collisions)
+  // Task 3: Filter patients for selected facility (use server data when available)
   const patientsForSelectedFacility = useMemo(() => {
+    if (serverPatientsByFacility) return serverPatientsByFacility;
     if (!selectedFacility) return [];
     return patientsForSelectedDate.filter((p: any) =>
       p.facility_name === selectedFacility.name &&
       p.screening_state === selectedFacility.state &&
       p.screening_district === selectedFacility.district
     );
-  }, [selectedFacility, patientsForSelectedDate]);
+  }, [serverPatientsByFacility, selectedFacility, patientsForSelectedDate]);
 
   // Task 2: SLA Auto-Sort Engine (Triage Intelligence)
   const sortedFacilityPatients = useMemo(() => {
@@ -1272,32 +1290,42 @@ export default function Vertex({
                   <ScrollArea className="flex-1 px-8 py-8">
                     <div className="space-y-10">
                       {/* Interactive Metrics */}
-                      <div className="grid grid-cols-2 gap-6">
-                        <SparkCard 
-                          icon={Users}
-                          label="Total Screened"
-                          value={dailySparks.totalScreened}
-                          color="cyan"
-                        />
-                        <SparkCard 
-                          icon={CheckCircle2}
-                          label="Suspected TB"
-                          value={dailySparks.onTrack}
-                          color="amber"
-                        />
-                        <SparkCard 
-                          icon={AlertCircle}
-                          label="TB Diagnosed"
-                          value={dailySparks.diagnosed}
-                          color="red"
-                        />
-                        <SparkCard 
-                          icon={Activity}
-                          label="Pending Sputum"
-                          value={dailySparks.pendingSputum}
-                          color="emerald"
-                        />
-                      </div>
+                      {cachedDailySummary === undefined ? (
+                        // Skeleton for loading metrics
+                        <div className="grid grid-cols-2 gap-6">
+                          <Skeleton className="h-24 w-full rounded-xl" />
+                          <Skeleton className="h-24 w-full rounded-xl" />
+                          <Skeleton className="h-24 w-full rounded-xl" />
+                          <Skeleton className="h-24 w-full rounded-xl" />
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-6">
+                          <SparkCard 
+                            icon={Users}
+                            label="Total Screened"
+                            value={dailySparks.totalScreened}
+                            color="cyan"
+                          />
+                          <SparkCard 
+                            icon={CheckCircle2}
+                            label="Suspected TB"
+                            value={dailySparks.onTrack}
+                            color="amber"
+                          />
+                          <SparkCard 
+                            icon={AlertCircle}
+                            label="TB Diagnosed"
+                            value={dailySparks.diagnosed}
+                            color="red"
+                          />
+                          <SparkCard 
+                            icon={Activity}
+                            label="Pending Sputum"
+                            value={dailySparks.pendingSputum}
+                            color="emerald"
+                          />
+                        </div>
+                      )}
 
                       {/* Geography Summary Chips — Elegant Intelligence Tags */}
                       {selectedDate && groupedGeography.length > 0 && (
@@ -1358,10 +1386,19 @@ export default function Vertex({
                           className="bg-white rounded-2xl p-4 border border-slate-200/60 shadow-sm"
                         >
                           {selectedDate ? (
-                            <GeographicHierarchy 
-                              groupedGeography={groupedGeography}
-                              onFacilityClick={handleFacilityClick}
-                            />
+                            geoSummaryData === undefined ? (
+                              // Skeleton for loading geo-summary
+                              <div className="space-y-3">
+                                <Skeleton className="h-16 w-full rounded-xl" />
+                                <Skeleton className="h-14 w-full rounded-xl" />
+                                <Skeleton className="h-14 w-full rounded-xl" />
+                              </div>
+                            ) : (
+                              <GeographicHierarchy 
+                                groupedGeography={groupedGeography}
+                                onFacilityClick={handleFacilityClick}
+                              />
+                            )
                           ) : (
                             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
                               <MapPin className="w-8 h-8 text-slate-400 mb-3" />
