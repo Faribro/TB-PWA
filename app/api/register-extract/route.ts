@@ -79,16 +79,16 @@ export async function POST(request: NextRequest) {
     const isExcel = declaredMime.includes('spreadsheetml') || filename.endsWith('.xlsx');
     const isCSV = declaredMime === 'text/csv' || filename.endsWith('.csv');
 
-    if (!isExcel && !isCSV) {
-      return NextResponse.json(
-        { error: `Only Excel (.xlsx) and CSV files are supported for register upload. Received: ${declaredMime}` },
-        { status: 415 },
-      );
-    }
+    let extractionResult: any;
 
-    // ── Stage 2: Parse + Normalize ──
-    const { extractFromSpreadsheet } = await import('@/lib/ocr/excelExtractor');
-    const extractionResult = await extractFromSpreadsheet(buffer, filename);
+    if (isExcel || isCSV) {
+      const { extractFromSpreadsheet } = await import('@/lib/ocr/excelExtractor');
+      extractionResult = await extractFromSpreadsheet(buffer, filename);
+    } else {
+      const { extractRegisterImageHybrid } = await import('@/lib/ocr/hybridExtractor');
+      const mime = declaredMime.startsWith('image/') ? declaredMime : 'application/pdf';
+      extractionResult = await extractRegisterImageHybrid(buffer, mime);
+    }
 
     // ── Stage 3: Scoped Matching ──
     const supabase = getSupabaseClient();

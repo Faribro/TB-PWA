@@ -22,6 +22,7 @@ import {
   type ExtractedRow,
   type ExtractionResult,
 } from './geminiExtractor';
+import { extractRegisterImageOpenRouter } from './openrouterExtractor';
 
 // ═══════════════════════════════════════════════════════
 // Types
@@ -190,15 +191,28 @@ export async function extractRegisterImageHybrid(
   // PDF GUARD: Tesseract cannot parse PDFs natively
   // Route directly to Gemini for all PDF inputs
   if (mime === 'application/pdf') {
-    console.log('[hybridExtractor] PDF detected — bypassing Tesseract, routing to Gemini')
-    const geminiResult = await geminiExtract(imageBuffer, mime);
-    const sanitizedRows = sanitizeExtractedRows(geminiResult.rows);
-    return {
-      ...geminiResult,
-      rows: sanitizedRows,
-      engine: 'gemini',
-      cost: 1, // Gemini API call cost
-    };
+    console.log('[hybridExtractor] PDF detected — bypassing Tesseract, routing to Gemini');
+    try {
+      const geminiResult = await geminiExtract(imageBuffer, mime);
+      const sanitizedRows = sanitizeExtractedRows(geminiResult.rows);
+      return {
+        ...geminiResult,
+        rows: sanitizedRows,
+        engine: 'gemini',
+        cost: 1,
+      };
+    } catch (geminiError) {
+      console.warn('[HybridExtractor] Gemini failed for PDF, falling back to OpenRouter:', geminiError);
+      const orResult = await extractRegisterImageOpenRouter(imageBuffer, mime);
+      const sanitizedRows = sanitizeExtractedRows(orResult.rows);
+      return {
+         ...orResult,
+         rows: sanitizedRows,
+         engine: 'openrouter',
+         fallbackReason: 'Gemini API failed on PDF',
+         cost: 1, // Normalized cost
+      };
+    }
   }
 
   // ═══════════════════════════════════════════════════════
@@ -245,35 +259,61 @@ export async function extractRegisterImageHybrid(
     console.log('[HybridExtractor] Fallback reason:', validation.reason);
 
     // ═══════════════════════════════════════════════════════
-    // FALLBACK: Gemini VLM
+    // FALLBACK 1: Gemini VLM
     // ═══════════════════════════════════════════════════════
-    const geminiResult = await geminiExtract(imageBuffer, mime);
-    const sanitizedRows = sanitizeExtractedRows(geminiResult.rows);
+    try {
+      const geminiResult = await geminiExtract(imageBuffer, mime);
+      const sanitizedRows = sanitizeExtractedRows(geminiResult.rows);
 
-    console.log('[HybridExtractor] ✅ Gemini fallback success');
+      console.log('[HybridExtractor] ✅ Gemini fallback success');
 
-    return {
-      ...geminiResult,
-      rows: sanitizedRows,
-      engine: 'gemini',
-      fallbackReason: validation.reason || 'Tesseract parsing failed',
-      cost: 1, // Gemini API call cost (normalized to 1 unit)
-    };
+      return {
+        ...geminiResult,
+        rows: sanitizedRows,
+        engine: 'gemini',
+        fallbackReason: validation.reason || 'Tesseract parsing failed',
+        cost: 1,
+      };
+    } catch (geminiError) {
+      console.warn('[HybridExtractor] ⚠️ Gemini also failed, triggering Deep Fallback to OpenRouter', geminiError);
+      
+      const orResult = await extractRegisterImageOpenRouter(imageBuffer, mime);
+      const sanitizedRows = sanitizeExtractedRows(orResult.rows);
+      return {
+        ...orResult,
+        rows: sanitizedRows,
+        engine: 'openrouter',
+        fallbackReason: 'Tesseract and Gemini both failed',
+        cost: 1,
+      };
+    }
   } catch (tesseractError) {
-    // ❌ TESSERACT CRASHED: Fall back to Gemini
+    // ❌ TESSERACT CRASHED: Fall back
     console.error('[HybridExtractor] Tesseract error:', tesseractError);
-    console.log('[HybridExtractor] Falling back to Gemini due to Tesseract crash...');
+    console.log('[HybridExtractor] Falling back initially to Gemini...');
 
-    const geminiResult = await geminiExtract(imageBuffer, mime);
-    const sanitizedRows = sanitizeExtractedRows(geminiResult.rows);
-
-    return {
-      ...geminiResult,
-      rows: sanitizedRows,
-      engine: 'gemini',
-      fallbackReason: `Tesseract crashed: ${tesseractError instanceof Error ? tesseractError.message : 'Unknown error'}`,
-      cost: 1,
-    };
+    try {
+      const geminiResult = await geminiExtract(imageBuffer, mime);
+      const sanitizedRows = sanitizeExtractedRows(geminiResult.rows);
+      return {
+        ...geminiResult,
+        rows: sanitizedRows,
+        engine: 'gemini',
+        fallbackReason: 'Tesseract crashed',
+        cost: 1,
+      };
+    } catch (geminiError) {
+      console.warn('[HybridExtractor] Gemini failed after Tesseract crash. Falling to OpenRouter');
+      const orResult = await extractRegisterImageOpenRouter(imageBuffer, mime);
+      const sanitizedRows = sanitizeExtractedRows(orResult.rows);
+      return {
+        ...orResult,
+        rows: sanitizedRows,
+        engine: 'openrouter',
+        fallbackReason: 'Tesseract crashed, and Gemini failed',
+        cost: 1,
+      };
+    }
   }
 }
 
