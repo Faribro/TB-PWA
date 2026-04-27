@@ -108,6 +108,9 @@ export async function GET(request: NextRequest) {
     // Use local timezone for today's date
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
     
     const [
       totalResult,
@@ -149,23 +152,27 @@ export async function GET(request: NextRequest) {
       buildCountQuery()
         .not('att_start_date', 'is', null),
         
-      // Today Screened
+      // Today Screened (date range to handle timestamps)
       buildCountQuery()
-        .eq('screening_date', todayStr),
+        .gte('screening_date', todayStr)
+        .lt('screening_date', tomorrowStr),
         
-      // Today Suspected
+      // Today Suspected (date range to handle timestamps)
       buildCountQuery()
-        .eq('screening_date', todayStr)
+        .gte('screening_date', todayStr)
+        .lt('screening_date', tomorrowStr)
         .or('xray_result.ilike.%abnormal%,xray_result.ilike.%suspected%,chest_x_ray_result.ilike.%abnormal%,chest_x_ray_result.ilike.%suspected%'),
         
-      // Today Diagnosed
+      // Today Diagnosed (date range to handle timestamps)
       buildCountQuery()
-        .eq('screening_date', todayStr)
+        .gte('screening_date', todayStr)
+        .lt('screening_date', tomorrowStr)
         .eq('tb_diagnosed', 'Yes'),
         
-      // Today Pending (no referral, not diagnosed)
+      // Today Pending (no referral, not diagnosed - date range to handle timestamps)
       buildCountQuery()
-        .eq('screening_date', todayStr)
+        .gte('screening_date', todayStr)
+        .lt('screening_date', tomorrowStr)
         .or('tb_diagnosed.is.null,tb_diagnosed.not.eq.Yes')
         .is('referral_date', null)
     ]);
