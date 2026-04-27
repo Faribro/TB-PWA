@@ -1774,6 +1774,21 @@ export default function Vertex({
                         {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </span>
                     )}
+                    {selectedFacility?.state && (
+                      <span className="text-slate-600">
+                        {selectedFacility.state}
+                      </span>
+                    )}
+                    {selectedFacility?.district && (
+                      <span className="text-slate-600">
+                        {selectedFacility.district}
+                      </span>
+                    )}
+                    {selectedFacility?.dj && (
+                      <span className="text-slate-600">
+                        DJ: {selectedFacility.dj}
+                      </span>
+                    )}
                     <span>{patientsForSelectedFacility.length} patients screened</span>
                   </p>
                 </div>
