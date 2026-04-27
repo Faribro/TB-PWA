@@ -574,6 +574,7 @@ function ReviewPhase() {
                       setDecision(result.sno, { action, selectedPatientId: patientId })
                     }
                     onOpenPicker={() => setPickerResult(result)}
+                    isEmptyScope={isEmptyScope}
                   />
                 ))
               ) : (
@@ -608,6 +609,7 @@ function ReviewPhase() {
                     }
                     onOpenPicker={() => setPickerResult(result)}
                     isNewInmate
+                    isEmptyScope={isEmptyScope}
                   />
                 ))
               ) : (
@@ -678,12 +680,14 @@ function ScopedRowCard({
   onSetDecision,
   onOpenPicker,
   isNewInmate = false,
+  isEmptyScope = false,
 }: {
   result: RowMatchResult;
   decision: { action: RowAction; selectedPatientId?: string } | undefined;
   onSetDecision: (action: RowAction, patientId?: string) => void;
   onOpenPicker: () => void;
   isNewInmate?: boolean;
+  isEmptyScope?: boolean;
 }) {
   const row = result.extractedRow;
   const topCandidate = result.candidates[0];
@@ -737,7 +741,8 @@ function ScopedRowCard({
         <div className="flex items-center gap-1.5 shrink-0">
           {result.classification !== 'duplicate_in_file' && (
             <>
-              {!isNewInmate && (
+              {/* In empty-scope mode, hide accept button — only create/reject allowed */}
+              {!isEmptyScope && !isNewInmate && (
                 <button
                   onClick={() => {
                     if (topCandidate) {
