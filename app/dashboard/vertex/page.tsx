@@ -120,9 +120,12 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     filters: stableFilters
   });
   
-  // Real-time subscription for new Kobo submissions
+  // Real-time subscription for new Kobo submissions (deferred to avoid blocking initial load)
   useEffect(() => {
     if (!scope) return;
+    
+    // Only set up subscription after initial data is loaded
+    if (isLoadingPatients) return;
     
     const supabase = getSupabaseBrowserClient();
     
@@ -197,7 +200,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
       console.log('[Vertex] Cleaning up real-time subscription');
       supabase.removeChannel(channel);
     };
-  }, [scope, mutatePatients]);
+  }, [scope, isLoadingPatients, mutatePatients]);
   
   // Sync total count from summary to hook (guarded to prevent loops)
   const prevTotalRef = useRef<number>(0);
