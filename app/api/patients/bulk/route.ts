@@ -60,37 +60,34 @@ export async function GET(request: NextRequest) {
       dateTo: searchParams.get('dateTo') || undefined,
     };
     
-    // Generate cache key based on scope and filters
-    const cacheKey = `patients:bulk:${scope.role}:${scope.sessionState || 'all'}:${filters.state || 'all'}:${filters.district || 'all'}:${filters.dateFrom || 'all'}:${filters.dateTo || 'all'}`;
+    // TODO: Re-enable Redis caching after fixing getCachedWithMemory
+    // const cacheKey = `patients:bulk:${scope.role}:${scope.sessionState || 'all'}:${filters.state || 'all'}:${filters.district || 'all'}:${filters.dateFrom || 'all'}:${filters.dateTo || 'all'}`;
+    // console.log('[patients/bulk] Checking cache for key:', cacheKey);
+    // const cached = await getCachedWithMemory(cacheKey, 30000);
+    // if (cached) {
+    //   const durationMs = Date.now() - startTime;
+    //   console.log(`[patients/bulk] ✅ Cache hit: ${cached.data.length} records in ${durationMs}ms`);
+    //   return NextResponse.json(
+    //     {
+    //       ...cached,
+    //       meta: {
+    //         ...cached.meta,
+    //         cached: true,
+    //         durationMs,
+    //       },
+    //     },
+    //     {
+    //       headers: {
+    //         'Cache-Control': 'private, max-age=30',
+    //         'X-Cache': 'HIT',
+    //         'X-Total': String(cached.data.length),
+    //         'X-Duration-Ms': String(durationMs),
+    //       },
+    //     }
+    //   );
+    // }
     
-    console.log('[patients/bulk] Checking cache for key:', cacheKey);
-    
-    // Try Redis cache first (30s TTL for fresh data)
-    const cached = await getCachedWithMemory(cacheKey, 30000);
-    if (cached) {
-      const durationMs = Date.now() - startTime;
-      console.log(`[patients/bulk] ✅ Cache hit: ${cached.data.length} records in ${durationMs}ms`);
-      return NextResponse.json(
-        {
-          ...cached,
-          meta: {
-            ...cached.meta,
-            cached: true,
-            durationMs,
-          },
-        },
-        {
-          headers: {
-            'Cache-Control': 'private, max-age=30',
-            'X-Cache': 'HIT',
-            'X-Total': String(cached.data.length),
-            'X-Duration-Ms': String(durationMs),
-          },
-        }
-      );
-    }
-    
-    console.log('[patients/bulk] Cache miss, executing fresh query');
+    console.log('[patients/bulk] Executing fresh query (caching disabled)');
     
     // NO REDIS CACHE - Raw patient data must always be fresh
     // Use circuit breaker for resilience
@@ -172,14 +169,14 @@ export async function GET(request: NextRequest) {
       };
     });
     
-    // Store in Redis cache for 30s
-    try {
-      await getCachedWithMemory(cacheKey, 30000, response);
-      console.log(`[patients/bulk] ✅ Cached ${response.data.length} records for 30s`);
-    } catch (cacheError) {
-      console.warn('[patients/bulk] Failed to cache:', cacheError);
-      // Don't fail the request if caching fails
-    }
+    // TODO: Re-enable Redis caching after fixing getCachedWithMemory
+    // try {
+    //   await getCachedWithMemory(cacheKey, 30000, response);
+    //   console.log(`[patients/bulk] ✅ Cached ${response.data.length} records for 30s`);
+    // } catch (cacheError) {
+    //   console.warn('[patients/bulk] Failed to cache:', cacheError);
+    //   // Don't fail the request if caching fails
+    // }
     
     const totalDuration = Date.now() - startTime;
     
@@ -189,8 +186,8 @@ export async function GET(request: NextRequest) {
       response,
       {
         headers: {
-          'Cache-Control': 'private, max-age=30',
-          'X-Cache': 'MISS',
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+          'X-Cache': 'DISABLED',
           'X-Total': String(response.data.length),
           'X-Duration-Ms': String(totalDuration),
         },
