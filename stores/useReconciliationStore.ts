@@ -12,7 +12,12 @@
  * Phases: Upload → Extracting → Streaming → Review → Submitting → Complete
  */
 
-import { create } from "zustand";
+import { create } from 'zustand';
+import {
+  validateScopeContext,
+  assertEmptyScopeActions,
+  logReconciliationAudit,
+} from '@/lib/reconciliation/scopeValidation';
 import type { ExtractedRow } from "@/lib/ocr/geminiExtractor";
 import type { MatchResult } from "@/lib/matching/patientMatcher";
 import type {
@@ -597,21 +602,28 @@ export const useReconciliationStore = create<ReconciliationState>(
       // SUBMISSION GUARD — validate scope context
       // ═══════════════════════════════════════════════════════════
       const resolvedDate = scopeContext?.screeningDate ?? selectedDate;
-      if (!resolvedDate) {
-        console.error('[ReconciliationStore] Cannot submit: screeningDate is missing');
+      
+      const validationErrors = validateScopeContext({
+        screeningDate: resolvedDate,
+        facilityName: scopeContext?.facilityName ?? facilityName,
+        screeningDistrict: scopeContext?.screeningDistrict ?? screeningDistrict,
+        screeningState: scopeContext?.screeningState ?? screeningState,
+        scopeMode: scopeContext?.scopeMode ?? scopeMode ?? 'date_only',
+      });
+
+      if (validationErrors.length > 0) {
+        console.error('[ReconciliationStore] Cannot submit:', validationErrors[0].message);
         set({ phase: 'review' });
         return;
       }
 
       // Empty-scope guard: reject if any accept action when isEmptyScope
       const isEmptyScope = scopedSummary?.isEmptyScope === true;
-      if (isEmptyScope) {
-        const invalidActions = Array.from(decisions.values()).filter(d => d.action === 'accept');
-        if (invalidActions.length > 0) {
-          console.error('[ReconciliationStore] Cannot submit: empty-scope has accept actions');
-          set({ phase: 'review' });
-          return;
-        }
+      const emptyScopeError = assertEmptyScopeActions(decisions, isEmptyScope);
+      if (emptyScopeError) {
+        console.error('[ReconciliationStore] Cannot submit:', emptyScopeError);
+        set({ phase: 'review' });
+        return;
       }
 
       set({ phase: "submitting" });
