@@ -40,8 +40,6 @@ interface RowDecision {
 interface ReconcileRequest {
   extractionId: string;
   decisions: RowDecision[];
-
-  /** Session context for date-scoped gap fill */
   sessionContext?: {
     selectedDate?: string;
     facilityName?: string | null;
@@ -52,7 +50,7 @@ interface ReconcileRequest {
     isEmptyScope?: boolean;
     scopedCandidateCount?: number;
   };
-
+  matchResults?: RowMatchResult[]; // For AI feedback logging
   /** Legacy flat field (backward compat) */
   screeningDate?: string | null;
 }
@@ -309,6 +307,64 @@ export async function POST(request: NextRequest) {
         '[RegisterReconcile] Failed to update extraction record:',
         updateError,
       );
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // AI FEEDBACK LOOP — Log user corrections for learning
+    // ═══════════════════════════════════════════════════════════
+    const aiFeedbackPromises: Promise<any>[] = [];
+    
+    if (body.matchResults && body.matchResults.length > 0) {
+      for (const result of body.matchResults) {
+        const dec = body.decisions.find(d => d.sno === result.sno);
+        if (!dec || dec.action === 'pending') continue;
+        
+        const topCandidate = result.candidates?.[0];
+        if (!topCandidate?.aiMatch) continue; // Only log AI-assisted matches
+        
+        const wasCorrect = 
+          (dec.action === 'accept' && topCandidate.aiMatch.isMatch) ||
+          (dec.action === 'create' && !topCandidate.aiMatch.isMatch) ||
+          (dec.action === 'reject' && !topCandidate.aiMatch.isMatch);
+        
+        const feedback = {
+          extracted_name: result.extractedRow.name,
+          extracted_father_name: result.extractedRow.father_name,
+          extracted_age: result.extractedRow.age,
+          extracted_mobile: result.extractedRow.mobile,
+          extracted_facility: result.extractedRow.ward,
+          candidate_name: topCandidate.patientName,
+          candidate_age: topCandidate.patientAge ? parseInt(topCandidate.patientAge) : null,
+          candidate_mobile: topCandidate.patientMobile,
+          candidate_facility: topCandidate.patientFacility,
+          ai_decision: topCandidate.aiMatch.isMatch ? 'match' : 'no_match',
+          ai_confidence: topCandidate.aiMatch.confidence,
+          ai_reasons: topCandidate.aiMatch.reasons,
+          user_action: dec.action,
+          was_correct,
+          session_id: body.sessionContext?.sessionId,
+          user_email: session.user.email || session.user.name,
+          screening_date: body.sessionContext?.selectedDate,
+          screening_state: body.sessionContext?.screeningState,
+          screening_district: body.sessionContext?.screeningDistrict,
+          facility_name: body.sessionContext?.facilityName,
+          model_used: 'gpt-4o-mini',
+          prompt_version: 'v1',
+        };
+        
+        aiFeedbackPromises.push(
+          supabase.from('ai_feedback').insert(feedback).catch(err => {
+            console.error('[AI Feedback] Failed to log:', err);
+          })
+        );
+      }
+    }
+
+    // Log feedback asynchronously (don't block response)
+    if (aiFeedbackPromises.length > 0) {
+      Promise.all(aiFeedbackPromises).then(() => {
+        console.log(`[AI Feedback] Logged ${aiFeedbackPromises.length} corrections`);
+      });
     }
 
     // ── Google Sheets Sync (after DB success, outcome surfaced) ──

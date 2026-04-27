@@ -90,6 +90,7 @@ export function RegisterUploadModal({
   const [extractionError, setExtractionError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [useAI, setUseAI] = useState(false);
+  const [useAINormalization, setUseAINormalization] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const store = useReconciliationStore();
@@ -106,6 +107,7 @@ export function RegisterUploadModal({
     setExtractionError(null);
     setIsDragOver(false);
     setUseAI(false);
+    setUseAINormalization(false);
     onClose();
   }, [onClose]);
 
@@ -166,6 +168,7 @@ export function RegisterUploadModal({
       if (screeningState) formData.append('screeningState', screeningState);
       formData.append('scopeMode', scopeMode);
       formData.append('useAI', useAI.toString());
+      formData.append('useAINormalization', useAINormalization.toString());
 
       const res = await fetch('/api/register-extract', {
         method: 'POST',
@@ -414,6 +417,22 @@ export function RegisterUploadModal({
                           checked={useAI}
                           onCheckedChange={setUseAI}
                           className="data-[state=checked]:bg-purple-600"
+                        />
+                      </div>
+
+                      {/* AI Normalization Toggle */}
+                      <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-100 rounded-xl">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-blue-600" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-700">AI Name Normalization</p>
+                            <p className="text-[10px] text-slate-500">Standardizes names before matching (slower, more accurate)</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={useAINormalization}
+                          onCheckedChange={setUseAINormalization}
+                          className="data-[state=checked]:bg-blue-600"
                         />
                       </div>
                     </>

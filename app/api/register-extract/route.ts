@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
     const scopeMode = (formData.get('scopeMode') as string) || 'date_only';
     const sessionId = (formData.get('sessionId') as string) || crypto.randomUUID();
     const useAI = formData.get('useAI') === 'true';
+    const useAINormalization = formData.get('useAINormalization') === 'true';
 
     // ═══════════════════════════════════════════════════════════
     // SCOPE VALIDATION — reject incomplete scope inputs
@@ -117,6 +118,45 @@ export async function POST(request: NextRequest) {
       const { extractRegisterImageHybrid } = await import('@/lib/ocr/hybridExtractor');
       const mime = declaredMime.startsWith('image/') ? declaredMime : 'application/pdf';
       extractionResult = await extractRegisterImageHybrid(buffer, mime);
+    }
+
+    // ── Stage 2.5: AI Normalization (optional) ──
+    if (useAINormalization && extractionResult.rows?.length > 0) {
+      try {
+        const { callOpenRouterNormalize } = await import('@/lib/ai/openRouterMatcher');
+        
+        // Batch normalize names (limit to 50 at a time to avoid rate limits)
+        const batchSize = 50;
+        const normalizedRows = [...extractionResult.rows];
+        
+        for (let i = 0; i < normalizedRows.length; i += batchSize) {
+          const batch = normalizedRows.slice(i, i + batchSize);
+          const normalizePromises = batch.map(row => 
+            callOpenRouterNormalize({ name: row.name, fatherName: row.father_name })
+              .then(result => ({
+                ...row,
+                name: result.normalizedName,
+                father_name: result.normalizedFatherName || row.father_name,
+                aiNormalized: true,
+              }))
+              .catch(err => {
+                console.error(`[AI Normalize] Failed for row ${row.sno}:`, err);
+                return row; // Fall back to original
+              })
+          );
+          
+          const batchResults = await Promise.all(normalizePromises);
+          batchResults.forEach((normalizedRow, idx) => {
+            normalizedRows[i + idx] = normalizedRow;
+          });
+        }
+        
+        extractionResult.rows = normalizedRows;
+        console.log(`[register-extract] AI normalized ${normalizedRows.length} rows`);
+      } catch (error) {
+        console.error('[register-extract] AI normalization failed:', error);
+        // Continue with original names
+      }
     }
 
     // ── Stage 3: Scoped Matching ──

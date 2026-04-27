@@ -733,6 +733,7 @@ export const useReconciliationStore = create<ReconciliationState>(
             extractionId,
             decisions: decisionPayload,
             sessionContext,
+            matchResults,
           }),
         });
 

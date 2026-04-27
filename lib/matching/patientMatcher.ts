@@ -549,7 +549,13 @@ export async function matchRowsScoped(
         })),
       };
 
-      const batchResponse = await callOpenRouterBatchMatch(batchRequest);
+      const batchResponse = await callOpenRouterBatchMatch(batchRequest, {
+        sessionId: crypto.randomUUID(),
+        screeningDate: options.screeningDate,
+        screeningState: options.screeningState,
+        screeningDistrict: options.screeningDistrict,
+        facilityName: options.facilityName,
+      });
       aiResults = batchResponse.results;
       console.log(`[patientMatcher] Batch AI processed ${ambiguousRows.length} rows`);
     } catch (error) {
