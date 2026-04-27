@@ -16,6 +16,10 @@ import type {
   ReconciliationSessionContext,
   ScopedMatchOptions,
 } from '@/lib/reconciliation/sessionTypes';
+import {
+  validateScopeContext,
+  logReconciliationAudit,
+} from '@/lib/reconciliation/scopeValidation';
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
 
@@ -65,46 +69,34 @@ export async function POST(request: NextRequest) {
     // ═══════════════════════════════════════════════════════════
     // SCOPE VALIDATION — reject incomplete scope inputs
     // ═══════════════════════════════════════════════════════════
-    if (!screeningDate) {
-      return NextResponse.json(
-        { error: 'screeningDate is required for register reconciliation' },
-        { status: 400 },
-      );
-    }
+    const scopeContext = {
+      screeningDate,
+      facilityName,
+      screeningDistrict,
+      screeningState,
+      scopeMode,
+      sessionId,
+    };
 
-    // Validate date format (YYYY-MM-DD)
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(screeningDate)) {
+    const validationErrors = validateScopeContext(scopeContext);
+    if (validationErrors.length > 0) {
       return NextResponse.json(
-        { error: `screeningDate must be YYYY-MM-DD format, got: ${screeningDate}` },
-        { status: 400 },
-      );
-    }
-
-    // date_facility mode requires facilityName
-    if (scopeMode === 'date_facility' && !facilityName) {
-      return NextResponse.json(
-        { error: 'facilityName is required when scopeMode is date_facility' },
+        { error: validationErrors[0].message },
         { status: 400 },
       );
     }
 
     // Structured scope audit log
-    console.log(JSON.stringify({
-      level: 'info',
-      action: 'register_extract_start',
-      scope: {
-        screeningDate,
-        facilityName: facilityName ?? null,
-        screeningDistrict: screeningDistrict ?? null,
-        screeningState: screeningState ?? null,
-        scopeMode,
-        sessionId,
-      },
+    logReconciliationAudit('register_extract_start', {
       user: session.user.email || session.user.name,
-      fileName: file.name,
-      fileSize: file.size,
-    }))
+      sessionId,
+      screeningDate,
+      facilityName: facilityName ?? null,
+      screeningDistrict: screeningDistrict ?? null,
+      screeningState: screeningState ?? null,
+      scopeMode,
+      rowCount: 0, // Will be updated after extraction
+    });
 
     // Read file buffer
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -187,20 +179,17 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Structured audit log for extraction result ──
-    console.log(JSON.stringify({
-      level: 'info',
-      action: 'register_extract_complete',
-      scope: {
-        screeningDate,
-        facilityName: facilityName ?? null,
-        screeningDistrict: screeningDistrict ?? null,
-        screeningState: screeningState ?? null,
-        scopeMode,
-        sessionId,
-      },
+    logReconciliationAudit('register_extract_complete', {
+      user: session.user.email || session.user.name,
+      sessionId,
+      screeningDate,
+      facilityName: facilityName ?? null,
+      screeningDistrict: screeningDistrict ?? null,
+      screeningState: screeningState ?? null,
+      scopeMode,
+      isEmptyScope: summary.isEmptyScope,
+      scopedCandidateCount: summary.scopedCandidateCount,
       summary: {
-        isEmptyScope: summary.isEmptyScope,
-        scopedCandidateCount: summary.scopedCandidateCount,
         autoMatch: summary.autoMatch,
         needsReview: summary.needsReview,
         newRecord: summary.newRecord,
@@ -209,7 +198,7 @@ export async function POST(request: NextRequest) {
       },
       rowCount: matchResults.length,
       extractionId: insertedExtraction?.id ?? null,
-    }))
+    });
 
     // ── Build response ──
     return NextResponse.json({
