@@ -1805,12 +1805,18 @@ export default function Vertex({
         }}
       />
 
-      {/* Reconciliation Review cinemantic overlay */}
+      {/* Reconciliation Review overlay - positioned beside sidebar */}
       <AnimatePresence>
         {isReviewOpen && (
-          <div className="fixed inset-0 z-[100001] bg-slate-950 flex flex-col">
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed top-0 right-0 bottom-0 left-[72px] z-50 bg-white flex flex-col shadow-2xl"
+          >
             <RegisterReconciliation />
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

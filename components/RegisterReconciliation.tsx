@@ -60,35 +60,35 @@ function ClassificationBadge({ classification }: { classification: string }) {
   switch (classification) {
     case 'auto_match':
       return (
-        <Badge className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-[10px] font-black tracking-wider">
+        <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold tracking-wide">
           <CheckCircle2 className="w-3 h-3 mr-1" />
           MATCHED
         </Badge>
       );
     case 'needs_review':
       return (
-        <Badge className="bg-amber-500/10 text-amber-600 border border-amber-500/20 text-[10px] font-black tracking-wider">
+        <Badge className="bg-amber-100 text-amber-700 border border-amber-200 text-[10px] font-bold tracking-wide">
           <Eye className="w-3 h-3 mr-1" />
           REVIEW
         </Badge>
       );
     case 'duplicate_in_file':
       return (
-        <Badge className="bg-purple-500/10 text-purple-600 border border-purple-500/20 text-[10px] font-black tracking-wider">
+        <Badge className="bg-purple-100 text-purple-700 border border-purple-200 text-[10px] font-bold tracking-wide">
           <FileWarning className="w-3 h-3 mr-1" />
           DUPLICATE
         </Badge>
       );
     case 'duplicate_in_scope':
       return (
-        <Badge className="bg-slate-500/10 text-slate-600 border border-slate-500/20 text-[10px] font-black tracking-wider">
+        <Badge className="bg-gray-100 text-gray-700 border border-gray-200 text-[10px] font-bold tracking-wide">
           <AlertTriangle className="w-3 h-3 mr-1" />
           EXISTS
         </Badge>
       );
     default:
       return (
-        <Badge className="bg-blue-500/10 text-blue-600 border border-blue-500/20 text-[10px] font-black tracking-wider">
+        <Badge className="bg-blue-100 text-blue-700 border border-blue-200 text-[10px] font-bold tracking-wide">
           <Plus className="w-3 h-3 mr-1" />
           NEW
         </Badge>
@@ -227,28 +227,28 @@ function CandidatePickerModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
       onClick={onClose}
     >
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 16 }}
         transition={{ type: 'spring', bounce: 0.15 }}
-        className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl p-6 space-y-5 max-h-[80vh] overflow-y-auto"
+        className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 space-y-5 max-h-[80vh] overflow-y-auto border border-gray-100"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between border-b border-gray-100 pb-4">
           <div>
-            <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">
+            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">
               Select Best Match
             </p>
-            <h3 className="text-lg font-black text-slate-900 mt-1">
+            <h3 className="text-lg font-bold text-gray-900 mt-1">
               {result.extractedRow.name || 'Unknown'}
             </h3>
-            <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
               {result.extractedRow.age && (
                 <span>Age: {result.extractedRow.age}</span>
               )}
@@ -262,9 +262,9 @@ function CandidatePickerModal({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
+            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
           >
-            <X className="w-4 h-4 text-slate-500" />
+            <X className="w-4 h-4 text-gray-500" />
           </button>
         </div>
 
@@ -287,17 +287,17 @@ function CandidatePickerModal({
                   className={cn(
                     'w-full p-4 rounded-xl border-2 text-left transition-all',
                     isSelected
-                      ? 'border-emerald-400 bg-emerald-50/50'
-                      : 'border-slate-200 bg-white hover:border-blue-300',
+                      ? 'border-emerald-400 bg-emerald-50'
+                      : 'border-gray-200 bg-gray-50 hover:border-blue-300 hover:bg-white',
                   )}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-bold text-sm text-slate-800">
+                    <span className="font-bold text-sm text-gray-800">
                       {candidate.patientName}
                     </span>
                     <ConfidenceMeter score={candidate.compositeScore} />
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-slate-500">
+                  <div className="flex items-center gap-3 text-xs text-gray-500">
                     {candidate.patientAge && <span>Age: {candidate.patientAge}</span>}
                     {candidate.patientMobile && (
                       <span className="flex items-center gap-1">
@@ -323,18 +323,18 @@ function CandidatePickerModal({
               );
             })
           ) : (
-            <p className="text-sm text-slate-400 text-center py-4">
+            <p className="text-sm text-gray-400 text-center py-4">
               No candidates found in scope
             </p>
           )}
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 pt-2 border-t border-slate-100">
+        <div className="flex gap-2 pt-4 border-t border-gray-100">
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 rounded-xl font-bold text-xs"
+            className="flex-1 rounded-lg font-semibold text-xs border-gray-200"
             onClick={() => {
               setDecision(sno, { action: 'create' });
               onClose();
@@ -346,7 +346,7 @@ function CandidatePickerModal({
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 rounded-xl font-bold text-xs text-slate-500"
+            className="flex-1 rounded-lg font-semibold text-xs text-gray-500 border-gray-200"
             onClick={() => {
               setDecision(sno, { action: 'reject' });
               onClose();
@@ -357,7 +357,7 @@ function CandidatePickerModal({
           {decision?.action === 'accept' && (
             <Button
               size="sm"
-              className="flex-1 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="flex-1 rounded-lg font-semibold text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
               onClick={onClose}
             >
               <Check className="w-3.5 h-3.5 mr-1" />
@@ -386,13 +386,13 @@ function ReviewPhase() {
     submitReview,
     phase,
     selectedDate,
+    facilityName,
     scopedSummary,
     summary,
     reset,
     setIsReviewOpen,
   } = useReconciliationStore();
 
-  const [filterView, setFilterView] = useState<FilterView>('all');
   const [pickerResult, setPickerResult] = useState<RowMatchResult | null>(null);
   const { mutate } = useSWRConfig();
 
@@ -400,24 +400,19 @@ function ReviewPhase() {
   const isScoped = matchResults.length > 0;
   const displaySummary = scopedSummary ?? summary;
 
-  // Filter match results
-  const filteredResults = useMemo(() => {
-    if (!isScoped) return [];
-    return matchResults.filter((r) => {
-      switch (filterView) {
-        case 'matched':
-          return r.classification === 'auto_match';
-        case 'review':
-          return r.classification === 'needs_review';
-        case 'new':
-          return r.classification === 'new_record';
-        case 'duplicate':
-          return r.classification === 'duplicate_in_file' || r.classification === 'duplicate_in_scope';
-        default:
-          return true;
-      }
-    });
-  }, [matchResults, filterView, isScoped]);
+  // Split results into Existing (matched/needs_review) and New (new_record)
+  const { existingInmates, newInmates } = useMemo(() => {
+    if (!isScoped) return { existingInmates: [], newInmates: [] };
+    
+    const existing = matchResults.filter((r) => 
+      r.classification === 'auto_match' || r.classification === 'needs_review'
+    );
+    const newRecs = matchResults.filter((r) => 
+      r.classification === 'new_record'
+    );
+    
+    return { existingInmates: existing, newInmates: newRecs };
+  }, [matchResults, isScoped]);
 
   // Stats
   const totalResults = isScoped ? matchResults.length : rows.length;
@@ -436,136 +431,148 @@ function ReviewPhase() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950">
-      {/* Context Banner */}
-      <ScopeContextBanner />
-
+    <div className="flex flex-col h-full bg-gray-50">
       {/* Header Bar */}
-      <div className="px-4 py-3 border-b border-white/10 bg-slate-900/80 backdrop-blur-xl flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-            <FileSpreadsheet className="w-4 h-4 text-white" />
+      <div className="px-6 py-4 border-b border-gray-200 bg-white flex items-center justify-between shrink-0 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <FileSpreadsheet className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-sm font-black text-white tracking-tight">
-              Reconciliation Review
+            <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+              Register Reconciliation
             </h2>
-            <p className="text-[10px] text-slate-400">
-              {totalResults} rows · {decidedCount} decided
+            <p className="text-xs text-gray-500 flex items-center gap-2">
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                {selectedDate ? formatDate(selectedDate) : 'No date'}
+              </span>
+              {facilityName && (
+                <>
+                  <span className="text-gray-300">·</span>
+                  <span className="flex items-center gap-1">
+                    <Building2 className="w-3 h-3" />
+                    {facilityName}
+                  </span>
+                </>
+              )}
+              <span className="text-gray-300">·</span>
+              <span>{decidedCount}/{totalResults} decided</span>
             </p>
           </div>
         </div>
-        <button
-          onClick={handleClose}
-          className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Summary Strip */}
-      {displaySummary && (
-        <div className="px-4 py-2 bg-slate-900/50 border-b border-white/5 flex items-center gap-3 shrink-0 overflow-x-auto">
-          <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-bold whitespace-nowrap">
-            <CheckCircle2 className="w-3 h-3" />
-            {displaySummary.autoMatch} matched
-          </div>
-          <div className="w-px h-4 bg-white/10" />
-          <div className="flex items-center gap-1.5 text-amber-400 text-xs font-bold whitespace-nowrap">
-            <Eye className="w-3 h-3" />
-            {displaySummary.needsReview} review
-          </div>
-          <div className="w-px h-4 bg-white/10" />
-          <div className="flex items-center gap-1.5 text-blue-400 text-xs font-bold whitespace-nowrap">
-            <Plus className="w-3 h-3" />
-            {displaySummary.newRecord} new
-          </div>
-          {(scopedSummary?.duplicateInFile ?? 0) > 0 && (
-            <>
-              <div className="w-px h-4 bg-white/10" />
-              <div className="flex items-center gap-1.5 text-purple-400 text-xs font-bold whitespace-nowrap">
-                <FileWarning className="w-3 h-3" />
-                {scopedSummary!.duplicateInFile} dupes
+        <div className="flex items-center gap-3">
+          {/* Stats Pills */}
+          {displaySummary && (
+            <div className="flex items-center gap-2 mr-4">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                {displaySummary.autoMatch} matched
               </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Filter Tabs */}
-      <div className="px-4 py-2 bg-slate-900/30 border-b border-white/5 flex items-center gap-2 shrink-0 overflow-x-auto">
-        {(['all', 'matched', 'review', 'new', 'duplicate'] as FilterView[]).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilterView(f)}
-            className={cn(
-              'px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap',
-              filterView === f
-                ? 'bg-white/15 text-white'
-                : 'text-slate-500 hover:text-slate-300 hover:bg-white/5',
-            )}
-          >
-            {f === 'all' ? `All (${totalResults})` :
-             f === 'matched' ? `Matched (${displaySummary?.autoMatch ?? 0})` :
-             f === 'review' ? `Review (${displaySummary?.needsReview ?? 0})` :
-             f === 'new' ? `New (${displaySummary?.newRecord ?? 0})` :
-             `Dupes (${(scopedSummary?.duplicateInFile ?? 0) + (scopedSummary?.duplicateInScope ?? 0)})`}
-          </button>
-        ))}
-      </div>
-
-      {/* Row List */}
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-2">
-          {isScoped ? (
-            filteredResults.map((result) => (
-              <ScopedRowCard
-                key={result.sno}
-                result={result}
-                decision={decisions.get(result.sno)}
-                onSetDecision={(action, patientId) =>
-                  setDecision(result.sno, { action, selectedPatientId: patientId })
-                }
-                onOpenPicker={() => setPickerResult(result)}
-              />
-            ))
-          ) : (
-            // Legacy fallback for SSE/OCR mode
-            rows.map((row) => {
-              if (row.sno == null) return null;
-              const dec = decisions.get(row.sno);
-              return (
-                <LegacyRowCard
-                  key={row.sno}
-                  row={row}
-                  decision={dec}
-                  onSetDecision={(action, patientId) =>
-                    setDecision(row.sno!, { action, selectedPatientId: patientId })
-                  }
-                />
-              );
-            })
-          )}
-
-          {filteredResults.length === 0 && isScoped && filterView !== 'all' && (
-            <div className="text-center py-12 text-slate-500 text-sm">
-              No rows in this category
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full border border-amber-200">
+                <Eye className="w-3.5 h-3.5" />
+                {displaySummary.needsReview} review
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">
+                <Plus className="w-3.5 h-3.5" />
+                {displaySummary.newRecord} new
+              </div>
             </div>
           )}
+          <button
+            onClick={handleClose}
+            className="w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-      </ScrollArea>
+      </div>
+
+      {/* Two-Column Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* LEFT: Existing Inmates Column */}
+        <div className="flex-1 flex flex-col border-r border-gray-200 bg-white">
+          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-emerald-100 flex items-center justify-center">
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+              </div>
+              <h3 className="text-sm font-bold text-gray-900">Existing Inmates</h3>
+              <span className="text-xs text-gray-500">({existingInmates.length})</span>
+            </div>
+            <button
+              onClick={autoDecideAll}
+              className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 px-2 py-1 rounded-md hover:bg-blue-50 transition-colors"
+            >
+              <Zap className="w-3 h-3" />
+              Auto-decide
+            </button>
+          </div>
+          <ScrollArea className="flex-1">
+            <div className="p-4 space-y-3">
+              {existingInmates.length > 0 ? (
+                existingInmates.map((result) => (
+                  <ScopedRowCard
+                    key={result.sno}
+                    result={result}
+                    decision={decisions.get(result.sno)}
+                    onSetDecision={(action, patientId) =>
+                      setDecision(result.sno, { action, selectedPatientId: patientId })
+                    }
+                    onOpenPicker={() => setPickerResult(result)}
+                  />
+                ))
+              ) : (
+                <div className="text-center py-12 text-gray-400">
+                  <User className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">No existing inmates to match</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+
+        {/* RIGHT: New Inmates Column */}
+        <div className="flex-1 flex flex-col bg-gray-50">
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-100/50 flex items-center gap-2 shrink-0">
+            <div className="w-6 h-6 rounded-md bg-blue-100 flex items-center justify-center">
+              <Plus className="w-3.5 h-3.5 text-blue-600" />
+            </div>
+            <h3 className="text-sm font-bold text-gray-900">New Inmates</h3>
+            <span className="text-xs text-gray-500">({newInmates.length})</span>
+          </div>
+          <ScrollArea className="flex-1">
+            <div className="p-4 space-y-3">
+              {newInmates.length > 0 ? (
+                newInmates.map((result) => (
+                  <ScopedRowCard
+                    key={result.sno}
+                    result={result}
+                    decision={decisions.get(result.sno)}
+                    onSetDecision={(action, patientId) =>
+                      setDecision(result.sno, { action, selectedPatientId: patientId })
+                    }
+                    onOpenPicker={() => setPickerResult(result)}
+                    isNewInmate
+                  />
+                ))
+              ) : (
+                <div className="text-center py-12 text-gray-400">
+                  <Plus className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">No new inmates to create</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+      </div>
 
       {/* Bottom Action Bar */}
-      <div className="shrink-0 border-t border-white/10 bg-slate-900/80 backdrop-blur-xl p-4">
-        <div className="flex items-center justify-between gap-3">
-          <Button
-            onClick={autoDecideAll}
-            variant="ghost"
-            className="text-slate-400 hover:text-white text-xs font-bold"
-          >
-            <Zap className="w-3.5 h-3.5 mr-1.5" />
-            Auto-decide all
-          </Button>
+      <div className="shrink-0 border-t border-gray-200 bg-white p-4 shadow-lg">
+        <div className="flex items-center justify-between gap-3 max-w-5xl mx-auto">
+          <div className="text-sm text-gray-500">
+            <span className="font-semibold text-gray-900">{decidedCount}</span> of <span className="font-semibold text-gray-900">{totalResults}</span> records decided
+          </div>
 
           <Button
             onClick={async () => {
@@ -577,10 +584,10 @@ function ReviewPhase() {
             }}
             disabled={!isAllDecided || phase === 'submitting' || totalResults === 0}
             className={cn(
-              'h-12 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.15em] transition-all',
+              'h-11 px-8 rounded-xl font-bold text-sm uppercase tracking-wide transition-all',
               isAllDecided && totalResults > 0
-                ? 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:scale-[1.02] active:scale-[0.98]'
-                : 'bg-white/5 text-slate-600 border border-white/10 cursor-not-allowed',
+                ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 hover:scale-[1.02] active:scale-[0.98]'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed',
             )}
           >
             {phase === 'submitting' ? (
@@ -615,11 +622,13 @@ function ScopedRowCard({
   decision,
   onSetDecision,
   onOpenPicker,
+  isNewInmate = false,
 }: {
   result: RowMatchResult;
   decision: { action: RowAction; selectedPatientId?: string } | undefined;
   onSetDecision: (action: RowAction, patientId?: string) => void;
   onOpenPicker: () => void;
+  isNewInmate?: boolean;
 }) {
   const row = result.extractedRow;
   const topCandidate = result.candidates[0];
@@ -630,27 +639,27 @@ function ScopedRowCard({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        'rounded-xl border p-4 transition-all',
-        action === 'accept' ? 'bg-emerald-950/30 border-emerald-800/40' :
-        action === 'create' ? 'bg-blue-950/30 border-blue-800/40' :
-        action === 'reject' ? 'bg-slate-950/50 border-slate-800/30 opacity-60' :
-        'bg-slate-900/50 border-white/10',
+        'rounded-xl border p-4 transition-all shadow-sm',
+        action === 'accept' ? 'bg-emerald-50 border-emerald-200 shadow-emerald-100' :
+        action === 'create' ? 'bg-blue-50 border-blue-200 shadow-blue-100' :
+        action === 'reject' ? 'bg-gray-100 border-gray-200 opacity-60' :
+        'bg-white border-gray-200 hover:border-gray-300',
       )}
     >
       {/* Row header */}
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono text-slate-500 bg-slate-800/50 px-1.5 py-0.5 rounded">
+            <span className="text-[10px] font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
               #{result.sno}
             </span>
             <ClassificationBadge classification={result.classification} />
             <ActionBadge action={action} />
           </div>
-          <h3 className="text-sm font-bold text-white truncate">
+          <h3 className="text-sm font-bold text-gray-900 truncate">
             {row.name || 'Unknown'}
           </h3>
-          <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
+          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
             {row.age && <span>Age: {row.age}</span>}
             {row.mobile && (
               <span className="flex items-center gap-1">
@@ -663,7 +672,7 @@ function ScopedRowCard({
             )}
           </div>
           {row.isDuplicateInFile && (
-            <p className="text-[10px] text-purple-400 mt-1">
+            <p className="text-[10px] text-purple-600 mt-1">
               ⚠ Duplicate of row #{row.duplicateOfSno}
             </p>
           )}
@@ -673,24 +682,26 @@ function ScopedRowCard({
         <div className="flex items-center gap-1.5 shrink-0">
           {result.classification !== 'duplicate_in_file' && (
             <>
-              <button
-                onClick={() => {
-                  if (topCandidate) {
-                    onSetDecision('accept', topCandidate.patientId);
-                  } else {
-                    onOpenPicker();
-                  }
-                }}
-                title="Link to existing"
-                className={cn(
-                  'w-7 h-7 rounded-lg flex items-center justify-center transition-all',
-                  action === 'accept'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-white/5 text-slate-500 hover:bg-emerald-600/20 hover:text-emerald-400',
-                )}
-              >
-                <Check className="w-3.5 h-3.5" />
-              </button>
+              {!isNewInmate && (
+                <button
+                  onClick={() => {
+                    if (topCandidate) {
+                      onSetDecision('accept', topCandidate.patientId);
+                    } else {
+                      onOpenPicker();
+                    }
+                  }}
+                  title="Link to existing"
+                  className={cn(
+                    'w-7 h-7 rounded-lg flex items-center justify-center transition-all',
+                    action === 'accept'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-gray-100 text-gray-500 hover:bg-emerald-100 hover:text-emerald-600',
+                  )}
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+              )}
               <button
                 onClick={() => onSetDecision('create')}
                 title="Create new patient"
@@ -698,7 +709,7 @@ function ScopedRowCard({
                   'w-7 h-7 rounded-lg flex items-center justify-center transition-all',
                   action === 'create'
                     ? 'bg-blue-600 text-white'
-                    : 'bg-white/5 text-slate-500 hover:bg-blue-600/20 hover:text-blue-400',
+                    : 'bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-600',
                 )}
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -709,8 +720,8 @@ function ScopedRowCard({
                 className={cn(
                   'w-7 h-7 rounded-lg flex items-center justify-center transition-all',
                   action === 'reject'
-                    ? 'bg-slate-600 text-white'
-                    : 'bg-white/5 text-slate-500 hover:bg-slate-600/20 hover:text-slate-400',
+                    ? 'bg-gray-600 text-white'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-600',
                 )}
               >
                 <X className="w-3.5 h-3.5" />
@@ -720,21 +731,21 @@ function ScopedRowCard({
         </div>
       </div>
 
-      {/* Best candidate preview */}
-      {topCandidate && result.classification !== 'duplicate_in_file' && (
+      {/* Best candidate preview - only for existing inmates */}
+      {!isNewInmate && topCandidate && result.classification !== 'duplicate_in_file' && (
         <button
           onClick={onOpenPicker}
-          className="w-full mt-2 p-2.5 rounded-lg bg-slate-800/50 border border-white/5 hover:border-white/15 transition-all text-left group"
+          className="w-full mt-2 p-2.5 rounded-lg bg-gray-50 border border-gray-200 hover:border-gray-300 hover:bg-gray-100 transition-all text-left group"
         >
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-semibold text-slate-300 group-hover:text-white transition-colors">
+            <span className="text-xs font-semibold text-gray-700 group-hover:text-gray-900 transition-colors">
               {topCandidate.patientName}
             </span>
             <ConfidenceMeter score={topCandidate.compositeScore} />
           </div>
           <MatchReasonChips reasons={topCandidate.matchReasons} />
           {result.candidates.length > 1 && (
-            <p className="text-[10px] text-slate-500 mt-1">
+            <p className="text-[10px] text-gray-500 mt-1">
               +{result.candidates.length - 1} more candidate(s) →
             </p>
           )}
@@ -763,22 +774,22 @@ function LegacyRowCard({
   return (
     <div
       className={cn(
-        'rounded-xl border p-4 transition-all',
-        action === 'accept' ? 'bg-emerald-950/30 border-emerald-800/40' :
-        action === 'create' ? 'bg-blue-950/30 border-blue-800/40' :
-        action === 'reject' ? 'bg-slate-950/50 border-slate-800/30 opacity-60' :
-        'bg-slate-900/50 border-white/10',
+        'rounded-xl border p-4 transition-all shadow-sm',
+        action === 'accept' ? 'bg-emerald-50 border-emerald-200 shadow-emerald-100' :
+        action === 'create' ? 'bg-blue-50 border-blue-200 shadow-blue-100' :
+        action === 'reject' ? 'bg-gray-100 border-gray-200 opacity-60' :
+        'bg-white border-gray-200 hover:border-gray-300',
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono text-slate-500">#{row.sno}</span>
+            <span className="text-[10px] font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">#{row.sno}</span>
             <ClassificationBadge classification={row.matchStatus || 'new_record'} />
             <ActionBadge action={action} />
           </div>
-          <h3 className="text-sm font-bold text-white truncate">{row.name || 'Unknown'}</h3>
-          <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
+          <h3 className="text-sm font-bold text-gray-900 truncate">{row.name || 'Unknown'}</h3>
+          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
             {row.age && <span>Age: {row.age}</span>}
             {row.mobile && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{row.mobile}</span>}
           </div>
@@ -790,7 +801,7 @@ function LegacyRowCard({
             }}
             className={cn(
               'w-7 h-7 rounded-lg flex items-center justify-center transition-all',
-              action === 'accept' ? 'bg-emerald-600 text-white' : 'bg-white/5 text-slate-500 hover:bg-emerald-600/20 hover:text-emerald-400',
+              action === 'accept' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-emerald-100 hover:text-emerald-600',
             )}
           >
             <Check className="w-3.5 h-3.5" />
@@ -799,7 +810,7 @@ function LegacyRowCard({
             onClick={() => onSetDecision('create')}
             className={cn(
               'w-7 h-7 rounded-lg flex items-center justify-center transition-all',
-              action === 'create' ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-500 hover:bg-blue-600/20 hover:text-blue-400',
+              action === 'create' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-600',
             )}
           >
             <Plus className="w-3.5 h-3.5" />
@@ -808,7 +819,7 @@ function LegacyRowCard({
             onClick={() => onSetDecision('reject')}
             className={cn(
               'w-7 h-7 rounded-lg flex items-center justify-center transition-all',
-              action === 'reject' ? 'bg-slate-600 text-white' : 'bg-white/5 text-slate-500 hover:bg-slate-600/20 hover:text-slate-400',
+              action === 'reject' ? 'bg-gray-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-600',
             )}
           >
             <X className="w-3.5 h-3.5" />
@@ -816,8 +827,8 @@ function LegacyRowCard({
         </div>
       </div>
       {topMatch && (
-        <div className="mt-2 p-2 rounded-lg bg-slate-800/50 text-xs text-slate-400">
-          <span className="text-slate-300 font-semibold">{topMatch.patientName}</span>
+        <div className="mt-2 p-2 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-500">
+          <span className="text-gray-700 font-semibold">{topMatch.patientName}</span>
           {' · '}
           <span className="text-[10px]">{topMatch.matchReason}</span>
         </div>
@@ -835,7 +846,7 @@ function CompletePhase() {
   if (!submitResult) return null;
 
   return (
-    <div className="flex flex-col items-center gap-6 py-12 bg-slate-950 h-full justify-center">
+    <div className="flex flex-col items-center gap-6 py-12 bg-gray-50 h-full justify-center">
       <motion.div
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
@@ -846,12 +857,12 @@ function CompletePhase() {
       </motion.div>
 
       <div className="text-center space-y-2">
-        <h2 className="text-2xl font-black text-white">
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
           Reconciliation Complete
         </h2>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-gray-500">
           {selectedDate && (
-            <>Screening date: <span className="text-slate-300 font-semibold">{formatDate(selectedDate)}</span> · </>
+            <>Screening date: <span className="text-gray-700 font-semibold">{formatDate(selectedDate)}</span> · </>
           )}
           All decisions committed.
         </p>
@@ -859,23 +870,23 @@ function CompletePhase() {
 
       {/* Result Cards */}
       <div className="grid grid-cols-3 gap-3 w-full max-w-md">
-        <Card className="p-4 text-center bg-emerald-950/50 border-emerald-800/40">
-          <p className="text-3xl font-black text-emerald-400">{submitResult.accepted}</p>
-          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">Linked</p>
+        <Card className="p-4 text-center bg-emerald-50 border-emerald-200 shadow-sm">
+          <p className="text-3xl font-bold text-emerald-600">{submitResult.accepted}</p>
+          <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest mt-1">Linked</p>
         </Card>
-        <Card className="p-4 text-center bg-blue-950/50 border-blue-800/40">
-          <p className="text-3xl font-black text-blue-400">{submitResult.created}</p>
-          <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mt-1">Created</p>
+        <Card className="p-4 text-center bg-blue-50 border-blue-200 shadow-sm">
+          <p className="text-3xl font-bold text-blue-600">{submitResult.created}</p>
+          <p className="text-[10px] font-bold text-blue-700 uppercase tracking-widest mt-1">Created</p>
         </Card>
-        <Card className="p-4 text-center bg-slate-900/50 border-slate-700/40">
-          <p className="text-3xl font-black text-slate-400">{submitResult.rejected}</p>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Skipped</p>
+        <Card className="p-4 text-center bg-gray-50 border-gray-200 shadow-sm">
+          <p className="text-3xl font-bold text-gray-600">{submitResult.rejected}</p>
+          <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mt-1">Skipped</p>
         </Card>
       </div>
 
       {/* Duplicates Skipped */}
       {(submitResult.duplicatesSkipped ?? 0) > 0 && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-purple-950/30 border border-purple-800/30 rounded-xl text-xs text-purple-400">
+        <div className="flex items-center gap-2 px-4 py-2 bg-purple-50 border border-purple-200 rounded-xl text-xs text-purple-700">
           <FileWarning className="w-3.5 h-3.5" />
           {submitResult.duplicatesSkipped} duplicate(s) skipped during insert
         </div>
@@ -884,25 +895,25 @@ function CompletePhase() {
       {/* Sheets sync status */}
       {submitResult.dbCommitted && (
         <div className="space-y-2 w-full max-w-md">
-          <div className="flex items-center gap-2 px-4 py-2 bg-emerald-950/30 border border-emerald-800/30 rounded-xl text-xs text-emerald-400">
+          <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700">
             <CheckCircle2 className="w-3.5 h-3.5" />
             Database commit successful
           </div>
 
           {submitResult.sheetsTriggered && !submitResult.sheetsError && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-950/30 border border-emerald-800/30 rounded-xl text-xs text-emerald-400">
+            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700">
               <CheckCircle2 className="w-3.5 h-3.5" />
               Google Sheets sync triggered
             </div>
           )}
 
           {submitResult.sheetsError && (
-            <div className="flex items-start gap-2 px-4 py-2 bg-amber-950/30 border border-amber-800/30 rounded-xl text-xs text-amber-400">
+            <div className="flex items-start gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold">Google Sheets sync failed</p>
-                <p className="text-amber-500/70 mt-0.5">{submitResult.sheetsError}</p>
-                <p className="text-amber-500/50 mt-1">Data is saved in the database. Sheets will sync on next scheduled run.</p>
+                <p className="text-amber-600/70 mt-0.5">{submitResult.sheetsError}</p>
+                <p className="text-amber-600/50 mt-1">Data is saved in the database. Sheets will sync on next scheduled run.</p>
               </div>
             </div>
           )}
@@ -911,13 +922,13 @@ function CompletePhase() {
 
       {/* Errors */}
       {submitResult.errors.length > 0 && (
-        <div className="w-full max-w-md p-4 bg-red-950/30 rounded-2xl border border-red-800/30 space-y-2">
-          <p className="text-xs font-black text-red-400 uppercase tracking-widest">
+        <div className="w-full max-w-md p-4 bg-red-50 rounded-2xl border border-red-200 space-y-2">
+          <p className="text-xs font-bold text-red-600 uppercase tracking-widest">
             <AlertCircle className="w-3.5 h-3.5 inline mr-1" />
             {submitResult.errors.length} Error{submitResult.errors.length !== 1 ? 's' : ''}
           </p>
           {submitResult.errors.map((err) => (
-            <p key={err.sno} className="text-[11px] text-red-500">
+            <p key={err.sno} className="text-[11px] text-red-600">
               Row {err.sno}: {err.error}
             </p>
           ))}
@@ -927,7 +938,7 @@ function CompletePhase() {
       <Button
         onClick={reset}
         variant="outline"
-        className="font-black uppercase text-xs tracking-widest rounded-xl border-white/20 text-white hover:bg-white/10"
+        className="font-semibold uppercase text-xs tracking-widest rounded-xl border-gray-300 text-gray-700 hover:bg-gray-100"
       >
         <RotateCcw className="w-4 h-4 mr-2" />
         Process Another Register
@@ -943,9 +954,9 @@ function CompletePhase() {
 function UploadPhase() {
   const { phase } = useReconciliationStore();
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-slate-950 text-slate-400 py-12">
-      <FileSpreadsheet className="w-12 h-12 text-slate-600 mb-4" />
-      <p className="text-sm font-semibold text-slate-500">
+    <div className="flex flex-col items-center justify-center h-full bg-gray-50 text-gray-400 py-12">
+      <FileSpreadsheet className="w-12 h-12 text-gray-300 mb-4" />
+      <p className="text-sm font-semibold text-gray-500">
         {phase === 'extracting' ? 'Processing...' : 'Waiting for upload from Vertex...'}
       </p>
     </div>
