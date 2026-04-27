@@ -119,8 +119,6 @@ export async function GET(request: NextRequest) {
         const start = page * PAGE_SIZE;
         const end = start + PAGE_SIZE - 1;
         
-        console.log(`[patients/bulk] Fetching page ${page}: range(${start}, ${end})`);
-        
         // Build query with RBAC filters for this page
         let pageQuery = supabase
           .from('patients')
@@ -139,28 +137,18 @@ export async function GET(request: NextRequest) {
         
         if (page === 0 && count) {
           totalCount = count;
-          console.log(`[patients/bulk] Total count from first page: ${totalCount}`);
         }
         
         const rowsThisPage = pageData?.length || 0;
         allData = allData.concat(pageData || []);
         
-        console.log(`[patients/bulk] Page ${page}: Fetched ${rowsThisPage} rows (total so far: ${allData.length} / ${totalCount || '?'})`);
+        console.log(`[patients/bulk] Page ${page}: Fetched ${rowsThisPage} rows (total: ${allData.length} / ${totalCount || '?'})`);
         
         // Stop if: no rows returned, or we've fetched all known rows
-        if (rowsThisPage === 0) {
-          console.log(`[patients/bulk] Stopping: no rows returned on page ${page}`);
-          break;
-        }
-        if (totalCount > 0 && allData.length >= totalCount) {
-          console.log(`[patients/bulk] Stopping: fetched all ${totalCount} rows`);
-          break;
-        }
+        if (rowsThisPage === 0) break;
+        if (totalCount > 0 && allData.length >= totalCount) break;
         // If we got fewer rows than PAGE_SIZE, this was the last page
-        if (rowsThisPage < PAGE_SIZE) {
-          console.log(`[patients/bulk] Stopping: got ${rowsThisPage} < ${PAGE_SIZE} rows (last page)`);
-          break;
-        }
+        if (rowsThisPage < PAGE_SIZE) break;
         
         page++;
       }
