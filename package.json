@@ -34,7 +34,9 @@
     "test:webhook-refactor": "bun scripts/test-webhook-refactor.ts",
     "test:patient-sync-refactor": "bun scripts/test-patient-sync-refactor.ts",
     "test:realtime": "bun scripts/test-realtime.ts",
-    "test:refactor": "bun scripts/test-refactor.ts"
+    "test:refactor": "bun scripts/test-refactor.ts",
+    "test:reconciliation": "bun scripts/test-reconciliation-pipeline.ts",
+    "test:openrouter": "bun scripts/test-openrouter-fallback.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.43",

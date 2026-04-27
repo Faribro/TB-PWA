@@ -1264,34 +1264,34 @@ export default function Vertex({
             </div>
             
             {/* Monthly Pulse Console - Dynamic Metrics */}
-            <div className="mt-3 pt-4 pb-2 px-3 vertex-pulse-console rounded-xl flex flex-wrap items-start gap-4 justify-between shrink-0">
-              <div className="flex flex-wrap items-center gap-5 min-w-0">
-                <div className="group">
+            <div className="mt-3 pt-4 pb-2 px-3 vertex-pulse-console rounded-xl flex items-center gap-4 justify-between shrink-0 overflow-hidden">
+              <div className="flex items-center gap-4 min-w-0 overflow-hidden">
+                <div className="group shrink-0">
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-indigo-500 transition-colors">Total</div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-slate-900 tracking-tighter shadow-sm drop-shadow-sm">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl sm:text-2xl font-black text-slate-900 tracking-tighter shadow-sm drop-shadow-sm whitespace-nowrap">
                       {(summaryData?.total ?? globalPatients.length).toLocaleString()}
                     </span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Screened</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0">Screened</span>
                   </div>
                 </div>
-                <div className="group">
+                <div className="group shrink-0">
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-rose-500 transition-colors">Pending</div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-rose-600 tracking-tighter drop-shadow-sm">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl sm:text-2xl font-black text-rose-600 tracking-tighter drop-shadow-sm whitespace-nowrap">
                       {(summaryData?.pending ?? globalPatients.filter((p: any) => {
                         const isAbnormal = p.xray_result === 'Suspected TB Case';
                         const noTreatment = !p.att_start_date && !p.referral_date;
                         return isAbnormal && noTreatment;
                       }).length).toLocaleString()}
                     </span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Alerts</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0">Alerts</span>
                   </div>
                 </div>
-                <div className="group hidden sm:block">
+                <div className="group hidden sm:block shrink-0">
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-emerald-500 transition-colors">This Month</div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-emerald-600 tracking-tighter drop-shadow-sm">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl sm:text-2xl font-black text-emerald-600 tracking-tighter drop-shadow-sm whitespace-nowrap">
                       {(summaryData?.screenedThisMonth ?? globalPatients.filter((p: any) => {
                         const dateValue = p.screening_date || p.submitted_on;
                         if (!dateValue) return false;
@@ -1299,7 +1299,7 @@ export default function Vertex({
                         return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
                       }).length).toLocaleString()}
                     </span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Screened</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0">Screened</span>
                   </div>
                 </div>
               </div>

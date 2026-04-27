@@ -97,9 +97,6 @@ interface PatientRow {
   age: number | null;
   contact_number: string | null;
   unique_id: string | null;
-  name_metaphone_primary: string | null;
-  name_metaphone_alternate: string | null;
-  name_variants: string[] | null;
   kobo_uuid: string | null;
   facility_name: string | null;
   screening_district: string | null;
@@ -112,9 +109,6 @@ const PATIENT_SELECT = `
   age,
   contact_number,
   unique_id,
-  name_metaphone_primary,
-  name_metaphone_alternate,
-  name_variants,
   kobo_uuid,
   facility_name,
   screening_district,

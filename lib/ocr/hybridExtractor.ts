@@ -29,7 +29,7 @@ import { extractRegisterImageOpenRouter } from './openrouterExtractor';
 // ═══════════════════════════════════════════════════════
 
 export interface HybridExtractionResult extends ExtractionResult {
-  engine: 'tesseract' | 'gemini';
+  engine: 'tesseract' | 'gemini' | 'openrouter';
   fallbackReason?: string;
   cost: number;
 }
