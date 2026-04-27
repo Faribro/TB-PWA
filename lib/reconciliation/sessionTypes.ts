@@ -138,6 +138,7 @@ export interface ScoredCandidate {
   phoneticMatch: boolean;
   tokenOverlap: number;
   ageDelta: number;
+  facilityMatch: boolean;
 
   /** Composite 0-1 score */
   compositeScore: number;

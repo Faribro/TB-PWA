@@ -91,9 +91,10 @@ export interface BulkMatchResult {
 // Internal Patient Row from DB
 // ═══════════════════════════════════════════════════════
 
-interface PatientRow {
+export interface PatientRow {
   id: string;
   inmate_name: string | null;
+  father_husband_name: string | null;
   age: number | null;
   contact_number: string | null;
   unique_id: string | null;
@@ -106,6 +107,7 @@ interface PatientRow {
 const PATIENT_SELECT = `
   id,
   inmate_name,
+  father_husband_name,
   age,
   contact_number,
   unique_id,
@@ -232,6 +234,16 @@ function scoreCandidate(
   // Phonetic: use metaphone columns if available
   const phoneticMatch = false; // Simplified — full metaphone in RPC path
 
+  // Father's name match (if available)
+  const fatherMatch = extracted.father_name && patient.father_husband_name
+    ? normName(extracted.father_name) === normName(patient.father_husband_name)
+    : false;
+
+  // Facility name match (if both have facility info)
+  const facilityMatch = extracted.ward && patient.facility_name
+    ? normName(extracted.ward) === normName(patient.facility_name)
+    : false;
+
   // Composite score
   let score: number;
   if (mobileExact) {
@@ -246,6 +258,16 @@ function scoreCandidate(
     score = 0.20;
   }
 
+  // Bonus for facility match
+  if (facilityMatch && score < 1.0) {
+    score += 0.05;
+  }
+
+  // Bonus for father's name match
+  if (fatherMatch && score < 1.0) {
+    score += 0.05;
+  }
+
   // Reason chips
   const matchReasons: string[] = [];
   if (mobileExact) matchReasons.push('📱 Mobile exact match');
@@ -257,6 +279,8 @@ function scoreCandidate(
   if (ageDelta <= 2) matchReasons.push('🎂 Age matches (±2yr)');
   else if (ageDelta <= 5) matchReasons.push('🎂 Age close (±5yr)');
   if (phoneticMatch) matchReasons.push('🔊 Sounds similar');
+  if (facilityMatch) matchReasons.push('🏥 Facility matches');
+  if (fatherMatch) matchReasons.push('👨 Father name matches');
 
   return {
     patientId: patient.id,
@@ -272,6 +296,7 @@ function scoreCandidate(
     compositeScore: Math.min(1.0, score), // Clamp to 1.0
     confidenceTier: toConfidenceTier(score),
     matchReasons,
+    facilityMatch,
   };
 }
 
