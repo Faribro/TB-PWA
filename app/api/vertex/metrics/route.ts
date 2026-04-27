@@ -3,9 +3,9 @@ import { auth } from '@/auth';
 import { createServerClient } from '@/lib/supabase-server-admin';
 import { normalizeRole, Role } from '@/lib/constants/roles';
 import { getCachedWithMemory } from '@/lib/memory-cache';
-import { CacheNamespace, buildVersionedKey } from '@/lib/cache-version';
+import { CacheNamespace, buildVersionedKey, bumpCacheVersion } from '@/lib/cache-version';
 
-// Version 2.0.1 - Fixed Supabase 1000-row default cap
+// Version 2.0.2 - Bumped cache version after fixing flexible matching
 export const maxDuration = 15;
 export const dynamic = 'force-dynamic';
 export const revalidate = 0; // Force no caching
@@ -29,6 +29,9 @@ interface DailyStats {
 
 export async function GET(request: NextRequest) {
   try {
+    // Force cache invalidation to use new flexible matching logic
+    await bumpCacheVersion(CacheNamespace.VERTEX_METRICS);
+    
     const session = await auth();
 
     if (!session?.user) {
