@@ -775,32 +775,8 @@ export default function Vertex({
     filterDistrict === 'All' ? undefined : filterDistrict
   );
 
-  // Realtime invalidation for aggregates (heatmap, month, daily, geo-summary, patients-by-date)
-  useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
-    const channel = supabase
-      .channel('vertex-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, () => {
-        mutateHeatmap();
-        mutateMonthSummary();
-        if (selectedDate) {
-          mutateDaily();
-          mutateGeoSummary();
-          mutatePatientsByDate();
-          if (selectedFacility) {
-            mutatePatientsByFacility();
-          }
-        }
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [mutateHeatmap, mutateMonthSummary, mutateDaily, selectedDate, mutateGeoSummary, mutatePatientsByDate, mutatePatientsByFacility, selectedFacility]);
-
   // TIER 2: Filters endpoint for available states/districts (lightweight, no full patient fetch)
-  const { data: filtersData } = useSWR(
+  const { data: filtersData, mutate: mutateFilters } = useSWR(
     '/api/vertex/filters',
     (url: string) => fetch(url).then(r => r.json()),
     { revalidateOnFocus: false, revalidateOnReconnect: false, dedupingInterval: 300000 } // 5min cache
@@ -808,6 +784,104 @@ export default function Vertex({
 
   const availableStates = filtersData?.availableStates || [];
   const availableDistricts = filtersData?.availableDistricts || [];
+
+  // ── SURGICAL REALTIME INVALIDATION ─────────────────────────────────────
+  // Only invalidate endpoints that could be affected by the specific change
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    
+    // Helper: Determine which endpoints to invalidate based on payload
+    const getInvalidationTargets = (payload: any) => {
+      const { eventType, old: oldRecord, new: newRecord } = payload;
+      const targets = new Set<string>();
+
+      // INSERT/DELETE always affect counts and potentially filters
+      if (eventType === 'INSERT' || eventType === 'DELETE') {
+        targets.add('heatmap');
+        targets.add('monthSummary');
+        if (selectedDate) targets.add('daily');
+        if (selectedDate) targets.add('geoSummary');
+        if (selectedDate) targets.add('patientsByDate');
+        if (selectedFacility && selectedDate) targets.add('patientsByFacility');
+        
+        // Filters only affected if a new state/district is added or removed
+        if (eventType === 'INSERT' && newRecord?.screening_state) {
+          targets.add('filters');
+        }
+        if (eventType === 'DELETE' && oldRecord?.screening_state) {
+          targets.add('filters');
+        }
+        return targets;
+      }
+
+      // UPDATE: only invalidate based on which fields changed
+      if (eventType === 'UPDATE') {
+        const changedFields = new Set<string>();
+        if (oldRecord && newRecord) {
+          Object.keys(newRecord).forEach(key => {
+            if (oldRecord[key] !== newRecord[key]) {
+              changedFields.add(key);
+            }
+          });
+        }
+
+        // Date-related changes affect heatmap, daily, patients-by-date, geo-summary
+        if (changedFields.has('screening_date') || changedFields.has('submitted_on')) {
+          targets.add('heatmap');
+          if (selectedDate) targets.add('daily');
+          if (selectedDate) targets.add('geoSummary');
+          if (selectedDate) targets.add('patientsByDate');
+          if (selectedFacility && selectedDate) targets.add('patientsByFacility');
+        }
+
+        // Geography changes affect filters, geo-summary, patients-by-date
+        if (changedFields.has('screening_state') || changedFields.has('screening_district')) {
+          targets.add('filters');
+          if (selectedDate) targets.add('geoSummary');
+          if (selectedDate) targets.add('patientsByDate');
+          if (selectedFacility && selectedDate) targets.add('patientsByFacility');
+        }
+
+        // Facility changes affect geo-summary, patients-by-date
+        if (changedFields.has('facility_name')) {
+          if (selectedDate) targets.add('geoSummary');
+          if (selectedDate) targets.add('patientsByDate');
+          if (selectedFacility && selectedDate) targets.add('patientsByFacility');
+        }
+
+        // Status/diagnosis changes affect aggregates
+        if (changedFields.has('xray_result') || changedFields.has('tb_diagnosed') || 
+            changedFields.has('att_start_date') || changedFields.has('referral_date')) {
+          targets.add('heatmap');
+          targets.add('monthSummary');
+          if (selectedDate) targets.add('daily');
+        }
+      }
+
+      return targets;
+    };
+
+    const channel = supabase
+      .channel('vertex-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, (payload) => {
+        const targets = getInvalidationTargets(payload);
+        
+        if (targets.has('heatmap')) mutateHeatmap();
+        if (targets.has('monthSummary')) mutateMonthSummary();
+        if (targets.has('daily') && selectedDate) mutateDaily();
+        if (targets.has('geoSummary') && selectedDate) mutateGeoSummary();
+        if (targets.has('patientsByDate') && selectedDate) mutatePatientsByDate();
+        if (targets.has('patientsByFacility') && selectedFacility && selectedDate) mutatePatientsByFacility();
+        if (targets.has('filters')) {
+          mutateFilters();
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [mutateHeatmap, mutateMonthSummary, mutateDaily, selectedDate, mutateGeoSummary, mutatePatientsByDate, mutatePatientsByFacility, selectedFacility, mutateFilters]);
 
   // Use Redis-backed heatmap (instant reads)
   const heatmapData = useMemo(() => {
