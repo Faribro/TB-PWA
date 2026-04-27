@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
     const screeningState = formData.get('screeningState') as string | null;
     const scopeMode = (formData.get('scopeMode') as string) || 'date_only';
     const sessionId = (formData.get('sessionId') as string) || crypto.randomUUID();
+    const useAI = formData.get('useAI') === 'true';
 
     // ═══════════════════════════════════════════════════════════
     // SCOPE VALIDATION — reject incomplete scope inputs
@@ -127,12 +128,14 @@ export async function POST(request: NextRequest) {
       screeningDistrict,
       screeningState,
       scopeMode: scopeMode as 'date_only' | 'date_facility',
+      useAI,
     };
 
     const { results: matchResults, summary } = await matchRowsScoped(
       supabase,
       extractionResult.rows,
       scopeOptions,
+      useAI,
     );
 
     // ── Persist extraction to audit log ──

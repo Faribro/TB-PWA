@@ -146,6 +146,13 @@ export interface ScoredCandidate {
 
   /** Human-readable reason chips for the UI */
   matchReasons: string[];
+
+  /** AI-enhanced match (if AI was used) */
+  aiMatch?: {
+    isMatch: boolean;
+    confidence: number;
+    reasons: string[];
+  };
 }
 
 export interface RowMatchResult {
@@ -167,6 +174,7 @@ export interface ScopedMatchOptions {
   screeningDistrict?: string | null;
   screeningState?: string | null;
   scopeMode: ScopeMode;
+  useAI?: boolean; // Enable AI fallback for ambiguous scores
 }
 
 // ═══════════════════════════════════════════════════════

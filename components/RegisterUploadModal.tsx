@@ -17,10 +17,12 @@ import {
   X, Upload, FileSpreadsheet, CheckCircle2, AlertCircle,
   Calendar, Building2, MapPin, ChevronRight, Shield,
   AlertTriangle, FileWarning, RotateCcw, ArrowRight, Info,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { useReconciliationStore } from '@/stores/useReconciliationStore';
 import { toast } from 'sonner';
@@ -87,6 +89,7 @@ export function RegisterUploadModal({
   const [extractionResult, setExtractionResult] = useState<any>(null);
   const [extractionError, setExtractionError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [useAI, setUseAI] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const store = useReconciliationStore();
@@ -102,6 +105,7 @@ export function RegisterUploadModal({
     setExtractionResult(null);
     setExtractionError(null);
     setIsDragOver(false);
+    setUseAI(false);
     onClose();
   }, [onClose]);
 
@@ -161,6 +165,7 @@ export function RegisterUploadModal({
       if (screeningDistrict) formData.append('screeningDistrict', screeningDistrict);
       if (screeningState) formData.append('screeningState', screeningState);
       formData.append('scopeMode', scopeMode);
+      formData.append('useAI', useAI.toString());
 
       const res = await fetch('/api/register-extract', {
         method: 'POST',
@@ -394,6 +399,22 @@ export function RegisterUploadModal({
                         >
                           {scopeMode === 'date_facility' ? '📍 Date + Facility Scope' : '📅 Date Scope'}
                         </Badge>
+                      </div>
+
+                      {/* AI Matching Toggle */}
+                      <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-100 rounded-xl">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-purple-600" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-700">AI-Powered Matching</p>
+                            <p className="text-[10px] text-slate-500">Uses OpenRouter AI for ambiguous cases (40-60% confidence)</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={useAI}
+                          onCheckedChange={setUseAI}
+                          className="data-[state=checked]:bg-purple-600"
+                        />
                       </div>
                     </>
                   )}

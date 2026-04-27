@@ -34,6 +34,10 @@ import type {
   ConfidenceTier,
   ReconciliationSummary,
 } from '@/lib/reconciliation/sessionTypes';
+import {
+  callOpenRouterMatch,
+  type AIMatchRequest,
+} from '@/lib/ai/openRouterMatcher';
 
 // ═══════════════════════════════════════════════════════
 // Constants (visible, tunable)
@@ -312,6 +316,7 @@ export async function matchRowsScoped(
   supabase: SupabaseClient,
   extractedRows: NormalizedExtractedRow[],
   options: ScopedMatchOptions,
+  useAI: boolean = false,
 ): Promise<{
   results: RowMatchResult[];
   summary: ReconciliationSummary;
@@ -422,18 +427,80 @@ export async function matchRowsScoped(
     const topScore = scored[0]?.compositeScore ?? 0;
     let classification: MatchClassification;
 
-    if (existsInScope && topScore >= MATCH_THRESHOLDS.AUTO_MATCH) {
-      classification = 'auto_match';
-      summary.autoMatch++;
-    } else if (topScore >= MATCH_THRESHOLDS.AUTO_MATCH) {
-      classification = 'auto_match';
-      summary.autoMatch++;
-    } else if (topScore >= MATCH_THRESHOLDS.NEEDS_REVIEW) {
-      classification = 'needs_review';
-      summary.needsReview++;
+    // ═══════════════════════════════════════════════════════════
+    // AI FALLBACK for ambiguous scores (40-60%)
+    // ═══════════════════════════════════════════════════════════
+    if (useAI && topScore >= MATCH_THRESHOLDS.NEEDS_REVIEW && topScore < MATCH_THRESHOLDS.AUTO_MATCH && scored[0]) {
+      try {
+        const topCandidate = scored[0];
+        const aiRequest: AIMatchRequest = {
+          extractedName: row.name,
+          extractedFatherName: row.father_name,
+          extractedAge: row.age,
+          extractedMobile: row.mobile,
+          extractedFacility: row.ward,
+          candidateName: topCandidate.patientName,
+          candidateFatherName: null, // Not in PatientRow
+          candidateAge: topCandidate.patientAge ? parseInt(topCandidate.patientAge) : null,
+          candidateMobile: topCandidate.patientMobile,
+          candidateFacility: topCandidate.patientFacility,
+        };
+
+        const aiResult = await callOpenRouterMatch(aiRequest);
+        
+        // Add AI result to candidate
+        scored[0].aiMatch = {
+          isMatch: aiResult.isMatch,
+          confidence: aiResult.confidence,
+          reasons: aiResult.reasons,
+        };
+
+        // Override classification based on AI decision
+        if (aiResult.isMatch && aiResult.confidence >= 0.70) {
+          classification = 'auto_match';
+          summary.autoMatch++;
+          console.log(`[patientMatcher] AI override: row ${row.sno} promoted to auto_match (confidence: ${aiResult.confidence})`);
+        } else if (aiResult.isMatch && aiResult.confidence >= 0.50) {
+          classification = 'needs_review';
+          summary.needsReview++;
+          console.log(`[patientMatcher] AI override: row ${row.sno} kept as needs_review (confidence: ${aiResult.confidence})`);
+        } else {
+          classification = 'new_record';
+          summary.newRecord++;
+          console.log(`[patientMatcher] AI override: row ${row.sno} marked as new_record (AI says no match)`);
+        }
+      } catch (error) {
+        console.error(`[patientMatcher] AI fallback failed for row ${row.sno}:`, error);
+        // Fall back to rule-based classification
+        if (existsInScope && topScore >= MATCH_THRESHOLDS.AUTO_MATCH) {
+          classification = 'auto_match';
+          summary.autoMatch++;
+        } else if (topScore >= MATCH_THRESHOLDS.AUTO_MATCH) {
+          classification = 'auto_match';
+          summary.autoMatch++;
+        } else if (topScore >= MATCH_THRESHOLDS.NEEDS_REVIEW) {
+          classification = 'needs_review';
+          summary.needsReview++;
+        } else {
+          classification = 'new_record';
+          summary.newRecord++;
+        }
+      }
     } else {
-      classification = 'new_record';
-      summary.newRecord++;
+      // Standard rule-based classification
+      if (existsInScope && topScore >= MATCH_THRESHOLDS.AUTO_MATCH) {
+        classification = 'auto_match';
+        summary.autoMatch++;
+      } else if (topScore >= MATCH_THRESHOLDS.AUTO_MATCH) {
+        classification = 'auto_match';
+        summary.autoMatch++;
+      } else if (topScore >= MATCH_THRESHOLDS.NEEDS_REVIEW) {
+        classification = 'needs_review';
+        summary.needsReview++;
+      } else {
+        classification = 'new_record';
+        summary.newRecord++;
+      }
     }
 
     return {
