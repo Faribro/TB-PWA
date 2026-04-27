@@ -971,11 +971,11 @@ export default function Vertex({
   const patientsForSelectedFacility = useMemo(() => {
     if (!selectedFacility) return [];
     return patientsForSelectedDate.filter((p: any) =>
-      p.facility_name === selectedFacility &&
-      p.screening_state === filterState &&
-      p.screening_district === filterDistrict
+      p.facility_name === selectedFacility.name &&
+      p.screening_state === selectedFacility.state &&
+      p.screening_district === selectedFacility.district
     );
-  }, [selectedFacility, patientsForSelectedDate, filterState, filterDistrict]);
+  }, [selectedFacility, patientsForSelectedDate]);
 
   // Task 2: SLA Auto-Sort Engine (Triage Intelligence)
   const sortedFacilityPatients = useMemo(() => {
@@ -1059,7 +1059,7 @@ export default function Vertex({
   };
 
   const handleFacilityClick = (facilityName: string, state: string, district: string) => {
-    setSelectedFacility(facilityName);
+    setSelectedFacility({ name: facilityName, state, district });
   };
 
   const handleOpenPatientDrawer = (patient: any) => {
@@ -1646,7 +1646,7 @@ export default function Vertex({
               <div className="flex items-center justify-between">
                 <div>
                   <SheetTitle className="text-lg font-black text-slate-900 leading-tight">
-                    {selectedFacility}
+                    {selectedFacility?.name}
                   </SheetTitle>
                   <p className="text-xs font-medium text-slate-500 mt-0.5">
                     {patientsForSelectedFacility.length} patients screened
