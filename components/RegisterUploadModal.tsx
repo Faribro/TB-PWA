@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Upload, FileSpreadsheet, CheckCircle2, AlertCircle,
   Calendar, Building2, MapPin, ChevronRight, Shield,
-  AlertTriangle, FileWarning, RotateCcw, ArrowRight,
+  AlertTriangle, FileWarning, RotateCcw, ArrowRight, Info,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -358,6 +358,20 @@ export function RegisterUploadModal({
                       </div>
 
                       <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs text-slate-600 leading-relaxed">
+                        <strong className="text-slate-700">Scope Context:</strong>
+                        <ul className="mt-1.5 space-y-1 list-disc list-inside text-slate-500">
+                          <li><strong>Date:</strong> {formatDate(screeningDate)}</li>
+                          {facilityName && <li><strong>Facility:</strong> {facilityName}</li>}
+                          {screeningDistrict && <li><strong>District:</strong> {screeningDistrict}</li>}
+                          {screeningState && <li><strong>State:</strong> {screeningState}</li>}
+                          <li><strong>Mode:</strong> {scopeMode === 'date_facility' ? 'Date + Facility' : 'Date Only'}</li>
+                        </ul>
+                        <p className="mt-2 text-[10px] text-slate-400">
+                          Only existing patients matching this scope will be considered for matching.
+                        </p>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs text-slate-600 leading-relaxed">
                         <strong className="text-slate-700">How this works:</strong>
                         <ul className="mt-1.5 space-y-1 list-disc list-inside text-slate-500">
                           <li>Upload your Excel or CSV register file</li>
@@ -529,6 +543,9 @@ export function RegisterUploadModal({
                       {extractionResult.rowCount} rows matched against{' '}
                       {formatDate(screeningDate)}{facilityName ? ` · ${facilityName}` : ''}
                     </p>
+                    <p className="text-[10px] text-slate-400">
+                      {extractionResult.summary?.scopedCandidateCount ?? 0} existing patients in scope
+                    </p>
                   </div>
 
                   {/* Summary Cards */}
@@ -558,6 +575,31 @@ export function RegisterUploadModal({
                       </p>
                     </Card>
                   </div>
+
+                  {/* Scope mismatch warning */}
+                  {screeningState && screeningDistrict && (
+                    <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="text-xs text-amber-700">
+                        <p className="font-bold">Scope Context Applied</p>
+                        <p className="mt-1">
+                          Matching is restricted to <strong>{screeningState}</strong> · <strong>{screeningDistrict}</strong>
+                          {facilityName && ` · ${facilityName}`}. If your uploaded data is from a different location, it will not match existing records.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty-scope warning */}
+                  {extractionResult.summary?.isEmptyScope && (
+                    <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                      <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                      <div className="text-xs text-blue-700">
+                        <p className="font-bold">No existing inmates found for this date and facility</p>
+                        <p className="mt-1">All {extractionResult.summary.newRecord} rows will be treated as new records. If you believe this data already exists, check the screening date and facility name.</p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Duplicate warning */}
                   {(extractionResult.summary?.duplicateInFile > 0 || extractionResult.summary?.duplicateInScope > 0) && (
