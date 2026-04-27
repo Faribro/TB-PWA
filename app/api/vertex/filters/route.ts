@@ -73,11 +73,12 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    // Fetch distinct states
+    // Fetch distinct states (high limit to ensure all states are captured)
     let stateQuery = supabase
       .from('patients')
       .select('screening_state')
-      .not('screening_state', 'is', null);
+      .not('screening_state', 'is', null)
+      .limit(100000);
 
     stateQuery = applyRBACFilters(stateQuery, role, state, staffName);
 
@@ -85,11 +86,12 @@ export async function GET(request: NextRequest) {
 
     if (stateError) throw stateError;
 
-    // Fetch distinct districts
+    // Fetch distinct districts (high limit to ensure all districts are captured)
     let districtQuery = supabase
       .from('patients')
       .select('screening_district')
-      .not('screening_district', 'is', null);
+      .not('screening_district', 'is', null)
+      .limit(100000);
 
     districtQuery = applyRBACFilters(districtQuery, role, state, staffName);
 
