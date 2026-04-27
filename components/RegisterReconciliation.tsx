@@ -714,6 +714,11 @@ function ScopedRowCard({
             </span>
             <ClassificationBadge classification={result.classification} />
             <ActionBadge action={action} />
+            {topCandidate && action === 'accept' && (
+              <Badge variant="outline" className="text-[9px] font-bold px-1.5 py-0.5 bg-blue-50 border-blue-200 text-blue-700">
+                {(topCandidate.compositeScore * 100).toFixed(0)}% match
+              </Badge>
+            )}
           </div>
           <h3 className="text-sm font-bold text-gray-900 truncate">
             {row.name || 'Unknown'}

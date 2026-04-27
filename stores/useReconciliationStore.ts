@@ -626,6 +626,43 @@ export const useReconciliationStore = create<ReconciliationState>(
         return;
       }
 
+      // ═══════════════════════════════════════════════════════════
+      // PRE-COMMIT VALIDATION WARNINGS
+      // ═══════════════════════════════════════════════════════════
+      const warnings: string[] = [];
+
+      // Warn if accepting low-confidence matches (< 60%)
+      if (matchResults.length > 0) {
+        const lowConfidenceAccepts = matchResults.filter(r => {
+          const dec = decisions.get(r.sno);
+          if (dec?.action !== 'accept') return false;
+          const topCandidate = r.candidates[0];
+          return topCandidate && topCandidate.compositeScore < 0.60;
+        });
+
+        if (lowConfidenceAccepts.length > 0) {
+          warnings.push(
+            `${lowConfidenceAccepts.length} low-confidence match(es) being accepted (< 60% confidence). Review these carefully.`
+          );
+        }
+      }
+
+      // Warn if many new records in non-empty scope
+      if (!isEmptyScope && scopedSummary?.newRecord > 0) {
+        const newRecordRatio = scopedSummary.newRecord / (scopedSummary.autoMatch + scopedSummary.needsReview + scopedSummary.newRecord);
+        if (newRecordRatio > 0.5) {
+          warnings.push(
+            `${scopedSummary.newRecord} new records (${(newRecordRatio * 100).toFixed(0)}%) in a scope with existing patients. Verify this is correct.`
+          );
+        }
+      }
+
+      // Log warnings if any
+      if (warnings.length > 0) {
+        console.warn('[ReconciliationStore] Pre-commit warnings:', warnings);
+        // Could also show these in UI via a toast or modal
+      }
+
       set({ phase: "submitting" });
 
       try {
