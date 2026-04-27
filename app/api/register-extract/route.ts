@@ -62,13 +62,49 @@ export async function POST(request: NextRequest) {
     const scopeMode = (formData.get('scopeMode') as string) || 'date_only';
     const sessionId = (formData.get('sessionId') as string) || crypto.randomUUID();
 
-    // Validate that we have a date for gap-fill mode
+    // ═══════════════════════════════════════════════════════════
+    // SCOPE VALIDATION — reject incomplete scope inputs
+    // ═══════════════════════════════════════════════════════════
     if (!screeningDate) {
       return NextResponse.json(
         { error: 'screeningDate is required for register reconciliation' },
         { status: 400 },
       );
     }
+
+    // Validate date format (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(screeningDate)) {
+      return NextResponse.json(
+        { error: `screeningDate must be YYYY-MM-DD format, got: ${screeningDate}` },
+        { status: 400 },
+      );
+    }
+
+    // date_facility mode requires facilityName
+    if (scopeMode === 'date_facility' && !facilityName) {
+      return NextResponse.json(
+        { error: 'facilityName is required when scopeMode is date_facility' },
+        { status: 400 },
+      );
+    }
+
+    // Structured scope audit log
+    console.log(JSON.stringify({
+      level: 'info',
+      action: 'register_extract_start',
+      scope: {
+        screeningDate,
+        facilityName: facilityName ?? null,
+        screeningDistrict: screeningDistrict ?? null,
+        screeningState: screeningState ?? null,
+        scopeMode,
+        sessionId,
+      },
+      user: session.user.email || session.user.name,
+      fileName: file.name,
+      fileSize: file.size,
+    }))
 
     // Read file buffer
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -150,6 +186,31 @@ export async function POST(request: NextRequest) {
       console.error('[RegisterExtract] Failed to persist extraction:', insertError);
     }
 
+    // ── Structured audit log for extraction result ──
+    console.log(JSON.stringify({
+      level: 'info',
+      action: 'register_extract_complete',
+      scope: {
+        screeningDate,
+        facilityName: facilityName ?? null,
+        screeningDistrict: screeningDistrict ?? null,
+        screeningState: screeningState ?? null,
+        scopeMode,
+        sessionId,
+      },
+      summary: {
+        isEmptyScope: summary.isEmptyScope,
+        scopedCandidateCount: summary.scopedCandidateCount,
+        autoMatch: summary.autoMatch,
+        needsReview: summary.needsReview,
+        newRecord: summary.newRecord,
+        duplicateInFile: summary.duplicateInFile,
+        duplicateInScope: summary.duplicateInScope,
+      },
+      rowCount: matchResults.length,
+      extractionId: insertedExtraction?.id ?? null,
+    }))
+
     // ── Build response ──
     return NextResponse.json({
       extractionId: insertedExtraction?.id || null,
@@ -158,9 +219,9 @@ export async function POST(request: NextRequest) {
       // Session context echoed back for store hydration
       sessionContext: {
         screeningDate,
-        facilityName,
-        screeningDistrict,
-        screeningState,
+        facilityName: facilityName ?? null,
+        screeningDistrict: screeningDistrict ?? null,
+        screeningState: screeningState ?? null,
         scopeMode,
       },
 
