@@ -233,4 +233,8 @@ export interface ReconciliationSummary {
   newRecord: number;
   duplicateInFile: number;
   duplicateInScope: number;
+  /** True when the scoped candidate pool is empty — no patients exist for this date/facility */
+  isEmptyScope: boolean;
+  /** Number of existing patients in scope (for display) */
+  scopedCandidateCount: number;
 }

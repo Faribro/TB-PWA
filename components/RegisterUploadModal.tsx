@@ -361,8 +361,9 @@ export function RegisterUploadModal({
                         <strong className="text-slate-700">How this works:</strong>
                         <ul className="mt-1.5 space-y-1 list-disc list-inside text-slate-500">
                           <li>Upload your Excel or CSV register file</li>
-                          <li>System matches <em>only</em> against records for this date{facilityName ? ' and facility' : ''}</li>
-                          <li>Missing rows are identified as new records</li>
+                          <li>System matches <em>only</em> against existing inmates for <strong>{formatDate(screeningDate)}</strong>{facilityName ? ` at ${facilityName}` : ''}</li>
+                          <li>If no inmates exist for this date, all rows are treated as new</li>
+                          <li>Matching never searches outside the selected date{facilityName ? ' and facility' : ''}</li>
                           <li>New records will use <strong>{formatDate(screeningDate)}</strong> as screening date</li>
                         </ul>
                       </div>

@@ -399,6 +399,7 @@ function ReviewPhase() {
   // Use scoped results if available, else fall back to legacy rows
   const isScoped = matchResults.length > 0;
   const displaySummary = scopedSummary ?? summary;
+  const isEmptyScope = scopedSummary?.isEmptyScope === true;
 
   // Split results into Existing (matched/needs_review) and New (new_record)
   const { existingInmates, newInmates } = useMemo(() => {
@@ -465,6 +466,12 @@ function ReviewPhase() {
           {/* Stats Pills */}
           {displaySummary && (
             <div className="flex items-center gap-2 mr-4">
+              {scopedSummary?.scopedCandidateCount != null && scopedSummary.scopedCandidateCount > 0 && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-600 text-xs font-semibold rounded-full border border-slate-200">
+                  <User className="w-3.5 h-3.5" />
+                  {scopedSummary.scopedCandidateCount} in scope
+                </div>
+              )}
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 {displaySummary.autoMatch} matched
@@ -488,7 +495,54 @@ function ReviewPhase() {
         </div>
       </div>
 
-      {/* Two-Column Layout */}
+      {/* Empty Scope State or Two-Column Layout */}
+      {isEmptyScope ? (
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="max-w-md text-center space-y-6">
+            <div className="w-20 h-20 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto">
+              <Calendar className="w-10 h-10 text-amber-500" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">No Inmates Found for This Day</h3>
+              <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+                No inmates have been found for{' '}
+                <span className="font-semibold text-gray-700">
+                  {selectedDate ? formatDate(selectedDate) : 'this date'}
+                </span>
+                {facilityName && (
+                  <> at <span className="font-semibold text-gray-700">{facilityName}</span></>
+                )}.
+                The uploaded register contains <span className="font-semibold text-blue-600">{newInmates.length}</span> new entries
+                that will be created as fresh records for this date.
+              </p>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-left">
+              <p className="text-xs font-semibold text-blue-800 uppercase tracking-wider mb-2">What happens next</p>
+              <ul className="text-xs text-blue-700 space-y-1.5">
+                <li className="flex items-start gap-2">
+                  <Plus className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  All {newInmates.length} rows will be created as new patient records
+                </li>
+                <li className="flex items-start gap-2">
+                  <Calendar className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  Screening date will be set to <strong>{selectedDate ? formatDate(selectedDate) : 'selected date'}</strong>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Building2 className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  {facilityName ? `Facility: ${facilityName}` : 'No facility specified'}
+                </li>
+              </ul>
+            </div>
+            <Button
+              onClick={autoDecideAll}
+              className="h-11 px-8 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/25"
+            >
+              <Zap className="w-4 h-4 mr-2" />
+              Auto-decide All as New Records
+            </Button>
+          </div>
+        </div>
+      ) : (
       <div className="flex-1 flex overflow-hidden">
         {/* LEFT: Existing Inmates Column */}
         <div className="flex-1 flex flex-col border-r border-gray-200 bg-white">
@@ -566,6 +620,7 @@ function ReviewPhase() {
           </ScrollArea>
         </div>
       </div>
+      )}
 
       {/* Bottom Action Bar */}
       <div className="shrink-0 border-t border-gray-200 bg-white p-4 shadow-lg">

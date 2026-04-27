@@ -300,12 +300,52 @@ export async function matchRowsScoped(
         newRecord: 0,
         duplicateInFile: 0,
         duplicateInScope: 0,
+        isEmptyScope: false,
+        scopedCandidateCount: 0,
       },
     };
   }
 
   // Step 1: Deterministic blocking — fetch only scoped candidates
   const candidates = await fetchScopedCandidates(supabase, options);
+
+  // ═══════════════════════════════════════════════════════════
+  // SCOPE-FIRST: If no patients exist for this date/facility,
+  // short-circuit with isEmptyScope=true. Do NOT classify uploaded
+  // rows as new_record against an empty scope — that would be
+  // misleading. Return all rows with a special classification.
+  // ═══════════════════════════════════════════════════════════
+  const isEmptyScope = candidates.length === 0;
+
+  if (isEmptyScope) {
+    console.log(
+      `[patientMatcher] EMPTY SCOPE: No patients found for ` +
+      `date=${options.screeningDate}, facility=${options.facilityName ?? 'any'}. ` +
+      `All ${extractedRows.length} rows will be marked as new_in_empty_scope.`
+    );
+
+    const summary: ReconciliationSummary = {
+      autoMatch: 0,
+      needsReview: 0,
+      newRecord: extractedRows.filter(r => !r.isDuplicateInFile).length,
+      duplicateInFile: extractedRows.filter(r => r.isDuplicateInFile).length,
+      duplicateInScope: 0,
+      isEmptyScope: true,
+      scopedCandidateCount: 0,
+    };
+
+    const results: RowMatchResult[] = extractedRows.map(row => ({
+      sno: row.sno,
+      extractedRow: row,
+      candidates: [],
+      classification: row.isDuplicateInFile
+        ? ('duplicate_in_file' as MatchClassification)
+        : ('new_record' as MatchClassification),
+      existsInScope: false,
+    }));
+
+    return { results, summary };
+  }
 
   // Build a fingerprint set of existing DB records for exact dedup
   const dbFingerprints = new Set<string>();
@@ -325,6 +365,8 @@ export async function matchRowsScoped(
     newRecord: 0,
     duplicateInFile: 0,
     duplicateInScope: 0,
+    isEmptyScope: false,
+    scopedCandidateCount: candidates.length,
   };
 
   const results: RowMatchResult[] = extractedRows.map(row => {

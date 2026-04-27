@@ -1759,8 +1759,14 @@ export default function Vertex({
                   <SheetTitle className="text-lg font-black text-slate-900 leading-tight">
                     {selectedFacility?.name}
                   </SheetTitle>
-                  <p className="text-xs font-medium text-slate-500 mt-0.5">
-                    {patientsForSelectedFacility.length} patients screened
+                  <p className="text-xs font-medium text-slate-500 mt-0.5 flex items-center gap-1.5">
+                    {selectedDate && (
+                      <span className="flex items-center gap-1 text-blue-600 font-semibold">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                    <span>{patientsForSelectedFacility.length} patients screened</span>
                   </p>
                 </div>
                 <Badge variant="outline" className="text-slate-600 bg-slate-50 border-slate-200 text-xs font-bold px-2.5 py-1">
