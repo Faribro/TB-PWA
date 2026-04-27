@@ -412,7 +412,27 @@ const GeographicHierarchy = ({
   onFacilityClick: (facilityName: string, state: string, district: string) => void;
 }) => {
   const [expandedStates, setExpandedStates] = useState<Set<string>>(new Set());
-  const [expandedDistricts, setExpandedDistricts] = useState<Set<string>>(new Set());
+  const [expandedDistricts, setExpandedDistricts] = useState<Set<string>>(new Set>());
+
+  // Sort states by patient count descending
+  const sortedGeography = useMemo(() => {
+    return [...groupedGeography].sort((a, b) => b.totalPatients - a.totalPatients);
+  }, [groupedGeography]);
+
+  // Auto-expand top state and its top district on mount
+  useEffect(() => {
+    if (sortedGeography.length > 0) {
+      const topState = sortedGeography[0];
+      setExpandedStates(new Set([topState.stateName]));
+      
+      // Find top district in top state
+      if (topState.districts.length > 0) {
+        const topDistrict = topState.districts.sort((a, b) => b.totalPatients - a.totalPatients)[0];
+        const districtKey = `${topState.stateName}::${topDistrict.districtName}`;
+        setExpandedDistricts(new Set([districtKey]));
+      }
+    }
+  }, [sortedGeography]);
 
   const toggleState = useCallback((stateName: string) => {
     setExpandedStates(prev => {
@@ -440,67 +460,95 @@ const GeographicHierarchy = ({
 
   return (
     <div className="space-y-4" data-tour-id="geo-case-distribution">
-      {groupedGeography.map((state) => {
+      {sortedGeography.map((state) => {
         const isStateExpanded = expandedStates.has(state.stateName);
+        
+        // Sort districts by patient count descending
+        const sortedDistricts = [...state.districts].sort((a, b) => b.totalPatients - a.totalPatients);
         
         return (
           <div key={state.stateName} className="space-y-3">
             <motion.button
+              id={stateHeaderId(state.stateName)}
+              data-accordion-header="state"
               data-tour-id="state-drawer"
               onClick={() => toggleState(state.stateName)}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              className="w-full flex items-center justify-between p-5 bg-white rounded-xl border border-slate-100 shadow-sm transition-all duration-200 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5"
+              onKeyDown={(e) => handleStateKeyDown(e, state.stateName)}
+              aria-expanded={isStateExpanded}
+              aria-controls={statePanelId(state.stateName)}
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.998 }}
+              className="w-full flex items-center justify-between p-5 bg-white rounded-xl border border-slate-200/70 shadow-sm hover:shadow-md hover:border-slate-300/70 transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
             >
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                  <MapPin className="w-5 h-5 text-blue-600" />
+                <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center">
+                  <MapPin className="w-5.5 h-5.5 text-blue-600" />
                 </div>
                 <div className="text-left">
-                  <span className="text-sm font-black text-slate-950 uppercase tracking-wider">{state.stateName}</span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{state.totalPatients} Patients Active</span>
+                  <span className="text-sm font-semibold text-slate-900 uppercase tracking-[0.1em]">{state.stateName}</span>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-[10px] font-medium text-slate-500">{state.totalPatients} Patients</span>
+                    <div className="w-1 h-1 rounded-full bg-slate-300" />
+                    <span className="text-[10px] font-medium text-slate-400">{state.districts.length} Districts</span>
                   </div>
                 </div>
               </div>
               <motion.div
                 animate={{ rotate: isStateExpanded ? 180 : 0 }}
                 transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400"
+                className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors"
+                aria-hidden="true"
               >
-                <ChevronDown className="w-4 h-4" />
+                <ChevronDown className="w-4.5 h-4.5" />
               </motion.div>
             </motion.button>
 
             <AnimatePresence>
               {isStateExpanded && (
                 <motion.div
-                  initial={{ opacity: 0, height: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, height: 'auto', scale: 1 }}
-                  exit={{ opacity: 0, height: 0, scale: 0.98 }}
-                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                  className="ml-6 space-y-3 pl-4 border-l-2 border-slate-100"
+                  id={statePanelId(state.stateName)}
+                  role="region"
+                  aria-labelledby={stateHeaderId(state.stateName)}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  className="ml-5 space-y-3 pl-4 border-l-2 border-slate-100 relative"
                 >
-                  {state.districts.map((district) => {
+                  {/* Signature premium detail: animated highlight line */}
+                  <motion.div
+                    initial={{ scaleY: 0 }}
+                    animate={{ scaleY: 1 }}
+                    exit={{ scaleY: 0 }}
+                    transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                    className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-500/60 via-blue-400/40 to-transparent origin-top"
+                  />
+                  {sortedDistricts.map((district) => {
                     const districtKey = `${state.stateName}-${district.districtName}`;
                     const isDistrictExpanded = expandedDistricts.has(districtKey);
                     
                     return (
                       <div key={districtKey} className="space-y-2">
                         <motion.button
+                          id={distHeaderId(districtKey)}
                           data-tour-id="district-drawer"
                           onClick={() => toggleDistrict(districtKey)}
-                          className="w-full flex items-center justify-between p-4 bg-white/60 border border-slate-200 rounded-2xl shadow-sm hover:bg-white transition-all group/dist"
+                          onKeyDown={(e) => handleDistrictKeyDown(e, districtKey)}
+                          aria-expanded={isDistrictExpanded}
+                          aria-controls={distPanelId(districtKey)}
+                          whileHover={{ x: 2 }}
+                          whileTap={{ scale: 0.998 }}
+                          className="w-full flex items-center justify-between p-3.5 bg-white border border-slate-200/50 rounded-lg hover:bg-slate-50 hover:border-slate-300/60 transition-all duration-200 group/dist focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                         >
                           <div className="flex items-center gap-3">
-                            <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{district.districtName}</span>
-                            <Badge variant="default" className="bg-blue-100/50 text-blue-700 text-[10px] font-black border-transparent">
-                              {district.totalPatients}
-                            </Badge>
+                            <span className="text-[11px] font-semibold text-slate-800 uppercase tracking-[0.08em]">{district.districtName}</span>
+                            <span className="text-[10px] font-medium text-slate-500">{district.totalPatients}</span>
                           </div>
                           <motion.div
                             animate={{ rotate: isDistrictExpanded ? 180 : 0 }}
-                            className="text-slate-300 group-hover/dist:text-slate-600"
+                            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                            className="w-7 h-7 rounded-md bg-slate-100 flex items-center justify-center text-slate-400 group-hover/dist:bg-slate-200 group-hover/dist:text-slate-600 transition-colors"
+                            aria-hidden="true"
                           >
                             <ChevronDown className="w-3.5 h-3.5" />
                           </motion.div>
@@ -519,28 +567,30 @@ const GeographicHierarchy = ({
                                   key={facility.facilityName}
                                   data-tour-id="facility-card"
                                   onClick={() => onFacilityClick(facility.facilityName, state.stateName, district.districtName)}
-                                  whileHover={{ scale: 1.01, x: 8 }}
-                                  whileTap={{ scale: 0.98 }}
-                                  className="w-full flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 shadow-sm transition-all duration-200 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5"
+                                  whileHover={{ x: 3 }}
+                                  whileTap={{ scale: 0.998 }}
+                                  className="w-full flex items-center justify-between p-3 bg-white border border-slate-200/50 rounded-lg hover:bg-slate-50 hover:border-slate-300/60 transition-all duration-200 group/fac focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                                 >
                                   <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center group-hover/fac:bg-blue-600 group-hover/fac:text-white transition-colors">
-                                      <Building2 className="w-4 h-4" />
+                                    <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center group-hover/fac:bg-blue-600 group-hover/fac:text-white transition-colors duration-200">
+                                      <Building2 className="w-4.5 h-4.5" />
                                     </div>
-                                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wide group-hover/fac:text-blue-900 transition-colors">
-                                      {facility.facilityName}
-                                    </span>
+                                    <div className="text-left">
+                                      <span className="text-[11px] font-semibold text-slate-700 uppercase tracking-[0.05em] group-hover/fac:text-slate-900 transition-colors">
+                                        {facility.facilityName}
+                                      </span>
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        <span className="text-[9px] font-medium text-slate-500">{facility.patientCount} Screened</span>
+                                      </div>
+                                    </div>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <Badge variant="outline" className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 border-blue-200/50 hidden sm:flex">
-                                      {facility.patientCount} Screened
-                                    </Badge>
                                     {facility.pendingCount > 0 && (
-                                      <Badge variant="destructive" className="bg-rose-50 text-rose-700 border-rose-200/50 text-[9px] font-black uppercase">
-                                        {facility.pendingCount} Alerts
-                                      </Badge>
+                                      <span className="text-[9px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">
+                                        {facility.pendingCount}
+                                      </span>
                                     )}
-                                    <ChevronRightIcon className="w-3.5 h-3.5 text-slate-300 group-hover/fac:text-blue-600" />
+                                    <ChevronRightIcon className="w-4 h-4 text-slate-300 group-hover/fac:text-blue-600 transition-colors" />
                                   </div>
                                 </motion.button>
                               ))}
@@ -626,8 +676,9 @@ export default function Vertex({
 
   const [currentDate, setCurrentDate] = useState(() => clampToCurrentMonth(mostRecentDateWithData));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedFacility, setSelectedFacility] = useState<string | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
-  const [selectedFacility, setSelectedFacility] = useState<{ name: string; state: string; district: string } | null>(null);
+  const [showAttChart, setShowAttChart] = useState(true);
   const sessionScope = useSessionScope();
   const canEdit = ['PM', 'admin', 'SPM'].includes(sessionScope?.role ?? '');
   const [filterState, setFilterState] = useState<string>('All');
@@ -1227,27 +1278,122 @@ export default function Vertex({
                         />
                       </div>
 
-                      {/* ATT Line Chart */}
-                      <VertexChart patients={globalPatients} />
+                      {/* Geography Summary Chips — Elegant Intelligence Tags */}
+                      {selectedDate && groupedGeography.length > 0 && (
+                        <div className="flex flex-wrap gap-2.5">
+                          {(() => {
+                            const topState = groupedGeography[0];
+                            const topDistrict = topState?.districts?.[0];
+                            const totalLocations = groupedGeography.reduce((sum, state) => 
+                              sum + state.districts.reduce((dSum, d) => dSum + d.facilities.length, 0), 0);
+                            
+                            return (
+                              <>
+                                <div className="px-3.5 py-2 bg-white border border-slate-200 rounded-xl flex items-center gap-2.5 shadow-sm">
+                                  <MapPin className="w-4 h-4 text-blue-600" />
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-semibold text-slate-900">{topState?.stateName || 'N/A'}</span>
+                                    <span className="text-[9px] font-medium text-slate-500 uppercase tracking-wide">Top State</span>
+                                  </div>
+                                </div>
+                                {topDistrict && (
+                                  <div className="px-3.5 py-2 bg-white border border-slate-200 rounded-xl flex items-center gap-2.5 shadow-sm">
+                                    <Building2 className="w-4 h-4 text-emerald-600" />
+                                    <div className="flex flex-col">
+                                      <span className="text-xs font-semibold text-slate-900">{topDistrict.districtName}</span>
+                                      <span className="text-[9px] font-medium text-slate-500 uppercase tracking-wide">Top District</span>
+                                    </div>
+                                  </div>
+                                )}
+                                <div className="px-3.5 py-2 bg-white border border-slate-200 rounded-xl flex items-center gap-2.5 shadow-sm">
+                                  <Users className="w-4 h-4 text-slate-600" />
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-semibold text-slate-900">{totalLocations}</span>
+                                    <span className="text-[9px] font-medium text-slate-500 uppercase tracking-wide">Locations</span>
+                                  </div>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
 
-                      {/* Geographic Hierarchy Breakdown */}
-                      <div className="space-y-6">
+                      {/* Geographic Hierarchy Breakdown — Elegant Feature Block */}
+                      <div className="space-y-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center">
-                            <MapPin className="w-5 h-5 text-white" />
+                          <div className="w-11 h-11 rounded-xl bg-slate-900 flex items-center justify-center">
+                            <MapPin className="w-5.5 h-5.5 text-white" />
                           </div>
-                          <h4 className="text-[12px] font-black text-slate-950 uppercase tracking-[0.2em]">
-                            Geographic Case Distribution
-                          </h4>
+                          <div>
+                            <h4 className="text-[12px] font-semibold text-slate-900 uppercase tracking-[0.15em]">
+                              Geographic Case Distribution
+                            </h4>
+                            <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide mt-0.5">
+                              Operational drilldown by location
+                            </p>
+                          </div>
                         </div>
                         <div
-                          className="bg-slate-50/50 rounded-[32px] p-2 border border-slate-200/50"
+                          className="bg-white rounded-2xl p-4 border border-slate-200/60 shadow-sm"
                         >
-                          <GeographicHierarchy 
-                            groupedGeography={groupedGeography}
-                            onFacilityClick={handleFacilityClick}
-                          />
+                          {selectedDate ? (
+                            <GeographicHierarchy 
+                              groupedGeography={groupedGeography}
+                              onFacilityClick={handleFacilityClick}
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                              <MapPin className="w-8 h-8 text-slate-400 mb-3" />
+                              <p className="text-sm text-slate-600 font-medium">
+                                Select a date from the calendar to view geographic distribution
+                              </p>
+                            </div>
+                          )}
                         </div>
+                      </div>
+
+                      {/* ATT Line Chart — Elegant Collapsible Treatment */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 rounded-xl bg-slate-900 flex items-center justify-center">
+                              <Activity className="w-5.5 h-5.5 text-white" />
+                            </div>
+                            <div>
+                              <h4 className="text-[12px] font-semibold text-slate-900 uppercase tracking-[0.15em]">
+                                ATT Initiation Trend
+                              </h4>
+                              <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide mt-0.5">
+                                Screened vs Treated over time
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setShowAttChart(!showAttChart)}
+                            className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                            title="Toggle chart visibility"
+                          >
+                            <motion.div
+                              animate={{ rotate: showAttChart ? 180 : 0 }}
+                              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                            >
+                              <ChevronDown className="w-4 h-4 text-slate-500" />
+                            </motion.div>
+                          </button>
+                        </div>
+                        <AnimatePresence>
+                          {showAttChart && (
+                            <motion.div
+                              id="att-trend-chart"
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                            >
+                              <VertexChart patients={globalPatients} />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     </div>
                   </ScrollArea>
