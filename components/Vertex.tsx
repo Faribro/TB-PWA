@@ -1304,13 +1304,21 @@ export default function Vertex({
                 </div>
               </div>
               
-              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'volume' | 'breaches')} className="w-full sm:w-[180px]">
-                <TabsList className="grid w-full grid-cols-2 h-10 bg-white/40 backdrop-blur-md p-1 border border-white/60 shadow-inner rounded-xl">
-                  <TabsTrigger value="volume" className="rounded-lg text-[10px] font-black uppercase tracking-wider h-8 data-[state=active]:vertex-tab-active data-[state=active]:text-indigo-700 transition-all duration-300">
-                    Volume
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'volume' | 'breaches')} className="shrink-0">
+                <TabsList className="grid w-[88px] grid-cols-2 h-10 bg-white/40 backdrop-blur-md p-1 border border-white/60 shadow-inner rounded-xl">
+                  <TabsTrigger 
+                    value="volume" 
+                    className="rounded-lg h-8 data-[state=active]:vertex-tab-active data-[state=active]:text-indigo-700 transition-all duration-300 flex items-center justify-center"
+                    title="Volume View"
+                  >
+                    <Users className="w-4 h-4" />
                   </TabsTrigger>
-                  <TabsTrigger value="breaches" className="rounded-lg text-[10px] font-black uppercase tracking-wider h-8 data-[state=active]:vertex-tab-active data-[state=active]:text-rose-700 transition-all duration-300">
-                    Alerts
+                  <TabsTrigger 
+                    value="breaches" 
+                    className="rounded-lg h-8 data-[state=active]:vertex-tab-active data-[state=active]:text-rose-700 transition-all duration-300 flex items-center justify-center"
+                    title="Alerts View"
+                  >
+                    <AlertCircle className="w-4 h-4" />
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -1762,7 +1770,7 @@ export default function Vertex({
                   <p className="text-xs font-medium text-slate-500 mt-0.5 flex items-center gap-1.5">
                     {selectedDate && (
                       <span className="flex items-center gap-1 text-blue-600 font-semibold">
-                        <Calendar className="w-3 h-3" />
+                        <CalendarIcon className="w-3 h-3" />
                         {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </span>
                     )}
