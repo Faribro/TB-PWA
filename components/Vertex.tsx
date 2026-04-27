@@ -1784,11 +1784,6 @@ export default function Vertex({
                         {selectedFacility.district}
                       </span>
                     )}
-                    {selectedFacility?.dj && (
-                      <span className="text-slate-600">
-                        DJ: {selectedFacility.dj}
-                      </span>
-                    )}
                     <span>{patientsForSelectedFacility.length} patients screened</span>
                   </p>
                 </div>

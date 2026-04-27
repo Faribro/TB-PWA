@@ -201,6 +201,7 @@ export const useReconciliationStore = create<ReconciliationState>(
     matchResults: [],
     summary: null,
     scopedSummary: null,
+    scopeContext: null,
     modelVersion: null,
     latencyMs: null,
     extractionError: null,
@@ -300,7 +301,7 @@ export const useReconciliationStore = create<ReconciliationState>(
         extractionId: data.extractionId,
         matchResults: data.matchResults,
         scopedSummary: data.summary,
-        scopeContext: data.sessionContext ?? null,
+        scopeContext: null, // Will be set separately from session context
         summary: {
           autoMatch: data.summary.autoMatch,
           needsReview: data.summary.needsReview,
@@ -619,7 +620,11 @@ export const useReconciliationStore = create<ReconciliationState>(
 
       // Empty-scope guard: reject if any accept action when isEmptyScope
       const isEmptyScope = scopedSummary?.isEmptyScope === true;
-      const emptyScopeError = assertEmptyScopeActions(decisions, isEmptyScope);
+      // Convert decisions to format expected by assertEmptyScopeActions (no 'pending')
+      const decisionsForValidation = Array.from(decisions.entries())
+        .filter(([_, d]) => d.action !== 'pending')
+        .map(([sno, d]) => ({ sno, action: d.action as 'accept' | 'create' | 'reject' }));
+      const emptyScopeError = assertEmptyScopeActions(decisionsForValidation, isEmptyScope);
       if (emptyScopeError) {
         console.error('[ReconciliationStore] Cannot submit:', emptyScopeError);
         set({ phase: 'review' });

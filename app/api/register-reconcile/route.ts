@@ -16,6 +16,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import type {
+  RowMatchResult,
+} from '@/lib/reconciliation/sessionTypes';
 import { getSupabaseClient } from '@/lib/supabase-server';
 import {
   validateScopeContext,
@@ -122,6 +125,7 @@ export async function POST(request: NextRequest) {
 
     // Structured scope audit log
     logReconciliationAudit('register_reconcile_start', {
+      action: 'register_reconcile_start',
       user: session.user.email || session.user.name,
       sessionId: body.sessionContext?.sessionId ?? null,
       screeningDate: resolvedDate,
@@ -341,7 +345,7 @@ export async function POST(request: NextRequest) {
           ai_confidence: topCandidate.aiMatch.confidence,
           ai_reasons: topCandidate.aiMatch.reasons,
           user_action: dec.action,
-          was_correct,
+          wasCorrect,
           session_id: body.sessionContext?.sessionId,
           user_email: session.user.email || session.user.name,
           screening_date: body.sessionContext?.selectedDate,
@@ -353,9 +357,13 @@ export async function POST(request: NextRequest) {
         };
         
         aiFeedbackPromises.push(
-          supabase.from('ai_feedback').insert(feedback).catch(err => {
-            console.error('[AI Feedback] Failed to log:', err);
-          })
+          (async () => {
+            try {
+              await supabase.from('ai_feedback').insert(feedback);
+            } catch (err) {
+              console.error('[AI Feedback] Failed to log:', err);
+            }
+          })()
         );
       }
     }
@@ -404,6 +412,7 @@ export async function POST(request: NextRequest) {
 
     // ── Structured audit log for reconcile result ──
     logReconciliationAudit('register_reconcile_complete', {
+      action: 'register_reconcile_complete',
       user: session.user.email || session.user.name,
       sessionId: body.sessionContext?.sessionId ?? null,
       screeningDate: resolvedDate,
@@ -419,7 +428,6 @@ export async function POST(request: NextRequest) {
         duplicatesSkipped: results.duplicatesSkipped,
         errors: results.errors.length,
       },
-      total: body.decisions.length,
       dbCommitted: true,
     });
 

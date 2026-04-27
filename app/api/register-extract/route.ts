@@ -223,6 +223,7 @@ export async function POST(request: NextRequest) {
 
     // ── Structured audit log for extraction result ──
     logReconciliationAudit('register_extract_complete', {
+      action: 'register_extract_complete',
       user: session.user.email || session.user.name,
       sessionId,
       screeningDate,

@@ -92,8 +92,8 @@ export async function extractRegisterImageOpenRouter(
 
     const messageContent = result.choices?.[0]?.message?.content || '';
     
-    // Parse json
-    const jsonMatch = messageContent.match(/\[\s*\{.*\}\s*\]/s);
+    // Parse json - use [\s\S] instead of 's' flag for ES compatibility
+    const jsonMatch = messageContent.match(/\[[\s\S]*\]/);
     let extractedData = [];
     if (jsonMatch) {
       try {
