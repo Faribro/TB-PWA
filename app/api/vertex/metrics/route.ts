@@ -173,9 +173,16 @@ export async function GET(request: NextRequest) {
         const date = record.screening_date;
         totalScreened++;
 
-        // Count metrics
-        const isSuspected = record.xray_result === 'Suspected TB Case';
-        const isDiagnosed = record.tb_diagnosed === 'Y';
+        // Flexible matching for xray_result (case-insensitive, multiple formats)
+        const xrayLower = (record.xray_result || '').toLowerCase();
+        const isSuspected = xrayLower.includes('suspected') || 
+                           xrayLower.includes('abnormal') ||
+                           record.xray_result === 'Suspected TB Case';
+        
+        // Flexible matching for tb_diagnosed (Y, Yes, yes, etc.)
+        const tbLower = (record.tb_diagnosed || '').toLowerCase();
+        const isDiagnosed = tbLower === 'y' || tbLower === 'yes';
+        
         const isAttStarted = record.att_start_date !== null;
         const isReferred = record.referral_date !== null;
 
@@ -301,8 +308,16 @@ export async function GET(request: NextRequest) {
         const date = record.screening_date;
         totalScreened++;
         
-        const isSuspected = record.xray_result === 'Suspected TB Case';
-        const isDiagnosed = record.tb_diagnosed === 'Y';
+        // Flexible matching for xray_result (case-insensitive, multiple formats)
+        const xrayLower = (record.xray_result || '').toLowerCase();
+        const isSuspected = xrayLower.includes('suspected') || 
+                           xrayLower.includes('abnormal') ||
+                           record.xray_result === 'Suspected TB Case';
+        
+        // Flexible matching for tb_diagnosed (Y, Yes, yes, etc.)
+        const tbLower = (record.tb_diagnosed || '').toLowerCase();
+        const isDiagnosed = tbLower === 'y' || tbLower === 'yes';
+        
         const isAttStarted = record.att_start_date !== null;
         const isReferred = record.referral_date !== null;
         
