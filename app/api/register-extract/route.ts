@@ -1,6 +1,22 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { getSupabaseClient } from "@/lib/supabase-server";
+/**
+ * POST /api/register-extract
+ *
+ * Receives a file upload + reconciliation session context.
+ * Parses the file, runs scoped matching, returns classified rows.
+ *
+ * This is the ONLY extraction endpoint for the gap-fill workflow.
+ * It performs all 3 stages: Parse → Match → Classify.
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/auth';
+import { getSupabaseClient } from '@/lib/supabase-server';
+import { matchRowsScoped } from '@/lib/matching/patientMatcher';
+import type {
+  ReconciliationSessionContext,
+  ScopedMatchOptions,
+} from '@/lib/reconciliation/sessionTypes';
+
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
 
 export async function POST(request: NextRequest) {
@@ -8,134 +24,167 @@ export async function POST(request: NextRequest) {
     // ── Auth ──
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const ALLOWED_ROLES = ["PM", "admin", "SPM", "MandE"];
-    const userRole = session.user.role ?? "";
+    const ALLOWED_ROLES = ['PM', 'admin', 'SPM', 'MandE'];
+    const userRole = (session.user as any).role ?? '';
     if (!ALLOWED_ROLES.includes(userRole)) {
       return NextResponse.json(
-        { error: "Forbidden — Only PM, admin, SPM, and M&E roles can extract registers" },
-        { status: 403 }
+        { error: 'Forbidden — Only PM, admin, SPM, and M&E roles can extract registers' },
+        { status: 403 },
       );
     }
 
     // ── Parse multipart form ──
     const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    const file = formData.get('file') as File | null;
 
     if (!file) {
       return NextResponse.json(
-        { error: "No file provided. Send as form field 'file'." },
-        { status: 400 }
+        { error: 'No file provided. Send as form field "file".' },
+        { status: 400 },
       );
     }
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: "File too large. Maximum 20 MB." },
-        { status: 400 }
+        { error: 'File too large. Maximum 20 MB.' },
+        { status: 400 },
       );
     }
 
-    // Read raw buffer — works for all file types
+    // ── Read session context from form fields ──
+    const screeningDate = formData.get('screeningDate') as string | null;
+    const facilityName = formData.get('facilityName') as string | null;
+    const screeningDistrict = formData.get('screeningDistrict') as string | null;
+    const screeningState = formData.get('screeningState') as string | null;
+    const scopeMode = (formData.get('scopeMode') as string) || 'date_only';
+    const sessionId = (formData.get('sessionId') as string) || crypto.randomUUID();
+
+    // Validate that we have a date for gap-fill mode
+    if (!screeningDate) {
+      return NextResponse.json(
+        { error: 'screeningDate is required for register reconciliation' },
+        { status: 400 },
+      );
+    }
+
+    // Read file buffer
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Detect MIME from buffer magic bytes as secondary check
+    // Detect file type
     const declaredMime = file.type || '';
     const filename = file.name.toLowerCase();
-
-    // Determine file category
-    const isImage = declaredMime.startsWith('image/');
-    const isPDF   = declaredMime === 'application/pdf' || filename.endsWith('.pdf');
     const isExcel = declaredMime.includes('spreadsheetml') || filename.endsWith('.xlsx');
-    const isCSV   = declaredMime === 'text/csv' || filename.endsWith('.csv');
+    const isCSV = declaredMime === 'text/csv' || filename.endsWith('.csv');
 
-    if (!isImage && !isPDF && !isExcel && !isCSV) {
+    if (!isExcel && !isCSV) {
       return NextResponse.json(
-        { error: `Unsupported file type: ${declaredMime}` },
-        { status: 415 }
+        { error: `Only Excel (.xlsx) and CSV files are supported for register upload. Received: ${declaredMime}` },
+        { status: 415 },
       );
     }
 
-    let extractionResult: any;
+    // ── Stage 2: Parse + Normalize ──
+    const { extractFromSpreadsheet } = await import('@/lib/ocr/excelExtractor');
+    const extractionResult = await extractFromSpreadsheet(buffer, filename);
 
-    if (isExcel || isCSV) {
-      // Route to Excel/CSV extractor
-      const { extractFromSpreadsheet } = await import('@/lib/ocr/excelExtractor');
-      extractionResult = await extractFromSpreadsheet(buffer, filename);
-    } else {
-      // Route directly to Gemini Flash (skip Tesseract — not installed, too slow for handwritten registers)
-      const { extractRegisterImage: extractGemini } = await import('@/lib/ocr/geminiExtractor');
-      extractionResult = await extractGemini(buffer, isPDF ? 'application/pdf' : declaredMime);
-    }
+    // ── Stage 3: Scoped Matching ──
+    const supabase = getSupabaseClient();
 
-    const sanitizedRows = extractionResult.rows || [];
+    const scopeOptions: ScopedMatchOptions = {
+      screeningDate,
+      facilityName,
+      screeningDistrict,
+      screeningState,
+      scopeMode: scopeMode as 'date_only' | 'date_facility',
+    };
 
-    // ── SKIP patient matching for faster initial response ──
-    // Matching will be done on client side or in separate step
-    const rowsWithMatches = sanitizedRows.map((row: any) => ({
-      ...row,
-      matches: [], // Empty for now
-    }));
+    const { results: matchResults, summary } = await matchRowsScoped(
+      supabase,
+      extractionResult.rows,
+      scopeOptions,
+    );
 
     // ── Persist extraction to audit log ──
-    const supabase = getSupabaseClient();
+    const sessionContext: Partial<ReconciliationSessionContext> = {
+      sessionId,
+      selectedDate: screeningDate,
+      facilityName,
+      screeningDistrict,
+      screeningState,
+      scopeMode: scopeMode as any,
+      sourceFileName: file.name,
+      sourceType: 'spreadsheet',
+      uploadedBy: session.user.email || session.user.name || 'Unknown',
+      uploadedAt: new Date().toISOString(),
+    };
+
     const { data: insertedExtraction, error: insertError } = await supabase
-      .from("register_extractions")
+      .from('register_extractions')
       .insert({
         created_by: session.user.email || session.user.name,
         image_mime: file.type,
-        status: "pending",
-        extracted_rows: rowsWithMatches,
+        status: 'pending',
+        extracted_rows: matchResults,
         match_results: [],
         metadata: {
-          engine: extractionResult.engine || 'unknown',
-          cost: extractionResult.cost || 0,
-          fallbackReason: extractionResult.fallbackReason,
-          model: extractionResult.modelVersion,
-          latencyMs: extractionResult.latencyMs,
-          keyIndex: extractionResult.keyIndex,
-          totalRows: sanitizedRows.length,
+          engine: extractionResult.engine,
+          totalRows: extractionResult.summary.totalRowsParsed,
+          validRows: extractionResult.summary.validRows,
+          invalidRows: extractionResult.summary.invalidRows,
+          duplicatesInFile: extractionResult.summary.duplicatesInFile,
           fileName: file.name,
           fileSize: file.size,
-          sourceType: isExcel ? 'excel' : isPDF ? 'pdf' : 'image',
+          sourceType: 'spreadsheet',
+          latencyMs: extractionResult.latencyMs,
+          sessionContext,
+          warnings: extractionResult.warnings,
         },
       })
-      .select("id")
+      .select('id')
       .single();
 
     if (insertError) {
-      console.error("[RegisterExtract] Failed to persist extraction:", insertError);
+      console.error('[RegisterExtract] Failed to persist extraction:', insertError);
     }
 
-    // ── Build summary stats (without matching) ──
-    const summary = {
-      autoMatch: 0,
-      needsReview: 0,
-      newRecord: sanitizedRows.length, // All treated as new until matched
-    };
-
+    // ── Build response ──
     return NextResponse.json({
       extractionId: insertedExtraction?.id || null,
-      totalRows: sanitizedRows.length,
+      sessionId,
+
+      // Session context echoed back for store hydration
+      sessionContext: {
+        screeningDate,
+        facilityName,
+        screeningDistrict,
+        screeningState,
+        scopeMode,
+      },
+
+      // Match results
+      results: matchResults,
       summary,
-      model: extractionResult.modelVersion,
+
+      // Parse stats
+      parseStats: extractionResult.summary,
+      warnings: extractionResult.warnings,
+
+      // Metadata
+      source: 'spreadsheet',
       latencyMs: extractionResult.latencyMs,
-      rows: rowsWithMatches,
-      source: isExcel ? 'excel' : isPDF ? 'pdf' : 'image',
-      rowCount: rowsWithMatches.length,
-      skipMatching: true, // Flag to indicate matching not done yet
-      preprocessing: (extractionResult as any).preprocessing ?? null,
+      rowCount: matchResults.length,
     });
   } catch (error: any) {
-    console.error("[RegisterExtract] Error:", error);
+    console.error('[RegisterExtract] Error:', error);
     return NextResponse.json(
       {
-        error: "Extraction failed",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Extraction failed',
+        message: error instanceof Error ? error.message : 'Unknown error',
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -1,401 +1,637 @@
+/**
+ * components/RegisterUploadModal.tsx
+ *
+ * 3-step guided flow for date-scoped register reconciliation:
+ *   Step 1 — Confirm Context (date, facility, scope)
+ *   Step 2 — Upload & Parse (file drop, validation, progress)
+ *   Step 3 — Review Handoff (extraction summary → reconciliation)
+ *
+ * Context flows from Vertex → this modal → store → API.
+ */
+
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, X, FileImage, FileSpreadsheet, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import {
+  X, Upload, FileSpreadsheet, CheckCircle2, AlertCircle,
+  Calendar, Building2, MapPin, ChevronRight, Shield,
+  AlertTriangle, FileWarning, RotateCcw, ArrowRight,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useReconciliationStore } from '@/stores/useReconciliationStore';
 import { toast } from 'sonner';
-import { useReconciliationStore, type ExtractionSource } from '@/stores/useReconciliationStore';
-import { Table2, FileText, ScanLine } from 'lucide-react';
 
-const OCR_HINTS = [
-  'Scanning handwriting strokes…',
-  'Cross-referencing Indian name patterns…',
-  'Recovering faint ink characters…',
-  'Validating mobile number formats…',
-  'Building patient record list…',
-  'Applying forensic character recovery…',
-  'Detecting table structure and columns…',
-  'Verifying confidence scores per row…',
-] as const;
+// ═══════════════════════════════════════════════════════
+// Props
+// ═══════════════════════════════════════════════════════
 
 interface RegisterUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+
+  /** From Vertex context */
+  screeningDate?: string | null;
+  facilityName?: string | null;
+  screeningDistrict?: string | null;
+  screeningState?: string | null;
 }
 
-type UploadState = 'idle' | 'uploading' | 'success' | 'error';
-type ProcessingStage = 'uploading' | 'extracting' | 'matching' | 'done';
+// ═══════════════════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════════════════
 
-export function RegisterUploadModal({ isOpen, onClose, onSuccess }: RegisterUploadModalProps) {
-  const [isDragging, setIsDragging] = useState(false);
-  const [uploadState, setUploadState] = useState<UploadState>('idle');
-  const [errorMessage, setErrorMessage] = useState<string>('');
-  const [progress, setProgress] = useState(0);
-  const [mounted, setMounted] = useState(false);
-  const [currentStage, setCurrentStage] = useState<ProcessingStage>('uploading');
-  const [detectedSource, setDetectedSource] = useState<ExtractionSource>('image');
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return 'Not selected';
+  try {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+}
 
-  const { setExtractionData } = useReconciliationStore();
+const ACCEPTED_TYPES = [
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'text/csv',
+];
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+const ACCEPTED_EXTENSIONS = ['.xlsx', '.xls', '.csv'];
 
-  // Elapsed timer — counts up while processing is active
-  useEffect(() => {
-    if (uploadState !== 'uploading') {
-      setElapsedSeconds(0);
-      return;
+// ═══════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════
+
+export function RegisterUploadModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  screeningDate,
+  facilityName,
+  screeningDistrict,
+  screeningState,
+}: RegisterUploadModalProps) {
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionResult, setExtractionResult] = useState<any>(null);
+  const [extractionError, setExtractionError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const store = useReconciliationStore();
+
+  const hasDate = !!screeningDate;
+  const scopeMode = facilityName ? 'date_facility' : 'date_only';
+
+  // Reset state when modal closes
+  const handleClose = useCallback(() => {
+    setStep(1);
+    setSelectedFile(null);
+    setIsExtracting(false);
+    setExtractionResult(null);
+    setExtractionError(null);
+    setIsDragOver(false);
+    onClose();
+  }, [onClose]);
+
+  // ═══════════════════════════════════════════════════════
+  // File Handling
+  // ═══════════════════════════════════════════════════════
+
+  const validateFile = useCallback((file: File): string | null => {
+    const ext = file.name.toLowerCase().split('.').pop();
+    const isValidType = ACCEPTED_TYPES.includes(file.type) ||
+      ACCEPTED_EXTENSIONS.some(e => file.name.toLowerCase().endsWith(e));
+
+    if (!isValidType) {
+      return `Unsupported file type. Only .xlsx and .csv files are accepted.`;
     }
-    const interval = setInterval(() => {
-      setElapsedSeconds(prev => prev + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [uploadState]);
-
-  const activeHint = OCR_HINTS[
-    Math.floor(elapsedSeconds / 4) % OCR_HINTS.length
-  ];
-
-  const geminiMessage =
-    elapsedSeconds > 20 ? 'Almost done — finalizing rows…'  :
-    elapsedSeconds > 12 ? 'Gemini is reading the document…' :
-    elapsedSeconds > 6  ? 'Extracting patient records…'     :
-                          'Sending to Gemini Vision…';
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  }, []);
-
-  const handleFileUpload = async (file: File): Promise<void> => {
-    // Validate file type client-side (first defense)
-    const allowed = [
-      'image/jpeg', 'image/png', 'image/webp', 'image/heic',
-      'application/pdf',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'text/csv'
-    ];
-    
-    if (!allowed.includes(file.type) && !file.name.endsWith('.xlsx')) {
-      toast.error(`Unsupported file type: ${file.type}`);
-      return;
-    }
-
-    // Validate file size — 20MB max
     if (file.size > 20 * 1024 * 1024) {
-      toast.error('File too large. Maximum size is 20MB.');
+      return `File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum 20 MB.`;
+    }
+    if (file.size === 0) {
+      return 'File is empty.';
+    }
+    return null;
+  }, []);
+
+  const handleFileSelect = useCallback((file: File) => {
+    const error = validateFile(file);
+    if (error) {
+      setExtractionError(error);
       return;
     }
+    setSelectedFile(file);
+    setExtractionError(null);
+  }, [validateFile]);
 
-    setUploadState('uploading');
-    setCurrentStage('uploading');
-    setProgress(30);
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileSelect(file);
+  }, [handleFileSelect]);
 
-    // Detect source based on MIME or filename
-    let source: ExtractionSource = 'image';
-    if (file.type === 'application/pdf') source = 'pdf';
-    else if (file.type.includes('spreadsheet') || file.type.includes('csv') || file.name.endsWith('.xlsx')) source = 'excel';
-    setDetectedSource(source);
+  // ═══════════════════════════════════════════════════════
+  // Extraction
+  // ═══════════════════════════════════════════════════════
+
+  const handleExtract = useCallback(async () => {
+    if (!selectedFile || !screeningDate) return;
+
+    setIsExtracting(true);
+    setExtractionError(null);
 
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('filename', file.name);
-      formData.append('mimeType', file.type);
+      formData.append('file', selectedFile);
+      formData.append('screeningDate', screeningDate);
+      if (facilityName) formData.append('facilityName', facilityName);
+      if (screeningDistrict) formData.append('screeningDistrict', screeningDistrict);
+      if (screeningState) formData.append('screeningState', screeningState);
+      formData.append('scopeMode', scopeMode);
 
-      setProgress(50);
-      setCurrentStage('extracting');
-      
-      const response = await fetch('/api/register-extract', {
+      const res = await fetch('/api/register-extract', {
         method: 'POST',
-        body: formData
+        body: formData,
       });
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.message || err.error || `HTTP ${response.status}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Extraction failed' }));
+        throw new Error(err.error || err.message || `HTTP ${res.status}`);
       }
 
-      const result = await response.json();
-      
-      setProgress(90);
-      setCurrentStage('matching');
-      
-      if (!result.extractionId) {
-        throw new Error('Backend did not return extractionId');
-      }
-
-      // Final matching stage simulated for UI smoothness if it is too fast
-      await new Promise(r => setTimeout(r, 600));
-      
-      setCurrentStage('done');
-      setProgress(100);
-      setUploadState('success');
-
-      toast.success(
-        `${result.rowCount || result.rows?.length || 0} patients extracted from ${result.source}`,
-        {
-          description: `Confidence: 100% · Opening review…`,
-          duration: 3000
-        }
+      const result = await res.json();
+      setExtractionResult(result);
+      setStep(3);
+    } catch (error) {
+      setExtractionError(
+        error instanceof Error ? error.message : 'Extraction failed',
       );
-      
-      // HAND OFF to reconciliation store
-      setExtractionData({
-        extractionId: result.extractionId,
-        rows: result.rows,
-        summary: result.summary,
-        source: result.source as ExtractionSource,
-        modelVersion: result.model,
-        latencyMs: result.latencyMs
-      });
-
-      setTimeout(() => {
-        onSuccess?.();
-        onClose();
-        resetModal();
-      }, 800);
-
-    } catch (error: any) {
-      setUploadState('error');
-      setErrorMessage(error.message || 'Upload failed');
-      toast.error(`Upload failed: ${error.message}`);
+    } finally {
+      setIsExtracting(false);
     }
-  };
+  }, [selectedFile, screeningDate, facilityName, screeningDistrict, screeningState, scopeMode]);
 
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
+  // ═══════════════════════════════════════════════════════
+  // Handoff to Reconciliation
+  // ═══════════════════════════════════════════════════════
 
-    const file = e.dataTransfer.files[0];
-    if (!file) return;
+  const handleProceedToReview = useCallback(() => {
+    if (!extractionResult || !screeningDate) return;
 
-    await handleFileUpload(file);
-  }, []);
+    // Initialize store with session context
+    store.startSession({
+      selectedDate: screeningDate,
+      facilityName: facilityName ?? null,
+      screeningDistrict: screeningDistrict ?? null,
+      screeningState: screeningState ?? null,
+      scopeMode: scopeMode as any,
+    });
 
-  const handleFileInput = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    // Set file for reference
+    if (selectedFile) {
+      store.setFile(selectedFile);
+    }
 
-    await handleFileUpload(file);
-  }, []);
+    // Set parsed rows
+    store.setParsedRows({
+      extractionId: extractionResult.extractionId,
+      matchResults: extractionResult.results,
+      summary: extractionResult.summary,
+      parseWarnings: extractionResult.warnings,
+      source: 'spreadsheet',
+      latencyMs: extractionResult.latencyMs,
+    });
 
-  const resetModal = () => {
-    setUploadState('idle');
-    setProgress(0);
-    setErrorMessage('');
-  };
+    toast.success('Register parsed — review and confirm matches', {
+      duration: 3000,
+    });
 
-  const handleClose = () => {
-    resetModal();
-    onClose();
-  };
+    handleClose();
+    onSuccess?.();
+  }, [extractionResult, screeningDate, facilityName, screeningDistrict, screeningState, scopeMode, selectedFile, store, handleClose, onSuccess]);
 
-  if (!mounted) return null;
+  // ═══════════════════════════════════════════════════════
+  // Render
+  // ═══════════════════════════════════════════════════════
 
-  return createPortal(
+  if (!isOpen) return null;
+
+  return (
     <AnimatePresence>
-      {isOpen && (
-        <div className="relative z-[99999]" aria-labelledby="upload-modal" role="dialog" aria-modal="true">
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[99999]"
-            onClick={handleClose}
-          />
-
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100000] w-[90vw] max-w-lg"
-          >
-            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
-              {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900" id="upload-modal">Upload Register</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Images or Excel files</p>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+        onClick={handleClose}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
+                  <FileSpreadsheet className="w-5 h-5 text-white" />
                 </div>
-                <Button
-                  onClick={handleClose}
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 rounded-lg hover:bg-slate-200"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
+                <div>
+                  <h2 className="text-lg font-black text-slate-900 tracking-tight">
+                    Register Reconciliation
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Step {step} of 3 — {step === 1 ? 'Confirm Scope' : step === 2 ? 'Upload File' : 'Review & Proceed'}
+                  </p>
+                </div>
               </div>
+              <button
+                onClick={handleClose}
+                className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-              {/* Content */}
-              <div className="p-6">
-                {uploadState === 'idle' && (
+            {/* Step Indicator */}
+            <div className="flex items-center gap-2 mt-4">
+              {[1, 2, 3].map((s) => (
+                <div key={s} className="flex items-center gap-2 flex-1">
+                  <div className={cn(
+                    'h-1.5 rounded-full flex-1 transition-all duration-500',
+                    s <= step ? 'bg-blue-600' : 'bg-slate-200',
+                  )} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
+            <AnimatePresence mode="wait">
+              {/* ═══════════════════════════════════════════════ */}
+              {/* STEP 1: Confirm Context                        */}
+              {/* ═══════════════════════════════════════════════ */}
+              {step === 1 && (
+                <motion.div
+                  key="step1"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="space-y-4"
+                >
+                  {!hasDate ? (
+                    /* No date selected — block */
+                    <div className="text-center py-8 space-y-4">
+                      <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto">
+                        <AlertTriangle className="w-7 h-7 text-amber-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-slate-900">
+                          Select a Date First
+                        </h3>
+                        <p className="text-sm text-slate-500 mt-1 max-w-xs mx-auto">
+                          To reconcile a register, first select a screening date in the calendar.
+                          This ensures records are created with the correct historical date.
+                        </p>
+                      </div>
+                      <Button
+                        onClick={handleClose}
+                        variant="outline"
+                        className="mt-2 rounded-xl font-bold text-xs uppercase tracking-widest"
+                      >
+                        Go Back to Calendar
+                      </Button>
+                    </div>
+                  ) : (
+                    /* Date selected — show scope */
+                    <>
+                      <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center gap-2 text-xs font-bold text-blue-700 uppercase tracking-widest">
+                          <Shield className="w-3.5 h-3.5" />
+                          Reconciliation Scope
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3 text-sm">
+                            <Calendar className="w-4 h-4 text-blue-500 shrink-0" />
+                            <span className="font-bold text-slate-800">
+                              {formatDate(screeningDate)}
+                            </span>
+                          </div>
+
+                          {facilityName && (
+                            <div className="flex items-center gap-3 text-sm">
+                              <Building2 className="w-4 h-4 text-blue-500 shrink-0" />
+                              <span className="font-semibold text-slate-700">
+                                {facilityName}
+                              </span>
+                            </div>
+                          )}
+
+                          {(screeningDistrict || screeningState) && (
+                            <div className="flex items-center gap-3 text-sm">
+                              <MapPin className="w-4 h-4 text-blue-500 shrink-0" />
+                              <span className="font-medium text-slate-600">
+                                {[screeningDistrict, screeningState].filter(Boolean).join(', ')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs text-slate-600 leading-relaxed">
+                        <strong className="text-slate-700">How this works:</strong>
+                        <ul className="mt-1.5 space-y-1 list-disc list-inside text-slate-500">
+                          <li>Upload your Excel or CSV register file</li>
+                          <li>System matches <em>only</em> against records for this date{facilityName ? ' and facility' : ''}</li>
+                          <li>Missing rows are identified as new records</li>
+                          <li>New records will use <strong>{formatDate(screeningDate)}</strong> as screening date</li>
+                        </ul>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-xs font-bold px-2.5 py-1',
+                            scopeMode === 'date_facility'
+                              ? 'bg-purple-50 text-purple-700 border-purple-200'
+                              : 'bg-blue-50 text-blue-700 border-blue-200',
+                          )}
+                        >
+                          {scopeMode === 'date_facility' ? '📍 Date + Facility Scope' : '📅 Date Scope'}
+                        </Badge>
+                      </div>
+                    </>
+                  )}
+                </motion.div>
+              )}
+
+              {/* ═══════════════════════════════════════════════ */}
+              {/* STEP 2: Upload & Parse                         */}
+              {/* ═══════════════════════════════════════════════ */}
+              {step === 2 && (
+                <motion.div
+                  key="step2"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="space-y-4"
+                >
+                  {/* Context reminder */}
+                  <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-xl text-xs text-blue-700 font-semibold">
+                    <Calendar className="w-3.5 h-3.5" />
+                    {formatDate(screeningDate)}
+                    {facilityName && (
+                      <>
+                        <span className="text-blue-300">·</span>
+                        <Building2 className="w-3.5 h-3.5" />
+                        {facilityName}
+                      </>
+                    )}
+                  </div>
+
+                  {/* File Drop Zone */}
                   <div
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
+                    onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                    onDragLeave={() => setIsDragOver(false)}
                     onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
                     className={cn(
-                      "relative border-2 border-dashed rounded-xl p-12 transition-all duration-300",
-                      isDragging
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50/50"
+                      'border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-300',
+                      isDragOver
+                        ? 'border-blue-400 bg-blue-50/50 scale-[1.01]'
+                        : selectedFile
+                          ? 'border-emerald-300 bg-emerald-50/30'
+                          : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50',
                     )}
                   >
                     <input
+                      ref={fileInputRef}
                       type="file"
-                      accept="image/*,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,.xlsx,.csv,.pdf"
-                      onChange={handleFileInput}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      accept=".xlsx,.xls,.csv"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileSelect(file);
+                      }}
                     />
-                    <div className="flex flex-col items-center gap-4 pointer-events-none">
-                      <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center">
-                        <Upload className="w-8 h-8 text-blue-600" />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-semibold text-slate-900">
-                          Drop files here or click to browse
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          Supports .jpg, .png, .pdf, .xlsx, .csv
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-4 mt-2">
-                        <div className="flex items-center gap-2 text-xs text-slate-600">
-                          <FileImage className="w-4 h-4" />
-                          <span>Images</span>
+
+                    {selectedFile ? (
+                      <div className="space-y-2">
+                        <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center mx-auto">
+                          <FileSpreadsheet className="w-6 h-6 text-emerald-600" />
                         </div>
-                        <div className="w-px h-4 bg-slate-300" />
-                        <div className="flex items-center gap-2 text-xs text-slate-600">
-                          <FileSpreadsheet className="w-4 h-4" />
-                          <span>Excel</span>
-                        </div>
+                        <p className="text-sm font-bold text-slate-800">{selectedFile.name}</p>
+                        <p className="text-xs text-slate-500">
+                          {(selectedFile.size / 1024).toFixed(1)} KB
+                        </p>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFile(null);
+                            setExtractionResult(null);
+                            setExtractionError(null);
+                          }}
+                          className="text-xs text-slate-400 hover:text-red-500 underline mt-1"
+                        >
+                          Remove
+                        </button>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto">
+                          <Upload className="w-6 h-6 text-slate-400" />
+                        </div>
+                        <p className="text-sm font-semibold text-slate-700">
+                          Drop your register file here
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          Accepts .xlsx and .csv · Max 20 MB
+                        </p>
+                      </div>
+                    )}
                   </div>
-                )}
 
-                {uploadState === 'uploading' && (
-                  <div className="flex flex-col items-center gap-4 py-8 px-4">
-
-                    {/* Spinner */}
-                    <div className="relative w-12 h-12">
-                      <div className="absolute inset-0 rounded-full border-2
-                                      border-white/[0.08]" />
-                      <div className="absolute inset-0 rounded-full border-2
-                                      border-transparent border-t-blue-500
-                                      animate-spin" />
+                  {/* Extraction Error */}
+                  {extractionError && (
+                    <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-xl">
+                      <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                      <p className="text-xs text-red-700 font-medium">{extractionError}</p>
                     </div>
+                  )}
 
-                    {/* Primary stage message */}
-                    <div className="text-center">
-                      <p className="text-[14px] font-700 text-slate-200
-                            tracking-tight">
-                        {currentStage === 'uploading' ? 'Uploading file…'            :
-                         currentStage === 'extracting' ? geminiMessage                :
-                         currentStage === 'matching' ? 'Matching patients…'         :
-                         currentStage === 'done' ? 'Handoff complete'           :
-                                                 'Processing…'}
-                      </p>
-
-                      {/* Cycling hint */}
-                      <p className="text-[11px] text-slate-500 mt-1 min-h-[16px]
-                            transition-all duration-500">
-                        {activeHint}
-                      </p>
-                    </div>
-
-                    {/* Elapsed timer + progress percentage */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-600 text-slate-600
-                       tabular-nums">
-                        {progress}%
-                      </span>
-                      <span className="w-0.5 h-0.5 rounded-full bg-slate-700" />
-                      <span className="text-[11px] font-600 text-slate-600
-                       tabular-nums">
-                        {elapsedSeconds}s
-                      </span>
-                    </div>
-
-                    {/* Contextual note */}
-                    <div className="text-center">
-                      <p className="text-[11px] text-slate-600">
-                        {elapsedSeconds < 5
-                          ? 'Starting up…'
-                          : elapsedSeconds < 15
-                          ? 'Gemini Vision is analyzing the image'
-                          : elapsedSeconds < 25
-                          ? 'Large document — this may take up to 30s'
-                          : 'Complex handwriting detected — still working…'}
-                      </p>
-                    </div>
-
-                    {/* Progress bar */}
-                    <div className="w-full max-w-[240px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progress}%` }}
-                        transition={{ duration: 0.5 }}
-                        className="h-full bg-blue-600 rounded-full shadow-[0_0_8px_rgba(37,99,235,0.4)]"
-                      />
-                    </div>
-
-                  </div>
-                )}
-
-                {uploadState === 'success' && (
-                  <div className="flex flex-col items-center gap-4 py-12">
-                    <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
-                      <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-semibold text-slate-900">Upload successful!</p>
-                      <p className="text-xs text-slate-500 mt-1">Processing complete</p>
-                    </div>
-                  </div>
-                )}
-
-                {uploadState === 'error' && (
-                  <div className="flex flex-col items-center gap-4 py-12">
-                    <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center">
-                      <AlertCircle className="w-8 h-8 text-rose-600" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-semibold text-slate-900">Upload failed</p>
-                      <p className="text-xs text-slate-500 mt-1">{errorMessage}</p>
-                    </div>
+                  {/* Extract Button */}
+                  {selectedFile && (
                     <Button
-                      onClick={resetModal}
-                      variant="outline"
-                      size="sm"
-                      className="mt-2"
+                      onClick={handleExtract}
+                      disabled={isExtracting}
+                      className={cn(
+                        'w-full h-12 rounded-xl font-bold text-sm transition-all',
+                        isExtracting
+                          ? 'bg-slate-200 text-slate-500'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200/50',
+                      )}
                     >
-                      Try Again
+                      {isExtracting ? (
+                        <>
+                          <RotateCcw className="w-4 h-4 animate-spin mr-2" />
+                          Parsing & Matching...
+                        </>
+                      ) : (
+                        <>
+                          <FileSpreadsheet className="w-4 h-4 mr-2" />
+                          Parse Register
+                        </>
+                      )}
                     </Button>
+                  )}
+                </motion.div>
+              )}
+
+              {/* ═══════════════════════════════════════════════ */}
+              {/* STEP 3: Review Handoff                         */}
+              {/* ═══════════════════════════════════════════════ */}
+              {step === 3 && extractionResult && (
+                <motion.div
+                  key="step3"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="space-y-4"
+                >
+                  {/* Success Header */}
+                  <div className="text-center space-y-2">
+                    <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                    </div>
+                    <h3 className="text-base font-bold text-slate-900">Register Parsed</h3>
+                    <p className="text-xs text-slate-500">
+                      {extractionResult.rowCount} rows matched against{' '}
+                      {formatDate(screeningDate)}{facilityName ? ` · ${facilityName}` : ''}
+                    </p>
                   </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>,
-    document.body
+
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <Card className="p-3 text-center bg-emerald-50 border-emerald-100">
+                      <p className="text-2xl font-black text-emerald-700">
+                        {extractionResult.summary?.autoMatch ?? 0}
+                      </p>
+                      <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mt-0.5">
+                        Matched
+                      </p>
+                    </Card>
+                    <Card className="p-3 text-center bg-amber-50 border-amber-100">
+                      <p className="text-2xl font-black text-amber-700">
+                        {extractionResult.summary?.needsReview ?? 0}
+                      </p>
+                      <p className="text-[9px] font-bold text-amber-500 uppercase tracking-widest mt-0.5">
+                        Review
+                      </p>
+                    </Card>
+                    <Card className="p-3 text-center bg-blue-50 border-blue-100">
+                      <p className="text-2xl font-black text-blue-700">
+                        {extractionResult.summary?.newRecord ?? 0}
+                      </p>
+                      <p className="text-[9px] font-bold text-blue-500 uppercase tracking-widest mt-0.5">
+                        New
+                      </p>
+                    </Card>
+                  </div>
+
+                  {/* Duplicate warning */}
+                  {(extractionResult.summary?.duplicateInFile > 0 || extractionResult.summary?.duplicateInScope > 0) && (
+                    <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                      <FileWarning className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="text-xs text-amber-700">
+                        {extractionResult.summary.duplicateInFile > 0 && (
+                          <p><strong>{extractionResult.summary.duplicateInFile}</strong> duplicate(s) found within uploaded file</p>
+                        )}
+                        {extractionResult.summary.duplicateInScope > 0 && (
+                          <p><strong>{extractionResult.summary.duplicateInScope}</strong> record(s) already exist in this scope</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Parse warnings */}
+                  {extractionResult.warnings?.length > 0 && (
+                    <div className="space-y-1">
+                      {extractionResult.warnings.map((w: string, i: number) => (
+                        <div key={i} className="flex items-center gap-2 text-xs text-slate-500">
+                          <AlertTriangle className="w-3 h-3 text-slate-400" />
+                          {w}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Proceed to Review */}
+                  <Button
+                    onClick={handleProceedToReview}
+                    className="w-full h-12 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200/50"
+                  >
+                    Open Reconciliation Review
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+            {step > 1 ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (step === 3) {
+                    setStep(2);
+                    setExtractionResult(null);
+                  } else {
+                    setStep((step - 1) as 1 | 2);
+                  }
+                }}
+                className="text-xs font-bold text-slate-500"
+              >
+                ← Back
+              </Button>
+            ) : (
+              <div />
+            )}
+
+            {step === 1 && hasDate && (
+              <Button
+                onClick={() => setStep(2)}
+                className="h-9 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm"
+              >
+                Continue
+                <ChevronRight className="w-3.5 h-3.5 ml-1" />
+              </Button>
+            )}
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 }

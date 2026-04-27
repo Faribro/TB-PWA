@@ -1775,7 +1775,7 @@ export default function Vertex({
                 patients={sortedFacilityPatients}
                 isLoading={false}
                 onPatientClick={handleOpenPatientDrawer}
-                onUploadRegister={() => setIsUploadModalOpen(true)}
+                onUploadRegister={canEdit ? () => setIsUploadModalOpen(true) : undefined}
               />
             </div>
           </div>
@@ -1793,6 +1793,10 @@ export default function Vertex({
       <RegisterUploadModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
+        screeningDate={selectedDate}
+        facilityName={selectedFacility?.name ?? null}
+        screeningDistrict={filterDistrict !== 'All' ? filterDistrict : null}
+        screeningState={filterState !== 'All' ? filterState : null}
         onSuccess={() => {
           mutate((key: any) => 
             Array.isArray(key) && 

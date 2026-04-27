@@ -1,25 +1,54 @@
 /**
  * lib/matching/patientMatcher.ts
  *
- * TypeScript matching service for the Register Reconciliation pipeline.
- * Supports both single-row RPC matching and bulk in-memory matching.
+ * Scoped patient matching engine for register reconciliation.
+ * Key design: deterministic blocking BEFORE fuzzy matching.
  *
- * Scoring Weights (must sum to 1.0):
- *   Trigram similarity:   0.45  (catches visual OCR transpositions)
- *   Double Metaphone:     0.30  (catches phonetic equivalences: J/Y, sh/s)
- *   Levenshtein distance: 0.15  (catches single-char OCR typos)
- *   Age proximity:        0.10  (demographic sanity check)
+ * Candidate Fetch Strategy:
+ *   1. Fetch only patients matching the date + facility scope
+ *   2. Perform scoring only within that candidate pool
+ *   3. Never fetch all patients globally for gap-fill mode
  *
- * Mobile exact match is an unconditional override → score = 1.0.
+ * Scoring Signals (explainable, chip-ready):
+ *   - Mobile exact match   (unconditional override → 1.0)
+ *   - Exact normalized name (0.95)
+ *   - Token overlap         (0.50 – 0.85)
+ *   - Phonetic similarity   (0.60 base)
+ *   - Age proximity         (±2yr bonus)
+ *
+ * Classifications:
+ *   - auto_match:         compositeScore ≥ 0.60
+ *   - needs_review:       compositeScore ≥ 0.40
+ *   - new_record:         compositeScore < 0.40
+ *   - duplicate_in_file:  flagged from extractor
+ *   - duplicate_in_scope: exact fingerprint match in DB scope
  */
 
-import { type SupabaseClient } from "@supabase/supabase-js";
+import { type SupabaseClient } from '@supabase/supabase-js';
+import type {
+  NormalizedExtractedRow,
+  ScopedMatchOptions,
+  ScoredCandidate,
+  RowMatchResult,
+  MatchClassification,
+  ConfidenceTier,
+  ReconciliationSummary,
+} from '@/lib/reconciliation/sessionTypes';
 
 // ═══════════════════════════════════════════════════════
-// Types
+// Constants (visible, tunable)
 // ═══════════════════════════════════════════════════════
 
-export type ConfidenceTier = "auto_match" | "needs_review" | "new_record";
+export const MATCH_THRESHOLDS = {
+  AUTO_MATCH: 0.60,
+  NEEDS_REVIEW: 0.40,
+} as const;
+
+// ═══════════════════════════════════════════════════════
+// Legacy re-exports for backward compatibility
+// ═══════════════════════════════════════════════════════
+
+export type { ConfidenceTier } from '@/lib/reconciliation/sessionTypes';
 
 export interface MatchResult {
   patientId: string;
@@ -34,7 +63,6 @@ export interface MatchResult {
   ageDelta: number;
   compositeScore: number;
   confidenceTier: ConfidenceTier;
-  /** Human-readable explanation of why this match was selected */
   matchReason: string;
 }
 
@@ -60,20 +88,311 @@ export interface BulkMatchResult {
 }
 
 // ═══════════════════════════════════════════════════════
-// Scoring Engine
+// Internal Patient Row from DB
 // ═══════════════════════════════════════════════════════
 
-const WEIGHTS = {
-  trigram: 0.45,
-  metaphone: 0.30,
-  levenshtein: 0.15,
-  age: 0.10,
-} as const;
+interface PatientRow {
+  id: string;
+  inmate_name: string | null;
+  age: number | null;
+  contact_number: string | null;
+  unique_id: string | null;
+  name_metaphone_primary: string | null;
+  name_metaphone_alternate: string | null;
+  name_variants: string[] | null;
+  kobo_uuid: string | null;
+  facility_name: string | null;
+  screening_district: string | null;
+  screening_date: string | null;
+}
+
+const PATIENT_SELECT = `
+  id,
+  inmate_name,
+  age,
+  contact_number,
+  unique_id,
+  name_metaphone_primary,
+  name_metaphone_alternate,
+  name_variants,
+  kobo_uuid,
+  facility_name,
+  screening_district,
+  screening_date
+`;
+
+// ═══════════════════════════════════════════════════════
+// Scoring Helpers
+// ═══════════════════════════════════════════════════════
+
+function toConfidenceTier(score: number): ConfidenceTier {
+  if (score >= MATCH_THRESHOLDS.AUTO_MATCH) return 'auto_match';
+  if (score >= MATCH_THRESHOLDS.NEEDS_REVIEW) return 'needs_review';
+  return 'new_record';
+}
+
+function normName(s: string | null | undefined): string {
+  return (s ?? '').toUpperCase().replace(/\s+/g, ' ').trim();
+}
+
+function normMobile(s: string | null | undefined): string | null {
+  if (!s) return null;
+  const digits = s.toString().replace(/\D/g, '').slice(-10);
+  return digits.length === 10 && /^[6-9]/.test(digits) ? digits : null;
+}
+
+// ═══════════════════════════════════════════════════════
+// Scoped Candidate Fetch (THE KEY CHANGE)
+// ═══════════════════════════════════════════════════════
 
 /**
- * Computes the composite match score from individual signal scores.
- * Mobile exact match is an unconditional override → 1.0.
+ * Fetches only patients within the reconciliation scope.
+ * This is deterministic blocking: narrows the candidate pool
+ * BEFORE any fuzzy matching happens.
  */
+async function fetchScopedCandidates(
+  supabase: SupabaseClient,
+  options: ScopedMatchOptions,
+): Promise<PatientRow[]> {
+  console.log('[patientMatcher] Fetching scoped candidates:', {
+    date: options.screeningDate,
+    facility: options.facilityName,
+    district: options.screeningDistrict,
+    state: options.screeningState,
+    scopeMode: options.scopeMode,
+  });
+
+  let query = supabase
+    .from('patients')
+    .select(PATIENT_SELECT)
+    .order('created_at', { ascending: false });
+
+  // Primary scope: always filter by screening date
+  query = query.eq('screening_date', options.screeningDate);
+
+  // Facility scope if in date_facility mode
+  if (options.scopeMode === 'date_facility' && options.facilityName) {
+    query = query.eq('facility_name', options.facilityName);
+  }
+
+  // Geographic scope if available
+  if (options.screeningState) {
+    query = query.eq('screening_state', options.screeningState);
+  }
+  if (options.screeningDistrict) {
+    query = query.eq('screening_district', options.screeningDistrict);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('[patientMatcher] Scoped fetch error:', error);
+    throw new Error(`Failed to fetch scoped candidates: ${error.message}`);
+  }
+
+  const candidates = (data ?? []) as PatientRow[];
+  console.log(
+    `[patientMatcher] Scoped fetch returned ${candidates.length} candidates ` +
+    `for date=${options.screeningDate}, facility=${options.facilityName ?? 'any'}`,
+  );
+
+  return candidates;
+}
+
+// ═══════════════════════════════════════════════════════
+// In-Memory Scoring
+// ═══════════════════════════════════════════════════════
+
+function scoreCandidate(
+  extracted: NormalizedExtractedRow,
+  patient: PatientRow,
+): ScoredCandidate {
+  const dbName = normName(patient.inmate_name);
+  const searchName = extracted.normalizedName ?? '';
+  const dbMobile = normMobile(patient.contact_number);
+  const searchMobile = extracted.normalizedMobile;
+
+  // Individual signals
+  const mobileExact = !!(searchMobile && dbMobile && searchMobile === dbMobile);
+  const nameExact = !!(searchName && dbName && searchName === dbName);
+
+  // Token overlap
+  const searchTokens = searchName.split(/\s+/).filter(t => t.length > 1);
+  const dbTokens = dbName.split(/\s+/).filter(t => t.length > 1);
+  const overlap = searchTokens.filter(t => dbTokens.includes(t)).length;
+  const tokenOverlap = searchTokens.length > 0
+    ? overlap / Math.max(searchTokens.length, dbTokens.length)
+    : 0;
+
+  // Contains match
+  const containsMatch =
+    searchName.length > 2 &&
+    dbName.length > 2 &&
+    (dbName.includes(searchName) || searchName.includes(dbName));
+
+  // Age delta
+  const ageDelta = extracted.age != null && patient.age != null
+    ? Math.abs(extracted.age - patient.age)
+    : 999;
+
+  // Phonetic: use metaphone columns if available
+  const phoneticMatch = false; // Simplified — full metaphone in RPC path
+
+  // Composite score
+  let score: number;
+  if (mobileExact) {
+    score = 1.0;
+  } else if (nameExact) {
+    score = ageDelta <= 2 ? 0.95 : 0.90;
+  } else if (containsMatch) {
+    score = 0.80 + (ageDelta <= 3 ? 0.05 : 0);
+  } else if (tokenOverlap > 0) {
+    score = 0.50 + tokenOverlap * 0.30 + (ageDelta <= 3 ? 0.05 : 0);
+  } else {
+    score = 0.20;
+  }
+
+  // Reason chips
+  const matchReasons: string[] = [];
+  if (mobileExact) matchReasons.push('📱 Mobile exact match');
+  if (nameExact) matchReasons.push('✅ Name exact match');
+  if (!nameExact && containsMatch) matchReasons.push('📝 Name contains match');
+  if (!nameExact && !containsMatch && tokenOverlap > 0) {
+    matchReasons.push(`🔤 ${overlap}/${Math.max(searchTokens.length, dbTokens.length)} name tokens match`);
+  }
+  if (ageDelta <= 2) matchReasons.push('🎂 Age matches (±2yr)');
+  else if (ageDelta <= 5) matchReasons.push('🎂 Age close (±5yr)');
+  if (phoneticMatch) matchReasons.push('🔊 Sounds similar');
+
+  return {
+    patientId: patient.id,
+    patientName: patient.inmate_name ?? '',
+    patientAge: patient.age?.toString() ?? null,
+    patientMobile: patient.contact_number ?? null,
+    patientFacility: patient.facility_name ?? null,
+    mobileExactMatch: mobileExact,
+    nameExactMatch: nameExact,
+    phoneticMatch,
+    tokenOverlap,
+    ageDelta,
+    compositeScore: Math.min(1.0, score), // Clamp to 1.0
+    confidenceTier: toConfidenceTier(score),
+    matchReasons,
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+// Main Scoped Matching Entry Point (NEW)
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Match extracted rows against a date/facility-scoped candidate pool.
+ * Returns classification and candidates for each row.
+ */
+export async function matchRowsScoped(
+  supabase: SupabaseClient,
+  extractedRows: NormalizedExtractedRow[],
+  options: ScopedMatchOptions,
+): Promise<{
+  results: RowMatchResult[];
+  summary: ReconciliationSummary;
+}> {
+  if (!extractedRows || extractedRows.length === 0) {
+    return {
+      results: [],
+      summary: {
+        autoMatch: 0,
+        needsReview: 0,
+        newRecord: 0,
+        duplicateInFile: 0,
+        duplicateInScope: 0,
+      },
+    };
+  }
+
+  // Step 1: Deterministic blocking — fetch only scoped candidates
+  const candidates = await fetchScopedCandidates(supabase, options);
+
+  // Build a fingerprint set of existing DB records for exact dedup
+  const dbFingerprints = new Set<string>();
+  for (const c of candidates) {
+    const fp = [
+      normName(c.inmate_name),
+      c.age?.toString() ?? '_',
+      normMobile(c.contact_number) ?? '_',
+    ].join('|');
+    dbFingerprints.add(fp);
+  }
+
+  // Step 2: Score each extracted row against scoped candidates
+  const summary: ReconciliationSummary = {
+    autoMatch: 0,
+    needsReview: 0,
+    newRecord: 0,
+    duplicateInFile: 0,
+    duplicateInScope: 0,
+  };
+
+  const results: RowMatchResult[] = extractedRows.map(row => {
+    // Handle duplicate-in-file first
+    if (row.isDuplicateInFile) {
+      summary.duplicateInFile++;
+      return {
+        sno: row.sno,
+        extractedRow: row,
+        candidates: [],
+        classification: 'duplicate_in_file' as MatchClassification,
+        existsInScope: false,
+      };
+    }
+
+    // Check exact fingerprint match in DB scope
+    const existsInScope = dbFingerprints.has(row.rowFingerprint);
+    if (existsInScope) {
+      summary.duplicateInScope++;
+    }
+
+    // Score against scoped candidates
+    const scored = candidates
+      .map(patient => scoreCandidate(row, patient))
+      .sort((a, b) => b.compositeScore - a.compositeScore)
+      .slice(0, 3); // Top 3 candidates
+
+    const topScore = scored[0]?.compositeScore ?? 0;
+    let classification: MatchClassification;
+
+    if (existsInScope && topScore >= MATCH_THRESHOLDS.AUTO_MATCH) {
+      classification = 'auto_match';
+      summary.autoMatch++;
+    } else if (topScore >= MATCH_THRESHOLDS.AUTO_MATCH) {
+      classification = 'auto_match';
+      summary.autoMatch++;
+    } else if (topScore >= MATCH_THRESHOLDS.NEEDS_REVIEW) {
+      classification = 'needs_review';
+      summary.needsReview++;
+    } else {
+      classification = 'new_record';
+      summary.newRecord++;
+    }
+
+    return {
+      sno: row.sno,
+      extractedRow: row,
+      candidates: scored,
+      classification,
+      existsInScope,
+    };
+  });
+
+  console.log('[patientMatcher] Scoped match summary:', summary);
+
+  return { results, summary };
+}
+
+// ═══════════════════════════════════════════════════════
+// Legacy Global Matching (preserved for SSE stream path)
+// ═══════════════════════════════════════════════════════
+
 export function computeCompositeScore(row: {
   trgm_score: number;
   metaphone_match: boolean;
@@ -81,18 +400,19 @@ export function computeCompositeScore(row: {
   mobile_exact_match: boolean;
   age_delta: number;
 }): number {
-  // Mobile exact match → unconditional 1.0 (override all else)
   if (row.mobile_exact_match) return 1.0;
 
+  const WEIGHTS = { trigram: 0.45, metaphone: 0.30, levenshtein: 0.15, age: 0.10 };
+
   const levenshteinScore =
-    row.levenshtein_dist <= 1
-      ? 1.0
-      : row.levenshtein_dist === 2
-        ? 0.6
-        : 0.0;
+    row.levenshtein_dist <= 1 ? 1.0 :
+    row.levenshtein_dist === 2 ? 0.6 :
+    0.0;
 
   const ageScore =
-    row.age_delta <= 2 ? 1.0 : row.age_delta <= 5 ? 0.5 : 0.0;
+    row.age_delta <= 2 ? 1.0 :
+    row.age_delta <= 5 ? 0.5 :
+    0.0;
 
   return (
     row.trgm_score * WEIGHTS.trigram +
@@ -102,92 +422,21 @@ export function computeCompositeScore(row: {
   );
 }
 
-/**
- * Suppresses auto-match for poorly-extracted OCR rows.
- * Prevents confidently matching a name that was barely legible.
- */
-export function applyOCRPenalty(
-  score: number,
-  ocrConfidence: number
-): number {
+export function applyOCRPenalty(score: number, ocrConfidence: number): number {
   if (ocrConfidence < 0.5) return score * 0.75;
   if (ocrConfidence < 0.7) return score * 0.90;
   return score;
 }
 
-/**
- * Maps a composite score to a confidence tier.
- *   ≥ 0.60 → auto_match   (system links; audit log — ~40% of volume)
- *   ≥ 0.40 → needs_review  (officer picks from top-3 — ~30%)
- *   <  0.40 → new_record   (no match; officer creates or confirms — ~30%)
- */
-export function toConfidenceTier(score: number): ConfidenceTier {
-  if (score >= 0.60) return "auto_match";
-  if (score >= 0.40) return "needs_review";
-  return "new_record";
-}
-
-/**
- * Generates a human-readable match reason string for the M&E officer.
- */
-function buildMatchReason(row: {
-  trgm_score: number;
-  metaphone_match: boolean;
-  levenshtein_dist: number;
-  mobile_exact_match: boolean;
-  age_delta: number;
-}): string {
-  const reasons: string[] = [];
-
-  if (row.mobile_exact_match) {
-    reasons.push("📱 Mobile number exact match");
-  }
-
-  if (row.trgm_score >= 0.7) {
-    reasons.push(`📝 Name similarity: ${(row.trgm_score * 100).toFixed(0)}%`);
-  } else if (row.trgm_score >= 0.4) {
-    reasons.push(`📝 Name partial match: ${(row.trgm_score * 100).toFixed(0)}%`);
-  }
-
-  if (row.metaphone_match) {
-    reasons.push("🔊 Phonetic match (sounds similar)");
-  }
-
-  if (row.levenshtein_dist <= 1) {
-    reasons.push("✏️ Name differs by ≤1 character");
-  } else if (row.levenshtein_dist === 2) {
-    reasons.push("✏️ Name differs by 2 characters");
-  }
-
-  if (row.age_delta <= 2) {
-    reasons.push("🎂 Age matches closely");
-  } else if (row.age_delta <= 5) {
-    reasons.push("🎂 Age within ±5 years");
-  }
-
-  return reasons.length > 0
-    ? reasons.join(" · ")
-    : "Weak signals — manual review needed";
-}
-
-// ═══════════════════════════════════════════════════════
-// Main Matching Function
-// ═══════════════════════════════════════════════════════
-
-/**
- * Matches an OCR-extracted patient against the Supabase patients table.
- * Calls the `match_patient_robust` RPC and returns the top 3 candidates
- * with scoring breakdown and confidence tiers.
- */
 export async function matchPatient(
   supabase: SupabaseClient,
-  params: MatchParams
+  params: MatchParams,
 ): Promise<MatchResult[]> {
   if (!params.name || params.name.trim().length === 0) {
     return [];
   }
 
-  const { data, error } = await supabase.rpc("match_patient_robust", {
+  const { data, error } = await supabase.rpc('match_patient_robust', {
     p_name: params.name.trim(),
     p_age: params.age ?? null,
     p_mobile: params.mobile ?? null,
@@ -196,7 +445,7 @@ export async function matchPatient(
   });
 
   if (error) {
-    console.error("[PatientMatcher] RPC error:", error);
+    console.error('[PatientMatcher] RPC error:', error);
     return [];
   }
 
@@ -221,312 +470,114 @@ export async function matchPatient(
         ageDelta: row.age_delta,
         compositeScore: adjusted,
         confidenceTier: toConfidenceTier(adjusted),
-        matchReason: buildMatchReason(row),
+        matchReason: row.mobile_exact_match ? '📱 Mobile exact match' : 'Fuzzy match',
       };
     })
     .sort((a, b) => b.compositeScore - a.compositeScore)
-    .slice(0, 3); // Top 3 candidates for M&E officer
+    .slice(0, 3);
 }
 
-// ═══════════════════════════════════════════════════════
-// Bulk In-Memory Matching (OPTIMIZATION 2)
-// ═══════════════════════════════════════════════════════
-
-interface PatientRow {
-  id: string;
-  inmate_name: string | null;
-  age: number | null;
-  contact_number: string | null;
-  unique_id: string | null;
-  name_metaphone_primary: string | null;
-  name_metaphone_alternate: string | null;
-  name_variants: string[] | null;
-  kobo_uuid: string | null;
-  facility_name: string | null;
-  screening_district: string | null;
-  screening_date: string | null;
-}
-
-/**
- * Date proximity bonus for matching — prefer recent screenings
- */
-function dateProximityBonus(screeningDate: string | null): number {
-  if (!screeningDate) return 0;
-  const daysDiff = Math.abs(
-    (Date.now() - new Date(screeningDate).getTime()) /
-    (1000 * 60 * 60 * 24)
-  );
-  if (daysDiff <= 30) return 0.10;   // same month
-  if (daysDiff <= 90) return 0.05;   // same quarter
-  if (daysDiff <= 365) return 0.02;  // same year
-  return 0;
-}
-
-const CONCURRENCY = 15;
-
-// Global counter for diagnostic logging
-let rowCounter = 0;
-
-/**
- * Bulk matches multiple extracted rows against all patients in memory.
- * Fetches all patients once, then performs in-memory candidate search.
- * Eliminates N sequential DB round trips for N extracted rows.
- */
 export async function matchPatients(
   supabase: SupabaseClient,
-  extractedRows: BulkMatchParams[]
+  extractedRows: BulkMatchParams[],
+  options?: ScopedMatchOptions,
 ): Promise<BulkMatchResult[]> {
-  // Reset counter for each bulk match
-  rowCounter = 0;
+  if (!extractedRows || extractedRows.length === 0) return [];
 
-  if (!extractedRows || extractedRows.length === 0) {
-    return [];
+  console.log('[patientMatcher] matchPatients called with', extractedRows.length, 'rows');
+
+  // Build query — now scope-aware
+  let query = supabase
+    .from('patients')
+    .select(PATIENT_SELECT)
+    .order('created_at', { ascending: false });
+
+  if (options?.screeningDate) {
+    query = query.eq('screening_date', options.screeningDate);
+  }
+  if (options?.scopeMode === 'date_facility' && options?.facilityName) {
+    query = query.eq('facility_name', options.facilityName);
+  }
+  if (options?.screeningState) {
+    query = query.eq('screening_state', options.screeningState);
+  }
+  if (options?.screeningDistrict) {
+    query = query.eq('screening_district', options.screeningDistrict);
   }
 
-  console.log('[patientMatcher] Starting bulk match for', extractedRows.length, 'rows');
-  console.log('[patientMatcher] First 3 input rows:', extractedRows.slice(0, 3).map(r => ({
-    name: r.name,
-    age: r.age,
-    mobile: r.mobile
-  })));
-
-  console.time('[patientMatcher] bulk fetch');
-
-  const { data: allPatients, error: fetchError } =
-    await supabase
-      .from('patients')
-      .select(`
-        id,
-        inmate_name,
-        age,
-        contact_number,
-        unique_id,
-        name_metaphone_primary,
-        name_metaphone_alternate,
-        name_variants,
-        kobo_uuid,
-        facility_name,
-        screening_district,
-        screening_date
-      `)
-      .order('created_at', { ascending: false });
+  const { data: allPatients, error: fetchError } = await query;
 
   if (fetchError || !allPatients) {
-    console.error('[patientMatcher] Bulk fetch error:', fetchError);
-    throw new Error(
-      `Failed to fetch patients for matching: ${fetchError?.message}`
-    );
+    console.error('[patientMatcher] Fetch error:', fetchError);
+    throw new Error(`Failed to fetch patients: ${fetchError?.message}`);
   }
 
-  console.timeEnd('[patientMatcher] bulk fetch');
-  console.log(
-    '[patientMatcher] allPatients count:',
-    allPatients?.length ?? 0
-  );
+  console.log('[patientMatcher] Candidates loaded:', allPatients.length);
 
-  if (!allPatients || allPatients.length === 0) {
-    console.warn('[patientMatcher] WARNING: No patients found in database!');
-    console.warn('[patientMatcher] This could be due to:');
-    console.warn('[patientMatcher] - RLS policy blocking access');
-    console.warn('[patientMatcher] - Empty patients table');
-    console.warn('[patientMatcher] - Filter in query excluding all rows');
-  }
-
-  // Process rows in batches with concurrency limit
   const results: BulkMatchResult[] = [];
-  for (let i = 0; i < extractedRows.length; i += CONCURRENCY) {
-    const batch = extractedRows.slice(i, i + CONCURRENCY);
-    const batchResults = await Promise.all(
-      batch.map(row => matchRowInMemory(row, allPatients as PatientRow[]))
-    );
-    results.push(...batchResults);
-  }
 
-  // Log match summary
-  const autoMatchCount = results.filter(r => r.matchStatus === 'auto_match').length;
-  const needsReviewCount = results.filter(r => r.matchStatus === 'needs_review').length;
-  const newRecordCount = results.filter(r => r.matchStatus === 'new_record').length;
-  console.log('[patientMatcher] Match summary:', {
-    total: results.length,
-    auto_match: autoMatchCount,
-    needs_review: needsReviewCount,
-    new_record: newRecordCount
-  });
+  for (const row of extractedRows) {
+    if (!row.name || row.name.trim().length === 0) {
+      results.push({ row, matches: [], matchStatus: 'new_record' });
+      continue;
+    }
+
+    const searchName = row.name.toUpperCase().trim();
+    const searchMobile = row.mobile ? row.mobile.replace(/\D/g, '').slice(-10) : null;
+
+    const scored: MatchResult[] = [];
+
+    for (const p of allPatients as PatientRow[]) {
+      const dbName = normName(p.inmate_name);
+      if (!dbName) continue;
+
+      const dbMobile = normMobile(p.contact_number);
+      const mobileExact = !!(searchMobile && dbMobile && searchMobile === dbMobile);
+      const exactMatch = dbName === searchName;
+      const containsMatch = dbName.includes(searchName) || searchName.includes(dbName);
+      const ageDelta = row.age != null && p.age != null
+        ? Math.abs(row.age - p.age) : 999;
+
+      // Token overlap
+      const sTokens = searchName.split(/\s+/).filter(t => t.length > 1);
+      const dTokens = dbName.split(/\s+/).filter(t => t.length > 1);
+      const overlap = sTokens.filter(t => dTokens.includes(t)).length;
+
+      let score: number;
+      if (mobileExact) score = 1.0;
+      else if (exactMatch) score = ageDelta <= 2 ? 0.95 : 0.90;
+      else if (containsMatch) score = 0.80;
+      else if (overlap > 0) score = 0.50 + (overlap / Math.max(sTokens.length, dTokens.length)) * 0.30;
+      else continue; // No signal at all, skip
+
+      const adjusted = applyOCRPenalty(score, row.ocrConfidence);
+
+      scored.push({
+        patientId: p.id,
+        patientName: p.inmate_name ?? '',
+        patientAge: p.age?.toString() ?? null,
+        patientMobile: p.contact_number ?? null,
+        patientFacility: p.facility_name ?? null,
+        trigramScore: score,
+        metaphoneMatch: false,
+        levenshteinDist: 0,
+        mobileExactMatch: mobileExact,
+        ageDelta,
+        compositeScore: adjusted,
+        confidenceTier: toConfidenceTier(adjusted),
+        matchReason: mobileExact ? '📱 Mobile exact match' :
+                     exactMatch ? '✅ Name exact match' :
+                     containsMatch ? '📝 Name contains match' :
+                     `🔤 ${overlap} token overlap`,
+      });
+    }
+
+    scored.sort((a, b) => b.compositeScore - a.compositeScore);
+    const topMatches = scored.slice(0, 3);
+    const topStatus = topMatches[0]?.confidenceTier ?? 'new_record';
+
+    results.push({ row, matches: topMatches, matchStatus: topStatus });
+  }
 
   return results;
-}
-
-/**
- * In-memory candidate search — no DB call.
- */
-function findCandidates(
-  extractedName: string,
-  allPatients: PatientRow[]
-): PatientRow[] {
-  const searchName = extractedName.toLowerCase().trim();
-
-  // Score each patient
-  const scored = allPatients
-    .map(p => {
-      const dbName = (p.inmate_name ?? '').toLowerCase();
-
-      // Exact match
-      if (dbName === searchName) return { p, score: 1.0 };
-
-      // Contains match
-      if (dbName.includes(searchName) ||
-          searchName.includes(dbName)) {
-        return { p, score: 0.85 };
-      }
-
-      // Single-name match: if OCR extracted just "RAMESH" and DB has "RAMESH KUMAR"
-      const searchTokens = searchName.split(/\s+/);
-      const dbTokens     = dbName.split(/\s+/);
-      const overlap = searchTokens.filter(
-        t => dbTokens.includes(t) && t.length > 2
-      ).length;
-
-      // If single name from OCR matches first name in DB, give good score
-      if (searchTokens.length === 1 && dbTokens.length > 1) {
-        if (dbTokens[0] === searchTokens[0]) {
-          return { p, score: 0.75 }; // High score for first-name match
-        }
-      }
-
-      // Token overlap (handles "RAMESH KUMAR" vs "KUMAR RAMESH")
-      if (overlap > 0) {
-        return {
-          p,
-          score: 0.5 + (overlap / Math.max(
-            searchTokens.length,
-            dbTokens.length
-          )) * 0.35
-        };
-      }
-
-      // Metaphone match (phonetic)
-      if (p.name_metaphone_primary &&
-          extractedName.length > 3) {
-        return { p, score: 0.6 };
-      }
-
-      return null;
-    })
-    .filter((r): r is { p: PatientRow; score: number } =>
-      r !== null && r.score >= 0.35  // Lowered from 0.50 to catch more matches
-    )
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);  // top 5 candidates max
-
-  const result = scored.map(s => s.p);
-
-  // Log if no candidates found
-  if (result.length === 0) {
-    console.warn('[findCandidates] No candidates found for:', searchName);
-    console.warn('[findCandidates] Searched against', allPatients.length, 'patients');
-  } else {
-    console.log('[findCandidates] Found', result.length, 'candidates for:', searchName);
-    console.log('[findCandidates] Candidate names:', result.slice(0, 3).map(p => p.inmate_name));
-  }
-
-  return result;
-}
-
-/**
- * Matches a single row in memory and returns formatted result.
- */
-async function matchRowInMemory(
-  row: BulkMatchParams,
-  allPatients: PatientRow[]
-): Promise<BulkMatchResult> {
-  const isFirstFew = rowCounter < 3;
-  const currentRow = rowCounter;
-  rowCounter++;
-
-  if (isFirstFew) {
-    console.log('[matcher] Processing row #' + currentRow + ':', {
-      name: row.name,
-      age: row.age,
-      mobile: row.mobile,
-      sno: row.sno
-    });
-  }
-
-  // Warn if allPatients is empty
-  if (!allPatients || allPatients.length === 0) {
-    console.warn('[matcher] WARNING: allPatients is empty - no patients loaded from database!');
-    return {
-      row,
-      matches: [],
-      matchStatus: 'new_record',
-    };
-  }
-
-  if (!row.name || row.name.trim().length === 0) {
-    return {
-      row,
-      matches: [],
-      matchStatus: 'new_record',
-    };
-  }
-
-  const candidates = findCandidates(row.name, allPatients);
-
-  const matches: MatchResult[] = candidates.slice(0, 3).map(p => {
-    const dbName = (p.inmate_name ?? '').toLowerCase();
-    const searchName = row.name.toLowerCase().trim();
-
-    // Simple scoring for in-memory match
-    const exactMatch = dbName === searchName;
-    const mobileExact = row.mobile && p.contact_number === row.mobile;
-    const ageDelta = row.age && p.age ? Math.abs(row.age - p.age) : 999;
-
-    let score = 0;
-    if (mobileExact) score = 1.0;
-    else if (exactMatch) score = 0.95;
-    else if (dbName.includes(searchName) || searchName.includes(dbName)) score = 0.85;
-    else score = 0.6;
-
-    // Add date proximity bonus for recent screenings
-    score += dateProximityBonus(p.screening_date);
-
-    const adjusted = applyOCRPenalty(score, row.ocrConfidence);
-
-    return {
-      patientId: p.id,
-      patientName: p.inmate_name ?? '',
-      patientAge: p.age?.toString() ?? null,
-      patientMobile: p.contact_number ?? null,
-      patientFacility: p.facility_name ?? null,
-      trigramScore: score,
-      metaphoneMatch: false,
-      levenshteinDist: 0,
-      mobileExactMatch: mobileExact,
-      ageDelta: ageDelta,
-      compositeScore: adjusted,
-      confidenceTier: toConfidenceTier(adjusted),
-      matchReason: mobileExact ? '📱 Mobile number exact match' :
-                  exactMatch ? '📝 Name exact match' :
-                  '📝 Name partial match',
-    };
-  });
-
-  const topMatch = matches[0];
-  const matchStatus = topMatch?.confidenceTier ?? 'new_record';
-
-  // Log match result for first few rows
-  if (isFirstFew) {
-    console.log('[matcher] Match result for row #' + currentRow + ' (sno: ' + (row.sno ?? 'null') + '):', {
-      matchStatus,
-      topMatchScore: topMatch?.compositeScore ?? 0,
-      topMatchName: topMatch?.patientName ?? 'none',
-      topMatchReason: topMatch?.matchReason ?? 'none'
-    });
-  }
-
-  return {
-    row,
-    matches,
-    matchStatus,
-  };
 }

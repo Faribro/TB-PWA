@@ -4,12 +4,25 @@
  * Zustand store for the Register Reconciliation workflow.
  * Supports both batch and real-time SSE streaming modes.
  *
+ * Extended for date-scoped gap-fill reconciliation:
+ * - Session context flows from Vertex → Store → API → Commit
+ * - screeningDate is mandatory for the gap-fill path
+ * - Submit payload includes session context so the API uses selectedDate
+ *
  * Phases: Upload → Extracting → Streaming → Review → Submitting → Complete
  */
 
 import { create } from "zustand";
 import type { ExtractedRow } from "@/lib/ocr/geminiExtractor";
 import type { MatchResult } from "@/lib/matching/patientMatcher";
+import type {
+  ReconciliationSessionContext,
+  RowMatchResult,
+  ReconciliationSummary,
+  ReconcileCommitResponse,
+  ScopeMode,
+  SourceType,
+} from "@/lib/reconciliation/sessionTypes";
 
 // ═══════════════════════════════════════════════════════
 // Types
@@ -31,7 +44,7 @@ export interface ExtractedRowWithMatches extends ExtractedRow {
   matchStatus?: MatchStatus;
 }
 
-export type ExtractionSource = 'image' | 'pdf' | 'excel';
+export type ExtractionSource = "image" | "pdf" | "excel" | "spreadsheet";
 
 export interface RowDecision {
   action: RowAction;
@@ -61,14 +74,29 @@ export interface ReconciliationState {
   uploadedFile: File | null;
   imagePreviewUrl: string | null;
 
+  // ═══════════════════════════════════════════════════════
+  // Session Context (NEW — date-scoped reconciliation)
+  // ═══════════════════════════════════════════════════════
+  sessionId: string | null;
+  selectedDate: string | null;          // YYYY-MM-DD — the gap date
+  facilityName: string | null;
+  screeningDistrict: string | null;
+  screeningState: string | null;
+  scopeMode: ScopeMode;
+  sourceFileName: string | null;
+  sourceFileHash: string | null;
+
   // ── Extraction ──
   extractionId: string | null;
   rows: ExtractedRowWithMatches[];
+  matchResults: RowMatchResult[];       // Scoped match results
   summary: ExtractionSummary | null;
+  scopedSummary: ReconciliationSummary | null;
   source: ExtractionSource | null;
   modelVersion: string | null;
   latencyMs: number | null;
   extractionError: string | null;
+  parseWarnings: string[];
 
   // ── Streaming ──
   streamingProgress: number; // 0-100
@@ -78,12 +106,7 @@ export interface ReconciliationState {
   decisions: Map<number, RowDecision>;
 
   // ── Submission ──
-  submitResult: {
-    accepted: number;
-    created: number;
-    rejected: number;
-    errors: { sno: number; error: string }[];
-  } | null;
+  submitResult: ReconcileCommitResponse | null;
 
   // ── Notifications ──
   notificationResults: NotificationResult[];
@@ -92,6 +115,26 @@ export interface ReconciliationState {
   // ── Actions ──
   setFile: (file: File) => void;
   clearFile: () => void;
+
+  /** Initialize a reconciliation session from Vertex context */
+  startSession: (context: {
+    selectedDate: string;
+    facilityName?: string | null;
+    screeningDistrict?: string | null;
+    screeningState?: string | null;
+    scopeMode?: ScopeMode;
+  }) => void;
+
+  /** Set parsed + matched rows from extract API */
+  setParsedRows: (data: {
+    extractionId: string;
+    matchResults: RowMatchResult[];
+    summary: ReconciliationSummary;
+    parseWarnings?: string[];
+    source?: ExtractionSource;
+    latencyMs?: number;
+  }) => void;
+
   startStreamExtraction: () => Promise<void>;
   startExtraction: () => Promise<void>;
   addRealtimeRow: (row: ExtractedRowWithMatches) => void;
@@ -102,7 +145,7 @@ export interface ReconciliationState {
   addNotificationResult: (result: NotificationResult) => void;
   reset: () => void;
 
-  // ── Handoff Setters ──
+  // ── Handoff Setters (legacy compat) ──
   setExtractionData: (data: {
     extractionId: string;
     rows: ExtractedRowWithMatches[];
@@ -129,12 +172,26 @@ export const useReconciliationStore = create<ReconciliationState>(
     phase: "upload",
     uploadedFile: null,
     imagePreviewUrl: null,
+
+    // Session context
+    sessionId: null,
+    selectedDate: null,
+    facilityName: null,
+    screeningDistrict: null,
+    screeningState: null,
+    scopeMode: "date_only",
+    sourceFileName: null,
+    sourceFileHash: null,
+
     extractionId: null,
     rows: [],
+    matchResults: [],
     summary: null,
+    scopedSummary: null,
     modelVersion: null,
     latencyMs: null,
     extractionError: null,
+    parseWarnings: [],
     streamingProgress: 0,
     totalRows: 0,
     decisions: new Map(),
@@ -149,6 +206,7 @@ export const useReconciliationStore = create<ReconciliationState>(
       set({
         uploadedFile: file,
         imagePreviewUrl: url,
+        sourceFileName: file.name,
         phase: "upload",
         extractionError: null,
       });
@@ -161,35 +219,117 @@ export const useReconciliationStore = create<ReconciliationState>(
       set({
         uploadedFile: null,
         imagePreviewUrl: null,
+        sourceFileName: null,
         phase: "upload",
         rows: [],
+        matchResults: [],
         decisions: new Map(),
         extractionError: null,
+        parseWarnings: [],
         streamingProgress: 0,
         totalRows: 0,
       });
     },
 
+    // ══════════════════════════════════════════════════════
+    // NEW: Start a Reconciliation Session
+    // ══════════════════════════════════════════════════════
+    startSession: (context) => {
+      const sessionId = crypto.randomUUID();
+      set({
+        sessionId,
+        selectedDate: context.selectedDate,
+        facilityName: context.facilityName ?? null,
+        screeningDistrict: context.screeningDistrict ?? null,
+        screeningState: context.screeningState ?? null,
+        scopeMode: context.scopeMode ?? (context.facilityName ? "date_facility" : "date_only"),
+        // Reset workflow state for new session
+        phase: "upload",
+        uploadedFile: null,
+        imagePreviewUrl: null,
+        extractionId: null,
+        rows: [],
+        matchResults: [],
+        summary: null,
+        scopedSummary: null,
+        decisions: new Map(),
+        submitResult: null,
+        extractionError: null,
+        parseWarnings: [],
+        source: null,
+        isReviewOpen: false,
+      });
+    },
+
+    // ══════════════════════════════════════════════════════
+    // NEW: Set Parsed + Matched Rows (from extract API)
+    // ══════════════════════════════════════════════════════
+    setParsedRows: (data) => {
+      const decisions = new Map<number, RowDecision>();
+
+      for (const result of data.matchResults) {
+        const sno = result.sno;
+        if (result.classification === "auto_match" && result.candidates[0]) {
+          decisions.set(sno, {
+            action: "accept",
+            selectedPatientId: result.candidates[0].patientId,
+          });
+        } else if (result.classification === "new_record") {
+          decisions.set(sno, { action: "create" });
+        } else if (result.classification === "duplicate_in_file") {
+          decisions.set(sno, { action: "reject" });
+        } else {
+          decisions.set(sno, { action: "pending" });
+        }
+      }
+
+      set({
+        extractionId: data.extractionId,
+        matchResults: data.matchResults,
+        scopedSummary: data.summary,
+        summary: {
+          autoMatch: data.summary.autoMatch,
+          needsReview: data.summary.needsReview,
+          newRecord: data.summary.newRecord,
+        },
+        parseWarnings: data.parseWarnings ?? [],
+        source: data.source ?? "spreadsheet",
+        latencyMs: data.latencyMs ?? null,
+        decisions,
+        phase: "review",
+        isReviewOpen: true,
+      });
+    },
+
     // ════════════════════════════════════════════════════
-    // SSE Streaming Extraction (Primary Mode)
+    // SSE Streaming Extraction (Primary Mode for OCR)
     // ════════════════════════════════════════════════════
     startStreamExtraction: async () => {
-      const { uploadedFile } = get();
+      const { uploadedFile, selectedDate, facilityName, screeningDistrict, screeningState, scopeMode } = get();
       if (!uploadedFile) return;
 
       set({
         phase: "extracting",
         extractionError: null,
         rows: [],
+        matchResults: [],
         decisions: new Map(),
         streamingProgress: 0,
         totalRows: 0,
         summary: null,
+        scopedSummary: null,
       });
 
       try {
         const formData = new FormData();
         formData.append("image", uploadedFile);
+
+        // Pass session context for scoped matching
+        if (selectedDate) formData.append("screeningDate", selectedDate);
+        if (facilityName) formData.append("facilityName", facilityName);
+        if (screeningDistrict) formData.append("screeningDistrict", screeningDistrict);
+        if (screeningState) formData.append("screeningState", screeningState);
+        formData.append("scopeMode", scopeMode);
 
         const res = await fetch("/api/reconcile/stream", {
           method: "POST",
@@ -218,9 +358,8 @@ export const useReconciliationStore = create<ReconciliationState>(
 
           buffer += decoder.decode(value, { stream: true });
 
-          // Process complete SSE events in the buffer
           const lines = buffer.split("\n");
-          buffer = lines.pop() || ""; // Keep incomplete line in buffer
+          buffer = lines.pop() || "";
 
           let eventType = "";
           let eventData = "";
@@ -260,17 +399,33 @@ export const useReconciliationStore = create<ReconciliationState>(
     },
 
     // ════════════════════════════════════════════════════
-    // Batch Extraction (Fallback Mode)
+    // Batch Extraction (Gap-Fill Primary Mode)
     // ════════════════════════════════════════════════════
     startExtraction: async () => {
-      const { uploadedFile } = get();
+      const {
+        uploadedFile,
+        selectedDate,
+        facilityName,
+        screeningDistrict,
+        screeningState,
+        scopeMode,
+        sessionId,
+      } = get();
       if (!uploadedFile) return;
 
       set({ phase: "extracting", extractionError: null });
 
       try {
         const formData = new FormData();
-        formData.append("image", uploadedFile);
+        formData.append("file", uploadedFile);
+
+        // ── Session context for scoped matching ──
+        if (selectedDate) formData.append("screeningDate", selectedDate);
+        if (facilityName) formData.append("facilityName", facilityName);
+        if (screeningDistrict) formData.append("screeningDistrict", screeningDistrict);
+        if (screeningState) formData.append("screeningState", screeningState);
+        formData.append("scopeMode", scopeMode);
+        if (sessionId) formData.append("sessionId", sessionId);
 
         const res = await fetch("/api/register-extract", {
           method: "POST",
@@ -281,36 +436,51 @@ export const useReconciliationStore = create<ReconciliationState>(
           const errBody = await res
             .json()
             .catch(() => ({ error: "Extraction failed" }));
-          throw new Error(errBody.error || `HTTP ${res.status}`);
+          throw new Error(errBody.error || errBody.message || `HTTP ${res.status}`);
         }
 
         const result = await res.json();
 
-        const decisions = new Map<number, RowDecision>();
-        for (const row of result.rows) {
-          const sno = row.sno;
-          if (sno == null) continue;
+        // Check if we got the new scoped format
+        if (result.results && Array.isArray(result.results)) {
+          // New scoped format: results are RowMatchResult[]
+          get().setParsedRows({
+            extractionId: result.extractionId,
+            matchResults: result.results,
+            summary: result.summary,
+            parseWarnings: result.warnings,
+            source: result.source ?? "spreadsheet",
+            latencyMs: result.latencyMs,
+          });
+        } else if (result.rows && Array.isArray(result.rows)) {
+          // Legacy format: rows are ExtractedRowWithMatches[]
+          const decisions = new Map<number, RowDecision>();
+          for (const row of result.rows) {
+            const sno = row.sno;
+            if (sno == null) continue;
 
-          const topMatch = row.matches?.[0];
-          if (topMatch?.confidenceTier === "auto_match") {
-            decisions.set(sno, {
-              action: "accept",
-              selectedPatientId: topMatch.patientId,
-            });
-          } else {
-            decisions.set(sno, { action: "pending" });
+            const topMatch = row.matches?.[0];
+            if (topMatch?.confidenceTier === "auto_match") {
+              decisions.set(sno, {
+                action: "accept",
+                selectedPatientId: topMatch.patientId,
+              });
+            } else {
+              decisions.set(sno, { action: "pending" });
+            }
           }
-        }
 
-        set({
-          phase: "review",
-          extractionId: result.extractionId,
-          rows: result.rows,
-          summary: result.summary,
-          modelVersion: result.model,
-          latencyMs: result.latencyMs,
-          decisions,
-        });
+          set({
+            phase: "review",
+            extractionId: result.extractionId,
+            rows: result.rows,
+            summary: result.summary,
+            modelVersion: result.model,
+            latencyMs: result.latencyMs,
+            decisions,
+            isReviewOpen: true,
+          });
+        }
       } catch (error) {
         set({
           phase: "upload",
@@ -351,57 +521,117 @@ export const useReconciliationStore = create<ReconciliationState>(
 
     // ── Auto-decide all pending rows ──
     autoDecideAll: () => {
-      const { rows, decisions: currentDecisions } = get();
+      const { matchResults, rows, decisions: currentDecisions } = get();
       const newDecisions = new Map(currentDecisions);
 
-      for (const row of rows) {
-        if (row.sno == null) continue;
-        const current = newDecisions.get(row.sno);
-        if (current?.action !== "pending") continue;
+      // Prefer matchResults (new scoped format)
+      if (matchResults.length > 0) {
+        for (const result of matchResults) {
+          const current = newDecisions.get(result.sno);
+          if (current?.action !== "pending") continue;
 
-        const topMatch = row.matches?.[0];
-        if (topMatch && topMatch.compositeScore >= 0.55) {
-          newDecisions.set(row.sno, {
-            action: "accept",
-            selectedPatientId: topMatch.patientId,
-          });
-        } else {
-          newDecisions.set(row.sno, { action: "create" });
+          if (result.classification === "duplicate_in_file") {
+            newDecisions.set(result.sno, { action: "reject" });
+          } else if (result.candidates.length > 0 && result.candidates[0].compositeScore >= 0.55) {
+            newDecisions.set(result.sno, {
+              action: "accept",
+              selectedPatientId: result.candidates[0].patientId,
+            });
+          } else {
+            newDecisions.set(result.sno, { action: "create" });
+          }
+        }
+      } else {
+        // Legacy format
+        for (const row of rows) {
+          if (row.sno == null) continue;
+          const current = newDecisions.get(row.sno);
+          if (current?.action !== "pending") continue;
+
+          const topMatch = row.matches?.[0];
+          if (topMatch && topMatch.compositeScore >= 0.55) {
+            newDecisions.set(row.sno, {
+              action: "accept",
+              selectedPatientId: topMatch.patientId,
+            });
+          } else {
+            newDecisions.set(row.sno, { action: "create" });
+          }
         }
       }
 
       set({ decisions: newDecisions });
     },
 
-    // ── Submit Review ──
+    // ══════════════════════════════════════════════════════
+    // Submit Review — NOW INCLUDES SESSION CONTEXT
+    // ══════════════════════════════════════════════════════
     submitReview: async () => {
-      const { extractionId, rows, decisions } = get();
+      const {
+        extractionId,
+        rows,
+        matchResults,
+        decisions,
+        selectedDate,
+        facilityName,
+        screeningDistrict,
+        screeningState,
+        scopeMode,
+        sessionId,
+      } = get();
+
       if (!extractionId) return;
 
       set({ phase: "submitting" });
 
       try {
-        const decisionPayload = rows
-          .filter((r) => r.sno != null)
-          .map((row) => {
-            const dec = decisions.get(row.sno!);
-            return {
-              sno: row.sno!,
-              action:
-                dec?.action === "pending"
-                  ? "reject"
-                  : dec?.action || "reject",
-              patientId: dec?.selectedPatientId,
-              extractedData: {
-                name: row.name,
-                father_name: row.father_name,
-                age: row.age,
-                ward: row.ward,
-                address: row.address,
-                mobile: row.mobile,
-              },
-            };
-          });
+        // Build decision payload — prefer matchResults (new format)
+        let decisionPayload: any[];
+
+        if (matchResults.length > 0) {
+          decisionPayload = matchResults
+            .map((result) => {
+              const dec = decisions.get(result.sno);
+              if (!dec || dec.action === "pending") return null;
+              return {
+                sno: result.sno,
+                action: dec.action,
+                patientId: dec.selectedPatientId,
+                extractedData: {
+                  name: result.extractedRow.name,
+                  father_name: result.extractedRow.father_name,
+                  age: result.extractedRow.age,
+                  ward: result.extractedRow.ward,
+                  address: result.extractedRow.address,
+                  mobile: result.extractedRow.mobile,
+                },
+              };
+            })
+            .filter(Boolean);
+        } else {
+          // Legacy format
+          decisionPayload = rows
+            .filter((r) => r.sno != null)
+            .map((row) => {
+              const dec = decisions.get(row.sno!);
+              return {
+                sno: row.sno!,
+                action:
+                  dec?.action === "pending"
+                    ? "reject"
+                    : dec?.action || "reject",
+                patientId: dec?.selectedPatientId,
+                extractedData: {
+                  name: row.name,
+                  father_name: row.father_name,
+                  age: row.age,
+                  ward: row.ward,
+                  address: row.address,
+                  mobile: row.mobile,
+                },
+              };
+            });
+        }
 
         const res = await fetch("/api/register-reconcile", {
           method: "POST",
@@ -409,6 +639,15 @@ export const useReconciliationStore = create<ReconciliationState>(
           body: JSON.stringify({
             extractionId,
             decisions: decisionPayload,
+            // ── Session context for date-scoped commit ──
+            sessionContext: {
+              selectedDate,
+              facilityName,
+              screeningDistrict,
+              screeningState,
+              scopeMode,
+              sessionId,
+            },
           }),
         });
 
@@ -421,10 +660,16 @@ export const useReconciliationStore = create<ReconciliationState>(
         set({
           phase: "complete",
           submitResult: {
+            success: result.success ?? true,
             accepted: result.accepted || 0,
             created: result.created || 0,
             rejected: result.rejected || 0,
+            duplicatesSkipped: result.duplicatesSkipped || 0,
+            total: result.total || 0,
             errors: result.errors || [],
+            dbCommitted: result.dbCommitted ?? true,
+            sheetsTriggered: result.sheetsTriggered ?? false,
+            sheetsError: result.sheetsError ?? null,
           },
         });
       } catch (error) {
@@ -438,13 +683,12 @@ export const useReconciliationStore = create<ReconciliationState>(
 
     // ── Confirm & Notify (single-click sync + notification) ──
     confirmAndNotify: async (sno: number, recipientEmail?: string) => {
-      const { rows, decisions, extractionId } = get();
+      const { rows, decisions, extractionId, selectedDate, facilityName, screeningDistrict, screeningState, scopeMode, sessionId } = get();
       const row = rows.find((r) => r.sno === sno);
       const decision = decisions.get(sno);
       if (!row || !decision) return;
 
       try {
-        // 1. Sync to database
         const syncRes = await fetch("/api/register-reconcile", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -465,6 +709,14 @@ export const useReconciliationStore = create<ReconciliationState>(
                 },
               },
             ],
+            sessionContext: {
+              selectedDate,
+              facilityName,
+              screeningDistrict,
+              screeningState,
+              scopeMode,
+              sessionId,
+            },
           }),
         });
 
@@ -472,7 +724,6 @@ export const useReconciliationStore = create<ReconciliationState>(
           throw new Error("Sync failed");
         }
 
-        // 2. Trigger notification if email provided
         if (recipientEmail) {
           const { sendEmailAlert } = await import(
             "@/lib/notifications/patientAlert"
@@ -494,7 +745,6 @@ export const useReconciliationStore = create<ReconciliationState>(
           });
         }
 
-        // 3. Mark as notified
         const newDecisions = new Map(get().decisions);
         newDecisions.set(sno, { ...decision, notified: true });
         set({ decisions: newDecisions });
@@ -518,12 +768,26 @@ export const useReconciliationStore = create<ReconciliationState>(
         phase: "upload",
         uploadedFile: null,
         imagePreviewUrl: null,
+
+        // Session context reset
+        sessionId: null,
+        selectedDate: null,
+        facilityName: null,
+        screeningDistrict: null,
+        screeningState: null,
+        scopeMode: "date_only",
+        sourceFileName: null,
+        sourceFileHash: null,
+
         extractionId: null,
         rows: [],
+        matchResults: [],
         summary: null,
+        scopedSummary: null,
         modelVersion: null,
         latencyMs: null,
         extractionError: null,
+        parseWarnings: [],
         streamingProgress: 0,
         totalRows: 0,
         decisions: new Map(),
@@ -534,7 +798,7 @@ export const useReconciliationStore = create<ReconciliationState>(
       });
     },
 
-    // ── Handoff Setters ──
+    // ── Handoff Setters (legacy compat) ──
     setExtractionData: (data) => {
       const decisions = new Map<number, RowDecision>();
       for (const row of data.rows) {
@@ -558,7 +822,7 @@ export const useReconciliationStore = create<ReconciliationState>(
         modelVersion: data.modelVersion || null,
         latencyMs: data.latencyMs || null,
         decisions,
-        phase: 'review',
+        phase: "review",
         isReviewOpen: true,
       });
     },
@@ -600,7 +864,6 @@ function handleSSEEvent(
 ) {
   switch (eventType) {
     case "status":
-      // Phase update (e.g., "extracting")
       break;
 
     case "extraction_complete":
@@ -612,7 +875,6 @@ function handleSSEEvent(
       break;
 
     case "row":
-      // Add the row in real-time
       get().addRealtimeRow(data.row);
       set({
         streamingProgress: data.progress,
