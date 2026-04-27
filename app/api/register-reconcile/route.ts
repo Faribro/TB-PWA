@@ -17,6 +17,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getSupabaseClient } from '@/lib/supabase-server';
+import {
+  validateScopeContext,
+  assertEmptyScopeActions,
+  logReconciliationAudit,
+} from '@/lib/reconciliation/scopeValidation';
 
 interface RowDecision {
   sno: number;
@@ -86,26 +91,17 @@ export async function POST(request: NextRequest) {
       body.screeningDate ||
       null;
 
-    if (!resolvedDate) {
-      return NextResponse.json(
-        { error: 'screeningDate is required — no date in sessionContext or screeningDate field' },
-        { status: 400 },
-      );
-    }
+    const validationErrors = validateScopeContext({
+      screeningDate: resolvedDate,
+      facilityName: body.sessionContext?.facilityName ?? null,
+      screeningDistrict: body.sessionContext?.screeningDistrict ?? null,
+      screeningState: body.sessionContext?.screeningState ?? null,
+      scopeMode: body.sessionContext?.scopeMode ?? 'date_only',
+    });
 
-    // Validate date format
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(resolvedDate)) {
+    if (validationErrors.length > 0) {
       return NextResponse.json(
-        { error: `screeningDate must be YYYY-MM-DD format, got: ${resolvedDate}` },
-        { status: 400 },
-      );
-    }
-
-    // date_facility mode requires facilityName
-    if (body.sessionContext?.scopeMode === 'date_facility' && !body.sessionContext?.facilityName) {
-      return NextResponse.json(
-        { error: 'facilityName is required when scopeMode is date_facility' },
+        { error: validationErrors[0].message },
         { status: 400 },
       );
     }
@@ -115,42 +111,35 @@ export async function POST(request: NextRequest) {
     // ═══════════════════════════════════════════════════════════
     const isEmptyScope = body.sessionContext?.isEmptyScope === true;
 
-    if (isEmptyScope) {
-      const invalidActions = body.decisions.filter(d => d.action === 'accept');
-      if (invalidActions.length > 0) {
-        return NextResponse.json(
-          {
-            error: `Empty-scope reconciliation only allows create/reject actions. ` +
-            `Found ${invalidActions.length} accept action(s) which require existing candidates.`,
-            invalidRows: invalidActions.map(d => d.sno),
-          },
-          { status: 400 },
-        );
-      }
+    const emptyScopeError = assertEmptyScopeActions(body.decisions, isEmptyScope);
+    if (emptyScopeError) {
+      return NextResponse.json(
+        {
+          error: emptyScopeError,
+          invalidRows: body.decisions.filter(d => d.action === 'accept').map(d => d.sno),
+        },
+        { status: 400 },
+      );
     }
 
     // Structured scope audit log
-    console.log(JSON.stringify({
-      level: 'info',
-      action: 'register_reconcile_start',
-      scope: {
-        screeningDate: resolvedDate,
-        facilityName: body.sessionContext?.facilityName ?? null,
-        screeningDistrict: body.sessionContext?.screeningDistrict ?? null,
-        screeningState: body.sessionContext?.screeningState ?? null,
-        scopeMode: body.sessionContext?.scopeMode ?? 'date_only',
-        sessionId: body.sessionContext?.sessionId ?? null,
-        isEmptyScope,
-        scopedCandidateCount: body.sessionContext?.scopedCandidateCount ?? 0,
-      },
+    logReconciliationAudit('register_reconcile_start', {
       user: session.user.email || session.user.name,
-      decisionCount: body.decisions.length,
-      actionBreakdown: {
+      sessionId: body.sessionContext?.sessionId ?? null,
+      screeningDate: resolvedDate,
+      facilityName: body.sessionContext?.facilityName ?? null,
+      screeningDistrict: body.sessionContext?.screeningDistrict ?? null,
+      screeningState: body.sessionContext?.screeningState ?? null,
+      scopeMode: body.sessionContext?.scopeMode ?? 'date_only',
+      isEmptyScope,
+      scopedCandidateCount: body.sessionContext?.scopedCandidateCount ?? 0,
+      summary: {
         accept: body.decisions.filter(d => d.action === 'accept').length,
         create: body.decisions.filter(d => d.action === 'create').length,
         reject: body.decisions.filter(d => d.action === 'reject').length,
       },
-    }))
+      rowCount: body.decisions.length,
+    });
 
     const supabase = getSupabaseClient();
     const results = {
@@ -358,18 +347,15 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Structured audit log for reconcile result ──
-    console.log(JSON.stringify({
-      level: 'info',
-      action: 'register_reconcile_complete',
-      scope: {
-        screeningDate: resolvedDate,
-        facilityName: body.sessionContext?.facilityName ?? null,
-        screeningDistrict: body.sessionContext?.screeningDistrict ?? null,
-        screeningState: body.sessionContext?.screeningState ?? null,
-        scopeMode: body.sessionContext?.scopeMode ?? 'date_only',
-        sessionId: body.sessionContext?.sessionId ?? null,
-        isEmptyScope,
-      },
+    logReconciliationAudit('register_reconcile_complete', {
+      user: session.user.email || session.user.name,
+      sessionId: body.sessionContext?.sessionId ?? null,
+      screeningDate: resolvedDate,
+      facilityName: body.sessionContext?.facilityName ?? null,
+      screeningDistrict: body.sessionContext?.screeningDistrict ?? null,
+      screeningState: body.sessionContext?.screeningState ?? null,
+      scopeMode: body.sessionContext?.scopeMode ?? 'date_only',
+      isEmptyScope,
       results: {
         accepted: results.accepted,
         created: results.created,
@@ -379,7 +365,7 @@ export async function POST(request: NextRequest) {
       },
       total: body.decisions.length,
       dbCommitted: true,
-    }))
+    });
 
     // ── Response ──
     return NextResponse.json({
