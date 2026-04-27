@@ -36,7 +36,9 @@ import type {
 } from '@/lib/reconciliation/sessionTypes';
 import {
   callOpenRouterMatch,
+  callOpenRouterBatchMatch,
   type AIMatchRequest,
+  type BatchAIMatchRequest,
 } from '@/lib/ai/openRouterMatcher';
 
 // ═══════════════════════════════════════════════════════
@@ -399,16 +401,21 @@ export async function matchRowsScoped(
     scopedCandidateCount: candidates.length,
   };
 
-  const results: RowMatchResult[] = extractedRows.map(row => {
+  // ═══════════════════════════════════════════════════════════
+  // AI FALLBACK for ambiguous scores (40-60%) - BATCH PROCESSING
+  // ═══════════════════════════════════════════════════════════
+  
+  // First pass: score all rows and collect ambiguous ones for AI
+  const scoredRows = extractedRows.map(row => {
     // Handle duplicate-in-file first
     if (row.isDuplicateInFile) {
       summary.duplicateInFile++;
       return {
-        sno: row.sno,
-        extractedRow: row,
-        candidates: [],
+        row,
+        scored: [],
         classification: 'duplicate_in_file' as MatchClassification,
         existsInScope: false,
+        topScore: 0,
       };
     }
 
@@ -422,73 +429,180 @@ export async function matchRowsScoped(
     const scored = candidates
       .map(patient => scoreCandidate(row, patient))
       .sort((a, b) => b.compositeScore - a.compositeScore)
-      .slice(0, 3); // Top 3 candidates
+      .slice(0, 3);
 
     const topScore = scored[0]?.compositeScore ?? 0;
+    
+    return {
+      row,
+      scored,
+      existsInScope,
+      topScore,
+    };
+  });
+
+  // Collect ambiguous rows for batch AI processing
+  const ambiguousRows = useAI 
+    ? scoredRows.filter(sr => 
+        sr.topScore >= MATCH_THRESHOLDS.NEEDS_REVIEW && 
+        sr.topScore < MATCH_THRESHOLDS.AUTO_MATCH && 
+        sr.scored[0]
+      )
+    : [];
+
+  // ═══════════════════════════════════════════════════════════
+  // CROSS-DATE AI SEARCH for empty-scope fallback
+  // ═══════════════════════════════════════════════════════════
+  const isEmptyScope = candidates.length === 0;
+  let crossDateCandidates: PatientRow[] = [];
+  
+  if (useAI && isEmptyScope && extractedRows.length > 0) {
+    try {
+      // Search adjacent dates (±3 days) for potential matches
+      const searchDates = [];
+      const baseDate = new Date(options.screeningDate);
+      for (let i = -3; i <= 3; i++) {
+        if (i === 0) continue; // Skip the original date (already empty)
+        const adjDate = new Date(baseDate);
+        adjDate.setDate(adjDate.getDate() + i);
+        searchDates.push(adjDate.toISOString().split('T')[0]);
+      }
+
+      console.log(`[patientMatcher] Empty-scope fallback: searching ${searchDates.length} adjacent dates`);
+
+      // Fetch candidates from adjacent dates
+      for (const date of searchDates) {
+        const { data: adjCandidates } = await supabase
+          .from('inmates')
+          .select(PATIENT_SELECT)
+          .eq('screening_date', date)
+          .eq('screening_state', options.screeningState)
+          .limit(50); // Limit per date to avoid excessive data
+
+        if (adjCandidates && adjCandidates.length > 0) {
+          crossDateCandidates.push(...adjCandidates);
+        }
+      }
+
+      if (crossDateCandidates.length > 0) {
+        console.log(`[patientMatcher] Found ${crossDateCandidates.length} candidates in adjacent dates`);
+        summary.scopedCandidateCount = crossDateCandidates.length;
+        summary.isEmptyScope = false;
+      }
+    } catch (error) {
+      console.error('[patientMatcher] Cross-date search failed:', error);
+    }
+  }
+
+  // If cross-date candidates found, re-score all rows against them
+  if (crossDateCandidates.length > 0) {
+    // Replace candidates with cross-date candidates and re-score
+    const crossDateDbFingerprints = new Set<string>();
+    for (const c of crossDateCandidates) {
+      const fp = [
+        normName(c.inmate_name),
+        c.age?.toString() ?? '_',
+        normMobile(c.contact_number) ?? '_',
+      ].join('|');
+      crossDateDbFingerprints.add(fp);
+    }
+
+    // Re-score all rows against cross-date candidates
+    for (const sr of scoredRows) {
+      if (sr.row.isDuplicateInFile) continue;
+
+      const scored = crossDateCandidates
+        .map(patient => scoreCandidate(sr.row, patient))
+        .sort((a, b) => b.compositeScore - a.compositeScore)
+        .slice(0, 3);
+
+      sr.scored = scored;
+      sr.topScore = scored[0]?.compositeScore ?? 0;
+      sr.existsInScope = crossDateDbFingerprints.has(sr.row.rowFingerprint);
+    }
+
+    // Re-collect ambiguous rows with new scores
+    ambiguousRows.length = 0; // Clear array
+    ambiguousRows.push(...scoredRows.filter(sr => 
+      sr.topScore >= MATCH_THRESHOLDS.NEEDS_REVIEW && 
+      sr.topScore < MATCH_THRESHOLDS.AUTO_MATCH && 
+      sr.scored[0]
+    ));
+  }
+
+  // Batch AI call for all ambiguous rows
+  let aiResults: Array<{ isMatch: boolean; confidence: number; reasons: string[] }> = [];
+  if (ambiguousRows.length > 0) {
+    try {
+      const batchRequest: BatchAIMatchRequest = {
+        matches: ambiguousRows.map(sr => ({
+          extractedName: sr.row.name,
+          extractedFatherName: sr.row.father_name,
+          extractedAge: sr.row.age,
+          extractedMobile: sr.row.mobile,
+          extractedFacility: sr.row.ward,
+          candidateName: sr.scored[0].patientName,
+          candidateFatherName: null,
+          candidateAge: sr.scored[0].patientAge ? parseInt(sr.scored[0].patientAge) : null,
+          candidateMobile: sr.scored[0].patientMobile,
+          candidateFacility: sr.scored[0].patientFacility,
+        })),
+      };
+
+      const batchResponse = await callOpenRouterBatchMatch(batchRequest);
+      aiResults = batchResponse.results;
+      console.log(`[patientMatcher] Batch AI processed ${ambiguousRows.length} rows`);
+    } catch (error) {
+      console.error('[patientMatcher] Batch AI fallback failed:', error);
+      // Fall back to rule-based for all ambiguous rows
+    }
+  }
+
+  // Apply AI results and finalize classifications
+  const results: RowMatchResult[] = scoredRows.map((sr, idx) => {
+    // Handle duplicate-in-file
+    if (sr.scored.length === 0 && sr.row.isDuplicateInFile) {
+      return {
+        sno: sr.row.sno,
+        extractedRow: sr.row,
+        candidates: [],
+        classification: 'duplicate_in_file' as MatchClassification,
+        existsInScope: false,
+      };
+    }
+
+    const topScore = sr.topScore;
     let classification: MatchClassification;
 
-    // ═══════════════════════════════════════════════════════════
-    // AI FALLBACK for ambiguous scores (40-60%)
-    // ═══════════════════════════════════════════════════════════
-    if (useAI && topScore >= MATCH_THRESHOLDS.NEEDS_REVIEW && topScore < MATCH_THRESHOLDS.AUTO_MATCH && scored[0]) {
-      try {
-        const topCandidate = scored[0];
-        const aiRequest: AIMatchRequest = {
-          extractedName: row.name,
-          extractedFatherName: row.father_name,
-          extractedAge: row.age,
-          extractedMobile: row.mobile,
-          extractedFacility: row.ward,
-          candidateName: topCandidate.patientName,
-          candidateFatherName: null, // Not in PatientRow
-          candidateAge: topCandidate.patientAge ? parseInt(topCandidate.patientAge) : null,
-          candidateMobile: topCandidate.patientMobile,
-          candidateFacility: topCandidate.patientFacility,
-        };
+    // Check if this row was processed by AI
+    const ambiguousIdx = ambiguousRows.findIndex(ar => ar.row.sno === sr.row.sno);
+    if (ambiguousIdx >= 0 && aiResults[ambiguousIdx]) {
+      const aiResult = aiResults[ambiguousIdx];
+      
+      // Add AI result to candidate
+      sr.scored[0].aiMatch = {
+        isMatch: aiResult.isMatch,
+        confidence: aiResult.confidence,
+        reasons: aiResult.reasons,
+      };
 
-        const aiResult = await callOpenRouterMatch(aiRequest);
-        
-        // Add AI result to candidate
-        scored[0].aiMatch = {
-          isMatch: aiResult.isMatch,
-          confidence: aiResult.confidence,
-          reasons: aiResult.reasons,
-        };
-
-        // Override classification based on AI decision
-        if (aiResult.isMatch && aiResult.confidence >= 0.70) {
-          classification = 'auto_match';
-          summary.autoMatch++;
-          console.log(`[patientMatcher] AI override: row ${row.sno} promoted to auto_match (confidence: ${aiResult.confidence})`);
-        } else if (aiResult.isMatch && aiResult.confidence >= 0.50) {
-          classification = 'needs_review';
-          summary.needsReview++;
-          console.log(`[patientMatcher] AI override: row ${row.sno} kept as needs_review (confidence: ${aiResult.confidence})`);
-        } else {
-          classification = 'new_record';
-          summary.newRecord++;
-          console.log(`[patientMatcher] AI override: row ${row.sno} marked as new_record (AI says no match)`);
-        }
-      } catch (error) {
-        console.error(`[patientMatcher] AI fallback failed for row ${row.sno}:`, error);
-        // Fall back to rule-based classification
-        if (existsInScope && topScore >= MATCH_THRESHOLDS.AUTO_MATCH) {
-          classification = 'auto_match';
-          summary.autoMatch++;
-        } else if (topScore >= MATCH_THRESHOLDS.AUTO_MATCH) {
-          classification = 'auto_match';
-          summary.autoMatch++;
-        } else if (topScore >= MATCH_THRESHOLDS.NEEDS_REVIEW) {
-          classification = 'needs_review';
-          summary.needsReview++;
-        } else {
-          classification = 'new_record';
-          summary.newRecord++;
-        }
+      // Override classification based on AI decision
+      if (aiResult.isMatch && aiResult.confidence >= 0.70) {
+        classification = 'auto_match';
+        summary.autoMatch++;
+        console.log(`[patientMatcher] AI override: row ${sr.row.sno} promoted to auto_match (confidence: ${aiResult.confidence})`);
+      } else if (aiResult.isMatch && aiResult.confidence >= 0.50) {
+        classification = 'needs_review';
+        summary.needsReview++;
+        console.log(`[patientMatcher] AI override: row ${sr.row.sno} kept as needs_review (confidence: ${aiResult.confidence})`);
+      } else {
+        classification = 'new_record';
+        summary.newRecord++;
+        console.log(`[patientMatcher] AI override: row ${sr.row.sno} marked as new_record (AI says no match)`);
       }
     } else {
       // Standard rule-based classification
-      if (existsInScope && topScore >= MATCH_THRESHOLDS.AUTO_MATCH) {
+      if (sr.existsInScope && topScore >= MATCH_THRESHOLDS.AUTO_MATCH) {
         classification = 'auto_match';
         summary.autoMatch++;
       } else if (topScore >= MATCH_THRESHOLDS.AUTO_MATCH) {
@@ -504,11 +618,11 @@ export async function matchRowsScoped(
     }
 
     return {
-      sno: row.sno,
-      extractedRow: row,
-      candidates: scored,
+      sno: sr.row.sno,
+      extractedRow: sr.row,
+      candidates: sr.scored,
       classification,
-      existsInScope,
+      existsInScope: sr.existsInScope,
     };
   });
 

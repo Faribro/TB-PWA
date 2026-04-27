@@ -43,6 +43,125 @@ export interface AINormalizeResponse {
   variations: string[];
 }
 
+export interface BatchAIMatchRequest {
+  matches: Array<{
+    extractedName: string;
+    extractedFatherName?: string | null;
+    extractedAge?: number | null;
+    extractedMobile?: string | null;
+    extractedFacility?: string | null;
+    candidateName: string;
+    candidateFatherName?: string | null;
+    candidateAge?: number | null;
+    candidateMobile?: string | null;
+    candidateFacility?: string | null;
+  }>;
+}
+
+export interface BatchAIMatchResponse {
+  results: Array<{
+    isMatch: boolean;
+    confidence: number;
+    reasons: string[];
+  }>;
+}
+
+/**
+ * Call OpenRouter AI for batch matching decisions
+ * More efficient than individual calls for multiple rows
+ */
+export async function callOpenRouterBatchMatch(
+  request: BatchAIMatchRequest,
+): Promise<BatchAIMatchResponse> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new Error('OPENROUTER_API_KEY not configured');
+  }
+
+  const matchDescriptions = request.matches.map((m, i) => `
+Match ${i + 1}:
+Extracted: ${m.extractedName} (Father: ${m.extractedFatherName || 'N/A'}, Age: ${m.extractedAge || 'N/A'}, Mobile: ${m.extractedMobile || 'N/A'}, Facility: ${m.extractedFacility || 'N/A'})
+Candidate: ${m.candidateName} (Father: ${m.candidateFatherName || 'N/A'}, Age: ${m.candidateAge || 'N/A'}, Mobile: ${m.candidateMobile || 'N/A'}, Facility: ${m.candidateFacility || 'N/A'})
+`).join('\n');
+
+  const prompt = `You are a patient record matching expert. Determine if each pair of patient records represent the same person.
+
+${matchDescriptions}
+
+Respond with JSON array:
+[
+  {
+    "isMatch": boolean,
+    "confidence": number (0-1),
+    "reasons": ["reason1", "reason2"]
+  }
+]
+
+Consider:
+- Name spelling variations and transliterations
+- Age proximity (±5 years acceptable)
+- Mobile number matching (exact or last 10 digits)
+- Father's name matching
+- Facility matching
+- Cultural naming conventions (Indian context)`;
+
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a patient record matching expert. Always respond with valid JSON array.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 1000,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`OpenRouter API error: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content;
+
+    if (!content) {
+      throw new Error('No content in OpenRouter response');
+    }
+
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      throw new Error('No JSON array found in OpenRouter response');
+    }
+
+    const results = JSON.parse(jsonMatch[0]);
+    
+    return {
+      results: results.map((r: any) => ({
+        isMatch: r.isMatch || false,
+        confidence: r.confidence || 0,
+        reasons: r.reasons || [],
+      })),
+    };
+  } catch (error) {
+    console.error('[OpenRouterMatcher] Batch error:', error);
+    throw error;
+  }
+}
+
 /**
  * Call OpenRouter AI for matching decision
  */

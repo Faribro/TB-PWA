@@ -715,9 +715,16 @@ function ScopedRowCard({
             <ClassificationBadge classification={result.classification} />
             <ActionBadge action={action} />
             {topCandidate && action === 'accept' && (
-              <Badge variant="outline" className="text-[9px] font-bold px-1.5 py-0.5 bg-blue-50 border-blue-200 text-blue-700">
-                {(topCandidate.compositeScore * 100).toFixed(0)}% match
-              </Badge>
+              <>
+                <Badge variant="outline" className="text-[9px] font-bold px-1.5 py-0.5 bg-blue-50 border-blue-200 text-blue-700">
+                  {(topCandidate.compositeScore * 100).toFixed(0)}% match
+                </Badge>
+                {topCandidate.aiMatch && (
+                  <Badge variant="outline" className="text-[9px] font-bold px-1.5 py-0.5 bg-purple-50 border-purple-200 text-purple-700">
+                    AI: {(topCandidate.aiMatch.confidence * 100).toFixed(0)}%
+                  </Badge>
+                )}
+              </>
             )}
           </div>
           <h3 className="text-sm font-bold text-gray-900 truncate">
