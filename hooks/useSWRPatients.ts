@@ -157,9 +157,9 @@ export function useSWRAllPatients(
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       refreshInterval: 0,
-      dedupingInterval: 5000, // 5s deduping instead of 0
-      errorRetryCount: 3,
-      errorRetryInterval: 2000,
+      dedupingInterval: 60000, // 60s deduping to prevent duplicate fetches
+      errorRetryCount: 2,
+      errorRetryInterval: 5000,
       keepPreviousData: true,
       onError: (err) => {
         console.error('[useSWRPatients] Error:', err);

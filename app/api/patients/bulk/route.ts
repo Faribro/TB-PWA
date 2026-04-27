@@ -60,7 +60,37 @@ export async function GET(request: NextRequest) {
       dateTo: searchParams.get('dateTo') || undefined,
     };
     
-    console.log('[patients/bulk] Executing fresh query (no Redis cache for raw data)');
+    // Generate cache key based on scope and filters
+    const cacheKey = `patients:bulk:${scope.role}:${scope.sessionState || 'all'}:${filters.state || 'all'}:${filters.district || 'all'}:${filters.dateFrom || 'all'}:${filters.dateTo || 'all'}`;
+    
+    console.log('[patients/bulk] Checking cache for key:', cacheKey);
+    
+    // Try Redis cache first (30s TTL for fresh data)
+    const cached = await getCachedWithMemory(cacheKey, 30000);
+    if (cached) {
+      const durationMs = Date.now() - startTime;
+      console.log(`[patients/bulk] ✅ Cache hit: ${cached.data.length} records in ${durationMs}ms`);
+      return NextResponse.json(
+        {
+          ...cached,
+          meta: {
+            ...cached.meta,
+            cached: true,
+            durationMs,
+          },
+        },
+        {
+          headers: {
+            'Cache-Control': 'private, max-age=30',
+            'X-Cache': 'HIT',
+            'X-Total': String(cached.data.length),
+            'X-Duration-Ms': String(durationMs),
+          },
+        }
+      );
+    }
+    
+    console.log('[patients/bulk] Cache miss, executing fresh query');
     
     // NO REDIS CACHE - Raw patient data must always be fresh
     // Use circuit breaker for resilience
@@ -142,6 +172,15 @@ export async function GET(request: NextRequest) {
       };
     });
     
+    // Store in Redis cache for 30s
+    try {
+      await getCachedWithMemory(cacheKey, 30000, response);
+      console.log(`[patients/bulk] ✅ Cached ${response.data.length} records for 30s`);
+    } catch (cacheError) {
+      console.warn('[patients/bulk] Failed to cache:', cacheError);
+      // Don't fail the request if caching fails
+    }
+    
     const totalDuration = Date.now() - startTime;
     
     console.log(`[patients/bulk] Returning response: ${response.data.length} records`);
@@ -150,7 +189,8 @@ export async function GET(request: NextRequest) {
       response,
       {
         headers: {
-          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+          'Cache-Control': 'private, max-age=30',
+          'X-Cache': 'MISS',
           'X-Total': String(response.data.length),
           'X-Duration-Ms': String(totalDuration),
         },
