@@ -92,6 +92,14 @@ export interface ReconciliationState {
   matchResults: RowMatchResult[];       // Scoped match results
   summary: ExtractionSummary | null;
   scopedSummary: ReconciliationSummary | null;
+  scopeContext: {
+    screeningDate: string | null;
+    facilityName: string | null;
+    screeningDistrict: string | null;
+    screeningState: string | null;
+    scopeMode: string | null;
+    sessionId: string | null;
+  } | null;
   source: ExtractionSource | null;
   modelVersion: string | null;
   latencyMs: number | null;
@@ -287,6 +295,7 @@ export const useReconciliationStore = create<ReconciliationState>(
         extractionId: data.extractionId,
         matchResults: data.matchResults,
         scopedSummary: data.summary,
+        scopeContext: data.sessionContext ?? null,
         summary: {
           autoMatch: data.summary.autoMatch,
           needsReview: data.summary.needsReview,
@@ -578,9 +587,32 @@ export const useReconciliationStore = create<ReconciliationState>(
         screeningState,
         scopeMode,
         sessionId,
+        scopeContext,
+        scopedSummary,
       } = get();
 
       if (!extractionId) return;
+
+      // ═══════════════════════════════════════════════════════════
+      // SUBMISSION GUARD — validate scope context
+      // ═══════════════════════════════════════════════════════════
+      const resolvedDate = scopeContext?.screeningDate ?? selectedDate;
+      if (!resolvedDate) {
+        console.error('[ReconciliationStore] Cannot submit: screeningDate is missing');
+        set({ phase: 'review' });
+        return;
+      }
+
+      // Empty-scope guard: reject if any accept action when isEmptyScope
+      const isEmptyScope = scopedSummary?.isEmptyScope === true;
+      if (isEmptyScope) {
+        const invalidActions = Array.from(decisions.values()).filter(d => d.action === 'accept');
+        if (invalidActions.length > 0) {
+          console.error('[ReconciliationStore] Cannot submit: empty-scope has accept actions');
+          set({ phase: 'review' });
+          return;
+        }
+      }
 
       set({ phase: "submitting" });
 
@@ -633,27 +665,27 @@ export const useReconciliationStore = create<ReconciliationState>(
             });
         }
 
+        // Build session context for API
+        const sessionContext = {
+          selectedDate: resolvedDate,
+          facilityName: scopeContext?.facilityName ?? facilityName,
+          screeningDistrict: scopeContext?.screeningDistrict ?? screeningDistrict,
+          screeningState: scopeContext?.screeningState ?? screeningState,
+          scopeMode: scopeContext?.scopeMode ?? scopeMode ?? 'date_only',
+          sessionId: scopeContext?.sessionId ?? sessionId,
+          isEmptyScope,
+          scopedCandidateCount: scopedSummary?.scopedCandidateCount ?? 0,
+        };
+
         const res = await fetch("/api/register-reconcile", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             extractionId,
             decisions: decisionPayload,
-            // ── Session context for date-scoped commit ──
-            sessionContext: {
-              selectedDate,
-              facilityName,
-              screeningDistrict,
-              screeningState,
-              scopeMode,
-              sessionId,
-            },
+            sessionContext,
           }),
         });
-
-        if (!res.ok) {
-          throw new Error(`Reconciliation failed: HTTP ${res.status}`);
-        }
 
         const result = await res.json();
 
