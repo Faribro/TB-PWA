@@ -35,34 +35,42 @@ CREATE TABLE IF NOT EXISTS ai_usage (
 );
 
 -- Indexes for analytics
-CREATE INDEX idx_ai_usage_created_at ON ai_usage(created_at DESC);
-CREATE INDEX idx_ai_usage_user_email ON ai_usage(user_email);
-CREATE INDEX idx_ai_usage_endpoint ON ai_usage(endpoint);
-CREATE INDEX idx_ai_usage_model_used ON ai_usage(model_used);
-CREATE INDEX idx_ai_usage_screening_date ON ai_usage(screening_date);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_created_at ON ai_usage(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_user_email ON ai_usage(user_email);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_endpoint ON ai_usage(endpoint);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_model_used ON ai_usage(model_used);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_screening_date ON ai_usage(screening_date);
 
 -- Row Level Security
 ALTER TABLE ai_usage ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can read own AI usage" ON ai_usage;
+DROP POLICY IF EXISTS "Service role can insert AI usage" ON ai_usage;
+DROP POLICY IF EXISTS "Admins can read all AI usage" ON ai_usage;
+
 -- Policy: Users can read their own usage
 CREATE POLICY "Users can read own AI usage"
   ON ai_usage FOR SELECT
+  TO authenticated
   USING (auth.uid() IS NOT NULL);
 
 -- Policy: Service role can insert usage
 CREATE POLICY "Service role can insert AI usage"
   ON ai_usage FOR INSERT
-  WITH CHECK (auth.role() = 'service_role');
+  TO service_role
+  WITH CHECK (true);
 
 -- Policy: Admins can read all usage
 CREATE POLICY "Admins can read all AI usage"
   ON ai_usage FOR SELECT
+  TO authenticated
   USING (
-    auth.uid() IS NOT NULL AND
     EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id = auth.uid()
-      AND users.role IN ('admin', 'PM', 'SPM')
+      SELECT 1
+      FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role IN ('admin', 'PM', 'SPM')
     )
   );
 

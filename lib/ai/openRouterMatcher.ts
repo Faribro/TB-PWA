@@ -88,6 +88,18 @@ interface AIUsageLog {
 }
 
 /**
+ * Get OpenRouter API key with rotation
+ * Rotates through OPENROUTER_API_KEY_1 to _10
+ */
+function getOpenRouterApiKey(): string {
+  for (let i = 1; i <= 10; i++) {
+    const key = process.env[`OPENROUTER_API_KEY_${i}`];
+    if (key) return key;
+  }
+  throw new Error('No OPENROUTER_API_KEY configured (OPENROUTER_API_KEY_1 through _10)');
+}
+
+/**
  * Log AI usage to database for cost monitoring and analytics
  */
 async function logAIUsage(log: AIUsageLog): Promise<void> {
@@ -154,7 +166,7 @@ export async function callOpenRouterBatchMatch(
     facilityName?: string;
   },
 ): Promise<BatchAIMatchResponse> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = getOpenRouterApiKey();
   if (!apiKey) {
     throw new Error('OPENROUTER_API_KEY not configured');
   }
@@ -280,7 +292,7 @@ Consider:
 export async function callOpenRouterMatch(
   request: AIMatchRequest,
 ): Promise<AIMatchResponse> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = getOpenRouterApiKey();
   if (!apiKey) {
     throw new Error('OPENROUTER_API_KEY not configured');
   }
@@ -382,7 +394,7 @@ Consider:
 export async function callOpenRouterNormalize(
   request: AINormalizeRequest,
 ): Promise<AINormalizeResponse> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = getOpenRouterApiKey();
   if (!apiKey) {
     throw new Error('OPENROUTER_API_KEY not configured');
   }

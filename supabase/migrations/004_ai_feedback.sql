@@ -40,32 +40,40 @@ CREATE TABLE IF NOT EXISTS ai_feedback (
 );
 
 -- Indexes for analytics
-CREATE INDEX idx_ai_feedback_created_at ON ai_feedback(created_at DESC);
-CREATE INDEX idx_ai_feedback_user_email ON ai_feedback(user_email);
-CREATE INDEX idx_ai_feedback_was_correct ON ai_feedback(was_correct);
-CREATE INDEX idx_ai_feedback_screening_date ON ai_feedback(screening_date);
+CREATE INDEX IF NOT EXISTS idx_ai_feedback_created_at ON ai_feedback(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_feedback_user_email ON ai_feedback(user_email);
+CREATE INDEX IF NOT EXISTS idx_ai_feedback_was_correct ON ai_feedback(was_correct);
+CREATE INDEX IF NOT EXISTS idx_ai_feedback_screening_date ON ai_feedback(screening_date);
 
 -- Row Level Security
 ALTER TABLE ai_feedback ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can read own AI feedback" ON ai_feedback;
+DROP POLICY IF EXISTS "Service role can insert AI feedback" ON ai_feedback;
+DROP POLICY IF EXISTS "Admins can read all AI feedback" ON ai_feedback;
+
 -- Policy: Users can read their own feedback
 CREATE POLICY "Users can read own AI feedback"
   ON ai_feedback FOR SELECT
+  TO authenticated
   USING (auth.uid() IS NOT NULL);
 
 -- Policy: Service role can insert feedback
 CREATE POLICY "Service role can insert AI feedback"
   ON ai_feedback FOR INSERT
-  WITH CHECK (auth.role() = 'service_role');
+  TO service_role
+  WITH CHECK (true);
 
 -- Policy: Admins can read all feedback
 CREATE POLICY "Admins can read all AI feedback"
   ON ai_feedback FOR SELECT
+  TO authenticated
   USING (
-    auth.uid() IS NOT NULL AND
     EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id = auth.uid()
-      AND users.role IN ('admin', 'PM', 'SPM')
+      SELECT 1
+      FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role IN ('admin', 'PM', 'SPM')
     )
   );
