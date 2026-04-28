@@ -37,33 +37,36 @@ export function PatientJourneyCompact({ patient }: PatientJourneyCompactProps) {
   ];
 
   return (
-    <div className="flex items-center gap-1 bg-slate-100 rounded-lg px-2 py-1.5 border border-slate-300">
-      {milestones.map((m, idx) => (
-        <div key={m.id} className="flex items-center gap-0.5">
-          {/* Milestone dot */}
-          <div
-            className={`w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0 relative ${
-              m.isComplete 
-                ? 'bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.2)]' 
-                : m.isActive 
-                  ? 'bg-amber-400 shadow-[0_0_0_2px_rgba(245,158,11,0.2)] animate-pulse' 
-                  : 'bg-slate-300 border border-slate-400'
-            }`}
-            title={`${m.label}: ${m.sublabel || 'Pending'}`}
-          >
-            <span className={m.isComplete || m.isActive ? 'text-white' : 'text-slate-500'}>{m.icon}</span>
-          </div>
-
-          {/* Connector line */}
-          {idx < milestones.length - 1 && (
+    <div className="flex flex-col items-end gap-1">
+      <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Journey</span>
+      <div className="flex items-center gap-0.5 bg-slate-100 rounded-lg px-2 py-1.5 border border-slate-300">
+        {milestones.map((m, idx) => (
+          <div key={m.id} className="flex items-center gap-0.5">
+            {/* Milestone dot */}
             <div
-              className={`w-2.5 h-0.5 rounded-full flex-shrink-0 ${
-                m.isComplete ? 'bg-emerald-400' : 'bg-slate-300'
+              className={`w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0 relative ${
+                m.isComplete 
+                  ? 'bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.2)]' 
+                  : m.isActive 
+                    ? 'bg-amber-400 shadow-[0_0_0_2px_rgba(245,158,11,0.2)] animate-pulse' 
+                    : 'bg-slate-300 border border-slate-400'
               }`}
-            />
-          )}
-        </div>
-      ))}
+              title={`${m.label}: ${m.sublabel || 'Pending'}`}
+            >
+              <span className={m.isComplete || m.isActive ? 'text-white' : 'text-slate-500'}>{m.icon}</span>
+            </div>
+
+            {/* Connector line */}
+            {idx < milestones.length - 1 && (
+              <div
+                className={`w-2.5 h-0.5 rounded-full flex-shrink-0 ${
+                  m.isComplete ? 'bg-emerald-400' : 'bg-slate-300'
+                }`}
+              />
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
