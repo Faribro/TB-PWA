@@ -111,7 +111,7 @@ export function usePatientMutations(
         });
       } else {
         setSyncState(prev => ({ ...prev, statusSheets: 'success' }));
-        const sheetsMessage = result.googleSheets?.message || 'Synced to all systems';
+        const sheetsMessage = result.sheetsSync?.message || result.googleSheets?.message || 'Synced to all systems';
         toast.success(`✅ ${sheetsMessage}`, { id: toastId, duration: 4000 });
       }
 
