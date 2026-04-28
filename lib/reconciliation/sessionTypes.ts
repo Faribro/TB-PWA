@@ -70,6 +70,12 @@ export interface NormalizedExtractedRow {
   ward: string | null;
   address: string | null;
 
+  /** Location context from register file */
+  state: string | null;
+  district: string | null;
+  facility: string | null;
+  screening_date: string | null;
+
   /** 0-1 confidence. 1.0 for digital sources like Excel */
   confidence_score: number;
 

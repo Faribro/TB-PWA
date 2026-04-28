@@ -162,6 +162,66 @@ export async function POST(request: NextRequest) {
     // ── Stage 3: Scoped Matching ──
     const supabase = getSupabaseClient();
 
+    // ═══════════════════════════════════════════════════════════
+    // VALIDATE REGISTER CONTEXT AGAINST SESSION CONTEXT
+    // ═══════════════════════════════════════════════════════════
+    if (extractionResult.rows.length > 0) {
+      const firstRow = extractionResult.rows[0];
+      const registerState = firstRow.state?.toUpperCase().trim();
+      const registerDistrict = firstRow.district?.toUpperCase().trim();
+      const registerFacility = firstRow.facility?.toUpperCase().trim();
+      const registerDate = firstRow.screening_date;
+
+      const validationErrors: string[] = [];
+
+      // Validate screening date
+      if (registerDate && screeningDate && registerDate !== screeningDate) {
+        validationErrors.push(
+          `Register screening date (${registerDate}) does not match selected date (${screeningDate})`
+        );
+      }
+
+      // Validate state
+      if (registerState && screeningState && registerState !== screeningState.toUpperCase()) {
+        validationErrors.push(
+          `Register state (${registerState}) does not match selected state (${screeningState})`
+        );
+      }
+
+      // Validate district
+      if (registerDistrict && screeningDistrict && registerDistrict !== screeningDistrict.toUpperCase()) {
+        validationErrors.push(
+          `Register district (${registerDistrict}) does not match selected district (${screeningDistrict})`
+        );
+      }
+
+      // Validate facility
+      if (registerFacility && facilityName && registerFacility !== facilityName.toUpperCase()) {
+        validationErrors.push(
+          `Register facility (${registerFacility}) does not match selected facility (${facilityName})`
+        );
+      }
+
+      // If any validation errors, reject the upload
+      if (validationErrors.length > 0) {
+        console.error('[RegisterExtract] Context validation failed:', validationErrors);
+        return NextResponse.json(
+          {
+            error: 'Register context does not match selected scope',
+            details: validationErrors,
+          },
+          { status: 400 },
+        );
+      }
+
+      console.log('[RegisterExtract] Context validation passed:', {
+        registerDate,
+        registerState,
+        registerDistrict,
+        registerFacility,
+      });
+    }
+
     const scopeOptions: ScopedMatchOptions = {
       screeningDate,
       facilityName,

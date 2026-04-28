@@ -51,6 +51,22 @@ const ADDRESS_ALIASES = [
   'address', 'addr', 'home address', 'permanent address',
   'pata', 'पता', 'residential address',
 ];
+const STATE_ALIASES = [
+  'state', 'state name', 'screening state', 'screening_state',
+  'state_name', 'location state', 'state/province',
+];
+const DISTRICT_ALIASES = [
+  'district', 'district name', 'screening district', 'screening_district',
+  'district_name', 'location district', 'tehsil', 'taluka',
+];
+const FACILITY_ALIASES = [
+  'facility', 'facility name', 'facility_name', 'prison name',
+  'jail name', 'institution', 'center', 'centre',
+];
+const SCREENING_DATE_ALIASES = [
+  'screening date', 'screening_date', 'date', 'date of screening',
+  'examination date', 'test date', 'screening day',
+];
 
 // ═══════════════════════════════════════════════════════
 // Column Finder
@@ -103,6 +119,54 @@ function normalizeMobile(raw: string | null | undefined): string | null {
   if (last10.length === 10 && /^[6-9]/.test(last10)) {
     return last10;
   }
+  return null;
+}
+
+/**
+ * Normalize date to YYYY-MM-DD format.
+ * Handles DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD, etc.
+ */
+function normalizeDate(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const str = raw.toString().trim();
+  
+  // Try parsing as Excel date serial
+  if (/^\d+$/.test(str)) {
+    const excelDate = parseInt(str, 10);
+    if (excelDate > 0 && excelDate < 100000) {
+      const date = new Date((excelDate - 25569) * 86400 * 1000);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().split('T')[0];
+      }
+    }
+  }
+  
+  // Try DD/MM/YYYY or DD-MM-YYYY
+  const ddmmyy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (ddmmyy) {
+    const [, d, m, y] = ddmmyy;
+    const date = new Date(`${y}-${m}-${d}`);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+  }
+  
+  // Try YYYY-MM-DD
+  const yyyymmdd = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (yyyymmdd) {
+    const [, y, m, d] = yyyymmdd;
+    const date = new Date(`${y}-${m}-${d}`);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+  }
+  
+  // Try native Date parsing
+  const date = new Date(str);
+  if (!isNaN(date.getTime())) {
+    return date.toISOString().split('T')[0];
+  }
+  
   return null;
 }
 
@@ -180,6 +244,10 @@ export async function extractFromSpreadsheet(
   let mobileCol = -1;
   let wardCol = -1;
   let addressCol = -1;
+  let stateCol = -1;
+  let districtCol = -1;
+  let facilityCol = -1;
+  let screeningDateCol = -1;
 
   for (let i = 0; i < Math.min(15, rawData.length); i++) {
     const candidateRow = rawData[i].map((h: any) =>
@@ -194,6 +262,10 @@ export async function extractFromSpreadsheet(
       mobileCol = findColumn(candidateRow, MOBILE_ALIASES);
       wardCol = findColumn(candidateRow, WARD_ALIASES);
       addressCol = findColumn(candidateRow, ADDRESS_ALIASES);
+      stateCol = findColumn(candidateRow, STATE_ALIASES);
+      districtCol = findColumn(candidateRow, DISTRICT_ALIASES);
+      facilityCol = findColumn(candidateRow, FACILITY_ALIASES);
+      screeningDateCol = findColumn(candidateRow, SCREENING_DATE_ALIASES);
       break;
     }
   }
@@ -241,6 +313,18 @@ export async function extractFromSpreadsheet(
     const rawAddress = addressCol !== -1
       ? row[addressCol]?.toString().trim() || null
       : null;
+    const rawState = stateCol !== -1
+      ? row[stateCol]?.toString().trim() || null
+      : null;
+    const rawDistrict = districtCol !== -1
+      ? row[districtCol]?.toString().trim() || null
+      : null;
+    const rawFacility = facilityCol !== -1
+      ? row[facilityCol]?.toString().trim() || null
+      : null;
+    const rawScreeningDate = screeningDateCol !== -1
+      ? row[screeningDateCol]?.toString().trim() || null
+      : null;
 
     // Normalize fields
     const normalizedNameVal = normalizeName(rawName);
@@ -273,6 +357,10 @@ export async function extractFromSpreadsheet(
       normalizedMobile: normalizedMobileVal,
       ward: rawWard?.toUpperCase() || null,
       address: rawAddress?.toUpperCase() || null,
+      state: rawState?.toUpperCase() || null,
+      district: rawDistrict?.toUpperCase() || null,
+      facility: rawFacility?.toUpperCase() || null,
+      screening_date: normalizeDate(rawScreeningDate),
       confidence_score: 1.0, // deterministic digital source
       rowFingerprint: fingerprint,
       rawInputSnapshot: {
@@ -282,6 +370,10 @@ export async function extractFromSpreadsheet(
         mobile: rawMobile,
         ward: rawWard,
         address: rawAddress,
+        state: rawState,
+        district: rawDistrict,
+        facility: rawFacility,
+        screening_date: rawScreeningDate,
       },
       isDuplicateInFile,
       duplicateOfSno,
