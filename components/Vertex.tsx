@@ -1781,7 +1781,9 @@ export default function Vertex({
                         </span>, <span className="text-blue-700 font-black">{patientsForSelectedFacility.length}</span> patients were screened
                       </>
                     ) : (
-                      <span className="text-blue-700 font-black">{patientsForSelectedFacility.length}</span> patients screened
+                      <>
+                        <span className="text-blue-700 font-black">{patientsForSelectedFacility.length}</span> patients screened
+                      </>
                     )}
                   </p>
                 </div>
