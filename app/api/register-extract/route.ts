@@ -166,60 +166,46 @@ export async function POST(request: NextRequest) {
     // VALIDATE REGISTER CONTEXT AGAINST SESSION CONTEXT
     // ═══════════════════════════════════════════════════════════
     if (extractionResult.rows.length > 0) {
-      const firstRow = extractionResult.rows[0];
-      const registerState = firstRow.state?.toUpperCase().trim();
-      const registerDistrict = firstRow.district?.toUpperCase().trim();
-      const registerFacility = firstRow.facility?.toUpperCase().trim();
-      const registerDate = firstRow.screening_date;
+      const {
+        extractRegisterContext,
+        validateRegisterContext,
+        buildValidationErrorResponse,
+      } = await import('@/lib/reconciliation/registerContextValidator');
 
-      const validationErrors: string[] = [];
+      // Extract register context (majority-vote from all rows)
+      const { context: registerContext, mixedContextRows } = extractRegisterContext(
+        extractionResult.rows
+      );
 
-      // Validate screening date
-      if (registerDate && screeningDate && registerDate !== screeningDate) {
-        validationErrors.push(
-          `Register screening date (${registerDate}) does not match selected date (${screeningDate})`
-        );
-      }
-
-      // Validate state
-      if (registerState && screeningState && registerState !== screeningState.toUpperCase()) {
-        validationErrors.push(
-          `Register state (${registerState}) does not match selected state (${screeningState})`
-        );
-      }
-
-      // Validate district
-      if (registerDistrict && screeningDistrict && registerDistrict !== screeningDistrict.toUpperCase()) {
-        validationErrors.push(
-          `Register district (${registerDistrict}) does not match selected district (${screeningDistrict})`
-        );
-      }
-
-      // Validate facility
-      if (registerFacility && facilityName && registerFacility !== facilityName.toUpperCase()) {
-        validationErrors.push(
-          `Register facility (${registerFacility}) does not match selected facility (${facilityName})`
-        );
-      }
-
-      // If any validation errors, reject the upload
-      if (validationErrors.length > 0) {
-        console.error('[RegisterExtract] Context validation failed:', validationErrors);
-        return NextResponse.json(
-          {
-            error: 'Register context does not match selected scope',
-            details: validationErrors,
-          },
-          { status: 400 },
-        );
-      }
-
-      console.log('[RegisterExtract] Context validation passed:', {
-        registerDate,
-        registerState,
-        registerDistrict,
-        registerFacility,
+      // Validate against session context
+      const validation = validateRegisterContext(registerContext, {
+        screeningState,
+        screeningDistrict,
+        facilityName,
+        screeningDate,
       });
+
+      // Log warnings (non-blocking)
+      if (validation.warnings.length > 0) {
+        console.warn('[RegisterExtract] Context validation warnings:', validation.warnings);
+      }
+
+      // Log mixed-context rows (non-blocking but suspicious)
+      if (mixedContextRows.length > 0) {
+        console.warn(
+          `[RegisterExtract] Mixed-context detected: ${mixedContextRows.length} row(s) disagree with majority`,
+          mixedContextRows
+        );
+      }
+
+      // Reject if mismatches found
+      if (!validation.isValid) {
+        const errorResponse = buildValidationErrorResponse(validation, mixedContextRows);
+        console.error('[RegisterExtract] Context validation failed:', errorResponse);
+        return NextResponse.json(errorResponse, { status: 400 });
+      }
+
+      console.log('[RegisterExtract] Context validation passed:', registerContext);
     }
 
     const scopeOptions: ScopedMatchOptions = {

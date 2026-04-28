@@ -36,7 +36,8 @@
     "test:realtime": "bun scripts/test-realtime.ts",
     "test:refactor": "bun scripts/test-refactor.ts",
     "test:reconciliation": "bun scripts/test-reconciliation-pipeline.ts",
-    "test:openrouter": "bun scripts/test-openrouter-fallback.ts"
+    "test:openrouter": "bun scripts/test-openrouter-fallback.ts",
+    "test:context-validation": "bun scripts/test-register-context-validation.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.43",
