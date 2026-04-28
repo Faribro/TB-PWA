@@ -810,16 +810,18 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                       return (
                         <>
                           {/* ── Horizontal Hover Accordion sections ── */}
-                          <div className="flex gap-3 h-72 mt-6">
+                          <div className="flex gap-3 h-80 mt-6">
                             {clinicalSections.map((section, index) => (
                               <HorizontalHoverAccordion
                                 key={section.id}
                                 title={section.title}
                                 icon={section.icon}
                                 isComplete={section.isComplete}
+                                isCurrent={section.isCurrent}
                                 isAttentionRequired={section.isAttentionRequired}
                                 completionLabel={section.completionLabel}
                                 pendingLabel={section.pendingLabel}
+                                currentLabel={section.currentLabel}
                               >
                                 {section.id === 'sputum' && (
                                   <div data-tour-id="sputum-referral-section" className="space-y-3">
