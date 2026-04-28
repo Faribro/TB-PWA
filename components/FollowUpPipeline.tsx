@@ -27,7 +27,10 @@ interface Patient {
   submitted_on?: string;
   referral_date: string | null;
   tb_diagnosed: string | null;
+  date_of_tb_diagnosed?: string | null;
   att_start_date: string | null;
+  att_completion_date?: string | null;
+  nikshay_id?: string | null;
   facility_name: string;
   screening_district: string;
   screening_state?: string;

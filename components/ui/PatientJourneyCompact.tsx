@@ -37,28 +37,28 @@ export function PatientJourneyCompact({ patient }: PatientJourneyCompactProps) {
   ];
 
   return (
-    <div className="flex items-center gap-1.5 bg-white/50 backdrop-blur-sm rounded-lg px-2 py-1.5 border border-slate-200/50 shadow-sm">
+    <div className="flex items-center gap-1 bg-slate-100 rounded-lg px-2 py-1.5 border border-slate-300">
       {milestones.map((m, idx) => (
-        <div key={m.id} className="flex items-center gap-1">
+        <div key={m.id} className="flex items-center gap-0.5">
           {/* Milestone dot */}
           <div
-            className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 relative ${
+            className={`w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0 relative ${
               m.isComplete 
-                ? 'bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.2),0_0_6px_rgba(16,185,129,0.3)]' 
+                ? 'bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.2)]' 
                 : m.isActive 
-                  ? 'bg-amber-400 shadow-[0_0_0_2px_rgba(245,158,11,0.2),0_0_6px_rgba(245,158,11,0.3)] animate-pulse' 
-                  : 'bg-slate-200 border border-slate-300'
+                  ? 'bg-amber-400 shadow-[0_0_0_2px_rgba(245,158,11,0.2)] animate-pulse' 
+                  : 'bg-slate-300 border border-slate-400'
             }`}
             title={`${m.label}: ${m.sublabel || 'Pending'}`}
           >
-            <span className={m.isComplete || m.isActive ? 'text-white' : 'text-slate-400'}>{m.icon}</span>
+            <span className={m.isComplete || m.isActive ? 'text-white' : 'text-slate-500'}>{m.icon}</span>
           </div>
 
           {/* Connector line */}
           {idx < milestones.length - 1 && (
             <div
-              className={`w-3 h-0.5 rounded-full flex-shrink-0 ${
-                m.isComplete ? 'bg-emerald-300' : 'bg-slate-200'
+              className={`w-2.5 h-0.5 rounded-full flex-shrink-0 ${
+                m.isComplete ? 'bg-emerald-400' : 'bg-slate-300'
               }`}
             />
           )}
