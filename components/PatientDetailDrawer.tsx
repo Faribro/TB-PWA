@@ -715,13 +715,6 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                     Clinical
                   </TabsTrigger>
                   <TabsTrigger
-                    value="admin"
-                    data-tour-id="admin-journey-tab"
-                    className="rounded-none h-10 px-1 mr-6 text-[12px] font-bold tracking-[0.04em] uppercase text-slate-400 border-b-2 border-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-gray-900 data-[state=active]:border-gray-900 hover:text-slate-600 transition-colors"
-                  >
-                    Inmate Journey
-                  </TabsTrigger>
-                  <TabsTrigger
                     value="demographics"
                     data-tour-id="demographics-tab"
                     className="rounded-none h-10 px-1 mr-6 text-[12px] font-bold tracking-[0.04em] uppercase text-slate-400 border-b-2 border-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-gray-900 data-[state=active]:border-gray-900 hover:text-slate-600 transition-colors"
@@ -896,97 +889,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                     })()}
                   </TabsContent>
 
-                  <TabsContent value="admin" className="mt-0">
-                    {/* ── Patient Journey Timeline ── */}
-                    <div className="bg-white border border-black/[0.06] rounded-2xl p-5 mx-0 mt-4">
-                      <div className="flex items-center gap-2 mb-5">
-                        <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center">
-                          <Activity className="w-3.5 h-3.5 text-slate-500" />
-                        </div>
-                        <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Patient Journey</span>
-                      </div>
-                      {(() => {
-                        const fmtDate = (d: string | null | undefined) => {
-                          if (!d) return null;
-                          try { const dt = new Date(d); return isNaN(dt.getTime()) ? null : dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); }
-                          catch { return null; }
-                        };
-                        const milestones = [
-                          { id: 'screened', label: 'Screened', sublabel: fmtDate(localPatient?.screening_date), icon: <Search className="w-3.5 h-3.5" />, isComplete: Boolean(localPatient?.screening_date), isActive: false },
-                          { id: 'xray', label: 'X-Ray Result', sublabel: localPatient?.xray_result || localPatient?.chest_x_ray_result || null, icon: <AlertCircle className="w-3.5 h-3.5" />, isComplete: Boolean(localPatient?.xray_result || localPatient?.chest_x_ray_result), isActive: false },
-                          { id: 'referred', label: 'Referred for Sputum', sublabel: fmtDate(localPatient?.referral_date) || 'Pending', icon: <ArrowRightCircle className="w-3.5 h-3.5" />, isComplete: Boolean(localPatient?.referral_date), isActive: !localPatient?.referral_date },
-                          { id: 'diagnosed', label: 'TB Diagnosed', sublabel: localPatient?.tb_diagnosed === 'Y' ? (fmtDate(localPatient?.tb_diagnosis_date) || 'Confirmed') : localPatient?.tb_diagnosed === 'N' ? 'Not Confirmed' : 'Pending', icon: <Activity className="w-3.5 h-3.5" />, isComplete: Boolean(localPatient?.tb_diagnosed), isActive: Boolean(localPatient?.referral_date) && !localPatient?.tb_diagnosed },
-                          { id: 'treatment', label: 'ATT Started', sublabel: fmtDate(localPatient?.att_start_date) || 'Pending', icon: <Pill className="w-3.5 h-3.5" />, isComplete: Boolean(localPatient?.att_start_date), isActive: Boolean(localPatient?.tb_diagnosed) && !localPatient?.att_start_date },
-                          { id: 'nikshay', label: 'Nikshay Registered', sublabel: localPatient?.nikshay_abha_id || 'Pending', icon: <ClipboardList className="w-3.5 h-3.5" />, isComplete: Boolean(localPatient?.nikshay_abha_id), isActive: Boolean(localPatient?.att_start_date) && !localPatient?.nikshay_abha_id },
-                          { id: 'completed', label: 'Treatment Complete', sublabel: fmtDate(localPatient?.att_completion_date) || 'Ongoing', icon: <CheckCircle2 className="w-3.5 h-3.5" />, isComplete: Boolean(localPatient?.att_completion_date), isActive: false },
-                        ];
-                        return milestones.map((m, idx) => (
-                          <div key={m.id} className="flex gap-3 relative">
-                            <div className="flex flex-col items-center">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 z-10 relative ${m.isComplete ? 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.15),0_0_10px_rgba(16,185,129,0.40)]' : m.isActive ? 'bg-amber-400 shadow-[0_0_0_3px_rgba(245,158,11,0.15),0_0_10px_rgba(245,158,11,0.40)] animate-pulse' : 'bg-slate-100 border-2 border-slate-200'}`}>
-                                <span className={m.isComplete ? 'text-white' : m.isActive ? 'text-white' : 'text-slate-400'}>{m.icon}</span>
-                              </div>
-                              {idx < milestones.length - 1 && (
-                                <div className={`w-0.5 flex-1 min-h-[24px] mt-1 rounded-full ${m.isComplete ? 'bg-gradient-to-b from-emerald-400 to-emerald-200' : 'bg-slate-100'}`} />
-                              )}
-                            </div>
-                            <div className="pb-5 pt-1 flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className={`text-[13px] font-bold leading-tight ${m.isComplete ? 'text-slate-800' : m.isActive ? 'text-amber-600' : 'text-slate-400'}`}>{m.label}</span>
-                                {m.isActive && <span className="text-[9px] font-extrabold uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-200/60 rounded-full px-2 py-0.5">Current</span>}
-                              </div>
-                              {m.sublabel && <span className={`text-[11px] font-medium mt-0.5 block ${m.isComplete ? 'text-emerald-600' : m.isActive ? 'text-amber-500' : 'text-slate-400'}`}>{m.sublabel}</span>}
-                            </div>
-                          </div>
-                        ));
-                      })()}
-                    </div>
-
-                    {/* ── Administrative Record ── */}
-                    <div className="bg-white border border-black/[0.06] rounded-2xl p-5 mx-0 mt-3 mb-4">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center">
-                          <Settings2 className="w-3.5 h-3.5 text-slate-500" />
-                        </div>
-                        <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Administrative Record</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        {[
-                          { label: 'Screening Date', value: localPatient?.screening_date },
-                          { label: 'Date of Diagnosis', value: localPatient?.tb_diagnosis_date },
-                          { label: 'Completion Date', value: localPatient?.att_completion_date },
-                          { label: 'ART Status', value: localPatient?.art_status },
-                          { label: 'ART Number', value: localPatient?.art_number },
-                          { label: 'Registration Date', value: localPatient?.registration_date },
-                          { label: 'Staff Name', value: localPatient?.staff_name || localPatient?.data_collector },
-                          { label: 'Inmate Type', value: localPatient?.inmate_type },
-                          { label: 'Facility Type', value: localPatient?.facility_type },
-                          { label: 'Facility Name', value: localPatient?.facility_name },
-                          { label: 'District', value: localPatient?.screening_district },
-                          { label: 'State', value: localPatient?.screening_state },
-                          { label: 'Kobo UUID', value: localPatient?.kobo_uuid?.substring(0, 12) },
-                          { label: 'Submitted On', value: localPatient?.submitted_on },
-                        ].map(f => (
-                          <div key={f.label} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{f.label}</p>
-                            <p className={`text-[13px] font-semibold text-slate-800 truncate ${f.label === 'Kobo UUID' ? 'font-mono' : ''}`}>{f.value || '—'}</p>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Remarks — editable */}
-                      <div className="mt-4">
-                        <label className="block text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400 mb-1">Remarks</label>
-                        <VoiceInput
-                          value={watch('Remarks')}
-                          onChange={(val) => setValue('Remarks', val, { shouldDirty: true })}
-                          className="w-full border-slate-200 rounded-[10px]"
-                        />
-                      </div>
-                    </div>
-                  </TabsContent>
-
-                    <TabsContent value="demographics" className="mt-0">
+                  <TabsContent value="demographics" className="mt-0">
                     <div className="p-4 space-y-0">
                       {/* Lock/Unlock Toggle */}
                       <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 mb-5">

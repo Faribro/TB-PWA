@@ -3,7 +3,8 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, X, ChevronLeft, ChevronRight, AlertCircle, ClockAlert, MapPin, List, Grid3x3, Upload, AlertTriangle, ShieldCheck, Clock } from 'lucide-react';
+import { Filter, X, ChevronLeft, ChevronRight, AlertCircle, ClockAlert, MapPin, List, Grid3x3, Upload, AlertTriangle, ShieldCheck, Clock, Lock, Unlock, ChevronDown, ChevronUp, Search, ArrowRightCircle, Activity, Pill, ClipboardList, CheckCircle2 } from 'lucide-react';
+import { PatientJourneyCompact } from './ui/PatientJourneyCompact';
 import { TBFilterToggle, type FilterMode, isSuspectedTB } from './ui/TBFilterToggle';
 import { useTreeFilter } from '@/contexts/TreeFilterContext';
 import { useEntityStore } from '@/stores/useEntityStore';
@@ -168,16 +169,19 @@ const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelec
             {patient.unique_id || patient.kobo_uuid?.substring(0, 8)}
           </span>
         </div>
-        {canSelect && (
-          <input
-            type="checkbox"
-            checked={triageIds.includes(patient.id)}
-            onChange={(e) => { e.stopPropagation(); toggleTriageSelect(patient.id); }}
-            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer transition-all duration-200"
-            onClick={(e) => e.stopPropagation()}
-            title="Select for bulk triage"
-          />
-        )}
+        <div className="flex flex-col items-end gap-2">
+          {canSelect && (
+            <input
+              type="checkbox"
+              checked={triageIds.includes(patient.id)}
+              onChange={(e) => { e.stopPropagation(); toggleTriageSelect(patient.id); }}
+              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer transition-all duration-200"
+              onClick={(e) => e.stopPropagation()}
+              title="Select for bulk triage"
+            />
+          )}
+          <PatientJourneyCompact patient={patient} />
+        </div>
       </div>
 
       <div className="space-y-3 pl-3">
