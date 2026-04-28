@@ -37,17 +37,17 @@ export function PatientJourneyCompact({ patient }: PatientJourneyCompactProps) {
   ];
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5 bg-white/50 backdrop-blur-sm rounded-lg px-2 py-1.5 border border-slate-200/50 shadow-sm">
       {milestones.map((m, idx) => (
-        <div key={m.id} className="flex items-center gap-1.5">
+        <div key={m.id} className="flex items-center gap-1">
           {/* Milestone dot */}
           <div
-            className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 relative ${
+            className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 relative ${
               m.isComplete 
-                ? 'bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.2),0_0_8px_rgba(16,185,129,0.3)]' 
+                ? 'bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.2),0_0_6px_rgba(16,185,129,0.3)]' 
                 : m.isActive 
-                  ? 'bg-amber-400 shadow-[0_0_0_2px_rgba(245,158,11,0.2),0_0_8px_rgba(245,158,11,0.3)] animate-pulse' 
-                  : 'bg-slate-100 border border-slate-200'
+                  ? 'bg-amber-400 shadow-[0_0_0_2px_rgba(245,158,11,0.2),0_0_6px_rgba(245,158,11,0.3)] animate-pulse' 
+                  : 'bg-slate-200 border border-slate-300'
             }`}
             title={`${m.label}: ${m.sublabel || 'Pending'}`}
           >
@@ -57,7 +57,7 @@ export function PatientJourneyCompact({ patient }: PatientJourneyCompactProps) {
           {/* Connector line */}
           {idx < milestones.length - 1 && (
             <div
-              className={`w-4 h-0.5 rounded-full flex-shrink-0 ${
+              className={`w-3 h-0.5 rounded-full flex-shrink-0 ${
                 m.isComplete ? 'bg-emerald-300' : 'bg-slate-200'
               }`}
             />
