@@ -36,29 +36,52 @@ export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 
 
   // Fire async without awaiting
   (async () => {
-    try {
-      const payload = {
-        batch: [patient],
-        batch_id: `nextjs-${operation}-${Date.now()}`,
-        operation: operation.toUpperCase()
-      };
+    const maxRetries = 2;
+    let attempt = 0;
+    
+    while (attempt <= maxRetries) {
+      try {
+        const payload = {
+          batch: [patient],
+          batch_id: `nextjs-${operation}-${Date.now()}-attempt${attempt}`,
+          operation: operation.toUpperCase()
+        };
 
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(8000)
-      });
+        const response = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(15000) // Increased to 15s
+        });
 
-      if (response.ok) {
-        console.log(`[sheetsSync] ✅ Mirror sync ${operation}: ${patient.kobo_uuid}`);
-      } else {
-        const text = await response.text();
-        console.error(`[sheetsSync] ❌ Mirror sync failed (${response.status}): ${text}`);
+        if (response.ok) {
+          console.log(`[sheetsSync] ✅ Mirror sync ${operation}: ${patient.kobo_uuid || patient.unique_id}`);
+          return; // Success, exit
+        } else {
+          const text = await response.text();
+          console.error(`[sheetsSync] ❌ Mirror sync failed (${response.status}): ${text.substring(0, 200)}`);
+          
+          // Don't retry on 4xx errors (client errors)
+          if (response.status >= 400 && response.status < 500) {
+            return;
+          }
+        }
+      } catch (error: any) {
+        if (error.name === 'AbortError' || error.message?.includes('timeout')) {
+          console.error(`[sheetsSync] ⏱️ Timeout on attempt ${attempt + 1}/${maxRetries + 1}`);
+        } else {
+          console.error(`[sheetsSync] ❌ Error on attempt ${attempt + 1}:`, error.message);
+        }
       }
-    } catch (error: any) {
-      console.error(`[sheetsSync] ❌ Mirror sync error:`, error.message);
+      
+      attempt++;
+      if (attempt <= maxRetries) {
+        // Exponential backoff: 1s, 2s
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
     }
+    
+    console.error(`[sheetsSync] ❌ All ${maxRetries + 1} attempts failed for ${patient.kobo_uuid || patient.unique_id}`);
   })().catch(() => {}); // Swallow all errors
 }
 
@@ -83,7 +106,7 @@ export async function appendPatientToSheets(patient: PatientRecord): Promise<Syn
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(8000)
+      signal: AbortSignal.timeout(15000) // Increased to 15s
     });
 
     if (response.ok) {
@@ -93,6 +116,9 @@ export async function appendPatientToSheets(patient: PatientRecord): Promise<Syn
       return { success: false, error: `Webhook failed: ${response.status}` };
     }
   } catch (error: any) {
+    if (error.name === 'AbortError' || error.message?.includes('timeout')) {
+      return { success: false, error: 'Timeout after 15s' };
+    }
     return { success: false, error: error.message };
   }
 }
