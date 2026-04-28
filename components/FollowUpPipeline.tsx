@@ -66,6 +66,39 @@ const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelec
   const suspectedTB = patient.xray_result === 'Suspected TB Case';
   const normalTB = !suspectedTB;
 
+  // Clinical progress calculation
+  const clinicalSections = [
+    {
+      id: 'sputum',
+      title: 'Sputum',
+      isComplete: Boolean(patient.referral_date && patient.referred_facility),
+    },
+    {
+      id: 'diagnosis',
+      title: 'Diagnosis',
+      isComplete: Boolean(patient.tb_diagnosed && patient.date_of_tb_diagnosed),
+    },
+    {
+      id: 'treatment',
+      title: 'Treatment',
+      isComplete: Boolean(patient.att_start_date),
+    },
+    {
+      id: 'hiv',
+      title: 'HIV',
+      isComplete: Boolean(patient.hiv_status),
+    },
+    {
+      id: 'nikshay',
+      title: 'Nikshay',
+      isComplete: Boolean(patient.nikshay_id),
+    },
+  ];
+
+  const completedCount = clinicalSections.filter(s => s.isComplete).length;
+  const totalCount = clinicalSections.length;
+  const progressPercent = (completedCount / totalCount) * 100;
+
   return (
     <motion.div
       data-tour-id="patient-card"
@@ -167,6 +200,27 @@ const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelec
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
             {daysElapsed}d Active
           </span>
+        </div>
+
+        {/* Compact Clinical Progress */}
+        <div className="pt-3 border-t border-slate-100">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Care Journey</span>
+            <span className={`text-[10px] font-black ${completedCount === totalCount ? 'text-emerald-600' : 'text-amber-600'}`}>
+              {completedCount}/{totalCount}
+            </span>
+          </div>
+          <div className="flex gap-1">
+            {clinicalSections.map((sec) => (
+              <div
+                key={sec.id}
+                className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${
+                  sec.isComplete ? 'bg-emerald-500' : 'bg-slate-200'
+                }`}
+                title={`${sec.title}: ${sec.isComplete ? 'Complete' : 'Pending'}`}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </motion.div>

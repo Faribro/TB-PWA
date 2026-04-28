@@ -1767,24 +1767,22 @@ export default function Vertex({
                   <SheetTitle className="text-lg font-black text-slate-900 leading-tight">
                     {selectedFacility?.name}
                   </SheetTitle>
-                  <p className="text-xs font-medium text-slate-500 mt-0.5 flex items-center gap-1.5">
-                    {selectedDate && (
-                      <span className="flex items-center gap-1 text-blue-600 font-semibold">
-                        <CalendarIcon className="w-3 h-3" />
-                        {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </span>
+                  <p className="text-xs font-medium text-slate-500 mt-0.5">
+                    {selectedDate && selectedFacility?.state && selectedFacility?.district ? (
+                      <>
+                        On <span className="text-blue-600 font-semibold">
+                          {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </span>, in <span className="text-slate-700 font-semibold">{selectedFacility.state}</span>, <span className="text-slate-700 font-semibold">{selectedFacility.district}</span>, <span className="text-blue-700 font-black">{patientsForSelectedFacility.length}</span> patients were screened
+                      </>
+                    ) : selectedDate ? (
+                      <>
+                        On <span className="text-blue-600 font-semibold">
+                          {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </span>, <span className="text-blue-700 font-black">{patientsForSelectedFacility.length}</span> patients were screened
+                      </>
+                    ) : (
+                      <span className="text-blue-700 font-black">{patientsForSelectedFacility.length}</span> patients screened
                     )}
-                    {selectedFacility?.state && (
-                      <span className="text-slate-600">
-                        {selectedFacility.state}
-                      </span>
-                    )}
-                    {selectedFacility?.district && (
-                      <span className="text-slate-600">
-                        {selectedFacility.district}
-                      </span>
-                    )}
-                    <span>{patientsForSelectedFacility.length} patients screened</span>
                   </p>
                 </div>
                 <Badge variant="outline" className="text-slate-600 bg-slate-50 border-slate-200 text-xs font-bold px-2.5 py-1">

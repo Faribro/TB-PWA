@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { User, FileText, Activity, Pill, Shield, ChevronDown, AlertCircle, CheckCircle2, Calendar, Sparkles, Lock, Unlock, Save, ClipboardList, X, MapPin, XCircle, Search, ArrowRightCircle, Settings2, AlertTriangle, Zap, TrendingUp, Award, Crown } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { ClinicalAccordion } from './ui/ClinicalAccordion';
+import { HorizontalHoverAccordion } from './ui/HorizontalHoverAccordion';
 import { type PatientFormData } from '@/lib/schemas';
 import { calculatePatientPhase } from '@/lib/phase-engine';
 import PatientHistory from './PatientHistory';
@@ -927,129 +927,84 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                             </div>
                           </motion.div>
 
-                          {/* ── Accordion sections ── */}
-                          <div className="space-y-0 pt-2">
+                          {/* ── Horizontal Hover Accordion sections ── */}
+                          <div className="flex gap-2 h-48 mt-4">
                             {clinicalSections.map((section, index) => (
-                              <div key={section.id}>
-                                <ClinicalAccordion
-                                  title={section.title}
-                                  icon={section.icon}
-                                  isComplete={section.isComplete}
-                                  isAttentionRequired={section.isAttentionRequired}
-                                  defaultOpen={firstIncompleteIdx === index || (firstIncompleteIdx === -1 && index === 0)}
-                                  completionLabel={section.completionLabel}
-                                  pendingLabel={section.pendingLabel}
-                                >
-                                  {section.id === 'sputum' && (
-                                    <div data-tour-id="sputum-referral-section" className="space-y-4">
-                                      <EditableField label="Referral Date" value={watchedReferralDate} onChange={(val) => setValue('Date of referral for TB Examination (sputum) (dd/mm/yy)', val, { shouldDirty: true })} type="date" />
-                                      <EditableSelect
-                                        label="Referred Facility"
-                                        value={watchedFacility}
-                                        onChange={(val) => setValue('Name of facility where referred to (Give code/name of all facilities)', val, { shouldDirty: true })}
-                                        options={[
-                                          { value: '', label: 'Select facility' },
-                                          { value: 'DMC-Designated microscopy Centre', label: 'DMC' },
-                                          { value: 'CBNAAT', label: 'CBNAAT' },
-                                          { value: 'Radiology', label: 'Radiology' }
-                                        ]}
-                                      />
-                                    </div>
-                                  )}
-                                  {section.id === 'diagnosis' && (
-                                    <div data-tour-id="diagnosis-section" className="space-y-4">
-                                      <EditableSelect
-                                        label="TB Diagnosed"
-                                        value={watchedTbDiagnosed}
-                                        onChange={(val) => setValue('TB diagnosed (Y/N)', val, { shouldDirty: true })}
-                                        options={[{ value: '', label: 'Select' }, { value: 'Y', label: 'Yes' }, { value: 'N', label: 'No' }]}
-                                      />
-                                      <EditableField label="Date of Diagnosis" value={watchedDiagnosisDate} onChange={(val) => setValue('Date of TB Diagnosed (dd/mm/yy)', val, { shouldDirty: true })} type="date" />
-                                      <EditableSelect
-                                        label="Type of TB"
-                                        value={watch('Type of TB Diagnosed (P/EP)')}
-                                        onChange={(val) => setValue('Type of TB Diagnosed (P/EP)', val, { shouldDirty: true })}
-                                        options={[
-                                          { value: '', label: 'Select' },
-                                          { value: 'P', label: 'Pulmonary (P)' },
-                                          { value: 'EP', label: 'Extra-Pulmonary (EP)' }
-                                        ]}
-                                      />
-                                    </div>
-                                  )}
-                                  {section.id === 'treatment' && (
-                                    <div data-tour-id="att-initiation-section" className="space-y-4">
-                                      <EditableField label="Start Date" value={watchedAttStart} onChange={(val) => setValue('Date of starting ATT (dd/mm/yyyy)', val, { shouldDirty: true })} type="date" />
-                                      <EditableField label="Completion Date" value={watch('Date of Treatment Completion (dd/mm/yyyy)')} onChange={(val) => setValue('Date of Treatment Completion (dd/mm/yyyy)', val, { shouldDirty: true })} type="date" />
-                                    </div>
-                                  )}
-                                  {section.id === 'hiv' && (
-                                    <div data-tour-id="hiv-art-section" className="space-y-4">
-                                      <EditableSelect
-                                        label="HIV Status"
-                                        value={watchedHivStatus}
-                                        onChange={(val) => setValue('HIV Status (Positive/Negative/Unknown)', val, { shouldDirty: true })}
-                                        options={[
-                                          { value: '', label: 'Select' },
-                                          { value: 'Positive', label: 'Positive' },
-                                          { value: 'Negative', label: 'Negative' },
-                                          { value: 'Unknown', label: 'Unknown' }
-                                        ]}
-                                      />
-                                      <EditableSelect
-                                        label="ART Status at Referral"
-                                        value={watch('Status at the time of referral (Pre ART/On ART)')}
-                                        onChange={(val) => setValue('Status at the time of referral (Pre ART/On ART)', val, { shouldDirty: true })}
-                                        options={[
-                                          { value: '', label: 'Select' },
-                                          { value: 'Pre ART', label: 'Pre ART' },
-                                          { value: 'On ART', label: 'On ART' }
-                                        ]}
-                                      />
-                                      <EditableField
-                                        label="ART Number"
-                                        value={watch('ART Number (if on ART at the time of referral)')}
-                                        onChange={(val) => setValue('ART Number (if on ART at the time of referral)', val, { shouldDirty: true })}
-                                      />
-                                    </div>
-                                  )}
-                                  {section.id === 'nikshay' && (
-                                    <div className="space-y-4">
-                                      <EditableField label="NIKSHAY/ABHA ID" value={watchedNikshay} onChange={(val) => setValue('NIKSHAY/ABHA ID', val, { shouldDirty: true })} />
-                                      <EditableField 
-                                        label="Date of registration" 
-                                        value={watch('Date of registration (dd/mm/yyyy)')} 
-                                        onChange={(val) => setValue('Date of registration (dd/mm/yyyy)', val, { shouldDirty: true })} 
-                                        type="date" 
-                                      />
-                                      <div>
-                                        <label className="block text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1.5">Remarks</label>
-                                        <VoiceInput
-                                          value={watch('Remarks')}
-                                          onChange={(val) => setValue('Remarks', val, { shouldDirty: true })}
-                                          className="w-full border-slate-200 rounded-xl"
-                                        />
-                                      </div>
-                                    </div>
-                                  )}
-                                </ClinicalAccordion>
-                                {index < clinicalSections.length - 1 && (
-                                  <div
-                                    style={{
-                                      width: 2,
-                                      height: 10,
-                                      margin: '0 auto',
-                                      borderRadius: 999,
-                                      opacity: clinicalSections[index].isComplete && !clinicalSections[index + 1]?.isComplete ? 1 : !clinicalSections[index].isComplete && !clinicalSections[index + 1]?.isComplete ? 0.3 : 1,
-                                      background: clinicalSections[index].isComplete && !clinicalSections[index + 1]?.isComplete
-                                        ? 'linear-gradient(to bottom, #10B981, #EF4444)'
-                                        : clinicalSections[index].isComplete && clinicalSections[index + 1]?.isComplete
-                                        ? 'linear-gradient(to bottom, #10B981, #10B981)'
-                                        : 'linear-gradient(to bottom, #EF4444, #EF4444)',
-                                    }}
-                                  />
+                              <HorizontalHoverAccordion
+                                key={section.id}
+                                title={section.title}
+                                icon={section.icon}
+                                isComplete={section.isComplete}
+                                isAttentionRequired={section.isAttentionRequired}
+                                completionLabel={section.completionLabel}
+                                pendingLabel={section.pendingLabel}
+                              >
+                                {section.id === 'sputum' && (
+                                  <div data-tour-id="sputum-referral-section" className="space-y-3">
+                                    <EditableField label="Referral Date" value={watchedReferralDate} onChange={(val) => setValue('Date of referral for TB Examination (sputum) (dd/mm/yy)', val, { shouldDirty: true })} type="date" />
+                                    <EditableSelect
+                                      label="Referred Facility"
+                                      value={watchedFacility}
+                                      onChange={(val) => setValue('Name of facility where referred to (Give code/name of all facilities)', val, { shouldDirty: true })}
+                                      options={[
+                                        { value: '', label: 'Select facility' },
+                                        { value: 'DMC-Designated microscopy Centre', label: 'DMC' },
+                                        { value: 'CBNAAT', label: 'CBNAAT' },
+                                        { value: 'Radiology', label: 'Radiology' }
+                                      ]}
+                                    />
+                                  </div>
                                 )}
-                              </div>
+                                {section.id === 'diagnosis' && (
+                                  <div data-tour-id="diagnosis-section" className="space-y-3">
+                                    <EditableSelect
+                                      label="TB Diagnosed"
+                                      value={watchedTbDiagnosed}
+                                      onChange={(val) => setValue('TB diagnosed (Y/N)', val, { shouldDirty: true })}
+                                      options={[{ value: '', label: 'Select' }, { value: 'Y', label: 'Yes' }, { value: 'N', label: 'No' }]}
+                                    />
+                                    <EditableField label="Date of Diagnosis" value={watchedDiagnosisDate} onChange={(val) => setValue('Date of TB Diagnosed (dd/mm/yy)', val, { shouldDirty: true })} type="date" />
+                                    <EditableSelect
+                                      label="Type of TB"
+                                      value={watch('Type of TB Diagnosed (P/EP)')}
+                                      onChange={(val) => setValue('Type of TB Diagnosed (P/EP)', val, { shouldDirty: true })}
+                                      options={[
+                                        { value: '', label: 'Select' },
+                                        { value: 'P', label: 'Pulmonary (P)' },
+                                        { value: 'EP', label: 'Extra-Pulmonary (EP)' }
+                                      ]}
+                                    />
+                                  </div>
+                                )}
+                                {section.id === 'treatment' && (
+                                  <div data-tour-id="att-initiation-section" className="space-y-3">
+                                    <EditableField label="Start Date" value={watchedAttStart} onChange={(val) => setValue('Date of starting ATT (dd/mm/yyyy)', val, { shouldDirty: true })} type="date" />
+                                    <EditableField label="Completion Date" value={watch('Date of Treatment Completion (dd/mm/yyyy)')} onChange={(val) => setValue('Date of Treatment Completion (dd/mm/yyyy)', val, { shouldDirty: true })} type="date" />
+                                  </div>
+                                )}
+                                {section.id === 'hiv' && (
+                                  <div data-tour-id="hiv-art-section" className="space-y-3">
+                                    <EditableSelect
+                                      label="HIV Status"
+                                      value={watchedHivStatus}
+                                      onChange={(val) => setValue('HIV Status (Positive/Negative/Unknown)', val, { shouldDirty: true })}
+                                      options={[
+                                        { value: '', label: 'Select' },
+                                        { value: 'Positive', label: 'Positive' },
+                                        { value: 'Negative', label: 'Negative' },
+                                        { value: 'Unknown', label: 'Unknown' }
+                                      ]}
+                                    />
+                                    <EditableField label="ART Start Date" value={watch('ART Start Date (dd/mm/yyyy)')} onChange={(val) => setValue('ART Start Date (dd/mm/yyyy)', val, { shouldDirty: true })} type="date" />
+                                  </div>
+                                )}
+                                {section.id === 'nikshay' && (
+                                  <div data-tour-id="nikshay-section" className="space-y-3">
+                                    <EditableField label="Nikshay ID" value={watchedNikshay} onChange={(val) => setValue('Nikshay ID', val, { shouldDirty: true })} />
+                                    <EditableField label="Registration Date" value={watch('Nikshay Registration Date (dd/mm/yyyy)')} onChange={(val) => setValue('Nikshay Registration Date (dd/mm/yyyy)', val, { shouldDirty: true })} type="date" />
+                                  </div>
+                                )}
+                              </HorizontalHoverAccordion>
                             ))}
                           </div>
                         </>
