@@ -800,7 +800,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                       return (
                         <>
                           {/* ── Horizontal Hover Accordion sections ── */}
-                          <div className="flex gap-2 h-48 mt-4">
+                          <div className="flex gap-3 h-72 mt-6">
                             {clinicalSections.map((section, index) => (
                               <HorizontalHoverAccordion
                                 key={section.id}
