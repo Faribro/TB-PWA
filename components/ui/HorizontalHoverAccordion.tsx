@@ -7,9 +7,11 @@ export interface HorizontalHoverAccordionProps {
   title: string;
   icon: React.ReactNode;
   isComplete: boolean;
+  isCurrent?: boolean;
   isAttentionRequired?: boolean;
   completionLabel?: string;
   pendingLabel?: string;
+  currentLabel?: string;
   children: React.ReactNode;
 }
 
@@ -17,52 +19,92 @@ export function HorizontalHoverAccordion({
   title,
   icon,
   isComplete,
+  isCurrent = false,
   isAttentionRequired = false,
-  completionLabel = 'Complete',
+  completionLabel = 'Submitted',
   pendingLabel = 'Pending',
+  currentLabel = 'In Progress',
   children,
 }: HorizontalHoverAccordionProps) {
   const [isHovered, setIsHovered] = useState(false);
+
+  // Determine color state
+  const colorState = isComplete ? 'complete' : isCurrent ? 'current' : 'pending';
+  
+  const colors = {
+    complete: {
+      bg: 'linear-gradient(135deg, rgba(34,197,94,0.12) 0%, rgba(22,163,74,0.15) 100%)',
+      border: 'rgba(34,197,94,0.3)',
+      shadow: '0 4px 24px rgba(34,197,94,0.15), inset 0 1px 0 rgba(255,255,255,0.6)',
+      hoverShadow: '0 8px 48px rgba(34,197,94,0.25), inset 0 1px 0 rgba(255,255,255,0.7)',
+      orb1: 'radial-gradient(circle, rgba(34,197,94,0.5) 0%, transparent 70%)',
+      orb2: 'radial-gradient(circle, rgba(74,222,128,0.4) 0%, transparent 70%)',
+      iconBg: 'bg-emerald-500/25 text-emerald-400 border-emerald-500/40',
+      iconShadow: '0 8px 32px rgba(34,197,94,0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
+      badgeBg: 'bg-emerald-500/25 text-emerald-300 border-emerald-500/40',
+      badgeDot: 'bg-emerald-400',
+      indicator: 'bg-emerald-500',
+      indicatorGlow: '0 0 24px rgba(34,197,94,0.7), 0 0 48px rgba(34,197,94,0.4)',
+      borderGlow: 'linear-gradient(135deg, rgba(34,197,94,0.4), rgba(74,222,128,0.2))',
+    },
+    current: {
+      bg: 'linear-gradient(135deg, rgba(234,179,8,0.12) 0%, rgba(202,138,4,0.15) 100%)',
+      border: 'rgba(234,179,8,0.35)',
+      shadow: '0 4px 24px rgba(234,179,8,0.18), inset 0 1px 0 rgba(255,255,255,0.6)',
+      hoverShadow: '0 8px 48px rgba(234,179,8,0.3), inset 0 1px 0 rgba(255,255,255,0.7)',
+      orb1: 'radial-gradient(circle, rgba(234,179,8,0.5) 0%, transparent 70%)',
+      orb2: 'radial-gradient(circle, rgba(250,204,21,0.4) 0%, transparent 70%)',
+      iconBg: 'bg-amber-500/25 text-amber-400 border-amber-500/40',
+      iconShadow: '0 8px 32px rgba(234,179,8,0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
+      badgeBg: 'bg-amber-500/25 text-amber-300 border-amber-500/40',
+      badgeDot: 'bg-amber-400',
+      indicator: 'bg-amber-500',
+      indicatorGlow: '0 0 24px rgba(234,179,8,0.7), 0 0 48px rgba(234,179,8,0.4)',
+      borderGlow: 'linear-gradient(135deg, rgba(234,179,8,0.45), rgba(250,204,21,0.25))',
+    },
+    pending: {
+      bg: 'linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(220,38,38,0.15) 100%)',
+      border: 'rgba(239,68,68,0.3)',
+      shadow: '0 4px 24px rgba(239,68,68,0.15), inset 0 1px 0 rgba(255,255,255,0.6)',
+      hoverShadow: '0 8px 48px rgba(239,68,68,0.25), inset 0 1px 0 rgba(255,255,255,0.7)',
+      orb1: 'radial-gradient(circle, rgba(239,68,68,0.45) 0%, transparent 70%)',
+      orb2: 'radial-gradient(circle, rgba(248,113,113,0.35) 0%, transparent 70%)',
+      iconBg: 'bg-rose-500/25 text-rose-400 border-rose-500/40',
+      iconShadow: '0 8px 32px rgba(239,68,68,0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
+      badgeBg: 'bg-rose-500/25 text-rose-300 border-rose-500/40',
+      badgeDot: 'bg-rose-400',
+      indicator: 'bg-rose-500',
+      indicatorGlow: '0 0 24px rgba(239,68,68,0.7), 0 0 48px rgba(239,68,68,0.4)',
+      borderGlow: 'linear-gradient(135deg, rgba(239,68,68,0.4), rgba(248,113,113,0.2))',
+    },
+  };
+
+  const c = colors[colorState];
+  const statusLabel = isComplete ? completionLabel : isCurrent ? currentLabel : pendingLabel;
 
   return (
     <motion.div
       className="relative flex-1 min-w-[80px] h-full rounded-2xl overflow-hidden cursor-pointer"
       style={{
-        background: isComplete 
-          ? 'linear-gradient(135deg, rgba(16,185,129,0.05) 0%, rgba(5,150,105,0.08) 100%)'
-          : 'linear-gradient(135deg, rgba(239,68,68,0.03) 0%, rgba(220,38,38,0.06) 100%)',
-        border: isComplete 
-          ? '1px solid rgba(16,185,129,0.15)' 
-          : '1px solid rgba(239,68,68,0.12)',
-        boxShadow: isComplete
-          ? '0 4px 20px rgba(16,185,129,0.08), inset 0 1px 0 rgba(255,255,255,0.5)'
-          : '0 4px 20px rgba(239,68,68,0.06), inset 0 1px 0 rgba(255,255,255,0.5)',
+        background: c.bg,
+        border: `1px solid ${c.border}`,
+        boxShadow: c.shadow,
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       whileHover={{ 
         flex: 8,
-        boxShadow: isComplete
-          ? '0 8px 40px rgba(16,185,129,0.15), inset 0 1px 0 rgba(255,255,255,0.6)'
-          : '0 8px 40px rgba(239,68,68,0.12), inset 0 1px 0 rgba(255,255,255,0.6)',
+        boxShadow: c.hoverShadow,
       }}
       initial={{ flex: 1 }}
       transition={{ duration: 0.6, ease: [0.25, 1, 0.5, 1] }}
     >
       {/* Ambient gradient orbs */}
-      <div className="absolute -top-32 -right-32 w-64 h-64 rounded-full blur-3xl pointer-events-none opacity-40"
-        style={{
-          background: isComplete 
-            ? 'radial-gradient(circle, rgba(16,185,129,0.4) 0%, transparent 70%)'
-            : 'radial-gradient(circle, rgba(239,68,68,0.3) 0%, transparent 70%)',
-        }}
+      <div className="absolute -top-32 -right-32 w-64 h-64 rounded-full blur-3xl pointer-events-none opacity-50"
+        style={{ background: c.orb1 }}
       />
-      <div className="absolute -bottom-32 -left-32 w-64 h-64 rounded-full blur-3xl pointer-events-none opacity-30"
-        style={{
-          background: isComplete 
-            ? 'radial-gradient(circle, rgba(52,211,153,0.3) 0%, transparent 70%)'
-            : 'radial-gradient(circle, rgba(248,113,113,0.25) 0%, transparent 70%)',
-        }}
+      <div className="absolute -bottom-32 -left-32 w-64 h-64 rounded-full blur-3xl pointer-events-none opacity-40"
+        style={{ background: c.orb2 }}
       />
 
       {/* Vertical title when collapsed */}
@@ -92,15 +134,9 @@ export function HorizontalHoverAccordion({
       >
         {/* Icon container */}
         <motion.div
-          className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-xl ${
-            isComplete 
-              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-              : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-          }`}
+          className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-xl ${c.iconBg}`}
           style={{
-            boxShadow: isComplete
-              ? '0 8px 32px rgba(16,185,129,0.3), inset 0 1px 0 rgba(255,255,255,0.2)'
-              : '0 8px 32px rgba(239,68,68,0.25), inset 0 1px 0 rgba(255,255,255,0.2)',
+            boxShadow: c.iconShadow,
           }}
           initial={{ scale: 0.8, opacity: 0 }}
           animate={isHovered ? { scale: 1, opacity: 1 } : { scale: 0.8, opacity: 0 }}
@@ -121,17 +157,13 @@ export function HorizontalHoverAccordion({
 
         {/* Status badge */}
         <motion.div
-          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-4 backdrop-blur-xl ${
-            isComplete 
-              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
-              : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-          }`}
+          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-4 backdrop-blur-xl ${c.badgeBg}`}
           initial={{ y: 10, opacity: 0 }}
           animate={isHovered ? { y: 0, opacity: 1 } : { y: 10, opacity: 0 }}
           transition={{ delay: 0.25, duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
         >
-          <span className={`w-1.5 h-1.5 rounded-full ${isComplete ? 'bg-emerald-400' : 'bg-rose-400'}`} />
-          {isComplete ? completionLabel : pendingLabel}
+          <span className={`w-1.5 h-1.5 rounded-full ${c.badgeDot}`} />
+          {statusLabel}
         </motion.div>
 
         {/* Form fields */}
@@ -148,7 +180,11 @@ export function HorizontalHoverAccordion({
       {/* Attention indicator */}
       {isAttentionRequired && !isHovered && (
         <motion.div
-          className="absolute top-4 right-4 w-2.5 h-2.5 rounded-full bg-rose-500 z-10"
+          className="absolute top-4 right-4 w-2.5 h-2.5 rounded-full z-10"
+          style={{
+            background: c.indicator,
+            boxShadow: c.indicatorGlow,
+          }}
           animate={{ 
             scale: [1, 1.2, 1],
             opacity: [1, 0.7, 1],
@@ -158,18 +194,16 @@ export function HorizontalHoverAccordion({
             repeat: Infinity, 
             ease: 'easeInOut' 
           }}
-          style={{
-            boxShadow: '0 0 20px rgba(239,68,68,0.6), 0 0 40px rgba(239,68,68,0.3)',
-          }}
         />
       )}
 
-      {/* Complete indicator */}
-      {isComplete && !isHovered && (
+      {/* Status indicator */}
+      {!isHovered && (
         <motion.div
-          className="absolute top-4 right-4 w-2.5 h-2.5 rounded-full bg-emerald-500 z-10"
+          className="absolute top-4 right-4 w-2.5 h-2.5 rounded-full z-10"
           style={{
-            boxShadow: '0 0 20px rgba(16,185,129,0.5), 0 0 40px rgba(16,185,129,0.25)',
+            background: c.indicator,
+            boxShadow: c.indicatorGlow,
           }}
         />
       )}
@@ -179,9 +213,7 @@ export function HorizontalHoverAccordion({
         className="absolute inset-0 rounded-2xl pointer-events-none z-30"
         style={{
           border: '2px solid transparent',
-          background: isComplete
-            ? 'linear-gradient(135deg, rgba(16,185,129,0.3), rgba(52,211,153,0.1)) border-box'
-            : 'linear-gradient(135deg, rgba(239,68,68,0.25), rgba(248,113,113,0.1)) border-box',
+          background: c.borderGlow + ' border-box',
           WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
           WebkitMaskComposite: 'xor',
           maskComposite: 'exclude',
