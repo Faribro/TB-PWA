@@ -36,7 +36,7 @@ export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 
 
   // Fire async without awaiting
   (async () => {
-    const maxRetries = 2;
+    const maxRetries = 1; // Reduced from 2 since timeout is now 30s
     let attempt = 0;
     
     while (attempt <= maxRetries) {
@@ -51,7 +51,7 @@ export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(15000) // Increased to 15s
+          signal: AbortSignal.timeout(30000) // Increased to 30s
         });
 
         if (response.ok) {
@@ -68,7 +68,7 @@ export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 
         }
       } catch (error: any) {
         if (error.name === 'AbortError' || error.message?.includes('timeout')) {
-          console.error(`[sheetsSync] ⏱️ Timeout on attempt ${attempt + 1}/${maxRetries + 1}`);
+          console.error(`[sheetsSync] ⏱️ Timeout on attempt ${attempt + 1}/${maxRetries + 1} (30s limit)`);
         } else {
           console.error(`[sheetsSync] ❌ Error on attempt ${attempt + 1}:`, error.message);
         }
@@ -76,8 +76,8 @@ export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 
       
       attempt++;
       if (attempt <= maxRetries) {
-        // Exponential backoff: 1s, 2s
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        // Wait 2s before retry
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
     
@@ -106,7 +106,7 @@ export async function appendPatientToSheets(patient: PatientRecord): Promise<Syn
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(15000) // Increased to 15s
+      signal: AbortSignal.timeout(30000) // Increased to 30s
     });
 
     if (response.ok) {
@@ -117,7 +117,7 @@ export async function appendPatientToSheets(patient: PatientRecord): Promise<Syn
     }
   } catch (error: any) {
     if (error.name === 'AbortError' || error.message?.includes('timeout')) {
-      return { success: false, error: 'Timeout after 15s' };
+      return { success: false, error: 'Timeout after 30s' };
     }
     return { success: false, error: error.message };
   }
