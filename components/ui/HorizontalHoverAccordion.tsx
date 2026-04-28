@@ -157,44 +157,22 @@ export function HorizontalHoverAccordion({
           background: 'linear-gradient(to top, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.50) 40%, rgba(0,0,0,0.15) 70%, transparent 100%)',
         }}
       >
-        {/* Icon container */}
-        <motion.div
-          className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-5 backdrop-blur-xl ${c.iconBg}`}
-          style={{ boxShadow: c.iconShadow }}
-          initial={{ scale: 0.7, opacity: 0 }}
-          animate={isHovered ? { scale: 1, opacity: 1 } : { scale: 0.7, opacity: 0 }}
-          transition={{ delay: 0.12, duration: 0.45, ease: [0.25, 1, 0.5, 1] }}
-        >
-          {icon}
-        </motion.div>
-
         {/* Title */}
         <motion.h3
-          className="text-xl font-black text-white mb-1.5 tracking-tight leading-none"
+          className="text-xl font-black text-white mb-5 tracking-tight leading-none"
           initial={{ y: 12, opacity: 0 }}
           animate={isHovered ? { y: 0, opacity: 1 } : { y: 12, opacity: 0 }}
-          transition={{ delay: 0.18, duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
+          transition={{ delay: 0.12, duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
         >
           {title}
         </motion.h3>
-
-        {/* Status badge */}
-        <motion.div
-          className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider mb-5 backdrop-blur-xl ${c.badgeBg}`}
-          initial={{ y: 12, opacity: 0 }}
-          animate={isHovered ? { y: 0, opacity: 1 } : { y: 12, opacity: 0 }}
-          transition={{ delay: 0.22, duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
-        >
-          <span className={`w-2 h-2 rounded-full ${c.badgeDot}`} />
-          {statusLabel}
-        </motion.div>
 
         {/* Form fields */}
         <motion.div
           className="space-y-4"
           initial={{ y: 12, opacity: 0 }}
           animate={isHovered ? { y: 0, opacity: 1 } : { y: 12, opacity: 0 }}
-          transition={{ delay: 0.28, duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
+          transition={{ delay: 0.18, duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
         >
           {children}
         </motion.div>
