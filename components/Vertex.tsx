@@ -1610,148 +1610,187 @@ export default function Vertex({
                             </div>
                           </div>
 
-                          {/* Linear Funnel with Proportional Bars */}
-                          <div className="flex-shrink-0 px-5 pb-5 pt-4 space-y-4">
-                            <h4 className="text-xs font-semibold text-slate-500 tracking-wide">Care Cascade</h4>
+                          {/* Premium Care Cascade - Award-Winning Aesthetic */}
+                          <div className="flex-shrink-0 px-5 pb-5 pt-4">
+                            <div className="flex items-center justify-between mb-6">
+                              <h4 className="text-xs font-bold text-slate-800 tracking-widest uppercase">Care Cascade</h4>
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                <span className="text-[10px] text-slate-500 font-medium">Live</span>
+                              </div>
+                            </div>
                             
-                            <div className="flex flex-col gap-6">
+                            <div className="flex flex-col gap-4">
 
-                              {/* Row 1: Screened → Suspected → Referred → Diagnosed → ATT Started */}
-                              <div className="flex items-start gap-2">
+                              {/* Main Cascade Row */}
+                              <div className="flex items-center gap-3">
 
-                                {/* Screened */}
-                                <div className="flex flex-col items-center gap-1 flex-1">
-                                  <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-800">{stats.total.toLocaleString()}</span>
-                                  <span className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Screened</span>
-                                  <div className="w-full bg-slate-200 rounded-full h-0.5 mt-1.5">
-                                    <div 
-                                      className="bg-slate-600 h-0.5 rounded-full transition-all duration-700"
-                                      style={{ width: '100%' }}
-                                    />
+                                {/* Screened Card */}
+                                <div className="flex-1 group">
+                                  <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 group-hover:border-slate-300">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-slate-400 to-slate-500 rounded-t-2xl" />
+                                    <div className="text-3xl font-bold text-slate-900 tabular-nums tracking-tight mb-1">{stats.total.toLocaleString()}</div>
+                                    <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Screened</div>
+                                    <div className="mt-3 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                      <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: '100%' }}
+                                        transition={{ duration: 1, ease: "easeOut" }}
+                                        className="h-full bg-gradient-to-r from-slate-500 to-slate-600 rounded-full"
+                                      />
+                                    </div>
                                   </div>
                                 </div>
 
-                                {/* Connector */}
-                                <div className="flex flex-col items-center justify-center flex-1 pt-3">
-                                  <span className="text-[9px] text-slate-500 mb-1 font-semibold">
+                                {/* Connector Arrow */}
+                                <div className="flex flex-col items-center justify-center px-2">
+                                  <div className="text-[10px] font-bold text-slate-500 mb-1">
                                     {(() => {
                                       const pct = stats.total > 0 ? Math.round((stats.suspected / stats.total) * 100) : 0;
                                       return stats.suspected === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
                                     })()}
-                                  </span>
-                                  <div className="h-px bg-slate-300 w-full" />
+                                  </div>
+                                  <ChevronRightIcon className="w-4 h-4 text-slate-400" />
                                 </div>
 
-                                {/* Suspected */}
-                                <div className="flex flex-col items-center gap-1 flex-1">
-                                  <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-800">{stats.suspected.toLocaleString()}</span>
-                                  <span className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Suspected</span>
-                                  <div className="w-full bg-slate-200 rounded-full h-0.5 mt-1.5">
-                                    <div 
-                                      className="bg-amber-500 h-0.5 rounded-full transition-all duration-700"
-                                      style={{ width: `${stats.total > 0 ? Math.round((stats.suspected / stats.total) * 100) : 0}%` }}
-                                    />
+                                {/* Suspected Card */}
+                                <div className="flex-1 group">
+                                  <div className="relative bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-200 shadow-sm hover:shadow-lg hover:shadow-amber-100/50 transition-all duration-300 group-hover:border-amber-300">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 to-orange-500 rounded-t-2xl" />
+                                    <div className="text-3xl font-bold text-amber-900 tabular-nums tracking-tight mb-1">{stats.suspected.toLocaleString()}</div>
+                                    <div className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider">Suspected</div>
+                                    <div className="mt-3 h-1.5 bg-amber-200 rounded-full overflow-hidden">
+                                      <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${stats.total > 0 ? Math.round((stats.suspected / stats.total) * 100) : 0}%` }}
+                                        transition={{ duration: 1, ease: "easeOut" }}
+                                        className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full"
+                                      />
+                                    </div>
                                   </div>
                                 </div>
 
-                                {/* Connector */}
-                                <div className="flex flex-col items-center justify-center flex-1 pt-3">
-                                  <span className="text-[9px] text-slate-500 mb-1 font-semibold">
+                                {/* Connector Arrow */}
+                                <div className="flex flex-col items-center justify-center px-2">
+                                  <div className="text-[10px] font-bold text-slate-500 mb-1">
                                     {(() => {
                                       const pct = stats.suspected > 0 ? Math.round((stats.referralDone / stats.suspected) * 100) : 0;
                                       return stats.referralDone === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
                                     })()}
-                                  </span>
-                                  <div className="h-px bg-slate-300 w-full" />
+                                  </div>
+                                  <ChevronRightIcon className="w-4 h-4 text-slate-400" />
                                 </div>
 
-                                {/* Referred */}
-                                <div className="flex flex-col items-center gap-1 flex-1">
-                                  <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-800">{stats.referralDone.toLocaleString()}</span>
-                                  <span className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Referred</span>
-                                  <div className="w-full bg-slate-200 rounded-full h-0.5 mt-1.5">
-                                    <div 
-                                      className="bg-blue-500 h-0.5 rounded-full transition-all duration-700"
-                                      style={{ width: `${stats.total > 0 ? Math.round((stats.referralDone / stats.total) * 100) : 0}%` }}
-                                    />
+                                {/* Referred Card */}
+                                <div className="flex-1 group">
+                                  <div className="relative bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-200 shadow-sm hover:shadow-lg hover:shadow-blue-100/50 transition-all duration-300 group-hover:border-blue-300">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-t-2xl" />
+                                    <div className="text-3xl font-bold text-blue-900 tabular-nums tracking-tight mb-1">{stats.referralDone.toLocaleString()}</div>
+                                    <div className="text-[10px] font-semibold text-blue-700 uppercase tracking-wider">Referred</div>
+                                    <div className="mt-3 h-1.5 bg-blue-200 rounded-full overflow-hidden">
+                                      <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${stats.total > 0 ? Math.round((stats.referralDone / stats.total) * 100) : 0}%` }}
+                                        transition={{ duration: 1, ease: "easeOut" }}
+                                        className="h-full bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full"
+                                      />
+                                    </div>
                                   </div>
                                 </div>
 
-                                {/* Connector */}
-                                <div className="flex flex-col items-center justify-center flex-1 pt-3">
-                                  <span className="text-[9px] text-slate-500 mb-1 font-semibold">
+                                {/* Connector Arrow */}
+                                <div className="flex flex-col items-center justify-center px-2">
+                                  <div className="text-[10px] font-bold text-slate-500 mb-1">
                                     {(() => {
                                       const pct = stats.referralDone > 0 ? Math.round((stats.diagnosed / stats.referralDone) * 100) : 0;
                                       return stats.diagnosed === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
                                     })()}
-                                  </span>
-                                  <div className="h-px bg-slate-300 w-full" />
+                                  </div>
+                                  <ChevronRightIcon className="w-4 h-4 text-slate-400" />
                                 </div>
 
-                                {/* Diagnosed */}
-                                <div className="flex flex-col items-center gap-1 flex-1">
-                                  <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-800">{stats.diagnosed.toLocaleString()}</span>
-                                  <span className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Diagnosed</span>
-                                  <div className="w-full bg-slate-200 rounded-full h-0.5 mt-1.5">
-                                    <div 
-                                      className="bg-emerald-500 h-0.5 rounded-full transition-all duration-700"
-                                      style={{ width: `${stats.total > 0 ? Math.round((stats.diagnosed / stats.total) * 100) : 0}%` }}
-                                    />
+                                {/* Diagnosed Card */}
+                                <div className="flex-1 group">
+                                  <div className="relative bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl p-4 border border-emerald-200 shadow-sm hover:shadow-lg hover:shadow-emerald-100/50 transition-all duration-300 group-hover:border-emerald-300">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-green-500 rounded-t-2xl" />
+                                    <div className="text-3xl font-bold text-emerald-900 tabular-nums tracking-tight mb-1">{stats.diagnosed.toLocaleString()}</div>
+                                    <div className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider">Diagnosed</div>
+                                    <div className="mt-3 h-1.5 bg-emerald-200 rounded-full overflow-hidden">
+                                      <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${stats.total > 0 ? Math.round((stats.diagnosed / stats.total) * 100) : 0}%` }}
+                                        transition={{ duration: 1, ease: "easeOut" }}
+                                        className="h-full bg-gradient-to-r from-emerald-400 to-green-500 rounded-full"
+                                      />
+                                    </div>
                                   </div>
                                 </div>
 
-                                {/* Connector */}
-                                <div className="flex flex-col items-center justify-center flex-1 pt-3">
-                                  <span className="text-[9px] text-slate-500 mb-1 font-semibold">
+                                {/* Connector Arrow */}
+                                <div className="flex flex-col items-center justify-center px-2">
+                                  <div className="text-[10px] font-bold text-slate-500 mb-1">
                                     {(() => {
                                       const pct = stats.diagnosed > 0 ? Math.round((stats.attStarted / stats.diagnosed) * 100) : 0;
                                       return stats.attStarted === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
                                     })()}
-                                  </span>
-                                  <div className="h-px bg-slate-300 w-full" />
+                                  </div>
+                                  <ChevronRightIcon className="w-4 h-4 text-slate-400" />
                                 </div>
 
-                                {/* ATT Started */}
-                                <div className="flex flex-col items-center gap-1 flex-1">
-                                  <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-800">{stats.attStarted.toLocaleString()}</span>
-                                  <span className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">ATT Started</span>
-                                  <div className="w-full bg-slate-200 rounded-full h-0.5 mt-1.5">
-                                    <div 
-                                      className="bg-purple-500 h-0.5 rounded-full transition-all duration-700"
-                                      style={{ width: `${stats.total > 0 ? Math.round((stats.attStarted / stats.total) * 100) : 0}%` }}
-                                    />
+                                {/* ATT Started Card */}
+                                <div className="flex-1 group">
+                                  <div className="relative bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl p-4 border border-purple-200 shadow-sm hover:shadow-lg hover:shadow-purple-100/50 transition-all duration-300 group-hover:border-purple-300">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-400 to-violet-500 rounded-t-2xl" />
+                                    <div className="text-3xl font-bold text-purple-900 tabular-nums tracking-tight mb-1">{stats.attStarted.toLocaleString()}</div>
+                                    <div className="text-[10px] font-semibold text-purple-700 uppercase tracking-wider">ATT Started</div>
+                                    <div className="mt-3 h-1.5 bg-purple-200 rounded-full overflow-hidden">
+                                      <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${stats.total > 0 ? Math.round((stats.attStarted / stats.total) * 100) : 0}%` }}
+                                        transition={{ duration: 1, ease: "easeOut" }}
+                                        className="h-full bg-gradient-to-r from-purple-400 to-violet-500 rounded-full"
+                                      />
+                                    </div>
                                   </div>
                                 </div>
+
                               </div>
 
-                              {/* Row 2: Not Suspected (below Suspected) */}
-                              <div className="flex items-start gap-2 pl-[calc(16.666%*2)]">
-                                {/* Not Suspected */}
-                                <div className="flex flex-col items-center gap-1 flex-1">
-                                  <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-800">{(stats.total - stats.suspected).toLocaleString()}</span>
-                                  <span className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Not Suspected</span>
-                                  <div className="w-full bg-slate-200 rounded-full h-0.5 mt-1.5">
-                                    <div 
-                                      className="bg-emerald-400 h-0.5 rounded-full transition-all duration-700"
-                                      style={{ width: `${stats.total > 0 ? Math.round(((stats.total - stats.suspected) / stats.total) * 100) : 0}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
+                              {/* Secondary Metrics Row */}
+                              <div className="flex items-center gap-3 pl-[calc(25%+12px)]">
 
-                              {/* Row 3: Not Diagnosed (below Diagnosed) */}
-                              <div className="flex items-start gap-2 pl-[calc(16.666%*4)]">
-                                {/* Not Diagnosed */}
-                                <div className="flex flex-col items-center gap-1 flex-1">
-                                  <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-800">{(stats.referralDone - stats.diagnosed).toLocaleString()}</span>
-                                  <span className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Not Diagnosed</span>
-                                  <div className="w-full bg-slate-200 rounded-full h-0.5 mt-1.5">
-                                    <div 
-                                      className="bg-red-400 h-0.5 rounded-full transition-all duration-700"
-                                      style={{ width: `${stats.referralDone > 0 ? Math.round(((stats.referralDone - stats.diagnosed) / stats.referralDone) * 100) : 0}%` }}
-                                    />
+                                {/* Not Suspected Card */}
+                                <div className="flex-1 group">
+                                  <div className="relative bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-3 border border-green-200 shadow-sm hover:shadow-lg hover:shadow-green-100/50 transition-all duration-300 group-hover:border-green-300">
+                                    <div className="text-2xl font-bold text-green-900 tabular-nums tracking-tight mb-1">{(stats.total - stats.suspected).toLocaleString()}</div>
+                                    <div className="text-[9px] font-semibold text-green-700 uppercase tracking-wider">Not Suspected</div>
+                                    <div className="mt-2 h-1 bg-green-200 rounded-full overflow-hidden">
+                                      <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${stats.total > 0 ? Math.round(((stats.total - stats.suspected) / stats.total) * 100) : 0}%` }}
+                                        transition={{ duration: 1, ease: "easeOut" }}
+                                        className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full"
+                                      />
+                                    </div>
                                   </div>
                                 </div>
+
+                                {/* Not Diagnosed Card */}
+                                <div className="flex-1 group">
+                                  <div className="relative bg-gradient-to-br from-red-50 to-rose-50 rounded-2xl p-3 border border-red-200 shadow-sm hover:shadow-lg hover:shadow-red-100/50 transition-all duration-300 group-hover:border-red-300">
+                                    <div className="text-2xl font-bold text-red-900 tabular-nums tracking-tight mb-1">{(stats.referralDone - stats.diagnosed).toLocaleString()}</div>
+                                    <div className="text-[9px] font-semibold text-red-700 uppercase tracking-wider">Not Diagnosed</div>
+                                    <div className="mt-2 h-1 bg-red-200 rounded-full overflow-hidden">
+                                      <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${stats.referralDone > 0 ? Math.round(((stats.referralDone - stats.diagnosed) / stats.referralDone) * 100) : 0}%` }}
+                                        transition={{ duration: 1, ease: "easeOut" }}
+                                        className="h-full bg-gradient-to-r from-red-400 to-rose-500 rounded-full"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+
                               </div>
 
                             </div>

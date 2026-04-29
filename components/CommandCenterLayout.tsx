@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, ReactNode, MouseEvent } from 'react';
+import { useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, Layers, X, BarChart3, Trophy, Globe, Maximize2, Settings, Search, Cpu, Database, ChevronLeft, ChevronRight, Activity, AlertCircle, ChevronDown, Sparkles, Send, Compass } from 'lucide-react';
 import { useUniversalFilter } from '@/contexts/FilterContext';
@@ -150,7 +150,7 @@ export function CommandCenterLayout({
   };
 
   // Draggable AI Brief functionality
-  const handleDragStart = (e: MouseEvent) => {
+  const handleDragStart = (e: React.MouseEvent) => {
     setIsDragging(true);
     dragStartPos.current = {
       x: e.clientX - aiBriefPosition.x,
@@ -158,7 +158,7 @@ export function CommandCenterLayout({
     };
   };
 
-  const handleDragMove = useCallback((e: MouseEvent) => {
+  const handleDragMove = useCallback((e: globalThis.MouseEvent) => {
     if (!isDragging) return;
     setAiBriefPosition({
       x: e.clientX - dragStartPos.current.x,
@@ -1495,11 +1495,6 @@ export function CommandCenterLayout({
           </div>
         </div>
       )}
-            </motion.div>
-            )}
-          </>
-        )}
-      </AnimatePresence>
 
     </div>
   );
