@@ -1569,8 +1569,8 @@ export default function Vertex({
 
                     return (
                       <div className="flex flex-col flex-1 min-h-0">
-                        {/* Premium Care Cascade - Award-Winning Aesthetic */}
-                        <div className="flex-shrink-0 px-6 py-6">
+                        {/* Premium Care Cascade - Production-Grade Responsive Grid */}
+                        <div className="flex-shrink-0 px-6 py-6 overflow-hidden">
                             <div className="flex items-center justify-between mb-8">
                               <div>
                                 <h4 className="text-xl font-bold text-slate-900 tracking-widest uppercase">Care Cascade</h4>
@@ -1579,17 +1579,17 @@ export default function Vertex({
                               <div className="text-sm text-slate-700 font-semibold">{monthName} {year}</div>
                             </div>
                             
-                            <div className="flex flex-col gap-5">
+                            <div className="flex flex-col gap-6">
 
-                              {/* Main Cascade Row with Enhanced Analytics */}
-                              <div className="flex items-center gap-2">
+                              {/* Main Cascade Grid - Responsive Layout */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
 
                                 {/* Screened Card */}
-                                <div className="flex-1 group cursor-pointer">
-                                  <div className="relative bg-white/70 backdrop-blur-xl rounded-2xl p-5 border border-white/40 shadow-lg hover:shadow-2xl hover:shadow-slate-200/60 transition-all duration-300 group-hover:border-white/60 group-hover:-translate-y-1 overflow-hidden">
+                                <div className="group cursor-pointer" data-state="complete">
+                                  <div className="relative h-full bg-white/70 backdrop-blur-xl rounded-2xl p-5 border border-white/40 shadow-lg hover:shadow-2xl hover:shadow-slate-200/60 transition-all duration-300 group-hover:border-white/60 group-hover:-translate-y-0.5 overflow-hidden">
                                     <div className="absolute inset-0 bg-gradient-to-br from-slate-50/50 to-white/30" />
-                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-slate-500 to-slate-600 rounded-t-2xl" />
-                                    <div className="relative z-10 flex items-start justify-between mb-2">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-slate-500 to-slate-600 rounded-t-2xl" />
+                                    <div className="relative z-10 flex items-start justify-between mb-3">
                                       <div>
                                         <div className="text-4xl font-bold text-slate-900 tabular-nums tracking-tight">{stats.total.toLocaleString()}</div>
                                         <div className="text-xs font-semibold text-slate-800 uppercase tracking-wider mt-1">Screened</div>
@@ -1613,30 +1613,26 @@ export default function Vertex({
                                       <div className="text-[9px] text-slate-600 font-medium">Conversion Rate</div>
                                       <div className="text-[10px] font-bold text-slate-800">100%</div>
                                     </div>
-                                  </div>
-                                </div>
-
-                                {/* Connector Arrow with Stats */}
-                                <div className="flex flex-col items-center justify-center px-1.5 py-2">
-                                  <div className="flex flex-col items-center">
-                                    <div className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
-                                      {(() => {
-                                        const pct = stats.total > 0 ? Math.round((stats.suspected / stats.total) * 100) : 0;
-                                        return stats.suspected === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
-                                      })()}
+                                    <div className="relative z-10 mt-3 pt-3 border-t border-slate-200/50">
+                                      <div className="flex items-center justify-between">
+                                        <div className="text-[8px] text-slate-500 font-medium">Flow to Suspected</div>
+                                        <div className="text-[10px] font-bold text-slate-700">
+                                          {(() => {
+                                            const pct = stats.total > 0 ? Math.round((stats.suspected / stats.total) * 100) : 0;
+                                            return stats.suspected === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
+                                          })()}
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div className="text-[7px] text-slate-400 mt-0.5">suspected rate</div>
                                   </div>
-                                  <ChevronRightIcon className="w-5 h-5 text-slate-400 my-1" />
-                                  <div className="text-[8px] text-slate-400 font-medium">flow</div>
                                 </div>
 
                                 {/* Suspected Card */}
-                                <div className="flex-1 group cursor-pointer">
-                                  <div className="relative bg-amber-50/70 backdrop-blur-xl rounded-2xl p-5 border border-amber-200/60 shadow-lg hover:shadow-2xl hover:shadow-amber-200/60 transition-all duration-300 group-hover:border-amber-300/80 group-hover:-translate-y-1 overflow-hidden">
+                                <div className="group cursor-pointer" data-state="current">
+                                  <div className="relative h-full bg-amber-50/70 backdrop-blur-xl rounded-2xl p-5 border border-amber-200/60 shadow-lg hover:shadow-2xl hover:shadow-amber-200/60 transition-all duration-300 group-hover:border-amber-300/80 group-hover:-translate-y-0.5 overflow-hidden">
                                     <div className="absolute inset-0 bg-gradient-to-br from-amber-50/50 to-orange-50/30" />
-                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-t-2xl" />
-                                    <div className="relative z-10 flex items-start justify-between mb-2">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-orange-500 rounded-t-2xl" />
+                                    <div className="relative z-10 flex items-start justify-between mb-3">
                                       <div>
                                         <div className="text-4xl font-bold text-amber-900 tabular-nums tracking-tight">{stats.suspected.toLocaleString()}</div>
                                         <div className="text-xs font-semibold text-amber-800 uppercase tracking-wider mt-1">Suspected</div>
@@ -1665,30 +1661,26 @@ export default function Vertex({
                                         })()}
                                       </div>
                                     </div>
-                                  </div>
-                                </div>
-
-                                {/* Connector Arrow */}
-                                <div className="flex flex-col items-center justify-center px-1.5 py-2">
-                                  <div className="flex flex-col items-center">
-                                    <div className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
-                                      {(() => {
-                                        const pct = stats.suspected > 0 ? Math.round((stats.referralDone / stats.suspected) * 100) : 0;
-                                        return stats.referralDone === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
-                                      })()}
+                                    <div className="relative z-10 mt-3 pt-3 border-t border-amber-200/50">
+                                      <div className="flex items-center justify-between">
+                                        <div className="text-[8px] text-slate-500 font-medium">Flow to Referred</div>
+                                        <div className="text-[10px] font-bold text-amber-700">
+                                          {(() => {
+                                            const pct = stats.suspected > 0 ? Math.round((stats.referralDone / stats.suspected) * 100) : 0;
+                                            return stats.referralDone === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
+                                          })()}
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div className="text-[7px] text-slate-400 mt-0.5">referral rate</div>
                                   </div>
-                                  <ChevronRightIcon className="w-5 h-5 text-slate-400 my-1" />
-                                  <div className="text-[8px] text-slate-400 font-medium">flow</div>
                                 </div>
 
                                 {/* Referred Card */}
-                                <div className="flex-1 group cursor-pointer">
-                                  <div className="relative bg-blue-50/70 backdrop-blur-xl rounded-2xl p-5 border border-blue-200/60 shadow-lg hover:shadow-2xl hover:shadow-blue-200/60 transition-all duration-300 group-hover:border-blue-300/80 group-hover:-translate-y-1 overflow-hidden">
+                                <div className="group cursor-pointer" data-state="complete">
+                                  <div className="relative h-full bg-blue-50/70 backdrop-blur-xl rounded-2xl p-5 border border-blue-200/60 shadow-lg hover:shadow-2xl hover:shadow-blue-200/60 transition-all duration-300 group-hover:border-blue-300/80 group-hover:-translate-y-0.5 overflow-hidden">
                                     <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-indigo-50/30" />
-                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-t-2xl" />
-                                    <div className="relative z-10 flex items-start justify-between mb-2">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-t-2xl" />
+                                    <div className="relative z-10 flex items-start justify-between mb-3">
                                       <div>
                                         <div className="text-4xl font-bold text-blue-900 tabular-nums tracking-tight">{stats.referralDone.toLocaleString()}</div>
                                         <div className="text-xs font-semibold text-blue-800 uppercase tracking-wider mt-1">Referred</div>
@@ -1717,30 +1709,26 @@ export default function Vertex({
                                         })()}
                                       </div>
                                     </div>
-                                  </div>
-                                </div>
-
-                                {/* Connector Arrow */}
-                                <div className="flex flex-col items-center justify-center px-1.5 py-2">
-                                  <div className="flex flex-col items-center">
-                                    <div className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
-                                      {(() => {
-                                        const pct = stats.referralDone > 0 ? Math.round((stats.diagnosed / stats.referralDone) * 100) : 0;
-                                        return stats.diagnosed === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
-                                      })()}
+                                    <div className="relative z-10 mt-3 pt-3 border-t border-blue-200/50">
+                                      <div className="flex items-center justify-between">
+                                        <div className="text-[8px] text-slate-500 font-medium">Flow to Diagnosed</div>
+                                        <div className="text-[10px] font-bold text-blue-700">
+                                          {(() => {
+                                            const pct = stats.referralDone > 0 ? Math.round((stats.diagnosed / stats.referralDone) * 100) : 0;
+                                            return stats.diagnosed === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
+                                          })()}
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div className="text-[7px] text-slate-400 mt-0.5">diagnosis rate</div>
                                   </div>
-                                  <ChevronRightIcon className="w-5 h-5 text-slate-400 my-1" />
-                                  <div className="text-[8px] text-slate-400 font-medium">flow</div>
                                 </div>
 
                                 {/* Diagnosed Card */}
-                                <div className="flex-1 group cursor-pointer">
-                                  <div className="relative bg-emerald-50/70 backdrop-blur-xl rounded-2xl p-5 border border-emerald-200/60 shadow-lg hover:shadow-2xl hover:shadow-emerald-200/60 transition-all duration-300 group-hover:border-emerald-300/80 group-hover:-translate-y-1 overflow-hidden">
+                                <div className="group cursor-pointer" data-state="complete">
+                                  <div className="relative h-full bg-emerald-50/70 backdrop-blur-xl rounded-2xl p-5 border border-emerald-200/60 shadow-lg hover:shadow-2xl hover:shadow-emerald-200/60 transition-all duration-300 group-hover:border-emerald-300/80 group-hover:-translate-y-0.5 overflow-hidden">
                                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-green-50/30" />
-                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 to-green-500 rounded-t-2xl" />
-                                    <div className="relative z-10 flex items-start justify-between mb-2">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-green-500 rounded-t-2xl" />
+                                    <div className="relative z-10 flex items-start justify-between mb-3">
                                       <div>
                                         <div className="text-4xl font-bold text-emerald-900 tabular-nums tracking-tight">{stats.diagnosed.toLocaleString()}</div>
                                         <div className="text-xs font-semibold text-emerald-800 uppercase tracking-wider mt-1">Diagnosed</div>
@@ -1769,30 +1757,26 @@ export default function Vertex({
                                         })()}
                                       </div>
                                     </div>
-                                  </div>
-                                </div>
-
-                                {/* Connector Arrow */}
-                                <div className="flex flex-col items-center justify-center px-1.5 py-2">
-                                  <div className="flex flex-col items-center">
-                                    <div className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
-                                      {(() => {
-                                        const pct = stats.diagnosed > 0 ? Math.round((stats.attStarted / stats.diagnosed) * 100) : 0;
-                                        return stats.attStarted === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
-                                      })()}
+                                    <div className="relative z-10 mt-3 pt-3 border-t border-emerald-200/50">
+                                      <div className="flex items-center justify-between">
+                                        <div className="text-[8px] text-slate-500 font-medium">Flow to Treatment</div>
+                                        <div className="text-[10px] font-bold text-emerald-700">
+                                          {(() => {
+                                            const pct = stats.diagnosed > 0 ? Math.round((stats.attStarted / stats.diagnosed) * 100) : 0;
+                                            return stats.attStarted === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
+                                          })()}
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div className="text-[7px] text-slate-400 mt-0.5">treatment rate</div>
                                   </div>
-                                  <ChevronRightIcon className="w-5 h-5 text-slate-400 my-1" />
-                                  <div className="text-[8px] text-slate-400 font-medium">flow</div>
                                 </div>
 
                                 {/* ATT Started Card */}
-                                <div className="flex-1 group cursor-pointer">
-                                  <div className="relative bg-purple-50/70 backdrop-blur-xl rounded-2xl p-5 border border-purple-200/60 shadow-lg hover:shadow-2xl hover:shadow-purple-200/60 transition-all duration-300 group-hover:border-purple-300/80 group-hover:-translate-y-1 overflow-hidden">
+                                <div className="group cursor-pointer" data-state="complete">
+                                  <div className="relative h-full bg-purple-50/70 backdrop-blur-xl rounded-2xl p-5 border border-purple-200/60 shadow-lg hover:shadow-2xl hover:shadow-purple-200/60 transition-all duration-300 group-hover:border-purple-300/80 group-hover:-translate-y-0.5 overflow-hidden">
                                     <div className="absolute inset-0 bg-gradient-to-br from-purple-50/50 to-violet-50/30" />
-                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-500 to-violet-500 rounded-t-2xl" />
-                                    <div className="relative z-10 flex items-start justify-between mb-2">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-violet-500 rounded-t-2xl" />
+                                    <div className="relative z-10 flex items-start justify-between mb-3">
                                       <div>
                                         <div className="text-4xl font-bold text-purple-900 tabular-nums tracking-tight">{stats.attStarted.toLocaleString()}</div>
                                         <div className="text-xs font-semibold text-purple-800 uppercase tracking-wider mt-1">ATT Started</div>
@@ -1826,26 +1810,27 @@ export default function Vertex({
 
                               </div>
 
-                              {/* Secondary Metrics Row */}
-                              <div className="flex items-center gap-3 pl-[calc(20%+8px)]">
+                              {/* Secondary Metrics Grid */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                                 {/* Not Suspected Card */}
-                                <div className="flex-1 group cursor-pointer">
-                                  <div className="relative bg-green-50/70 backdrop-blur-xl rounded-2xl p-4 border border-green-200/60 shadow-lg hover:shadow-2xl hover:shadow-green-200/60 transition-all duration-300 group-hover:border-green-300/80 group-hover:-translate-y-1 overflow-hidden">
+                                <div className="group cursor-pointer" data-state="pending">
+                                  <div className="relative h-full bg-green-50/70 backdrop-blur-xl rounded-2xl p-5 border border-green-200/60 shadow-lg hover:shadow-2xl hover:shadow-green-200/60 transition-all duration-300 group-hover:border-green-300/80 group-hover:-translate-y-0.5 overflow-hidden">
                                     <div className="absolute inset-0 bg-gradient-to-br from-green-50/50 to-emerald-50/30" />
-                                    <div className="relative z-10 flex items-start justify-between mb-2">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-t-2xl" />
+                                    <div className="relative z-10 flex items-start justify-between mb-3">
                                       <div>
-                                        <div className="text-3xl font-bold text-green-900 tabular-nums tracking-tight">{(stats.total - stats.suspected).toLocaleString()}</div>
-                                        <div className="text-[10px] font-semibold text-green-800 uppercase tracking-wider mt-1">Not Suspected</div>
+                                        <div className="text-4xl font-bold text-green-900 tabular-nums tracking-tight">{(stats.total - stats.suspected).toLocaleString()}</div>
+                                        <div className="text-xs font-semibold text-green-800 uppercase tracking-wider mt-1">Not Suspected</div>
                                       </div>
-                                      <div className="text-[9px] font-bold text-green-600 bg-green-100/80 px-2 py-0.5 rounded-full">
+                                      <div className="text-[10px] font-bold text-green-600 bg-green-100/80 px-2 py-0.5 rounded-full">
                                         {(() => {
                                           const pct = stats.total > 0 ? (((stats.total - stats.suspected) / stats.total) * 100).toFixed(1) : 0;
                                           return `${pct}%`;
                                         })()}
                                       </div>
                                     </div>
-                                    <div className="relative z-10 h-1.5 bg-green-200/60 rounded-full overflow-hidden">
+                                    <div className="relative z-10 h-2 bg-green-200/60 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ width: 0 }}
                                         animate={{ width: `${stats.total > 0 ? Math.round(((stats.total - stats.suspected) / stats.total) * 100) : 0}%` }}
@@ -1855,26 +1840,36 @@ export default function Vertex({
                                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
                                       </motion.div>
                                     </div>
+                                    <div className="relative z-10 mt-3 flex items-center justify-between">
+                                      <div className="text-[9px] text-slate-600 font-medium">Screened Negative</div>
+                                      <div className="text-[10px] font-bold text-green-800">
+                                        {(() => {
+                                          const pct = stats.total > 0 ? (((stats.total - stats.suspected) / stats.total) * 100).toFixed(1) : 0;
+                                          return `${pct}%`;
+                                        })()}
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
 
                                 {/* Not Diagnosed Card */}
-                                <div className="flex-1 group cursor-pointer">
-                                  <div className="relative bg-red-50/70 backdrop-blur-xl rounded-2xl p-4 border border-red-200/60 shadow-lg hover:shadow-2xl hover:shadow-red-200/60 transition-all duration-300 group-hover:border-red-300/80 group-hover:-translate-y-1 overflow-hidden">
+                                <div className="group cursor-pointer" data-state="pending">
+                                  <div className="relative h-full bg-red-50/70 backdrop-blur-xl rounded-2xl p-5 border border-red-200/60 shadow-lg hover:shadow-2xl hover:shadow-red-200/60 transition-all duration-300 group-hover:border-red-300/80 group-hover:-translate-y-0.5 overflow-hidden">
                                     <div className="absolute inset-0 bg-gradient-to-br from-red-50/50 to-rose-50/30" />
-                                    <div className="relative z-10 flex items-start justify-between mb-2">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-rose-500 rounded-t-2xl" />
+                                    <div className="relative z-10 flex items-start justify-between mb-3">
                                       <div>
-                                        <div className="text-3xl font-bold text-red-900 tabular-nums tracking-tight">{(stats.referralDone - stats.diagnosed).toLocaleString()}</div>
-                                        <div className="text-[10px] font-semibold text-red-800 uppercase tracking-wider mt-1">Not Diagnosed</div>
+                                        <div className="text-4xl font-bold text-red-900 tabular-nums tracking-tight">{(stats.referralDone - stats.diagnosed).toLocaleString()}</div>
+                                        <div className="text-xs font-semibold text-red-800 uppercase tracking-wider mt-1">Not Diagnosed</div>
                                       </div>
-                                      <div className="text-[9px] font-bold text-red-600 bg-red-100/80 px-2 py-0.5 rounded-full">
+                                      <div className="text-[10px] font-bold text-red-600 bg-red-100/80 px-2 py-0.5 rounded-full">
                                         {(() => {
                                           const pct = stats.referralDone > 0 ? (((stats.referralDone - stats.diagnosed) / stats.referralDone) * 100).toFixed(1) : 0;
                                           return `${pct}%`;
                                         })()}
                                       </div>
                                     </div>
-                                    <div className="relative z-10 h-1.5 bg-red-200/60 rounded-full overflow-hidden">
+                                    <div className="relative z-10 h-2 bg-red-200/60 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ width: 0 }}
                                         animate={{ width: `${stats.referralDone > 0 ? Math.round(((stats.referralDone - stats.diagnosed) / stats.referralDone) * 100) : 0}%` }}
@@ -1883,6 +1878,15 @@ export default function Vertex({
                                       >
                                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
                                       </motion.div>
+                                    </div>
+                                    <div className="relative z-10 mt-3 flex items-center justify-between">
+                                      <div className="text-[9px] text-slate-600 font-medium">Referral Negative</div>
+                                      <div className="text-[10px] font-bold text-red-800">
+                                        {(() => {
+                                          const pct = stats.referralDone > 0 ? (((stats.referralDone - stats.diagnosed) / stats.referralDone) * 100).toFixed(1) : 0;
+                                          return `${pct}%`;
+                                        })()}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
