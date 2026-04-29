@@ -900,21 +900,19 @@ export function CommandCenterLayout({
             />
           </div>
           
-          <AnimatePresence>
-            {isGeographyMatrixOpen && (
-              <motion.div
-                initial={{ x: -400, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -400, opacity: 0 }}
-                transition={{ 
-                  type: 'spring',
-                  stiffness: 400,
-                  damping: 25,
-                  mass: 0.8,
-                  velocity: 50
-                }}
-                className="flex-1 border-r border-white/5 flex flex-col bg-gradient-to-b from-[#080808] to-[#030303] relative overflow-hidden"
-              >
+          <motion.div
+            initial={{ x: -400, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -400, opacity: 0 }}
+            transition={{ 
+              type: 'spring',
+              stiffness: 400,
+              damping: 25,
+              mass: 0.8,
+              velocity: 50
+            }}
+            className="flex-1 border-r border-white/5 flex flex-col bg-gradient-to-b from-[#080808] to-[#030303] relative overflow-hidden"
+          >
           {/* Subtle dot pattern */}
           <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
                style={{ backgroundImage: 'radial-gradient(circle, #444 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
@@ -1083,9 +1081,9 @@ export function CommandCenterLayout({
                 </button>
               </div>
             </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+          </div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* AI BRIEF - Floating by default, draggable */}
@@ -1476,8 +1474,6 @@ export function CommandCenterLayout({
           </div>
         </div>
       )}
-
-      </div>
     </div>
   );
 }
