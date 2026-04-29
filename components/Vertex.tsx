@@ -1927,7 +1927,6 @@ export default function Vertex({
                             </p>
                           </div>
                         </div>
-                      </div>
                     );
                   })()}
                 </motion.div>
