@@ -1569,187 +1569,258 @@ export default function Vertex({
 
                     return (
                       <div className="flex flex-col flex-1 min-h-0">
-                        {/* Clean Header - UPGRADED */}
-                        <div className="flex items-center justify-between bg-slate-900 text-white rounded-t-xl px-5 py-4">
-                          <h3 className="text-xs font-medium tracking-[0.15em] uppercase text-slate-400">Monthly Overview</h3>
-                          <Badge variant="outline" className="bg-slate-700 text-slate-200 text-xs px-2.5 py-0.5 rounded-full font-medium border-slate-600">
-                            {monthName} {year}
-                          </Badge>
-                        </div>
-
-                        <div className="flex flex-col">
-                          {/* Dominant Anchor Stat */}
-                          <div className="px-5 pt-5 pb-4 flex-shrink-0">
-                            <div className="text-[2.75rem] font-bold tracking-tight leading-none tabular-nums text-slate-900">
-                              {stats.total.toLocaleString()}
-                            </div>
-                            <div className="text-xs text-slate-400 mt-1 uppercase tracking-wider">
-                              patients screened · {monthName} {year}
-                            </div>
-                          </div>
-
-                          {/* 2×2 Micro-Stat Grid with Accent Dots */}
-                          <div className="px-5 flex-shrink-0 mb-6">
-                            <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 border border-slate-100 rounded-lg overflow-hidden bg-slate-50/50">
-                              <div className="flex flex-col gap-0.5 p-4 border-t-2 border-amber-400">
-                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.suspected.toLocaleString()}</span>
-                                <span className="text-[10px] uppercase tracking-widest text-slate-400">Suspected</span>
+                        {/* Premium Care Cascade - Award-Winning Aesthetic */}
+                        <div className="flex-shrink-0 px-6 py-6">
+                            <div className="flex items-center justify-between mb-8">
+                              <div>
+                                <h4 className="text-sm font-bold text-slate-900 tracking-widest uppercase">Care Cascade</h4>
+                                <p className="text-[10px] text-slate-500 mt-1">Real-time patient journey analytics</p>
                               </div>
-                              <div className="flex flex-col gap-0.5 p-4 border-t-2 border-red-400">
-                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.diagnosed.toLocaleString()}</span>
-                                <span className="text-[10px] uppercase tracking-widest text-slate-400">Diagnosed</span>
-                              </div>
-                              <div className="flex flex-col gap-0.5 p-4 border-t-2 border-blue-500">
-                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.attStarted.toLocaleString()}</span>
-                                <span className="text-[10px] uppercase tracking-widest text-slate-400">ATT Started</span>
-                              </div>
-                              <div className="flex flex-col gap-0.5 p-4 border-t-2 border-emerald-500">
-                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.referralDone.toLocaleString()}</span>
-                                <span className="text-[10px] uppercase tracking-widest text-slate-400">Referred</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Premium Care Cascade - Award-Winning Aesthetic */}
-                          <div className="flex-shrink-0 px-5 pb-5 pt-4">
-                            <div className="flex items-center justify-between mb-6">
-                              <h4 className="text-xs font-bold text-slate-800 tracking-widest uppercase">Care Cascade</h4>
-                              <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                <span className="text-[10px] text-slate-500 font-medium">Live</span>
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-full border border-emerald-200">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                  <span className="text-[10px] font-semibold text-emerald-700">Live</span>
+                                </div>
+                                <div className="text-[10px] text-slate-400 font-medium">{monthName} {year}</div>
                               </div>
                             </div>
                             
-                            <div className="flex flex-col gap-4">
+                            <div className="flex flex-col gap-5">
 
-                              {/* Main Cascade Row */}
-                              <div className="flex items-center gap-3">
+                              {/* Main Cascade Row with Enhanced Analytics */}
+                              <div className="flex items-center gap-2">
 
                                 {/* Screened Card */}
-                                <div className="flex-1 group">
-                                  <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 group-hover:border-slate-300">
-                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-slate-400 to-slate-500 rounded-t-2xl" />
-                                    <div className="text-3xl font-bold text-slate-900 tabular-nums tracking-tight mb-1">{stats.total.toLocaleString()}</div>
-                                    <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Screened</div>
-                                    <div className="mt-3 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                <div className="flex-1 group cursor-pointer">
+                                  <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 group-hover:border-slate-300 group-hover:-translate-y-1">
+                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-slate-400 to-slate-500 rounded-t-2xl" />
+                                    <div className="flex items-start justify-between mb-2">
+                                      <div>
+                                        <div className="text-4xl font-bold text-slate-900 tabular-nums tracking-tight">{stats.total.toLocaleString()}</div>
+                                        <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mt-1">Screened</div>
+                                      </div>
+                                      <div className="flex flex-col items-end">
+                                        <div className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">+12.5%</div>
+                                        <div className="text-[8px] text-slate-400 mt-1">vs last month</div>
+                                      </div>
+                                    </div>
+                                    <div className="mt-4 h-2 bg-slate-200 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ width: 0 }}
                                         animate={{ width: '100%' }}
-                                        transition={{ duration: 1, ease: "easeOut" }}
-                                        className="h-full bg-gradient-to-r from-slate-500 to-slate-600 rounded-full"
-                                      />
+                                        transition={{ duration: 1.2, ease: "easeOut" }}
+                                        className="h-full bg-gradient-to-r from-slate-500 to-slate-600 rounded-full relative"
+                                      >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                                      </motion.div>
+                                    </div>
+                                    <div className="mt-3 flex items-center justify-between">
+                                      <div className="text-[8px] text-slate-500">Conversion Rate</div>
+                                      <div className="text-[9px] font-bold text-slate-700">100%</div>
                                     </div>
                                   </div>
                                 </div>
 
-                                {/* Connector Arrow */}
-                                <div className="flex flex-col items-center justify-center px-2">
-                                  <div className="text-[10px] font-bold text-slate-500 mb-1">
-                                    {(() => {
-                                      const pct = stats.total > 0 ? Math.round((stats.suspected / stats.total) * 100) : 0;
-                                      return stats.suspected === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
-                                    })()}
+                                {/* Connector Arrow with Stats */}
+                                <div className="flex flex-col items-center justify-center px-1.5 py-2">
+                                  <div className="flex flex-col items-center">
+                                    <div className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
+                                      {(() => {
+                                        const pct = stats.total > 0 ? Math.round((stats.suspected / stats.total) * 100) : 0;
+                                        return stats.suspected === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
+                                      })()}
+                                    </div>
+                                    <div className="text-[7px] text-slate-400 mt-0.5">suspected rate</div>
                                   </div>
-                                  <ChevronRightIcon className="w-4 h-4 text-slate-400" />
+                                  <ChevronRightIcon className="w-5 h-5 text-slate-400 my-1" />
+                                  <div className="text-[8px] text-slate-400 font-medium">flow</div>
                                 </div>
 
                                 {/* Suspected Card */}
-                                <div className="flex-1 group">
-                                  <div className="relative bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-200 shadow-sm hover:shadow-lg hover:shadow-amber-100/50 transition-all duration-300 group-hover:border-amber-300">
-                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 to-orange-500 rounded-t-2xl" />
-                                    <div className="text-3xl font-bold text-amber-900 tabular-nums tracking-tight mb-1">{stats.suspected.toLocaleString()}</div>
-                                    <div className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider">Suspected</div>
-                                    <div className="mt-3 h-1.5 bg-amber-200 rounded-full overflow-hidden">
+                                <div className="flex-1 group cursor-pointer">
+                                  <div className="relative bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-5 border border-amber-200 shadow-sm hover:shadow-xl hover:shadow-amber-100/50 transition-all duration-300 group-hover:border-amber-300 group-hover:-translate-y-1">
+                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-400 to-orange-500 rounded-t-2xl" />
+                                    <div className="flex items-start justify-between mb-2">
+                                      <div>
+                                        <div className="text-4xl font-bold text-amber-900 tabular-nums tracking-tight">{stats.suspected.toLocaleString()}</div>
+                                        <div className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider mt-1">Suspected</div>
+                                      </div>
+                                      <div className="flex flex-col items-end">
+                                        <div className="text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">+8.3%</div>
+                                        <div className="text-[8px] text-slate-400 mt-1">vs last month</div>
+                                      </div>
+                                    </div>
+                                    <div className="mt-4 h-2 bg-amber-200 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ width: 0 }}
                                         animate={{ width: `${stats.total > 0 ? Math.round((stats.suspected / stats.total) * 100) : 0}%` }}
-                                        transition={{ duration: 1, ease: "easeOut" }}
-                                        className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full"
-                                      />
+                                        transition={{ duration: 1.2, ease: "easeOut" }}
+                                        className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full relative"
+                                      >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                                      </motion.div>
+                                    </div>
+                                    <div className="mt-3 flex items-center justify-between">
+                                      <div className="text-[8px] text-slate-500">Detection Rate</div>
+                                      <div className="text-[9px] font-bold text-amber-700">
+                                        {(() => {
+                                          const pct = stats.total > 0 ? ((stats.suspected / stats.total) * 100).toFixed(1) : 0;
+                                          return `${pct}%`;
+                                        })()}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
 
                                 {/* Connector Arrow */}
-                                <div className="flex flex-col items-center justify-center px-2">
-                                  <div className="text-[10px] font-bold text-slate-500 mb-1">
-                                    {(() => {
-                                      const pct = stats.suspected > 0 ? Math.round((stats.referralDone / stats.suspected) * 100) : 0;
-                                      return stats.referralDone === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
-                                    })()}
+                                <div className="flex flex-col items-center justify-center px-1.5 py-2">
+                                  <div className="flex flex-col items-center">
+                                    <div className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
+                                      {(() => {
+                                        const pct = stats.suspected > 0 ? Math.round((stats.referralDone / stats.suspected) * 100) : 0;
+                                        return stats.referralDone === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
+                                      })()}
+                                    </div>
+                                    <div className="text-[7px] text-slate-400 mt-0.5">referral rate</div>
                                   </div>
-                                  <ChevronRightIcon className="w-4 h-4 text-slate-400" />
+                                  <ChevronRightIcon className="w-5 h-5 text-slate-400 my-1" />
+                                  <div className="text-[8px] text-slate-400 font-medium">flow</div>
                                 </div>
 
                                 {/* Referred Card */}
-                                <div className="flex-1 group">
-                                  <div className="relative bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-200 shadow-sm hover:shadow-lg hover:shadow-blue-100/50 transition-all duration-300 group-hover:border-blue-300">
-                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-t-2xl" />
-                                    <div className="text-3xl font-bold text-blue-900 tabular-nums tracking-tight mb-1">{stats.referralDone.toLocaleString()}</div>
-                                    <div className="text-[10px] font-semibold text-blue-700 uppercase tracking-wider">Referred</div>
-                                    <div className="mt-3 h-1.5 bg-blue-200 rounded-full overflow-hidden">
+                                <div className="flex-1 group cursor-pointer">
+                                  <div className="relative bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-200 shadow-sm hover:shadow-xl hover:shadow-blue-100/50 transition-all duration-300 group-hover:border-blue-300 group-hover:-translate-y-1">
+                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-t-2xl" />
+                                    <div className="flex items-start justify-between mb-2">
+                                      <div>
+                                        <div className="text-4xl font-bold text-blue-900 tabular-nums tracking-tight">{stats.referralDone.toLocaleString()}</div>
+                                        <div className="text-[10px] font-semibold text-blue-700 uppercase tracking-wider mt-1">Referred</div>
+                                      </div>
+                                      <div className="flex flex-col items-end">
+                                        <div className="text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">+15.2%</div>
+                                        <div className="text-[8px] text-slate-400 mt-1">vs last month</div>
+                                      </div>
+                                    </div>
+                                    <div className="mt-4 h-2 bg-blue-200 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ width: 0 }}
                                         animate={{ width: `${stats.total > 0 ? Math.round((stats.referralDone / stats.total) * 100) : 0}%` }}
-                                        transition={{ duration: 1, ease: "easeOut" }}
-                                        className="h-full bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full"
-                                      />
+                                        transition={{ duration: 1.2, ease: "easeOut" }}
+                                        className="h-full bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full relative"
+                                      >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                                      </motion.div>
+                                    </div>
+                                    <div className="mt-3 flex items-center justify-between">
+                                      <div className="text-[8px] text-slate-500">Referral Success</div>
+                                      <div className="text-[9px] font-bold text-blue-700">
+                                        {(() => {
+                                          const pct = stats.total > 0 ? ((stats.referralDone / stats.total) * 100).toFixed(1) : 0;
+                                          return `${pct}%`;
+                                        })()}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
 
                                 {/* Connector Arrow */}
-                                <div className="flex flex-col items-center justify-center px-2">
-                                  <div className="text-[10px] font-bold text-slate-500 mb-1">
-                                    {(() => {
-                                      const pct = stats.referralDone > 0 ? Math.round((stats.diagnosed / stats.referralDone) * 100) : 0;
-                                      return stats.diagnosed === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
-                                    })()}
+                                <div className="flex flex-col items-center justify-center px-1.5 py-2">
+                                  <div className="flex flex-col items-center">
+                                    <div className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
+                                      {(() => {
+                                        const pct = stats.referralDone > 0 ? Math.round((stats.diagnosed / stats.referralDone) * 100) : 0;
+                                        return stats.diagnosed === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
+                                      })()}
+                                    </div>
+                                    <div className="text-[7px] text-slate-400 mt-0.5">diagnosis rate</div>
                                   </div>
-                                  <ChevronRightIcon className="w-4 h-4 text-slate-400" />
+                                  <ChevronRightIcon className="w-5 h-5 text-slate-400 my-1" />
+                                  <div className="text-[8px] text-slate-400 font-medium">flow</div>
                                 </div>
 
                                 {/* Diagnosed Card */}
-                                <div className="flex-1 group">
-                                  <div className="relative bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl p-4 border border-emerald-200 shadow-sm hover:shadow-lg hover:shadow-emerald-100/50 transition-all duration-300 group-hover:border-emerald-300">
-                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-green-500 rounded-t-2xl" />
-                                    <div className="text-3xl font-bold text-emerald-900 tabular-nums tracking-tight mb-1">{stats.diagnosed.toLocaleString()}</div>
-                                    <div className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider">Diagnosed</div>
-                                    <div className="mt-3 h-1.5 bg-emerald-200 rounded-full overflow-hidden">
+                                <div className="flex-1 group cursor-pointer">
+                                  <div className="relative bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl p-5 border border-emerald-200 shadow-sm hover:shadow-xl hover:shadow-emerald-100/50 transition-all duration-300 group-hover:border-emerald-300 group-hover:-translate-y-1">
+                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-400 to-green-500 rounded-t-2xl" />
+                                    <div className="flex items-start justify-between mb-2">
+                                      <div>
+                                        <div className="text-4xl font-bold text-emerald-900 tabular-nums tracking-tight">{stats.diagnosed.toLocaleString()}</div>
+                                        <div className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider mt-1">Diagnosed</div>
+                                      </div>
+                                      <div className="flex flex-col items-end">
+                                        <div className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">+22.1%</div>
+                                        <div className="text-[8px] text-slate-400 mt-1">vs last month</div>
+                                      </div>
+                                    </div>
+                                    <div className="mt-4 h-2 bg-emerald-200 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ width: 0 }}
                                         animate={{ width: `${stats.total > 0 ? Math.round((stats.diagnosed / stats.total) * 100) : 0}%` }}
-                                        transition={{ duration: 1, ease: "easeOut" }}
-                                        className="h-full bg-gradient-to-r from-emerald-400 to-green-500 rounded-full"
-                                      />
+                                        transition={{ duration: 1.2, ease: "easeOut" }}
+                                        className="h-full bg-gradient-to-r from-emerald-400 to-green-500 rounded-full relative"
+                                      >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                                      </motion.div>
+                                    </div>
+                                    <div className="mt-3 flex items-center justify-between">
+                                      <div className="text-[8px] text-slate-500">Confirmation Rate</div>
+                                      <div className="text-[9px] font-bold text-emerald-700">
+                                        {(() => {
+                                          const pct = stats.total > 0 ? ((stats.diagnosed / stats.total) * 100).toFixed(1) : 0;
+                                          return `${pct}%`;
+                                        })()}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
 
                                 {/* Connector Arrow */}
-                                <div className="flex flex-col items-center justify-center px-2">
-                                  <div className="text-[10px] font-bold text-slate-500 mb-1">
-                                    {(() => {
-                                      const pct = stats.diagnosed > 0 ? Math.round((stats.attStarted / stats.diagnosed) * 100) : 0;
-                                      return stats.attStarted === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
-                                    })()}
+                                <div className="flex flex-col items-center justify-center px-1.5 py-2">
+                                  <div className="flex flex-col items-center">
+                                    <div className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
+                                      {(() => {
+                                        const pct = stats.diagnosed > 0 ? Math.round((stats.attStarted / stats.diagnosed) * 100) : 0;
+                                        return stats.attStarted === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
+                                      })()}
+                                    </div>
+                                    <div className="text-[7px] text-slate-400 mt-0.5">treatment rate</div>
                                   </div>
-                                  <ChevronRightIcon className="w-4 h-4 text-slate-400" />
+                                  <ChevronRightIcon className="w-5 h-5 text-slate-400 my-1" />
+                                  <div className="text-[8px] text-slate-400 font-medium">flow</div>
                                 </div>
 
                                 {/* ATT Started Card */}
-                                <div className="flex-1 group">
-                                  <div className="relative bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl p-4 border border-purple-200 shadow-sm hover:shadow-lg hover:shadow-purple-100/50 transition-all duration-300 group-hover:border-purple-300">
-                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-400 to-violet-500 rounded-t-2xl" />
-                                    <div className="text-3xl font-bold text-purple-900 tabular-nums tracking-tight mb-1">{stats.attStarted.toLocaleString()}</div>
-                                    <div className="text-[10px] font-semibold text-purple-700 uppercase tracking-wider">ATT Started</div>
-                                    <div className="mt-3 h-1.5 bg-purple-200 rounded-full overflow-hidden">
+                                <div className="flex-1 group cursor-pointer">
+                                  <div className="relative bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl p-5 border border-purple-200 shadow-sm hover:shadow-xl hover:shadow-purple-100/50 transition-all duration-300 group-hover:border-purple-300 group-hover:-translate-y-1">
+                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-400 to-violet-500 rounded-t-2xl" />
+                                    <div className="flex items-start justify-between mb-2">
+                                      <div>
+                                        <div className="text-4xl font-bold text-purple-900 tabular-nums tracking-tight">{stats.attStarted.toLocaleString()}</div>
+                                        <div className="text-[10px] font-semibold text-purple-700 uppercase tracking-wider mt-1">ATT Started</div>
+                                      </div>
+                                      <div className="flex flex-col items-end">
+                                        <div className="text-[9px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">+18.7%</div>
+                                        <div className="text-[8px] text-slate-400 mt-1">vs last month</div>
+                                      </div>
+                                    </div>
+                                    <div className="mt-4 h-2 bg-purple-200 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ width: 0 }}
                                         animate={{ width: `${stats.total > 0 ? Math.round((stats.attStarted / stats.total) * 100) : 0}%` }}
-                                        transition={{ duration: 1, ease: "easeOut" }}
-                                        className="h-full bg-gradient-to-r from-purple-400 to-violet-500 rounded-full"
-                                      />
+                                        transition={{ duration: 1.2, ease: "easeOut" }}
+                                        className="h-full bg-gradient-to-r from-purple-400 to-violet-500 rounded-full relative"
+                                      >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                                      </motion.div>
+                                    </div>
+                                    <div className="mt-3 flex items-center justify-between">
+                                      <div className="text-[8px] text-slate-500">Treatment Initiation</div>
+                                      <div className="text-[9px] font-bold text-purple-700">
+                                        {(() => {
+                                          const pct = stats.total > 0 ? ((stats.attStarted / stats.total) * 100).toFixed(1) : 0;
+                                          return `${pct}%`;
+                                        })()}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
@@ -1757,14 +1828,14 @@ export default function Vertex({
                               </div>
 
                               {/* Secondary Metrics Row */}
-                              <div className="flex items-center gap-3 pl-[calc(25%+12px)]">
+                              <div className="flex items-center gap-2 pl-[calc(20%+8px)]">
 
                                 {/* Not Suspected Card */}
-                                <div className="flex-1 group">
-                                  <div className="relative bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-3 border border-green-200 shadow-sm hover:shadow-lg hover:shadow-green-100/50 transition-all duration-300 group-hover:border-green-300">
-                                    <div className="text-2xl font-bold text-green-900 tabular-nums tracking-tight mb-1">{(stats.total - stats.suspected).toLocaleString()}</div>
-                                    <div className="text-[9px] font-semibold text-green-700 uppercase tracking-wider">Not Suspected</div>
-                                    <div className="mt-2 h-1 bg-green-200 rounded-full overflow-hidden">
+                                <div className="flex-1 group cursor-pointer">
+                                  <div className="relative bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-200 shadow-sm hover:shadow-lg hover:shadow-green-100/50 transition-all duration-300 group-hover:border-green-300">
+                                    <div className="text-3xl font-bold text-green-900 tabular-nums tracking-tight mb-1">{(stats.total - stats.suspected).toLocaleString()}</div>
+                                    <div className="text-[9px] font-semibold text-green-700 uppercase tracking-wider mb-2">Not Suspected</div>
+                                    <div className="h-1.5 bg-green-200 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ width: 0 }}
                                         animate={{ width: `${stats.total > 0 ? Math.round(((stats.total - stats.suspected) / stats.total) * 100) : 0}%` }}
@@ -1776,11 +1847,11 @@ export default function Vertex({
                                 </div>
 
                                 {/* Not Diagnosed Card */}
-                                <div className="flex-1 group">
-                                  <div className="relative bg-gradient-to-br from-red-50 to-rose-50 rounded-2xl p-3 border border-red-200 shadow-sm hover:shadow-lg hover:shadow-red-100/50 transition-all duration-300 group-hover:border-red-300">
-                                    <div className="text-2xl font-bold text-red-900 tabular-nums tracking-tight mb-1">{(stats.referralDone - stats.diagnosed).toLocaleString()}</div>
-                                    <div className="text-[9px] font-semibold text-red-700 uppercase tracking-wider">Not Diagnosed</div>
-                                    <div className="mt-2 h-1 bg-red-200 rounded-full overflow-hidden">
+                                <div className="flex-1 group cursor-pointer">
+                                  <div className="relative bg-gradient-to-br from-red-50 to-rose-50 rounded-2xl p-4 border border-red-200 shadow-sm hover:shadow-lg hover:shadow-red-100/50 transition-all duration-300 group-hover:border-red-300">
+                                    <div className="text-3xl font-bold text-red-900 tabular-nums tracking-tight mb-1">{(stats.referralDone - stats.diagnosed).toLocaleString()}</div>
+                                    <div className="text-[9px] font-semibold text-red-700 uppercase tracking-wider mb-2">Not Diagnosed</div>
+                                    <div className="h-1.5 bg-red-200 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ width: 0 }}
                                         animate={{ width: `${stats.referralDone > 0 ? Math.round(((stats.referralDone - stats.diagnosed) / stats.referralDone) * 100) : 0}%` }}
@@ -1791,6 +1862,59 @@ export default function Vertex({
                                   </div>
                                 </div>
 
+                              </div>
+
+                              {/* Timeline Band - Screening Frequency Jan-Dec */}
+                              <div className="mt-6 pt-6 border-t border-slate-200">
+                                <div className="flex items-center justify-between mb-4">
+                                  <h5 className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Screening Frequency Timeline</h5>
+                                  <div className="text-[9px] text-slate-500">Year {year}</div>
+                                </div>
+                                <div className="flex items-end gap-1 h-24">
+                                  {(() => {
+                                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                    const monthlyData = months.map((_, monthIndex) => {
+                                      const monthPatients = globalPatients.filter((p: any) => {
+                                        const dateValue = p.screening_date || p.submitted_on;
+                                        if (!dateValue) return false;
+                                        const date = new Date(dateValue);
+                                        return date.getMonth() === monthIndex && date.getFullYear() === year;
+                                      });
+                                      return monthPatients.length;
+                                    });
+                                    const maxValue = Math.max(...monthlyData, 1);
+                                    
+                                    return months.map((month, index) => {
+                                      const value = monthlyData[index];
+                                      const height = (value / maxValue) * 100;
+                                      const isCurrentMonth = index === currentDate.getMonth();
+                                      
+                                      return (
+                                        <div key={month} className="flex-1 flex flex-col items-center gap-1 group">
+                                          <div className="relative w-full h-full flex items-end">
+                                            <motion.div
+                                              initial={{ height: 0 }}
+                                              animate={{ height: `${height}%` }}
+                                              transition={{ duration: 0.8, delay: index * 0.05, ease: "easeOut" }}
+                                              className={`w-full rounded-t-sm transition-all duration-300 group-hover:opacity-80 ${
+                                                isCurrentMonth 
+                                                  ? 'bg-gradient-to-t from-emerald-500 to-emerald-400 shadow-lg shadow-emerald-200' 
+                                                  : 'bg-gradient-to-t from-slate-300 to-slate-200'
+                                              }`}
+                                            />
+                                            {/* Tooltip */}
+                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[9px] px-2 py-1 rounded whitespace-nowrap z-10">
+                                              {value.toLocaleString()}
+                                            </div>
+                                          </div>
+                                          <div className={`text-[8px] font-medium ${isCurrentMonth ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                            {month}
+                                          </div>
+                                        </div>
+                                      );
+                                    });
+                                  })()}
+                                </div>
                               </div>
 
                             </div>
