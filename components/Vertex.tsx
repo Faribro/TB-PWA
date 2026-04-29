@@ -1614,111 +1614,146 @@ export default function Vertex({
                           <div className="flex-shrink-0 px-5 pb-5 pt-4 space-y-4">
                             <h4 className="text-xs font-semibold text-slate-500 tracking-wide">Care Cascade</h4>
                             
-                            <div className="flex items-start gap-2">
+                            <div className="flex flex-col gap-6">
 
-                              {/* Screened */}
-                              <div className="flex flex-col items-center gap-1 flex-1">
-                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.total.toLocaleString()}</span>
-                                <span className="text-[10px] uppercase tracking-widest text-slate-400">Screened</span>
-                                <div className="w-full bg-slate-100 rounded-full h-0.5 mt-1.5">
-                                  <div 
-                                    className="bg-slate-400 h-0.5 rounded-full transition-all duration-700"
-                                    style={{ width: '100%' }}
-                                  />
+                              {/* Row 1: Screened → Suspected → Referred → Diagnosed → ATT Started */}
+                              <div className="flex items-start gap-2">
+
+                                {/* Screened */}
+                                <div className="flex flex-col items-center gap-1 flex-1">
+                                  <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-800">{stats.total.toLocaleString()}</span>
+                                  <span className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Screened</span>
+                                  <div className="w-full bg-slate-200 rounded-full h-0.5 mt-1.5">
+                                    <div 
+                                      className="bg-slate-600 h-0.5 rounded-full transition-all duration-700"
+                                      style={{ width: '100%' }}
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Connector */}
+                                <div className="flex flex-col items-center justify-center flex-1 pt-3">
+                                  <span className="text-[9px] text-slate-500 mb-1 font-semibold">
+                                    {(() => {
+                                      const pct = stats.total > 0 ? Math.round((stats.suspected / stats.total) * 100) : 0;
+                                      return stats.suspected === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
+                                    })()}
+                                  </span>
+                                  <div className="h-px bg-slate-300 w-full" />
+                                </div>
+
+                                {/* Suspected */}
+                                <div className="flex flex-col items-center gap-1 flex-1">
+                                  <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-800">{stats.suspected.toLocaleString()}</span>
+                                  <span className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Suspected</span>
+                                  <div className="w-full bg-slate-200 rounded-full h-0.5 mt-1.5">
+                                    <div 
+                                      className="bg-amber-500 h-0.5 rounded-full transition-all duration-700"
+                                      style={{ width: `${stats.total > 0 ? Math.round((stats.suspected / stats.total) * 100) : 0}%` }}
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Connector */}
+                                <div className="flex flex-col items-center justify-center flex-1 pt-3">
+                                  <span className="text-[9px] text-slate-500 mb-1 font-semibold">
+                                    {(() => {
+                                      const pct = stats.suspected > 0 ? Math.round((stats.referralDone / stats.suspected) * 100) : 0;
+                                      return stats.referralDone === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
+                                    })()}
+                                  </span>
+                                  <div className="h-px bg-slate-300 w-full" />
+                                </div>
+
+                                {/* Referred */}
+                                <div className="flex flex-col items-center gap-1 flex-1">
+                                  <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-800">{stats.referralDone.toLocaleString()}</span>
+                                  <span className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Referred</span>
+                                  <div className="w-full bg-slate-200 rounded-full h-0.5 mt-1.5">
+                                    <div 
+                                      className="bg-blue-500 h-0.5 rounded-full transition-all duration-700"
+                                      style={{ width: `${stats.total > 0 ? Math.round((stats.referralDone / stats.total) * 100) : 0}%` }}
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Connector */}
+                                <div className="flex flex-col items-center justify-center flex-1 pt-3">
+                                  <span className="text-[9px] text-slate-500 mb-1 font-semibold">
+                                    {(() => {
+                                      const pct = stats.referralDone > 0 ? Math.round((stats.diagnosed / stats.referralDone) * 100) : 0;
+                                      return stats.diagnosed === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
+                                    })()}
+                                  </span>
+                                  <div className="h-px bg-slate-300 w-full" />
+                                </div>
+
+                                {/* Diagnosed */}
+                                <div className="flex flex-col items-center gap-1 flex-1">
+                                  <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-800">{stats.diagnosed.toLocaleString()}</span>
+                                  <span className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Diagnosed</span>
+                                  <div className="w-full bg-slate-200 rounded-full h-0.5 mt-1.5">
+                                    <div 
+                                      className="bg-emerald-500 h-0.5 rounded-full transition-all duration-700"
+                                      style={{ width: `${stats.total > 0 ? Math.round((stats.diagnosed / stats.total) * 100) : 0}%` }}
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Connector */}
+                                <div className="flex flex-col items-center justify-center flex-1 pt-3">
+                                  <span className="text-[9px] text-slate-500 mb-1 font-semibold">
+                                    {(() => {
+                                      const pct = stats.diagnosed > 0 ? Math.round((stats.attStarted / stats.diagnosed) * 100) : 0;
+                                      return stats.attStarted === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
+                                    })()}
+                                  </span>
+                                  <div className="h-px bg-slate-300 w-full" />
+                                </div>
+
+                                {/* ATT Started */}
+                                <div className="flex flex-col items-center gap-1 flex-1">
+                                  <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-800">{stats.attStarted.toLocaleString()}</span>
+                                  <span className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">ATT Started</span>
+                                  <div className="w-full bg-slate-200 rounded-full h-0.5 mt-1.5">
+                                    <div 
+                                      className="bg-purple-500 h-0.5 rounded-full transition-all duration-700"
+                                      style={{ width: `${stats.total > 0 ? Math.round((stats.attStarted / stats.total) * 100) : 0}%` }}
+                                    />
+                                  </div>
                                 </div>
                               </div>
 
-                              {/* Connector */}
-                              <div className="flex flex-col items-center justify-center flex-1 pt-3">
-                                <span className="text-[9px] text-slate-300 mb-1">
-                                  {(() => {
-                                    const pct = stats.total > 0 ? Math.round((stats.suspected / stats.total) * 100) : 0;
-                                    return stats.suspected === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
-                                  })()}
-                                </span>
-                                <div className="h-px bg-slate-200 w-full" />
-                              </div>
-
-                              {/* Suspected */}
-                              <div className="flex flex-col items-center gap-1 flex-1">
-                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.suspected.toLocaleString()}</span>
-                                <span className="text-[10px] uppercase tracking-widest text-slate-400">Suspected</span>
-                                <div className="w-full bg-slate-100 rounded-full h-0.5 mt-1.5">
-                                  <div 
-                                    className="bg-slate-400 h-0.5 rounded-full transition-all duration-700"
-                                    style={{ width: `${stats.total > 0 ? Math.round((stats.suspected / stats.total) * 100) : 0}%` }}
-                                  />
+                              {/* Row 2: Not Suspected (below Suspected) */}
+                              <div className="flex items-start gap-2 pl-[calc(16.666%*2)]">
+                                {/* Not Suspected */}
+                                <div className="flex flex-col items-center gap-1 flex-1">
+                                  <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-800">{(stats.total - stats.suspected).toLocaleString()}</span>
+                                  <span className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Not Suspected</span>
+                                  <div className="w-full bg-slate-200 rounded-full h-0.5 mt-1.5">
+                                    <div 
+                                      className="bg-emerald-400 h-0.5 rounded-full transition-all duration-700"
+                                      style={{ width: `${stats.total > 0 ? Math.round(((stats.total - stats.suspected) / stats.total) * 100) : 0}%` }}
+                                    />
+                                  </div>
                                 </div>
                               </div>
 
-                              {/* Connector */}
-                              <div className="flex flex-col items-center justify-center flex-1 pt-3">
-                                <span className="text-[9px] text-slate-300 mb-1">
-                                  {(() => {
-                                    const pct = stats.suspected > 0 ? Math.round((stats.referralDone / stats.suspected) * 100) : 0;
-                                    return stats.referralDone === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
-                                  })()}
-                                </span>
-                                <div className="h-px bg-slate-200 w-full" />
-                              </div>
-
-                              {/* Referred */}
-                              <div className="flex flex-col items-center gap-1 flex-1">
-                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.referralDone.toLocaleString()}</span>
-                                <span className="text-[10px] uppercase tracking-widest text-slate-400">Referred</span>
-                                <div className="w-full bg-slate-100 rounded-full h-0.5 mt-1.5">
-                                  <div 
-                                    className="bg-slate-400 h-0.5 rounded-full transition-all duration-700"
-                                    style={{ width: `${stats.total > 0 ? Math.round((stats.referralDone / stats.total) * 100) : 0}%` }}
-                                  />
+                              {/* Row 3: Not Diagnosed (below Diagnosed) */}
+                              <div className="flex items-start gap-2 pl-[calc(16.666%*4)]">
+                                {/* Not Diagnosed */}
+                                <div className="flex flex-col items-center gap-1 flex-1">
+                                  <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-800">{(stats.referralDone - stats.diagnosed).toLocaleString()}</span>
+                                  <span className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Not Diagnosed</span>
+                                  <div className="w-full bg-slate-200 rounded-full h-0.5 mt-1.5">
+                                    <div 
+                                      className="bg-red-400 h-0.5 rounded-full transition-all duration-700"
+                                      style={{ width: `${stats.referralDone > 0 ? Math.round(((stats.referralDone - stats.diagnosed) / stats.referralDone) * 100) : 0}%` }}
+                                    />
+                                  </div>
                                 </div>
                               </div>
 
-                              {/* Connector */}
-                              <div className="flex flex-col items-center justify-center flex-1 pt-3">
-                                <span className="text-[9px] text-slate-300 mb-1">
-                                  {(() => {
-                                    const pct = stats.referralDone > 0 ? Math.round((stats.diagnosed / stats.referralDone) * 100) : 0;
-                                    return stats.diagnosed === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
-                                  })()}
-                                </span>
-                                <div className="h-px bg-slate-200 w-full" />
-                              </div>
-
-                              {/* Diagnosed */}
-                              <div className="flex flex-col items-center gap-1 flex-1">
-                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.diagnosed.toLocaleString()}</span>
-                                <span className="text-[10px] uppercase tracking-widest text-slate-400">Diagnosed</span>
-                                <div className="w-full bg-slate-100 rounded-full h-0.5 mt-1.5">
-                                  <div 
-                                    className="bg-slate-400 h-0.5 rounded-full transition-all duration-700"
-                                    style={{ width: `${stats.total > 0 ? Math.round((stats.diagnosed / stats.total) * 100) : 0}%` }}
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Connector */}
-                              <div className="flex flex-col items-center justify-center flex-1 pt-3">
-                                <span className="text-[9px] text-slate-300 mb-1">
-                                  {(() => {
-                                    const pct = stats.diagnosed > 0 ? Math.round((stats.attStarted / stats.diagnosed) * 100) : 0;
-                                    return stats.attStarted === 0 ? '—' : pct < 1 ? '<1%' : `${pct}%`;
-                                  })()}
-                                </span>
-                                <div className="h-px bg-slate-200 w-full" />
-                              </div>
-
-                              {/* ATT Started */}
-                              <div className="flex flex-col items-center gap-1 flex-1">
-                                <span className="text-2xl font-bold tabular-nums tracking-tight text-slate-900">{stats.attStarted.toLocaleString()}</span>
-                                <span className="text-[10px] uppercase tracking-widest text-slate-400">ATT Started</span>
-                                <div className="w-full bg-slate-100 rounded-full h-0.5 mt-1.5">
-                                  <div 
-                                    className="bg-slate-400 h-0.5 rounded-full transition-all duration-700"
-                                    style={{ width: `${stats.total > 0 ? Math.round((stats.attStarted / stats.total) * 100) : 0}%` }}
-                                  />
-                                </div>
-                              </div>
                             </div>
                           </div>
 
