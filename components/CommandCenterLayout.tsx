@@ -1307,6 +1307,8 @@ export function CommandCenterLayout({
             </div>
           </motion.div>
         )}
+        </>
+        )}
       </AnimatePresence>
 
       {/* AI BRIEF DOCKED - Only shows when not floating */}
