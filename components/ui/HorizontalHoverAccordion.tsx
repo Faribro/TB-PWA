@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle, AlertCircle, Clock, ChevronRight } from 'lucide-react';
 
 export interface HorizontalHoverAccordionProps {
   title: string;
@@ -13,6 +14,7 @@ export interface HorizontalHoverAccordionProps {
   pendingLabel?: string;
   currentLabel?: string;
   children: React.ReactNode;
+  progress?: number; // 0-100 for care cascade visualization
 }
 
 export function HorizontalHoverAccordion({
@@ -25,203 +27,240 @@ export function HorizontalHoverAccordion({
   pendingLabel = 'Pending',
   currentLabel = 'In Progress',
   children,
+  progress = 0,
 }: HorizontalHoverAccordionProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   const colorState = isComplete ? 'complete' : isCurrent ? 'current' : 'pending';
 
+  // Premium glassmorphism + care cascade gradients
   const colors = {
     complete: {
-      bg: 'linear-gradient(160deg, rgba(34,197,94,0.15) 0%, rgba(22,163,74,0.20) 50%, rgba(34,197,94,0.10) 100%)',
-      border: 'rgba(34,197,94,0.35)',
-      shadow: '0 4px 32px rgba(34,197,94,0.18), inset 0 1px 0 rgba(255,255,255,0.7)',
-      hoverShadow: '0 12px 56px rgba(34,197,94,0.30), inset 0 1px 0 rgba(255,255,255,0.8)',
-      orb1: 'radial-gradient(circle, rgba(34,197,94,0.55) 0%, transparent 70%)',
-      orb2: 'radial-gradient(circle, rgba(74,222,128,0.45) 0%, transparent 70%)',
-      iconBg: 'bg-emerald-500/30 text-emerald-300 border border-emerald-400/50',
-      iconShadow: '0 8px 32px rgba(34,197,94,0.45), inset 0 1px 0 rgba(255,255,255,0.3)',
-      badgeBg: 'bg-emerald-400/20 text-emerald-200 border border-emerald-400/40',
-      badgeDot: 'bg-emerald-300',
-      indicator: '#22c55e',
-      indicatorGlow: '0 0 16px rgba(34,197,94,0.8), 0 0 40px rgba(34,197,94,0.4)',
-      borderGlow: 'linear-gradient(135deg, rgba(34,197,94,0.5), rgba(74,222,128,0.3))',
-      collapsedIconBg: 'bg-emerald-500/20 text-emerald-600',
-      collapsedText: 'text-emerald-700',
-      collapsedSubtext: 'text-emerald-600/70',
-      collapsedDot: 'bg-emerald-500',
+      primary: '#10B981',
+      gradient: 'linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%)',
+      glass: 'linear-gradient(145deg, rgba(16,185,129,0.12) 0%, rgba(5,150,105,0.20) 50%, rgba(4,120,87,0.08) 100%)',
+      shimmer: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+      glow: '0 0 0 1px rgba(16,185,129,0.5), 0 20px 40px rgba(16,185,129,0.25)',
+      orb1: 'radial-gradient(circle at 20% 80%, rgba(16,185,129,0.6) 0%, transparent 50%)',
+      orb2: 'radial-gradient(circle at 80% 20%, rgba(5,150,105,0.4) 0%, transparent 50%)',
     },
     current: {
-      bg: 'linear-gradient(160deg, rgba(234,179,8,0.15) 0%, rgba(202,138,4,0.20) 50%, rgba(234,179,8,0.10) 100%)',
-      border: 'rgba(234,179,8,0.40)',
-      shadow: '0 4px 32px rgba(234,179,8,0.22), inset 0 1px 0 rgba(255,255,255,0.7)',
-      hoverShadow: '0 12px 56px rgba(234,179,8,0.35), inset 0 1px 0 rgba(255,255,255,0.8)',
-      orb1: 'radial-gradient(circle, rgba(234,179,8,0.55) 0%, transparent 70%)',
-      orb2: 'radial-gradient(circle, rgba(250,204,21,0.45) 0%, transparent 70%)',
-      iconBg: 'bg-amber-500/30 text-amber-300 border border-amber-400/50',
-      iconShadow: '0 8px 32px rgba(234,179,8,0.45), inset 0 1px 0 rgba(255,255,255,0.3)',
-      badgeBg: 'bg-amber-400/20 text-amber-200 border border-amber-400/40',
-      badgeDot: 'bg-amber-300',
-      indicator: '#eab308',
-      indicatorGlow: '0 0 16px rgba(234,179,8,0.8), 0 0 40px rgba(234,179,8,0.4)',
-      borderGlow: 'linear-gradient(135deg, rgba(234,179,8,0.5), rgba(250,204,21,0.3))',
-      collapsedIconBg: 'bg-amber-500/25 text-amber-600',
-      collapsedText: 'text-amber-700',
-      collapsedSubtext: 'text-amber-600/70',
-      collapsedDot: 'bg-amber-500',
+      primary: '#F59E0B',
+      gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 50%, #B45309 100%)',
+      glass: 'linear-gradient(145deg, rgba(245,158,11,0.15) 0%, rgba(217,119,6,0.25) 50%, rgba(180,83,9,0.10) 100%)',
+      shimmer: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)',
+      glow: '0 0 0 1px rgba(245,158,11,0.6), 0 20px 40px rgba(245,158,11,0.3)',
+      orb1: 'radial-gradient(circle at 20% 80%, rgba(245,158,11,0.65) 0%, transparent 50%)',
+      orb2: 'radial-gradient(circle at 80% 20%, rgba(217,119,6,0.45) 0%, transparent 50%)',
     },
     pending: {
-      bg: 'linear-gradient(160deg, rgba(239,68,68,0.15) 0%, rgba(220,38,38,0.20) 50%, rgba(239,68,68,0.10) 100%)',
-      border: 'rgba(239,68,68,0.35)',
-      shadow: '0 4px 32px rgba(239,68,68,0.18), inset 0 1px 0 rgba(255,255,255,0.7)',
-      hoverShadow: '0 12px 56px rgba(239,68,68,0.30), inset 0 1px 0 rgba(255,255,255,0.8)',
-      orb1: 'radial-gradient(circle, rgba(239,68,68,0.50) 0%, transparent 70%)',
-      orb2: 'radial-gradient(circle, rgba(248,113,113,0.40) 0%, transparent 70%)',
-      iconBg: 'bg-rose-500/30 text-rose-300 border border-rose-400/50',
-      iconShadow: '0 8px 32px rgba(239,68,68,0.45), inset 0 1px 0 rgba(255,255,255,0.3)',
-      badgeBg: 'bg-rose-400/20 text-rose-200 border border-rose-400/40',
-      badgeDot: 'bg-rose-300',
-      indicator: '#ef4444',
-      indicatorGlow: '0 0 16px rgba(239,68,68,0.8), 0 0 40px rgba(239,68,68,0.4)',
-      borderGlow: 'linear-gradient(135deg, rgba(239,68,68,0.5), rgba(248,113,113,0.3))',
-      collapsedIconBg: 'bg-rose-500/20 text-rose-600',
-      collapsedText: 'text-rose-700',
-      collapsedSubtext: 'text-rose-500/70',
-      collapsedDot: 'bg-rose-500',
+      primary: '#EF4444',
+      gradient: 'linear-gradient(135deg, #EF4444 0%, #DC2626 50%, #B91C1C 100%)',
+      glass: 'linear-gradient(145deg, rgba(239,68,68,0.12) 0%, rgba(220,38,38,0.20) 50%, rgba(185,28,28,0.08) 100%)',
+      shimmer: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+      glow: '0 0 0 1px rgba(239,68,68,0.5), 0 20px 40px rgba(239,68,68,0.25)',
+      orb1: 'radial-gradient(circle at 20% 80%, rgba(239,68,68,0.55) 0%, transparent 50%)',
+      orb2: 'radial-gradient(circle at 80% 20%, rgba(220,38,38,0.4) 0%, transparent 50%)',
     },
   };
 
   const c = colors[colorState];
   const statusLabel = isComplete ? completionLabel : isCurrent ? currentLabel : pendingLabel;
+  const StatusIcon = isComplete ? CheckCircle : isCurrent ? Clock : AlertCircle;
+
+  const handleClick = useCallback(() => {
+    // Add your click handler here for cascade navigation
+    console.log(`Care cascade step clicked: ${title}`);
+  }, [title]);
 
   return (
     <motion.div
-      className="relative flex-1 min-w-[90px] h-full rounded-[20px] overflow-hidden cursor-pointer"
+      className="group relative flex-1 min-w-[100px] h-full rounded-3xl overflow-hidden cursor-pointer select-none"
       style={{
-        background: c.bg,
-        border: `1.5px solid ${c.border}`,
-        boxShadow: c.shadow,
+        background: c.glass,
+        boxShadow: isHovered ? c.glow : '0 8px 32px rgba(0,0,0,0.12)',
+        backdropFilter: 'blur(20px) saturate(180%)',
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      whileHover={{
-        flex: 8,
-        boxShadow: c.hoverShadow,
-      }}
+      onClick={handleClick}
+      whileHover={{ flex: 7.5 }}
       initial={{ flex: 1 }}
-      transition={{ duration: 0.6, ease: [0.25, 1, 0.5, 1] }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
     >
-      {/* Ambient gradient orbs */}
-      <div className="absolute -top-32 -right-32 w-64 h-64 rounded-full blur-3xl pointer-events-none opacity-60"
-        style={{ background: c.orb1 }}
+      {/* Premium animated background orbs */}
+      <div
+        className="absolute inset-0 opacity-75 pointer-events-none"
+        style={{
+          background: `
+            ${c.orb1}, 
+            ${c.orb2}
+          `,
+        }}
       />
-      <div className="absolute -bottom-32 -left-32 w-64 h-64 rounded-full blur-3xl pointer-events-none opacity-45"
-        style={{ background: c.orb2 }}
+      
+      {/* Shimmer overlay */}
+      <motion.div
+        className="absolute inset-0"
+        style={{
+          background: c.shimmer,
+          backgroundSize: '200% 100%',
+        }}
+        animate={{
+          backgroundPositionX: isHovered ? ['0%', '200%', '0%'] : '0%',
+        }}
+        transition={{
+          duration: 3,
+          repeat: Infinity,
+          ease: 'linear',
+        }}
       />
 
-      {/* ── Collapsed state: icon + title + status ── */}
+      {/* Collapsed state - Ultra premium compact view */}
       <motion.div
-        className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 px-2"
-        style={{
-          opacity: isHovered ? 0 : 1,
-          transition: 'opacity 0.35s ease',
+        className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 z-20 p-3"
+        initial={{ opacity: 1, scale: 1 }}
+        animate={{ 
+          opacity: isHovered ? 0 : 1, 
+          scale: isHovered ? 0.95 : 1 
         }}
+        transition={{ duration: 0.3, ease: 'easeInOut' }}
       >
-        {/* Icon */}
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${c.collapsedIconBg}`}>
-          {icon}
+        {/* Premium icon with glassmorphism */}
+        <div
+          className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-2xl border"
+          style={{
+            background: `linear-gradient(145deg, ${c.primary}20, ${c.primary}10)`,
+            borderColor: `${c.primary}40`,
+            boxShadow: `0 8px 32px ${c.primary}30, inset 0 1px 0 rgba(255,255,255,0.6)`,
+          }}
+        >
+          <StatusIcon size={20} className={`text-${c.primary === '#10B981' ? 'emerald' : c.primary === '#F59E0B' ? 'amber' : 'rose'}-400 drop-shadow-sm`} />
         </div>
 
-        {/* Title */}
-        <span className={`text-[10px] font-extrabold uppercase tracking-[0.15em] text-center leading-tight ${c.collapsedText}`}>
+        {/* Compact title */}
+        <motion.p
+          className="text-xs font-black uppercase tracking-[0.3em] text-center leading-tight"
+          style={{ color: `${c.primary}90`, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
+          animate={{ y: [0, -1, 1, 0] }}
+          transition={{ 
+            duration: 2, 
+            repeat: Infinity, 
+            ease: 'easeInOut' 
+          }}
+        >
           {title}
-        </span>
+        </motion.p>
 
-        {/* Status dot + label */}
+        {/* Progress ring + status */}
         <div className="flex items-center gap-1.5">
-          <span className={`w-1.5 h-1.5 rounded-full ${c.collapsedDot}`} />
-          <span className={`text-[8px] font-bold uppercase tracking-wider ${c.collapsedSubtext}`}>
+          <svg width="18" height="18" viewBox="0 0 36 36">
+            <motion.circle
+              cx="18" cy="18" r="15.5"
+              fill="none"
+              strokeWidth="2"
+              stroke={`${c.primary}20`}
+              strokeLinecap="round"
+              pathLength={1}
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: progress / 100 }}
+              transition={{ duration: 1.5, ease: 'easeOut' }}
+            />
+            <circle
+              cx="18" cy="18" r="15.5"
+              fill="none"
+              strokeWidth="2"
+              stroke={`${c.primary}60`}
+              strokeLinecap="round"
+              pathLength={0.3}
+            />
+          </svg>
+          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: `${c.primary}80` }}>
             {statusLabel}
           </span>
         </div>
       </motion.div>
 
-      {/* ── Expanded state: full content ── */}
-      <motion.div
-        className="absolute inset-0 p-6 flex flex-col justify-end z-20"
-        style={{
-          opacity: isHovered ? 1 : 0,
-          transform: isHovered ? 'translateY(0)' : 'translateY(24px)',
-          transition: 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
-          transitionDelay: '0.08s',
-          backdropFilter: 'blur(24px) saturate(1.4)',
-          background: 'linear-gradient(to top, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.50) 40%, rgba(0,0,0,0.15) 70%, transparent 100%)',
-        }}
-      >
-        {/* Title */}
-        <motion.h3
-          className="text-xl font-black text-white mb-5 tracking-tight leading-none"
-          initial={{ y: 12, opacity: 0 }}
-          animate={isHovered ? { y: 0, opacity: 1 } : { y: 12, opacity: 0 }}
-          transition={{ delay: 0.12, duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
-        >
-          {title}
-        </motion.h3>
+      {/* Expanded state - Award-winning content panel */}
+      <AnimatePresence mode="wait">
+        {isHovered && (
+          <motion.div
+            className="absolute inset-0 p-6 flex flex-col z-30"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            style={{
+              background: 'linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)',
+              backdropFilter: 'blur(32px) saturate(200%) brightness(1.1)',
+            }}
+          >
+            {/* Enhanced title with shine effect */}
+            <motion.h3
+              className="text-2xl font-black mb-6 pb-2 relative"
+              style={{ color: 'rgba(255,255,255,0.95)', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
+              whileHover={{ scale: 1.02 }}
+            >
+              {title}
+              <motion.div
+                className="absolute -top-1 left-0 h-1 w-16 rounded-full"
+                style={{ background: c.gradient }}
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ delay: 0.2, duration: 0.6 }}
+              />
+            </motion.h3>
 
-        {/* Form fields */}
-        <motion.div
-          className="space-y-4"
-          initial={{ y: 12, opacity: 0 }}
-          animate={isHovered ? { y: 0, opacity: 1 } : { y: 12, opacity: 0 }}
-          transition={{ delay: 0.18, duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
-        >
-          {children}
-        </motion.div>
-      </motion.div>
+            {/* Premium content area with subtle grid overlay */}
+            <div
+              className="space-y-5 flex-1 relative"
+              style={{
+                backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.12) 1px, transparent 0)',
+                backgroundSize: '32px 32px',
+              }}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
+              >
+                {children}
+              </motion.div>
+            </div>
 
-      {/* Attention pulse indicator */}
-      {isAttentionRequired && !isHovered && (
+            {/* Action chevron */}
+            <motion.div
+              className="flex items-center justify-center mt-4 pt-4 border-t border-white/10"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3, duration: 0.4 }}
+            >
+              <ChevronRight size={24} className={`text-white/70 group-hover:text-white transition-colors`} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Attention beacon - Award-winning pulse */}
+      {isAttentionRequired && (
         <motion.div
-          className="absolute top-4 right-4 w-3 h-3 rounded-full z-10"
-          style={{
-            background: c.indicator,
-            boxShadow: c.indicatorGlow,
-          }}
+          className="absolute -top-3 -right-3 w-6 h-6 rounded-full z-40"
+          style={{ background: c.gradient }}
           animate={{
-            scale: [1, 1.3, 1],
-            opacity: [1, 0.6, 1],
+            scale: [1, 1.4, 1],
+            boxShadow: [
+              `0 0 0 0 ${c.primary}60`,
+              `0 0 20px 0 ${c.primary}80`,
+              `0 0 40px 0 ${c.primary}60`,
+              `0 0 0 0 ${c.primary}60`,
+            ],
           }}
           transition={{
-            duration: 1.8,
-            repeat: Infinity,
-            ease: 'easeInOut',
+            scale: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
+            boxShadow: { duration: 2, repeat: Infinity, ease: 'easeOut' },
           }}
         />
       )}
-
-      {/* Status indicator dot (non-attention) */}
-      {!isAttentionRequired && !isHovered && (
-        <div
-          className="absolute top-4 right-4 w-3 h-3 rounded-full z-10"
-          style={{
-            background: c.indicator,
-            boxShadow: c.indicatorGlow,
-          }}
-        />
-      )}
-
-      {/* Border glow on hover */}
-      <motion.div
-        className="absolute inset-0 rounded-[20px] pointer-events-none z-30"
-        style={{
-          border: '2px solid transparent',
-          background: c.borderGlow + ' border-box',
-          WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
-          WebkitMaskComposite: 'xor',
-          maskComposite: 'exclude',
-          opacity: isHovered ? 1 : 0,
-          transition: 'opacity 0.4s ease',
-        }}
-      />
     </motion.div>
   );
 }
