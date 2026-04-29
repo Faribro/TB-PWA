@@ -43,6 +43,7 @@ export function CommandCenterLayout({
   const [isGeographyMatrixOpen, setIsGeographyMatrixOpen] = useState(false);
   const [isSituationTabOpen, setIsSituationTabOpen] = useState(true);
   const [isAIBriefFloating, setIsAIBriefFloating] = useState(true);
+  const [isAIBriefOpen, setIsAIBriefOpen] = useState(false);
   const [aiBriefPosition, setAiBriefPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartPos = useRef({ x: 0, y: 0 });
@@ -878,6 +879,15 @@ export function CommandCenterLayout({
       {/* ───────────────────────────────────────────────────────── */}
       {/* BOTTOM PANEL: PREMIUM NEURAL CONSOLE - Only shows when Geography Matrix is open */}
       {/* ───────────────────────────────────────────────────────── */}
+      
+      {/* Steering Wheel Button - Always visible, positioned at bottom-left */}
+      <div className="fixed bottom-4 left-4 z-50">
+        <SteeringWheelButton
+          onClick={() => setIsGeographyMatrixOpen(!isGeographyMatrixOpen)}
+          isActive={isGeographyMatrixOpen}
+        />
+      </div>
+
       <AnimatePresence>
         {isGeographyMatrixOpen && (
           <motion.div
@@ -892,13 +902,6 @@ export function CommandCenterLayout({
         
         {/* SECTION 1: GEOGRAPHY MATRIX (LEFT - COLLAPSIBLE WITH STEERING WHEEL) */}
         <div className="relative">
-          {/* Steering Wheel Button - Positioned at top-left of Geography Matrix area */}
-          <div className="absolute top-4 left-4 z-50">
-            <SteeringWheelButton
-              onClick={() => setIsGeographyMatrixOpen(!isGeographyMatrixOpen)}
-              isActive={isGeographyMatrixOpen}
-            />
-          </div>
           
           <motion.div
             initial={{ x: -400, opacity: 0 }}
@@ -1086,19 +1089,37 @@ export function CommandCenterLayout({
         )}
       </AnimatePresence>
 
-      {/* AI BRIEF - Floating by default, draggable */}
+      {/* AI BRIEF - Small round floating icon that opens on press */}
       <AnimatePresence>
         {isAIBriefFloating && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed right-4 bottom-4 w-[320px] z-50 flex flex-col bg-gradient-to-b from-[#080808] to-[#030303] rounded-xl border border-cyan-500/30 shadow-[0_0_50px_rgba(34,211,238,0.3)] overflow-hidden group/ai"
-            style={{
-              transform: `translate(${aiBriefPosition.x}px, ${aiBriefPosition.y}px)`
-            }}
-          >
+          <>
+            {/* Small round icon when closed */}
+            {!isAIBriefOpen && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                onClick={() => setIsAIBriefOpen(true)}
+                className="fixed right-4 bottom-4 w-14 h-14 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/10 border border-cyan-500/30 flex items-center justify-center shadow-[0_0_30px_rgba(34,211,238,0.3)] hover:shadow-[0_0_50px_rgba(34,211,238,0.5)] z-50 transition-all duration-300 backdrop-blur-xl"
+              >
+                <Sparkles className="w-6 h-6 text-cyan-400" />
+                <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,1)]" />
+              </motion.button>
+            )}
+
+            {/* Full panel when open */}
+            {isAIBriefOpen && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                className="fixed right-4 bottom-4 w-[320px] z-50 flex flex-col bg-gradient-to-b from-[#080808] to-[#030303] rounded-xl border border-cyan-500/30 shadow-[0_0_50px_rgba(34,211,238,0.3)] overflow-hidden group/ai"
+                style={{
+                  transform: `translate(${aiBriefPosition.x}px, ${aiBriefPosition.y}px)`
+                }}
+              >
             {/* Left accent line */}
             <div className="absolute inset-y-0 left-0 w-[2px] bg-gradient-to-b from-cyan-500/0 via-cyan-500/50 to-cyan-500/0" />
             
@@ -1122,9 +1143,9 @@ export function CommandCenterLayout({
                   ACTIVE
                 </div>
                 <button
-                  onClick={() => setIsAIBriefFloating(false)}
+                  onClick={() => setIsAIBriefOpen(false)}
                   className="p-1.5 rounded-lg transition-all bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30"
-                  title="Dock to panel"
+                  title="Close"
                   onMouseDown={(e) => e.stopPropagation()}
                 >
                   <Maximize2 className="w-3.5 h-3.5" />
@@ -1474,6 +1495,12 @@ export function CommandCenterLayout({
           </div>
         </div>
       )}
+            </motion.div>
+            )}
+          </>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
