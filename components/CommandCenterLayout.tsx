@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, ReactNode, MouseEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, Layers, X, BarChart3, Trophy, Globe, Maximize2, Settings, Search, Cpu, Database, ChevronLeft, ChevronRight, Activity, AlertCircle, ChevronDown, Sparkles, Send, Compass } from 'lucide-react';
 import { useUniversalFilter } from '@/contexts/FilterContext';
@@ -42,7 +42,10 @@ export function CommandCenterLayout({
   const [isLegendOpen, setIsLegendOpen] = useState(false);
   const [isGeographyMatrixOpen, setIsGeographyMatrixOpen] = useState(false);
   const [isSituationTabOpen, setIsSituationTabOpen] = useState(true);
-  const [isAIBriefFloating, setIsAIBriefFloating] = useState(false);
+  const [isAIBriefFloating, setIsAIBriefFloating] = useState(true);
+  const [aiBriefPosition, setAiBriefPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartPos = useRef({ x: 0, y: 0 });
   const [aiInsights, setAiInsights] = useState<{insightText: string, activeNode: string, timestamp: number, severity?: string}[]>([
     {
       insightText: '🚀 SAMADHAAN INTELLIGENCE CORE ONLINE: Neural surveillance systems initialized. Real-time district analytics active.',
@@ -144,6 +147,38 @@ export function CommandCenterLayout({
     matrixRef.current.scrollBy({ left: dir === 'L' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
     playShuffleSound();
   };
+
+  // Draggable AI Brief functionality
+  const handleDragStart = (e: MouseEvent) => {
+    setIsDragging(true);
+    dragStartPos.current = {
+      x: e.clientX - aiBriefPosition.x,
+      y: e.clientY - aiBriefPosition.y
+    };
+  };
+
+  const handleDragMove = useCallback((e: MouseEvent) => {
+    if (!isDragging) return;
+    setAiBriefPosition({
+      x: e.clientX - dragStartPos.current.x,
+      y: e.clientY - dragStartPos.current.y
+    });
+  }, [isDragging]);
+
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleDragMove);
+      window.addEventListener('mouseup', handleDragEnd);
+      return () => {
+        window.removeEventListener('mousemove', handleDragMove);
+        window.removeEventListener('mouseup', handleDragEnd);
+      };
+    }
+  }, [isDragging, handleDragMove, handleDragEnd]);
 
   const playSonarBeep = useCallback(() => {
     try {
@@ -849,11 +884,19 @@ export function CommandCenterLayout({
       </div>
 
       {/* ───────────────────────────────────────────────────────── */}
-      {/* BOTTOM PANEL: PREMIUM NEURAL CONSOLE */}
+      {/* BOTTOM PANEL: PREMIUM NEURAL CONSOLE - Only shows when Geography Matrix is open */}
       {/* ───────────────────────────────────────────────────────── */}
-      <div className="h-[340px] bg-gradient-to-b from-[#0a0a0a] to-[#050505] border-t border-white/5 shrink-0 flex text-[10px] font-bold tracking-widest text-[#777] z-50 relative">
-        {/* Panel top line accent */}
-        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+      <AnimatePresence>
+        {isGeographyMatrixOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: '340px', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="bg-gradient-to-b from-[#0a0a0a] to-[#050505] border-t border-white/5 shrink-0 flex text-[10px] font-bold tracking-widest text-[#777] z-50 relative overflow-hidden"
+          >
+            {/* Panel top line accent */}
+            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
         
         {/* SECTION 1: GEOGRAPHY MATRIX (LEFT - COLLAPSIBLE WITH STEERING WHEEL) */}
         <div className="relative">
@@ -873,9 +916,10 @@ export function CommandCenterLayout({
                 exit={{ x: -400, opacity: 0 }}
                 transition={{ 
                   type: 'spring',
-                  stiffness: 300,
-                  damping: 30,
-                  mass: 1.2
+                  stiffness: 400,
+                  damping: 25,
+                  mass: 0.8,
+                  velocity: 50
                 }}
                 className="flex-1 border-r border-white/5 flex flex-col bg-gradient-to-b from-[#080808] to-[#030303] relative overflow-hidden"
               >
@@ -1050,9 +1094,214 @@ export function CommandCenterLayout({
             )}
           </AnimatePresence>
         </div>
+        )}
+      </AnimatePresence>
 
-        {/* SECTION 2: AI BRIEF - Premium Neural Intelligence Panel (Floating or Fixed) */}
-        <div className={`${isAIBriefFloating ? 'fixed bottom-4 right-4 w-[320px] z-50' : 'w-[280px]'} flex flex-col bg-gradient-to-b from-[#080808] to-[#030303] relative group/ai overflow-hidden ${isAIBriefFloating ? 'rounded-xl border border-cyan-500/30 shadow-[0_0_50px_rgba(34,211,238,0.3)]' : ''}`}>
+      {/* AI BRIEF - Floating by default, draggable */}
+      <AnimatePresence>
+        {isAIBriefFloating && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed right-4 bottom-4 w-[320px] z-50 flex flex-col bg-gradient-to-b from-[#080808] to-[#030303] rounded-xl border border-cyan-500/30 shadow-[0_0_50px_rgba(34,211,238,0.3)] overflow-hidden group/ai"
+            style={{
+              transform: `translate(${aiBriefPosition.x}px, ${aiBriefPosition.y}px)`
+            }}
+          >
+            {/* Left accent line */}
+            <div className="absolute inset-y-0 left-0 w-[2px] bg-gradient-to-b from-cyan-500/0 via-cyan-500/50 to-cyan-500/0" />
+            
+            {/* Subtle ambient glow */}
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.02] via-transparent to-transparent pointer-events-none" />
+            
+            {/* Premium Header - Draggable */}
+            <div 
+              className="flex items-center justify-between p-4 border-b border-white/5 bg-gradient-to-r from-white/[0.02] via-transparent to-transparent relative overflow-hidden cursor-move"
+              onMouseDown={handleDragStart}
+            >
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-600/10 border border-cyan-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(34,211,238,0.2)]">
+                  <Sparkles className="w-4 h-4 text-cyan-400" />
+                </div>
+                <span className="text-white tracking-[0.25em] font-black text-[11px] uppercase">AI Brief</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 text-emerald-400 px-2.5 py-1 rounded-full bg-gradient-to-r from-emerald-500/10 to-emerald-600/5 border border-emerald-500/30 tracking-widest shadow-[0_0_20px_rgba(16,185,129,0.15)] font-black text-[8px] relative z-10 backdrop-blur-sm">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,1)]" />
+                  ACTIVE
+                </div>
+                <button
+                  onClick={() => setIsAIBriefFloating(false)}
+                  className="p-1.5 rounded-lg transition-all bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30"
+                  title="Dock to panel"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex-1 flex flex-col overflow-hidden bg-[#0a0a0a] relative" style={{ maxHeight: '400px' }}>
+              {/* Functional Telemetry Layer */}
+              <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none overflow-hidden font-mono text-[6px] text-cyan-500 break-all leading-none transition-opacity group-hover:opacity-[0.07]">
+                {Array.from({ length: 40 }).map((_, i) => (
+                  <div key={i} className="whitespace-nowrap animate-pulse" style={{ animationDelay: `${i * 0.1}s` }}>
+                    {Math.random().toString(16).repeat(10)}
+                  </div>
+                ))}
+              </div>
+
+              {/* Notification Stream - NOVA NEON */}
+              <div ref={aiFeedRef} className="flex-1 overflow-y-auto custom-dark-scrollbar p-3 space-y-3 relative z-10">
+                <AnimatePresence initial={false}>
+                  {aiInsights.map((insight, idx) => {
+                    const isCommand = insight.insightText.includes('COMMAND');
+                    const severity = (insight as any).severity || 'INFO';
+                    
+                    // Dynamic color based on severity
+                    let spectralColor = 'cyan';
+                    let glowRGB = '6,182,212';
+                    
+                    if (severity === 'CRITICAL') {
+                      spectralColor = 'red';
+                      glowRGB = '239,68,68';
+                    } else if (severity === 'WARNING') {
+                      spectralColor = 'amber';
+                      glowRGB = '245,158,11';
+                    } else if (severity === 'ALERT') {
+                      spectralColor = 'orange';
+                      glowRGB = '249,115,22';
+                    } else if (severity === 'POSITIVE') {
+                      spectralColor = 'emerald';
+                      glowRGB = '16,185,129';
+                    } else if (isCommand) {
+                      spectralColor = 'blue';
+                      glowRGB = '37,99,235';
+                    }
+                    
+                    return (
+                    <motion.div 
+                      key={insight.timestamp}
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                      onMouseEnter={() => {
+                        // Subtle hover sound
+                        try {
+                          const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+                          if (!AudioContext) return;
+                          const ctx = new AudioContext();
+                          const osc = ctx.createOscillator();
+                          const gain = ctx.createGain();
+                          osc.connect(gain);
+                          gain.connect(ctx.destination);
+                          osc.type = 'sine';
+                          osc.frequency.value = 1400;
+                          gain.gain.setValueAtTime(0.01, ctx.currentTime);
+                          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+                          osc.start();
+                          osc.stop(ctx.currentTime + 0.05);
+                        } catch(e) {}
+                      }}
+                      className={`border p-3 rounded-sm relative overflow-hidden group/card shadow-[0_0_25px_rgba(${glowRGB},0.15)] hover:shadow-[0_0_40px_rgba(${glowRGB},0.3)] transition-all duration-500 backdrop-blur-xl bg-white/[0.02] cursor-pointer`}
+                      style={{ borderColor: `rgba(${glowRGB}, 0.3)` }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent pointer-events-none" />
+                      <div className={`absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[rgb(${glowRGB})] to-transparent opacity-50`} />
+                      <div className={`absolute bottom-0 right-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[rgb(${glowRGB})] to-transparent opacity-50`} />
+                      
+                      <div className="flex items-center justify-between mb-2 opacity-60 text-[8px] font-black tracking-widest uppercase relative z-10">
+                        <span className="flex items-center gap-1.5">
+                          <div className={`w-1 h-1 rounded-full bg-[rgb(${glowRGB})] shadow-[0_0_6px_rgba(${glowRGB},1)] animate-pulse`} />
+                          <Globe className="w-2.5 h-2.5" style={{ color: `rgb(${glowRGB})` }} /> 
+                          <span style={{ color: `rgb(${glowRGB})` }}>{severity}</span>
+                        </span>
+                        <span className="text-[#666]">{new Date(insight.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                      </div>
+                      <p className="text-[10px] text-[#aaa] leading-relaxed normal-case font-medium tracking-tight relative z-10 group-hover/card:text-white transition-colors">
+                        {insight.insightText}
+                      </p>
+                      {insight.activeNode && insight.activeNode !== 'SYSTEM' && !isCommand && (
+                        <div className="mt-2 text-[9px] font-black tracking-widest uppercase flex items-center gap-1.5 relative z-10" style={{ color: `rgb(${glowRGB})` }}>
+                          <div className={`w-1 h-1 rounded-full shadow-[0_0_6px_rgba(${glowRGB},1)]`} style={{ backgroundColor: `rgb(${glowRGB})` }} />
+                          NODE: {insight.activeNode}
+                        </div>
+                      )}
+                    </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+                
+                {aiLoading && (
+                  <div className="flex items-center gap-2 p-2 opacity-50">
+                    <span className="w-1 h-1 bg-cyan-500 animate-ping rounded-full" />
+                    <span className="text-[9px] tracking-widest animate-pulse">SYNCING_TELEMETRY...</span>
+                  </div>
+                )}
+
+                {aiInsights.length === 0 && !aiLoading && (
+                  <div className="h-full flex flex-col items-center justify-center text-[#333] opacity-50 space-y-2">
+                    <Cpu className="w-8 h-8 animate-pulse" />
+                    <span className="text-[9px] tracking-[0.2em] font-black uppercase italic">Neural standby...</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Tactical Action Button */}
+              <div className="p-3 bg-[#0d0d0d] border-t border-[#222]">
+                <button 
+                  onClick={handleIntervention}
+                  disabled={aiInsights.length === 0 || isIntervening || (aiInsights[aiInsights.length - 1]?.activeNode === 'SYSTEM')}
+                  className={`w-full flex flex-col items-center justify-center p-3 rounded-sm font-black tracking-[0.2em] text-[9px] transition-all relative overflow-hidden uppercase
+                    ${aiInsights.length > 0 && !isIntervening && aiInsights[aiInsights.length - 1]?.activeNode !== 'SYSTEM' 
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(37,99,235,0.6)] cursor-pointer' 
+                      : 'bg-[#1a1a1a] text-[#444] cursor-not-allowed'}
+                  `}
+                >
+                  {isIntervening && (
+                    <>
+                      <motion.div 
+                        animate={{ x: ['-100%', '100%'] }} 
+                        transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }} 
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-400/30 to-transparent skew-x-12" 
+                      />
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                        className="absolute top-2 right-2 w-2 h-2 border-2 border-blue-400 border-t-transparent rounded-full"
+                      />
+                    </>
+                  )}
+                  <span className="relative z-10 flex items-center gap-2">
+                    {isIntervening ? (
+                      <>
+                        <Activity className="w-3.5 h-3.5 animate-pulse" />
+                        SYNCHRONIZING NODES...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        EXECUTE INTERVENTION
+                      </>
+                    )}
+                  </span>
+                  {!isIntervening && aiInsights.length > 0 && aiInsights[aiInsights.length - 1]?.activeNode !== 'SYSTEM' && (
+                    <span className="text-[7px] opacity-60 mt-0.5 tracking-[0.1em] relative z-10">
+                      Target: {aiInsights[aiInsights.length - 1].activeNode}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* AI BRIEF DOCKED - Only shows when not floating */}
+      {!isAIBriefFloating && (
+        <div className="w-[280px] flex flex-col bg-gradient-to-b from-[#080808] to-[#030303] relative group/ai overflow-hidden border-l border-white/5">
           {/* Left accent line */}
           <div className="absolute inset-y-0 left-0 w-[2px] bg-gradient-to-b from-cyan-500/0 via-cyan-500/50 to-cyan-500/0" />
           
@@ -1073,9 +1322,9 @@ export function CommandCenterLayout({
                 ACTIVE
               </div>
               <button
-                onClick={() => setIsAIBriefFloating(!isAIBriefFloating)}
-                className={`p-1.5 rounded-lg transition-all ${isAIBriefFloating ? 'bg-cyan-500/20 text-cyan-400' : 'bg-white/5 text-[#666] hover:text-cyan-400'}`}
-                title={isAIBriefFloating ? 'Dock to panel' : 'Float as menu'}
+                onClick={() => setIsAIBriefFloating(true)}
+                className="p-1.5 rounded-lg transition-all bg-white/5 text-[#666] hover:text-cyan-400 hover:bg-cyan-500/20"
+                title="Float as menu"
               >
                 <Maximize2 className="w-3.5 h-3.5" />
               </button>
@@ -1235,6 +1484,7 @@ export function CommandCenterLayout({
             </div>
           </div>
         </div>
+      )}
 
       </div>
     </div>
