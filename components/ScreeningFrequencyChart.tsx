@@ -46,48 +46,35 @@ export function ScreeningFrequencyChart({ data }: ScreeningFrequencyChartProps) 
         {
           name: 'Care Cascade',
           type: 'pie',
-          radius: ['40%', '70%'],
-          center: ['35%', '50%'],
-          avoidLabelOverlap: false,
+          radius: ['45%', '65%'],
+          center: ['30%', '50%'],
+          avoidLabelOverlap: true,
           itemStyle: {
-            borderRadius: 10,
+            borderRadius: 8,
             borderColor: '#fff',
             borderWidth: 2,
-            shadowBlur: 10,
+            shadowBlur: 8,
             shadowColor: 'rgba(0, 0, 0, 0.1)'
           },
           label: {
             show: true,
-            position: 'outside',
-            formatter: '{b}: {c}',
-            fontSize: 12,
-            color: '#1a1a2e',
-            fontWeight: 500,
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            borderColor: '#e0e0e0',
-            borderWidth: 1,
-            borderRadius: 4,
-            padding: [4, 8, 4, 8],
-            width: 100,
-            overflow: 'truncate',
-            ellipsis: '...'
+            position: 'inside',
+            formatter: '{b}',
+            fontSize: 11,
+            color: '#ffffff',
+            fontWeight: 600,
+            textShadowColor: 'rgba(0, 0, 0, 0.5)',
+            textShadowBlur: 4
           },
           labelLine: {
-            show: true,
-            length: 15,
-            length2: 25,
-            smooth: true,
-            lineStyle: {
-              width: 1.5,
-              color: '#94a3b8',
-              opacity: 0.6
-            }
+            show: false
           },
           emphasis: {
             label: {
               show: true,
-              fontSize: 14,
-              fontWeight: 'bold'
+              fontSize: 13,
+              fontWeight: 'bold',
+              formatter: '{b}\n{c}'
             },
             itemStyle: {
               shadowBlur: 20,
