@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import ReactECharts from 'echarts-for-react';
+import * as echarts from 'echarts';
+import 'echarts-gl';
 
 interface ScreeningFrequencyChartProps {
   data: {
@@ -10,141 +12,110 @@ interface ScreeningFrequencyChartProps {
 }
 
 export function ScreeningFrequencyChart({ data }: ScreeningFrequencyChartProps) {
-  const chartRef = useRef<HTMLDivElement>(null);
-  const chartInstanceRef = useRef<any>(null);
-
-  useEffect(() => {
-    // Only run on client side
-    if (typeof window === 'undefined' || !chartRef.current) return;
-
-    // Load amCharts scripts dynamically
-    const loadScript = (src: string): Promise<void> => {
-      return new Promise((resolve, reject) => {
-        // Check if script already exists
-        if (document.querySelector(`script[src="${src}"]`)) {
-          resolve();
-          return;
+  const getOption = () => {
+    const total = data.reduce((sum, item) => sum + item.value, 0);
+    
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'item',
+        backgroundColor: '#1e293b',
+        borderColor: '#1e293b',
+        textStyle: {
+          color: '#f8fafc',
+          fontSize: 13
+        },
+        formatter: (params: any) => {
+          const percent = total > 0 ? ((params.value / total) * 100).toFixed(1) : 0;
+          return `${params.name}<br/><strong style="font-size: 20px">${params.value}</strong> screenings<br/><span style="font-size: 12px">${percent}% of total</span>`;
         }
-        const script = document.createElement('script');
-        script.src = src;
-        script.onload = () => resolve();
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
-    };
-
-    const initChart = async () => {
-      try {
-        // Load amCharts scripts in order
-        await loadScript('https://www.amcharts.com/lib/4/core.js');
-        await loadScript('https://www.amcharts.com/lib/4/charts.js');
-        await loadScript('https://www.amcharts.com/lib/4/themes/animated.js');
-
-        // Access amCharts from window
-        const am4core = (window as any).am4core;
-        const am4charts = (window as any).am4charts;
-        const am4themes_animated = (window as any).am4themes_animated;
-
-        if (!am4core || !am4charts || !am4themes_animated) {
-          console.error('amCharts libraries not loaded');
-          return;
+      },
+      legend: {
+        orient: 'vertical',
+        right: 10,
+        top: 'center',
+        textStyle: {
+          color: '#374151',
+          fontSize: 13
+        },
+        itemWidth: 14,
+        itemHeight: 14,
+        itemGap: 12,
+        data: data.map(item => item.stage)
+      },
+      series: [
+        {
+          name: 'Care Cascade',
+          type: 'pie3D',
+          radius: ['30%', '70%'],
+          center: ['40%', '50%'],
+          depth: 80,
+          itemStyle: {
+            opacity: 0.9,
+            borderWidth: 1,
+            borderColor: '#ffffff'
+          },
+          label: {
+            show: true,
+            position: 'outside',
+            formatter: '{b}: {c}',
+            fontSize: 13,
+            color: '#1a1a2e',
+            backgroundColor: 'rgba(255, 255, 255, 0.85)',
+            borderColor: '#e0e0e0',
+            borderWidth: 1,
+            borderRadius: 6,
+            padding: [4, 8, 4, 8],
+            width: 140,
+            overflow: 'break'
+          },
+          labelLine: {
+            show: true,
+            length: 20,
+            length2: 30,
+            smooth: true,
+            lineStyle: {
+              width: 1.5,
+              color: '#94a3b8',
+              opacity: 0.5
+            }
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: 14,
+              fontWeight: 'bold'
+            },
+            itemStyle: {
+              shadowBlur: 20,
+              shadowOffsetX: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.3)'
+            }
+          },
+          data: data.map((item, index) => ({
+            name: item.stage,
+            value: item.value,
+            itemStyle: {
+              color: [
+                '#0f766e', // Screened — teal
+                '#16a34a', // Not Suspected — green
+                '#d97706', // Suspected — amber
+                '#2563eb', // Referred — blue
+                '#7c3aed', // Diagnosed — violet
+                '#db2777'  // ATT Started — pink
+              ][index % 6]
+            }
+          }))
         }
-
-        // Use animated theme
-        am4core.useTheme(am4themes_animated);
-
-        // Create chart
-        const chart = am4core.create(chartRef.current, am4charts.PieChart3D);
-        chart.hiddenState.properties.opacity = 0;
-
-        // Set data
-        chart.data = data;
-
-        chart.innerRadius = am4core.percent(30);
-        chart.depth = 100;
-
-        // Create series
-        const series = chart.series.push(new am4charts.PieSeries3D());
-        series.dataFields.value = 'value';
-        series.dataFields.depthValue = 'value'; // Variable-height 3D effect
-        series.dataFields.category = 'stage';
-        series.slices.template.cornerRadius = 6;
-        series.colors.step = 2;
-
-        // Premium color palette matching Care Cascade
-        chart.colors.list = [
-          am4core.color('#0f766e'), // Screened — teal
-          am4core.color('#16a34a'), // Not Suspected — green
-          am4core.color('#d97706'), // Suspected — amber
-          am4core.color('#2563eb'), // Referred — blue
-          am4core.color('#7c3aed'), // Diagnosed — violet
-          am4core.color('#db2777'), // ATT Started — pink
-        ];
-
-        // Slice labels (outside labels)
-        series.labels.template.text = '{category}: [bold]{value}[/]';
-        series.labels.template.fontSize = 13;
-        series.labels.template.fill = am4core.color('#1a1a2e');
-        series.labels.template.padding(4, 8, 4, 8);
-        series.labels.template.background.fill = am4core.color('#ffffff');
-        series.labels.template.background.fillOpacity = 0.85;
-        series.labels.template.background.cornerRadius = 6;
-        series.labels.template.background.stroke = am4core.color('#e0e0e0');
-        series.labels.template.background.strokeWidth = 1;
-        series.labels.template.maxWidth = 140;
-        series.labels.template.wrap = true;
-
-        // Tick lines connecting labels to slices
-        series.ticks.template.strokeWidth = 1.5;
-        series.ticks.template.strokeOpacity = 0.5;
-        series.ticks.template.stroke = am4core.color('#94a3b8');
-
-        // Tooltip for hover details
-        series.slices.template.tooltipText = '{category}\n[bold font-size: 20px]{value}[/] screenings\n[font-size: 12px]{value.percent.formatNumber(\'#.0\')}% of total[/]';
-        series.tooltip.background.fill = am4core.color('#1e293b');
-        series.tooltip.background.cornerRadius = 10;
-        series.tooltip.label.fill = am4core.color('#f8fafc');
-        series.tooltip.label.fontSize = 13;
-
-        // Legend configuration
-        chart.legend = new am4charts.Legend();
-        chart.legend.position = 'right';
-        chart.legend.scrollable = true;
-        chart.legend.maxHeight = 300;
-        chart.legend.labels.template.fontSize = 13;
-        chart.legend.labels.template.fill = am4core.color('#374151');
-        chart.legend.labels.template.text = '{name}';
-        chart.legend.valueLabels.template.text = '{value.value}';
-        chart.legend.valueLabels.template.fill = am4core.color('#111827');
-        chart.legend.valueLabels.template.fontSize = 13;
-        chart.legend.valueLabels.template.fontWeight = '700';
-        chart.legend.itemContainers.template.paddingTop = 6;
-        chart.legend.itemContainers.template.paddingBottom = 6;
-
-        // Store chart instance for cleanup
-        chartInstanceRef.current = chart;
-
-      } catch (error) {
-        console.error('Error initializing amCharts:', error);
-      }
+      ]
     };
-
-    initChart();
-
-    // Cleanup on unmount
-    return () => {
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.dispose();
-        chartInstanceRef.current = null;
-      }
-    };
-  }, [data]);
+  };
 
   return (
-    <div 
-      ref={chartRef} 
+    <ReactECharts
+      option={getOption()}
       style={{ width: '100%', height: '420px' }}
-      className="rounded-2xl overflow-hidden"
+      opts={{ renderer: 'canvas' }}
     />
   );
 }
