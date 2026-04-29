@@ -566,14 +566,6 @@ export function CommandCenterLayout({
         {/* Animated top line */}
         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
         
-        <div className="flex items-center gap-4 text-[10px] font-bold tracking-[0.15em] text-[#777] relative">
-          {/* Premium Location Badge */}
-          <div className="flex items-center gap-2.5 text-cyan-400 bg-gradient-to-r from-cyan-950/60 to-cyan-900/30 px-3 py-1.5 rounded-lg border border-cyan-500/40 shadow-[0_0_20px_rgba(34,211,238,0.15),inset_0_1px_0_rgba(255,255,255,0.1)] group hover:shadow-[0_0_30px_rgba(34,211,238,0.3)] transition-all duration-500">
-            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
-            <Database className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
-            <span className="text-cyan-100 font-black tracking-[0.2em]">MADHYA PRADESH</span>
-          </div>
-        </div>
 
         {/* Premium Vertex-Style State/District Filters */}
         <div className="absolute left-1/2 -translate-x-1/2 hidden xl:flex items-center gap-4 bg-gradient-to-r from-[#111]/90 via-[#0f0f0f]/95 to-[#111]/90 backdrop-blur-2xl border border-white/10 px-5 py-2.5 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.05)]">
