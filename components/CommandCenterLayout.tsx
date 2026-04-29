@@ -881,7 +881,7 @@ export function CommandCenterLayout({
       {/* ───────────────────────────────────────────────────────── */}
       
       {/* Steering Wheel Button - Always visible, positioned at bottom-left */}
-      <div className="fixed bottom-4 left-4 z-50">
+      <div className="fixed bottom-6 left-6 z-[9999]">
         <SteeringWheelButton
           onClick={() => setIsGeographyMatrixOpen(!isGeographyMatrixOpen)}
           isActive={isGeographyMatrixOpen}
