@@ -1582,7 +1582,7 @@ export default function Vertex({
                             
                             <div className="flex flex-col gap-6">
 
-                              {/* Premium 3D Pie Chart - Care Cascade Visualization */}
+                              {/* Premium Pie Chart - Care Cascade Visualization */}
                               <div className="relative bg-white/50 backdrop-blur-sm rounded-2xl p-6 border border-white/40 shadow-lg">
                                 <ScreeningFrequencyChart
                                   data={[
@@ -1594,6 +1594,61 @@ export default function Vertex({
                                     { stage: "ATT Started", value: stats.attStarted }
                                   ]}
                                 />
+                              </div>
+
+                              {/* Timeline Band - Screening Frequency Jan-Dec */}
+                              <div className="mt-8 pt-6 border-t border-slate-200/60">
+                                <div className="flex items-center justify-between mb-5">
+                                  <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Screening Frequency Timeline</h5>
+                                  <div className="text-[10px] text-slate-600 font-semibold">Year {year}</div>
+                                </div>
+                                <div className="relative bg-white/50 backdrop-blur-sm rounded-2xl p-4 border border-white/40 shadow-lg">
+                                  <div className="flex items-end gap-1.5 h-32">
+                                    {(() => {
+                                      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                      const monthlyData = months.map((_, monthIndex) => {
+                                        const monthPatients = globalPatients.filter((p: any) => {
+                                          const dateValue = p.screening_date || p.submitted_on;
+                                          if (!dateValue) return false;
+                                          const date = new Date(dateValue);
+                                          return date.getMonth() === monthIndex && date.getFullYear() === year;
+                                        });
+                                        return monthPatients.length;
+                                      });
+                                      const maxValue = Math.max(...monthlyData, 1);
+                                      
+                                      return months.map((month, index) => {
+                                        const value = monthlyData[index];
+                                        const height = (value / maxValue) * 100;
+                                        const isCurrentMonth = index === currentDate.getMonth();
+                                        
+                                        return (
+                                          <div key={month} className="flex-1 flex flex-col items-center gap-2 group">
+                                            <div className="relative w-full h-full flex items-end">
+                                              <motion.div
+                                                initial={{ height: 0 }}
+                                                animate={{ height: `${height}%` }}
+                                                transition={{ duration: 0.8, delay: index * 0.05, ease: "easeOut" }}
+                                                className={`w-full rounded-t-lg transition-all duration-300 group-hover:opacity-90 group-hover:scale-105 ${
+                                                  isCurrentMonth 
+                                                    ? 'bg-gradient-to-t from-emerald-500 to-emerald-400 shadow-lg shadow-emerald-200/50' 
+                                                    : 'bg-gradient-to-t from-slate-400 to-slate-300'
+                                                }`}
+                                              />
+                                              {/* Tooltip */}
+                                              <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/90 backdrop-blur-sm text-white text-[10px] px-3 py-1.5 rounded-lg whitespace-nowrap z-10 font-medium shadow-lg">
+                                                {value.toLocaleString()}
+                                              </div>
+                                            </div>
+                                            <div className={`text-[9px] font-semibold ${isCurrentMonth ? 'text-emerald-700' : 'text-slate-500'}`}>
+                                              {month}
+                                            </div>
+                                          </div>
+                                        );
+                                      });
+                                    })()}
+                                  </div>
+                                </div>
                               </div>
 
                             </div>

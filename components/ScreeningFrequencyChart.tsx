@@ -59,17 +59,18 @@ export function ScreeningFrequencyChart({ data }: ScreeningFrequencyChartProps) 
           label: {
             show: true,
             position: 'outside',
-            formatter: '{b}\n{c}',
-            fontSize: 13,
+            formatter: '{b}: {c}',
+            fontSize: 12,
             color: '#1a1a2e',
             fontWeight: 500,
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
             borderColor: '#e0e0e0',
             borderWidth: 1,
-            borderRadius: 6,
-            padding: [6, 10, 6, 10],
-            width: 120,
-            overflow: 'break'
+            borderRadius: 4,
+            padding: [4, 8, 4, 8],
+            width: 100,
+            overflow: 'truncate',
+            ellipsis: '...'
           },
           labelLine: {
             show: true,
