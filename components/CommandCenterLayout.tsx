@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, Layers, X, BarChart3, Trophy, Globe, Maximize2, Settings, Search, Cpu, Database, ChevronLeft, ChevronRight, Activity, AlertCircle, ChevronDown, Sparkles, Send } from 'lucide-react';
+import { Filter, Layers, X, BarChart3, Trophy, Globe, Maximize2, Settings, Search, Cpu, Database, ChevronLeft, ChevronRight, Activity, AlertCircle, ChevronDown, Sparkles, Send, Compass } from 'lucide-react';
 import { useUniversalFilter } from '@/contexts/FilterContext';
 import { KPIRibbon } from './KPIRibbon';
 import { ColorLegend } from './ColorLegend';
+import { SteeringWheelButton } from './SteeringWheelButton';
 
 interface CommandCenterLayoutProps {
   children: ReactNode;
@@ -39,6 +40,9 @@ export function CommandCenterLayout({
   const [showDistricts, setShowDistricts] = useState(false);
 
   const [isLegendOpen, setIsLegendOpen] = useState(false);
+  const [isGeographyMatrixOpen, setIsGeographyMatrixOpen] = useState(false);
+  const [isSituationTabOpen, setIsSituationTabOpen] = useState(true);
+  const [isAIBriefFloating, setIsAIBriefFloating] = useState(false);
   const [aiInsights, setAiInsights] = useState<{insightText: string, activeNode: string, timestamp: number, severity?: string}[]>([
     {
       insightText: '🚀 SAMADHAAN INTELLIGENCE CORE ONLINE: Neural surveillance systems initialized. Real-time district analytics active.',
@@ -667,15 +671,29 @@ export function CommandCenterLayout({
         {/* Subtle ambient background glow */}
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.02] via-transparent to-purple-500/[0.02] pointer-events-none" />
         
-        {/* Premium Sidebar */}
-        <div className="w-[280px] border-r border-white/5 bg-gradient-to-b from-[#0a0a0a] to-[#050505] overflow-hidden shrink-0 flex flex-col relative backdrop-blur-xl">
-          {/* Sidebar top line accent */}
-          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
-          
-          {/* Sidebar header */}
-          <div className="h-10 border-b border-white/5 flex items-center px-4 bg-gradient-to-r from-white/[0.02] to-transparent">
-            <span className="text-[9px] font-bold tracking-[0.3em] text-[#666] uppercase">Situation</span>
-          </div>
+        {/* Premium Sidebar - Collapsible */}
+        <AnimatePresence>
+          {isSituationTabOpen && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: '280px', opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              className="border-r border-white/5 bg-gradient-to-b from-[#0a0a0a] to-[#050505] overflow-hidden shrink-0 flex flex-col relative backdrop-blur-xl"
+            >
+              {/* Sidebar top line accent */}
+              <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+              
+              {/* Sidebar header */}
+              <div className="h-10 border-b border-white/5 flex items-center justify-between px-4 bg-gradient-to-r from-white/[0.02] to-transparent">
+                <span className="text-[9px] font-bold tracking-[0.3em] text-[#666] uppercase">Situation</span>
+                <button
+                  onClick={() => setIsSituationTabOpen(false)}
+                  className="text-[#666] hover:text-cyan-400 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
           
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {/* State Cards for PM/Admin */}
@@ -782,9 +800,23 @@ export function CommandCenterLayout({
               </div>
             )}
             
-            <KPIRibbon filteredPatients={globalPatients || filteredPatients} compact />
-          </div>
-        </div>
+              <KPIRibbon filteredPatients={globalPatients || filteredPatients} compact />
+            </div>
+          </motion.div>
+          )}
+        </AnimatePresence>
+        
+        {/* Situation Tab Toggle Button (when collapsed) */}
+        {!isSituationTabOpen && (
+          <motion.button
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            onClick={() => setIsSituationTabOpen(true)}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-40 bg-gradient-to-r from-cyan-500/20 to-transparent border-l-2 border-cyan-500/50 px-2 py-4 rounded-r-lg backdrop-blur-xl hover:bg-cyan-500/30 transition-all group"
+          >
+            <Compass className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+          </motion.button>
+        )}
         
         {/* Premium Main Map Area */}
         <main className="flex-1 relative z-0 bg-gradient-to-br from-[#050505] to-[#0a0a0a]">
@@ -823,8 +855,30 @@ export function CommandCenterLayout({
         {/* Panel top line accent */}
         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
         
-        {/* SECTION 1: GEOGRAPHY MATRIX (LEFT - EXPANDED) */}
-        <div className="flex-1 border-r border-white/5 flex flex-col bg-gradient-to-b from-[#080808] to-[#030303] relative overflow-hidden">
+        {/* SECTION 1: GEOGRAPHY MATRIX (LEFT - COLLAPSIBLE WITH STEERING WHEEL) */}
+        <div className="relative">
+          {/* Steering Wheel Button - Positioned at top-left of Geography Matrix area */}
+          <div className="absolute top-4 left-4 z-50">
+            <SteeringWheelButton
+              onClick={() => setIsGeographyMatrixOpen(!isGeographyMatrixOpen)}
+              isActive={isGeographyMatrixOpen}
+            />
+          </div>
+          
+          <AnimatePresence>
+            {isGeographyMatrixOpen && (
+              <motion.div
+                initial={{ x: -400, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -400, opacity: 0 }}
+                transition={{ 
+                  type: 'spring',
+                  stiffness: 300,
+                  damping: 30,
+                  mass: 1.2
+                }}
+                className="flex-1 border-r border-white/5 flex flex-col bg-gradient-to-b from-[#080808] to-[#030303] relative overflow-hidden"
+              >
           {/* Subtle dot pattern */}
           <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
                style={{ backgroundImage: 'radial-gradient(circle, #444 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
@@ -984,18 +1038,21 @@ export function CommandCenterLayout({
                })}
             </div>
             
-            {/* Right Arrow */}
-            <button 
-              onClick={() => scrollMatrix('R')}
-              className="absolute right-2 z-30 w-10 h-10 rounded-full bg-black/60 border border-white/20 backdrop-blur flex items-center justify-center text-cyan-400 hover:text-white hover:border-cyan-400 hover:bg-black/80 transition-all duration-300 shrink-0"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
+                {/* Right Arrow */}
+                <button 
+                  onClick={() => scrollMatrix('R')}
+                  className="absolute right-2 z-30 w-10 h-10 rounded-full bg-black/60 border border-white/20 backdrop-blur flex items-center justify-center text-cyan-400 hover:text-white hover:border-cyan-400 hover:bg-black/80 transition-all duration-300 shrink-0"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* SECTION 2: AI BRIEF - Premium Neural Intelligence Panel */}
-        <div className="w-[280px] flex flex-col bg-gradient-to-b from-[#080808] to-[#030303] relative group/ai overflow-hidden">
+        {/* SECTION 2: AI BRIEF - Premium Neural Intelligence Panel (Floating or Fixed) */}
+        <div className={`${isAIBriefFloating ? 'fixed bottom-4 right-4 w-[320px] z-50' : 'w-[280px]'} flex flex-col bg-gradient-to-b from-[#080808] to-[#030303] relative group/ai overflow-hidden ${isAIBriefFloating ? 'rounded-xl border border-cyan-500/30 shadow-[0_0_50px_rgba(34,211,238,0.3)]' : ''}`}>
           {/* Left accent line */}
           <div className="absolute inset-y-0 left-0 w-[2px] bg-gradient-to-b from-cyan-500/0 via-cyan-500/50 to-cyan-500/0" />
           
@@ -1010,9 +1067,18 @@ export function CommandCenterLayout({
               </div>
               <span className="text-white tracking-[0.25em] font-black text-[11px] uppercase">AI Brief</span>
             </div>
-            <div className="flex items-center gap-1.5 text-emerald-400 px-2.5 py-1 rounded-full bg-gradient-to-r from-emerald-500/10 to-emerald-600/5 border border-emerald-500/30 tracking-widest shadow-[0_0_20px_rgba(16,185,129,0.15)] font-black text-[8px] relative z-10 backdrop-blur-sm">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,1)]" />
-              ACTIVE
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 text-emerald-400 px-2.5 py-1 rounded-full bg-gradient-to-r from-emerald-500/10 to-emerald-600/5 border border-emerald-500/30 tracking-widest shadow-[0_0_20px_rgba(16,185,129,0.15)] font-black text-[8px] relative z-10 backdrop-blur-sm">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,1)]" />
+                ACTIVE
+              </div>
+              <button
+                onClick={() => setIsAIBriefFloating(!isAIBriefFloating)}
+                className={`p-1.5 rounded-lg transition-all ${isAIBriefFloating ? 'bg-cyan-500/20 text-cyan-400' : 'bg-white/5 text-[#666] hover:text-cyan-400'}`}
+                title={isAIBriefFloating ? 'Dock to panel' : 'Float as menu'}
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
           
