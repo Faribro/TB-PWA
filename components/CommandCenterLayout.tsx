@@ -1086,7 +1086,6 @@ export function CommandCenterLayout({
             )}
           </AnimatePresence>
         </div>
-        )}
       </AnimatePresence>
 
       {/* AI BRIEF - Floating by default, draggable */}
