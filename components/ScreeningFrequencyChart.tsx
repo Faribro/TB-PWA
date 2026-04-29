@@ -2,7 +2,6 @@
 
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
-import 'echarts-gl';
 
 interface ScreeningFrequencyChartProps {
   data: {
@@ -46,38 +45,41 @@ export function ScreeningFrequencyChart({ data }: ScreeningFrequencyChartProps) 
       series: [
         {
           name: 'Care Cascade',
-          type: 'pie3D',
-          radius: ['30%', '70%'],
-          center: ['40%', '50%'],
-          depth: 80,
+          type: 'pie',
+          radius: ['40%', '70%'],
+          center: ['35%', '50%'],
+          avoidLabelOverlap: false,
           itemStyle: {
-            opacity: 0.9,
-            borderWidth: 1,
-            borderColor: '#ffffff'
+            borderRadius: 10,
+            borderColor: '#fff',
+            borderWidth: 2,
+            shadowBlur: 10,
+            shadowColor: 'rgba(0, 0, 0, 0.1)'
           },
           label: {
             show: true,
             position: 'outside',
-            formatter: '{b}: {c}',
+            formatter: '{b}\n{c}',
             fontSize: 13,
             color: '#1a1a2e',
-            backgroundColor: 'rgba(255, 255, 255, 0.85)',
+            fontWeight: 500,
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
             borderColor: '#e0e0e0',
             borderWidth: 1,
             borderRadius: 6,
-            padding: [4, 8, 4, 8],
-            width: 140,
+            padding: [6, 10, 6, 10],
+            width: 120,
             overflow: 'break'
           },
           labelLine: {
             show: true,
-            length: 20,
-            length2: 30,
+            length: 15,
+            length2: 25,
             smooth: true,
             lineStyle: {
               width: 1.5,
               color: '#94a3b8',
-              opacity: 0.5
+              opacity: 0.6
             }
           },
           emphasis: {
@@ -89,7 +91,9 @@ export function ScreeningFrequencyChart({ data }: ScreeningFrequencyChartProps) 
             itemStyle: {
               shadowBlur: 20,
               shadowOffsetX: 0,
-              shadowColor: 'rgba(0, 0, 0, 0.3)'
+              shadowColor: 'rgba(0, 0, 0, 0.3)',
+              scale: true,
+              scaleSize: 5
             }
           },
           data: data.map((item, index) => ({
