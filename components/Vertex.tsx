@@ -1573,16 +1573,10 @@ export default function Vertex({
                         <div className="flex-shrink-0 px-6 py-6">
                             <div className="flex items-center justify-between mb-8">
                               <div>
-                                <h4 className="text-sm font-bold text-slate-900 tracking-widest uppercase">Care Cascade</h4>
-                                <p className="text-[10px] text-slate-500 mt-1">Real-time patient journey analytics</p>
+                                <h4 className="text-xl font-bold text-slate-900 tracking-widest uppercase">Care Cascade</h4>
+                                <p className="text-xs text-slate-600 mt-1 font-medium">Real-time patient journey analytics</p>
                               </div>
-                              <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-full border border-emerald-200">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                  <span className="text-[10px] font-semibold text-emerald-700">Live</span>
-                                </div>
-                                <div className="text-[10px] text-slate-400 font-medium">{monthName} {year}</div>
-                              </div>
+                              <div className="text-sm text-slate-700 font-semibold">{monthName} {year}</div>
                             </div>
                             
                             <div className="flex flex-col gap-5">
@@ -1592,31 +1586,32 @@ export default function Vertex({
 
                                 {/* Screened Card */}
                                 <div className="flex-1 group cursor-pointer">
-                                  <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 group-hover:border-slate-300 group-hover:-translate-y-1">
-                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-slate-400 to-slate-500 rounded-t-2xl" />
-                                    <div className="flex items-start justify-between mb-2">
+                                  <div className="relative bg-white/70 backdrop-blur-xl rounded-2xl p-5 border border-white/40 shadow-lg hover:shadow-2xl hover:shadow-slate-200/60 transition-all duration-300 group-hover:border-white/60 group-hover:-translate-y-1 overflow-hidden">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-slate-50/50 to-white/30" />
+                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-slate-500 to-slate-600 rounded-t-2xl" />
+                                    <div className="relative z-10 flex items-start justify-between mb-2">
                                       <div>
                                         <div className="text-4xl font-bold text-slate-900 tabular-nums tracking-tight">{stats.total.toLocaleString()}</div>
-                                        <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mt-1">Screened</div>
+                                        <div className="text-xs font-semibold text-slate-800 uppercase tracking-wider mt-1">Screened</div>
                                       </div>
                                       <div className="flex flex-col items-end">
-                                        <div className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">+12.5%</div>
-                                        <div className="text-[8px] text-slate-400 mt-1">vs last month</div>
+                                        <div className="text-[10px] font-bold text-emerald-600 bg-emerald-100/80 px-2 py-0.5 rounded-full">+12.5%</div>
+                                        <div className="text-[9px] text-slate-600 mt-1">vs last month</div>
                                       </div>
                                     </div>
-                                    <div className="mt-4 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                    <div className="relative z-10 mt-4 h-2 bg-slate-200/60 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ width: 0 }}
                                         animate={{ width: '100%' }}
                                         transition={{ duration: 1.2, ease: "easeOut" }}
                                         className="h-full bg-gradient-to-r from-slate-500 to-slate-600 rounded-full relative"
                                       >
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
                                       </motion.div>
                                     </div>
-                                    <div className="mt-3 flex items-center justify-between">
-                                      <div className="text-[8px] text-slate-500">Conversion Rate</div>
-                                      <div className="text-[9px] font-bold text-slate-700">100%</div>
+                                    <div className="relative z-10 mt-3 flex items-center justify-between">
+                                      <div className="text-[9px] text-slate-600 font-medium">Conversion Rate</div>
+                                      <div className="text-[10px] font-bold text-slate-800">100%</div>
                                     </div>
                                   </div>
                                 </div>
@@ -1638,31 +1633,32 @@ export default function Vertex({
 
                                 {/* Suspected Card */}
                                 <div className="flex-1 group cursor-pointer">
-                                  <div className="relative bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-5 border border-amber-200 shadow-sm hover:shadow-xl hover:shadow-amber-100/50 transition-all duration-300 group-hover:border-amber-300 group-hover:-translate-y-1">
-                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-400 to-orange-500 rounded-t-2xl" />
-                                    <div className="flex items-start justify-between mb-2">
+                                  <div className="relative bg-amber-50/70 backdrop-blur-xl rounded-2xl p-5 border border-amber-200/60 shadow-lg hover:shadow-2xl hover:shadow-amber-200/60 transition-all duration-300 group-hover:border-amber-300/80 group-hover:-translate-y-1 overflow-hidden">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-amber-50/50 to-orange-50/30" />
+                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-t-2xl" />
+                                    <div className="relative z-10 flex items-start justify-between mb-2">
                                       <div>
                                         <div className="text-4xl font-bold text-amber-900 tabular-nums tracking-tight">{stats.suspected.toLocaleString()}</div>
-                                        <div className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider mt-1">Suspected</div>
+                                        <div className="text-xs font-semibold text-amber-800 uppercase tracking-wider mt-1">Suspected</div>
                                       </div>
                                       <div className="flex flex-col items-end">
-                                        <div className="text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">+8.3%</div>
-                                        <div className="text-[8px] text-slate-400 mt-1">vs last month</div>
+                                        <div className="text-[10px] font-bold text-amber-600 bg-amber-100/80 px-2 py-0.5 rounded-full">+8.3%</div>
+                                        <div className="text-[9px] text-slate-600 mt-1">vs last month</div>
                                       </div>
                                     </div>
-                                    <div className="mt-4 h-2 bg-amber-200 rounded-full overflow-hidden">
+                                    <div className="relative z-10 mt-4 h-2 bg-amber-200/60 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ width: 0 }}
                                         animate={{ width: `${stats.total > 0 ? Math.round((stats.suspected / stats.total) * 100) : 0}%` }}
                                         transition={{ duration: 1.2, ease: "easeOut" }}
-                                        className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full relative"
+                                        className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full relative"
                                       >
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
                                       </motion.div>
                                     </div>
-                                    <div className="mt-3 flex items-center justify-between">
-                                      <div className="text-[8px] text-slate-500">Detection Rate</div>
-                                      <div className="text-[9px] font-bold text-amber-700">
+                                    <div className="relative z-10 mt-3 flex items-center justify-between">
+                                      <div className="text-[9px] text-slate-600 font-medium">Detection Rate</div>
+                                      <div className="text-[10px] font-bold text-amber-800">
                                         {(() => {
                                           const pct = stats.total > 0 ? ((stats.suspected / stats.total) * 100).toFixed(1) : 0;
                                           return `${pct}%`;
@@ -1689,31 +1685,32 @@ export default function Vertex({
 
                                 {/* Referred Card */}
                                 <div className="flex-1 group cursor-pointer">
-                                  <div className="relative bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-200 shadow-sm hover:shadow-xl hover:shadow-blue-100/50 transition-all duration-300 group-hover:border-blue-300 group-hover:-translate-y-1">
-                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-t-2xl" />
-                                    <div className="flex items-start justify-between mb-2">
+                                  <div className="relative bg-blue-50/70 backdrop-blur-xl rounded-2xl p-5 border border-blue-200/60 shadow-lg hover:shadow-2xl hover:shadow-blue-200/60 transition-all duration-300 group-hover:border-blue-300/80 group-hover:-translate-y-1 overflow-hidden">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-indigo-50/30" />
+                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-t-2xl" />
+                                    <div className="relative z-10 flex items-start justify-between mb-2">
                                       <div>
                                         <div className="text-4xl font-bold text-blue-900 tabular-nums tracking-tight">{stats.referralDone.toLocaleString()}</div>
-                                        <div className="text-[10px] font-semibold text-blue-700 uppercase tracking-wider mt-1">Referred</div>
+                                        <div className="text-xs font-semibold text-blue-800 uppercase tracking-wider mt-1">Referred</div>
                                       </div>
                                       <div className="flex flex-col items-end">
-                                        <div className="text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">+15.2%</div>
-                                        <div className="text-[8px] text-slate-400 mt-1">vs last month</div>
+                                        <div className="text-[10px] font-bold text-blue-600 bg-blue-100/80 px-2 py-0.5 rounded-full">+15.2%</div>
+                                        <div className="text-[9px] text-slate-600 mt-1">vs last month</div>
                                       </div>
                                     </div>
-                                    <div className="mt-4 h-2 bg-blue-200 rounded-full overflow-hidden">
+                                    <div className="relative z-10 mt-4 h-2 bg-blue-200/60 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ width: 0 }}
                                         animate={{ width: `${stats.total > 0 ? Math.round((stats.referralDone / stats.total) * 100) : 0}%` }}
                                         transition={{ duration: 1.2, ease: "easeOut" }}
-                                        className="h-full bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full relative"
+                                        className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full relative"
                                       >
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
                                       </motion.div>
                                     </div>
-                                    <div className="mt-3 flex items-center justify-between">
-                                      <div className="text-[8px] text-slate-500">Referral Success</div>
-                                      <div className="text-[9px] font-bold text-blue-700">
+                                    <div className="relative z-10 mt-3 flex items-center justify-between">
+                                      <div className="text-[9px] text-slate-600 font-medium">Referral Success</div>
+                                      <div className="text-[10px] font-bold text-blue-800">
                                         {(() => {
                                           const pct = stats.total > 0 ? ((stats.referralDone / stats.total) * 100).toFixed(1) : 0;
                                           return `${pct}%`;
@@ -1740,31 +1737,32 @@ export default function Vertex({
 
                                 {/* Diagnosed Card */}
                                 <div className="flex-1 group cursor-pointer">
-                                  <div className="relative bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl p-5 border border-emerald-200 shadow-sm hover:shadow-xl hover:shadow-emerald-100/50 transition-all duration-300 group-hover:border-emerald-300 group-hover:-translate-y-1">
-                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-400 to-green-500 rounded-t-2xl" />
-                                    <div className="flex items-start justify-between mb-2">
+                                  <div className="relative bg-emerald-50/70 backdrop-blur-xl rounded-2xl p-5 border border-emerald-200/60 shadow-lg hover:shadow-2xl hover:shadow-emerald-200/60 transition-all duration-300 group-hover:border-emerald-300/80 group-hover:-translate-y-1 overflow-hidden">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-green-50/30" />
+                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 to-green-500 rounded-t-2xl" />
+                                    <div className="relative z-10 flex items-start justify-between mb-2">
                                       <div>
                                         <div className="text-4xl font-bold text-emerald-900 tabular-nums tracking-tight">{stats.diagnosed.toLocaleString()}</div>
-                                        <div className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider mt-1">Diagnosed</div>
+                                        <div className="text-xs font-semibold text-emerald-800 uppercase tracking-wider mt-1">Diagnosed</div>
                                       </div>
                                       <div className="flex flex-col items-end">
-                                        <div className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">+22.1%</div>
-                                        <div className="text-[8px] text-slate-400 mt-1">vs last month</div>
+                                        <div className="text-[10px] font-bold text-emerald-600 bg-emerald-100/80 px-2 py-0.5 rounded-full">+22.1%</div>
+                                        <div className="text-[9px] text-slate-600 mt-1">vs last month</div>
                                       </div>
                                     </div>
-                                    <div className="mt-4 h-2 bg-emerald-200 rounded-full overflow-hidden">
+                                    <div className="relative z-10 mt-4 h-2 bg-emerald-200/60 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ width: 0 }}
                                         animate={{ width: `${stats.total > 0 ? Math.round((stats.diagnosed / stats.total) * 100) : 0}%` }}
                                         transition={{ duration: 1.2, ease: "easeOut" }}
-                                        className="h-full bg-gradient-to-r from-emerald-400 to-green-500 rounded-full relative"
+                                        className="h-full bg-gradient-to-r from-emerald-500 to-green-500 rounded-full relative"
                                       >
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
                                       </motion.div>
                                     </div>
-                                    <div className="mt-3 flex items-center justify-between">
-                                      <div className="text-[8px] text-slate-500">Confirmation Rate</div>
-                                      <div className="text-[9px] font-bold text-emerald-700">
+                                    <div className="relative z-10 mt-3 flex items-center justify-between">
+                                      <div className="text-[9px] text-slate-600 font-medium">Confirmation Rate</div>
+                                      <div className="text-[10px] font-bold text-emerald-800">
                                         {(() => {
                                           const pct = stats.total > 0 ? ((stats.diagnosed / stats.total) * 100).toFixed(1) : 0;
                                           return `${pct}%`;
@@ -1791,31 +1789,32 @@ export default function Vertex({
 
                                 {/* ATT Started Card */}
                                 <div className="flex-1 group cursor-pointer">
-                                  <div className="relative bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl p-5 border border-purple-200 shadow-sm hover:shadow-xl hover:shadow-purple-100/50 transition-all duration-300 group-hover:border-purple-300 group-hover:-translate-y-1">
-                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-400 to-violet-500 rounded-t-2xl" />
-                                    <div className="flex items-start justify-between mb-2">
+                                  <div className="relative bg-purple-50/70 backdrop-blur-xl rounded-2xl p-5 border border-purple-200/60 shadow-lg hover:shadow-2xl hover:shadow-purple-200/60 transition-all duration-300 group-hover:border-purple-300/80 group-hover:-translate-y-1 overflow-hidden">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-purple-50/50 to-violet-50/30" />
+                                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-500 to-violet-500 rounded-t-2xl" />
+                                    <div className="relative z-10 flex items-start justify-between mb-2">
                                       <div>
                                         <div className="text-4xl font-bold text-purple-900 tabular-nums tracking-tight">{stats.attStarted.toLocaleString()}</div>
-                                        <div className="text-[10px] font-semibold text-purple-700 uppercase tracking-wider mt-1">ATT Started</div>
+                                        <div className="text-xs font-semibold text-purple-800 uppercase tracking-wider mt-1">ATT Started</div>
                                       </div>
                                       <div className="flex flex-col items-end">
-                                        <div className="text-[9px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">+18.7%</div>
-                                        <div className="text-[8px] text-slate-400 mt-1">vs last month</div>
+                                        <div className="text-[10px] font-bold text-purple-600 bg-purple-100/80 px-2 py-0.5 rounded-full">+18.7%</div>
+                                        <div className="text-[9px] text-slate-600 mt-1">vs last month</div>
                                       </div>
                                     </div>
-                                    <div className="mt-4 h-2 bg-purple-200 rounded-full overflow-hidden">
+                                    <div className="relative z-10 mt-4 h-2 bg-purple-200/60 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ width: 0 }}
                                         animate={{ width: `${stats.total > 0 ? Math.round((stats.attStarted / stats.total) * 100) : 0}%` }}
                                         transition={{ duration: 1.2, ease: "easeOut" }}
-                                        className="h-full bg-gradient-to-r from-purple-400 to-violet-500 rounded-full relative"
+                                        className="h-full bg-gradient-to-r from-purple-500 to-violet-500 rounded-full relative"
                                       >
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
                                       </motion.div>
                                     </div>
-                                    <div className="mt-3 flex items-center justify-between">
-                                      <div className="text-[8px] text-slate-500">Treatment Initiation</div>
-                                      <div className="text-[9px] font-bold text-purple-700">
+                                    <div className="relative z-10 mt-3 flex items-center justify-between">
+                                      <div className="text-[9px] text-slate-600 font-medium">Treatment Initiation</div>
+                                      <div className="text-[10px] font-bold text-purple-800">
                                         {(() => {
                                           const pct = stats.total > 0 ? ((stats.attStarted / stats.total) * 100).toFixed(1) : 0;
                                           return `${pct}%`;
@@ -1828,36 +1827,62 @@ export default function Vertex({
                               </div>
 
                               {/* Secondary Metrics Row */}
-                              <div className="flex items-center gap-2 pl-[calc(20%+8px)]">
+                              <div className="flex items-center gap-3 pl-[calc(20%+8px)]">
 
                                 {/* Not Suspected Card */}
                                 <div className="flex-1 group cursor-pointer">
-                                  <div className="relative bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-200 shadow-sm hover:shadow-lg hover:shadow-green-100/50 transition-all duration-300 group-hover:border-green-300">
-                                    <div className="text-3xl font-bold text-green-900 tabular-nums tracking-tight mb-1">{(stats.total - stats.suspected).toLocaleString()}</div>
-                                    <div className="text-[9px] font-semibold text-green-700 uppercase tracking-wider mb-2">Not Suspected</div>
-                                    <div className="h-1.5 bg-green-200 rounded-full overflow-hidden">
+                                  <div className="relative bg-green-50/70 backdrop-blur-xl rounded-2xl p-4 border border-green-200/60 shadow-lg hover:shadow-2xl hover:shadow-green-200/60 transition-all duration-300 group-hover:border-green-300/80 group-hover:-translate-y-1 overflow-hidden">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-green-50/50 to-emerald-50/30" />
+                                    <div className="relative z-10 flex items-start justify-between mb-2">
+                                      <div>
+                                        <div className="text-3xl font-bold text-green-900 tabular-nums tracking-tight">{(stats.total - stats.suspected).toLocaleString()}</div>
+                                        <div className="text-[10px] font-semibold text-green-800 uppercase tracking-wider mt-1">Not Suspected</div>
+                                      </div>
+                                      <div className="text-[9px] font-bold text-green-600 bg-green-100/80 px-2 py-0.5 rounded-full">
+                                        {(() => {
+                                          const pct = stats.total > 0 ? (((stats.total - stats.suspected) / stats.total) * 100).toFixed(1) : 0;
+                                          return `${pct}%`;
+                                        })()}
+                                      </div>
+                                    </div>
+                                    <div className="relative z-10 h-1.5 bg-green-200/60 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ width: 0 }}
                                         animate={{ width: `${stats.total > 0 ? Math.round(((stats.total - stats.suspected) / stats.total) * 100) : 0}%` }}
                                         transition={{ duration: 1, ease: "easeOut" }}
-                                        className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full"
-                                      />
+                                        className="h-full bg-gradient-to-r from-green-500 to-emerald-500 rounded-full relative"
+                                      >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
+                                      </motion.div>
                                     </div>
                                   </div>
                                 </div>
 
                                 {/* Not Diagnosed Card */}
                                 <div className="flex-1 group cursor-pointer">
-                                  <div className="relative bg-gradient-to-br from-red-50 to-rose-50 rounded-2xl p-4 border border-red-200 shadow-sm hover:shadow-lg hover:shadow-red-100/50 transition-all duration-300 group-hover:border-red-300">
-                                    <div className="text-3xl font-bold text-red-900 tabular-nums tracking-tight mb-1">{(stats.referralDone - stats.diagnosed).toLocaleString()}</div>
-                                    <div className="text-[9px] font-semibold text-red-700 uppercase tracking-wider mb-2">Not Diagnosed</div>
-                                    <div className="h-1.5 bg-red-200 rounded-full overflow-hidden">
+                                  <div className="relative bg-red-50/70 backdrop-blur-xl rounded-2xl p-4 border border-red-200/60 shadow-lg hover:shadow-2xl hover:shadow-red-200/60 transition-all duration-300 group-hover:border-red-300/80 group-hover:-translate-y-1 overflow-hidden">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-red-50/50 to-rose-50/30" />
+                                    <div className="relative z-10 flex items-start justify-between mb-2">
+                                      <div>
+                                        <div className="text-3xl font-bold text-red-900 tabular-nums tracking-tight">{(stats.referralDone - stats.diagnosed).toLocaleString()}</div>
+                                        <div className="text-[10px] font-semibold text-red-800 uppercase tracking-wider mt-1">Not Diagnosed</div>
+                                      </div>
+                                      <div className="text-[9px] font-bold text-red-600 bg-red-100/80 px-2 py-0.5 rounded-full">
+                                        {(() => {
+                                          const pct = stats.referralDone > 0 ? (((stats.referralDone - stats.diagnosed) / stats.referralDone) * 100).toFixed(1) : 0;
+                                          return `${pct}%`;
+                                        })()}
+                                      </div>
+                                    </div>
+                                    <div className="relative z-10 h-1.5 bg-red-200/60 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ width: 0 }}
                                         animate={{ width: `${stats.referralDone > 0 ? Math.round(((stats.referralDone - stats.diagnosed) / stats.referralDone) * 100) : 0}%` }}
                                         transition={{ duration: 1, ease: "easeOut" }}
-                                        className="h-full bg-gradient-to-r from-red-400 to-rose-500 rounded-full"
-                                      />
+                                        className="h-full bg-gradient-to-r from-red-500 to-rose-500 rounded-full relative"
+                                      >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
+                                      </motion.div>
                                     </div>
                                   </div>
                                 </div>
@@ -1865,55 +1890,57 @@ export default function Vertex({
                               </div>
 
                               {/* Timeline Band - Screening Frequency Jan-Dec */}
-                              <div className="mt-6 pt-6 border-t border-slate-200">
-                                <div className="flex items-center justify-between mb-4">
-                                  <h5 className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Screening Frequency Timeline</h5>
-                                  <div className="text-[9px] text-slate-500">Year {year}</div>
+                              <div className="mt-8 pt-6 border-t border-slate-200/60">
+                                <div className="flex items-center justify-between mb-5">
+                                  <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Screening Frequency Timeline</h5>
+                                  <div className="text-[10px] text-slate-600 font-semibold">Year {year}</div>
                                 </div>
-                                <div className="flex items-end gap-1 h-24">
-                                  {(() => {
-                                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                                    const monthlyData = months.map((_, monthIndex) => {
-                                      const monthPatients = globalPatients.filter((p: any) => {
-                                        const dateValue = p.screening_date || p.submitted_on;
-                                        if (!dateValue) return false;
-                                        const date = new Date(dateValue);
-                                        return date.getMonth() === monthIndex && date.getFullYear() === year;
+                                <div className="relative bg-white/50 backdrop-blur-sm rounded-2xl p-4 border border-white/40 shadow-lg">
+                                  <div className="flex items-end gap-1.5 h-32">
+                                    {(() => {
+                                      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                      const monthlyData = months.map((_, monthIndex) => {
+                                        const monthPatients = globalPatients.filter((p: any) => {
+                                          const dateValue = p.screening_date || p.submitted_on;
+                                          if (!dateValue) return false;
+                                          const date = new Date(dateValue);
+                                          return date.getMonth() === monthIndex && date.getFullYear() === year;
+                                        });
+                                        return monthPatients.length;
                                       });
-                                      return monthPatients.length;
-                                    });
-                                    const maxValue = Math.max(...monthlyData, 1);
-                                    
-                                    return months.map((month, index) => {
-                                      const value = monthlyData[index];
-                                      const height = (value / maxValue) * 100;
-                                      const isCurrentMonth = index === currentDate.getMonth();
+                                      const maxValue = Math.max(...monthlyData, 1);
                                       
-                                      return (
-                                        <div key={month} className="flex-1 flex flex-col items-center gap-1 group">
-                                          <div className="relative w-full h-full flex items-end">
-                                            <motion.div
-                                              initial={{ height: 0 }}
-                                              animate={{ height: `${height}%` }}
-                                              transition={{ duration: 0.8, delay: index * 0.05, ease: "easeOut" }}
-                                              className={`w-full rounded-t-sm transition-all duration-300 group-hover:opacity-80 ${
-                                                isCurrentMonth 
-                                                  ? 'bg-gradient-to-t from-emerald-500 to-emerald-400 shadow-lg shadow-emerald-200' 
-                                                  : 'bg-gradient-to-t from-slate-300 to-slate-200'
-                                              }`}
-                                            />
-                                            {/* Tooltip */}
-                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[9px] px-2 py-1 rounded whitespace-nowrap z-10">
-                                              {value.toLocaleString()}
+                                      return months.map((month, index) => {
+                                        const value = monthlyData[index];
+                                        const height = (value / maxValue) * 100;
+                                        const isCurrentMonth = index === currentDate.getMonth();
+                                        
+                                        return (
+                                          <div key={month} className="flex-1 flex flex-col items-center gap-2 group">
+                                            <div className="relative w-full h-full flex items-end">
+                                              <motion.div
+                                                initial={{ height: 0 }}
+                                                animate={{ height: `${height}%` }}
+                                                transition={{ duration: 0.8, delay: index * 0.05, ease: "easeOut" }}
+                                                className={`w-full rounded-t-lg transition-all duration-300 group-hover:opacity-90 group-hover:scale-105 ${
+                                                  isCurrentMonth 
+                                                    ? 'bg-gradient-to-t from-emerald-500 to-emerald-400 shadow-lg shadow-emerald-200/50' 
+                                                    : 'bg-gradient-to-t from-slate-400 to-slate-300'
+                                                }`}
+                                              />
+                                              {/* Tooltip */}
+                                              <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/90 backdrop-blur-sm text-white text-[10px] px-3 py-1.5 rounded-lg whitespace-nowrap z-10 font-medium shadow-lg">
+                                                {value.toLocaleString()}
+                                              </div>
+                                            </div>
+                                            <div className={`text-[9px] font-semibold ${isCurrentMonth ? 'text-emerald-700' : 'text-slate-500'}`}>
+                                              {month}
                                             </div>
                                           </div>
-                                          <div className={`text-[8px] font-medium ${isCurrentMonth ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                            {month}
-                                          </div>
-                                        </div>
-                                      );
-                                    });
-                                  })()}
+                                        );
+                                      });
+                                    })()}
+                                  </div>
                                 </div>
                               </div>
 
