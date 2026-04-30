@@ -1581,10 +1581,10 @@ export default function Vertex({
                               <div className="text-sm text-slate-700 font-semibold">{monthName} {year}</div>
                             </div>
                             
-                            <div className="flex flex-col gap-6">
+                            <div className="flex flex-col gap-2">
 
                               {/* Premium Pie Chart - Care Cascade Visualization */}
-                              <div className="relative bg-white/50 backdrop-blur-sm rounded-2xl p-6 border border-white/40 shadow-lg">
+                              <div className="relative bg-white/50 backdrop-blur-sm rounded-2xl px-6 pt-6 pb-2 border border-white/40 shadow-lg">
                                 <ScreeningFrequencyChart
                                   data={[
                                     { stage: "Screened", value: stats.total },
@@ -1598,7 +1598,7 @@ export default function Vertex({
                               </div>
 
                               {/* Timeline Band - Screening Frequency Jan-Dec */}
-                              <div className="mt-4 pt-2 border-t border-slate-200/60">
+                              <div className="-mt-1">
                                 <ScreeningFrequencyTimeline
                                   patients={globalPatients}
                                   year={year}

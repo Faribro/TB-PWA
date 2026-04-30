@@ -45,8 +45,8 @@ export function ScreeningFrequencyTimeline({
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
   // Layout Constants
-  const MIN_SECTION_HEIGHT = 320;
-  const BAR_AREA_HEIGHT = 160;
+  const MIN_SECTION_HEIGHT = 200;
+  const BAR_AREA_HEIGHT = 140;
 
   // --- RENDER STATES ---
 
@@ -96,20 +96,7 @@ export function ScreeningFrequencyTimeline({
 
   // --- SUCCESS STATE ---
   return (
-    <div className="w-full relative bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg flex flex-col" style={{ minHeight: `${MIN_SECTION_HEIGHT}px` }}>
-      
-      {/* Header aligned consistently */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center">
-            <BarChart3 className="w-4 h-4 text-indigo-600" />
-          </div>
-          <h5 className="text-sm font-black text-slate-800 uppercase tracking-widest">Frequency Timeline</h5>
-        </div>
-        <div className="text-[10px] text-indigo-600 font-bold bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-full uppercase tracking-wider">
-          Year {year}
-        </div>
-      </div>
+    <div className="w-full relative bg-white/60 backdrop-blur-sm rounded-2xl p-6 pt-8 border border-white/50 shadow-lg flex flex-col" style={{ minHeight: `${MIN_SECTION_HEIGHT}px` }}>
 
       {/* Chart Area */}
       <div className="relative flex-1 flex flex-col justify-end mt-auto">
