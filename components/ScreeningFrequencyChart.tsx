@@ -123,7 +123,10 @@ export function ScreeningFrequencyChart({ data }: { data: any[] }) {
     chart.legend.itemContainers.template.background.fillOpacity = 0.8;
     chart.legend.itemContainers.template.background.strokeWidth = 1;
     chart.legend.itemContainers.template.background.stroke = am4core.color('#e2e8f0');
-    chart.legend.itemContainers.template.background.cornerRadius(8, 8, 8, 8);
+    chart.legend.itemContainers.template.background.cornerRadiusTopLeft = 8;
+    chart.legend.itemContainers.template.background.cornerRadiusTopRight = 8;
+    chart.legend.itemContainers.template.background.cornerRadiusBottomLeft = 8;
+    chart.legend.itemContainers.template.background.cornerRadiusBottomRight = 8;
 
     // Legend hover state
     const legendHoverState = chart.legend.itemContainers.template.background.states.create('hover');
@@ -146,7 +149,10 @@ export function ScreeningFrequencyChart({ data }: { data: any[] }) {
     // Legend markers (colored squares)
     chart.legend.markers.template.width = 12;
     chart.legend.markers.template.height = 12;
-    chart.legend.markers.template.cornerRadius(3, 3, 3, 3);
+    chart.legend.markers.template.cornerRadiusTopLeft = 3;
+    chart.legend.markers.template.cornerRadiusTopRight = 3;
+    chart.legend.markers.template.cornerRadiusBottomLeft = 3;
+    chart.legend.markers.template.cornerRadiusBottomRight = 3;
 
     // Interactive legend - toggle slices
     chart.legend.itemContainers.template.events.on('hit', (ev) => {
