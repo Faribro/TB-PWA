@@ -41,6 +41,7 @@ import { FollowUpPipeline } from '@/components/FollowUpPipeline';
 import { PatientDetailDrawer } from '@/components/PatientDetailDrawer';
 import { VertexChart } from '@/components/VertexChart';
 import { ScreeningFrequencyChart } from '@/components/ScreeningFrequencyChart';
+import { ScreeningFrequencyTimeline } from '@/components/ScreeningFrequencyTimeline';
 import { useSWRConfig } from 'swr';
 import { RegisterReconciliation } from '@/components/RegisterReconciliation';
 import { useReconciliationStore } from '@/stores/useReconciliationStore';
@@ -1597,89 +1598,13 @@ export default function Vertex({
                               </div>
 
                               {/* Timeline Band - Screening Frequency Jan-Dec */}
-                              <div className="mt-2">
-                                <div className="flex items-center justify-between mb-4">
-                                  <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Screening Frequency Timeline</h5>
-                                  <div className="text-[10px] text-slate-500 font-semibold bg-slate-100 px-2.5 py-1 rounded-full">Year {year}</div>
-                                </div>
-                                <div className="relative bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-white/50 shadow-lg">
-                                  {/* Horizontal grid lines */}
-                                  <div className="absolute inset-x-5 top-5 bottom-[36px] flex flex-col justify-between pointer-events-none">
-                                    {[0,1,2,3].map(i => (
-                                      <div key={i} className="w-full border-t border-dashed border-slate-200/60" />
-                                    ))}
-                                  </div>
-                                  <div className="flex items-end gap-2" style={{ height: '140px' }}>
-                                    {(() => {
-                                      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                                      const monthlyData = months.map((_, monthIndex) => {
-                                        const monthPatients = globalPatients.filter((p: any) => {
-                                          const dateValue = p.screening_date || p.submitted_on;
-                                          if (!dateValue) return false;
-                                          const date = new Date(dateValue);
-                                          return date.getMonth() === monthIndex && date.getFullYear() === year;
-                                        });
-                                        return monthPatients.length;
-                                      });
-                                      const maxValue = Math.max(...monthlyData, 1);
-                                      const barAreaHeight = 120; // px available for bars
-
-                                      return months.map((month, index) => {
-                                        const value = monthlyData[index];
-                                        const barHeight = value > 0 ? Math.max(Math.round((value / maxValue) * barAreaHeight), 6) : 0;
-                                        const isCurrentMonth = index === currentDate.getMonth();
-                                        const hasData = value > 0;
-
-                                        return (
-                                          <div key={month} className="flex-1 flex flex-col items-center group relative" style={{ height: '140px' }}>
-                                            {/* Bar area */}
-                                            <div className="flex-1 w-full flex items-end justify-center px-0.5">
-                                              <motion.div
-                                                initial={{ height: 0, opacity: 0 }}
-                                                animate={{ height: barHeight, opacity: 1 }}
-                                                transition={{ duration: 0.7, delay: index * 0.06, ease: [0.22, 1, 0.36, 1] }}
-                                                className={`w-full max-w-[28px] rounded-t-md relative overflow-hidden transition-transform duration-200 group-hover:scale-x-110 ${
-                                                  !hasData ? '' :
-                                                  isCurrentMonth
-                                                    ? 'shadow-md shadow-indigo-300/40'
-                                                    : 'shadow-sm'
-                                                }`}
-                                                style={{
-                                                  background: !hasData ? 'transparent' :
-                                                    isCurrentMonth
-                                                      ? 'linear-gradient(to top, #4f46e5, #818cf8)'
-                                                      : 'linear-gradient(to top, #cbd5e1, #e2e8f0)',
-                                                }}
-                                              >
-                                                {/* Shine overlay */}
-                                                {hasData && (
-                                                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-                                                )}
-                                              </motion.div>
-                                              {/* Tooltip */}
-                                              {hasData && (
-                                                <div className="absolute -top-1 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-slate-900 text-white text-[10px] px-2.5 py-1 rounded-lg whitespace-nowrap z-20 font-bold shadow-xl pointer-events-none">
-                                                  {value.toLocaleString()}
-                                                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-900" />
-                                                </div>
-                                              )}
-                                            </div>
-                                            {/* Month label */}
-                                            <div className={`text-[9px] font-bold mt-2 uppercase tracking-wider ${
-                                              isCurrentMonth ? 'text-indigo-600' : 'text-slate-400'
-                                            }`}>
-                                              {month}
-                                            </div>
-                                            {/* Current month indicator dot */}
-                                            {isCurrentMonth && (
-                                              <div className="w-1 h-1 rounded-full bg-indigo-500 mt-0.5" />
-                                            )}
-                                          </div>
-                                        );
-                                      });
-                                    })()}
-                                  </div>
-                                </div>
+                              <div className="mt-4 pt-2 border-t border-slate-200/60">
+                                <ScreeningFrequencyTimeline
+                                  patients={globalPatients}
+                                  year={year}
+                                  currentMonth={currentDate.getMonth()}
+                                  isLoading={isLoading}
+                                />
                               </div>
 
                             </div>
