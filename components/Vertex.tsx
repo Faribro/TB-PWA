@@ -1597,7 +1597,7 @@ export default function Vertex({
                               </div>
 
                               {/* Timeline Band - Screening Frequency Jan-Dec */}
-                              <div className="mt-8 pt-6 border-t border-slate-200/60">
+                              <div className="mt-4 pt-4 border-t border-slate-200/60">
                                 <div className="flex items-center justify-between mb-5">
                                   <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Screening Frequency Timeline</h5>
                                   <div className="text-[10px] text-slate-600 font-semibold">Year {year}</div>
@@ -1616,6 +1616,8 @@ export default function Vertex({
                                         return monthPatients.length;
                                       });
                                       const maxValue = Math.max(...monthlyData, 1);
+                                      
+                                      console.log('[Vertex Timeline] Monthly data:', { year, monthlyData, maxValue, totalPatients: globalPatients.length });
                                       
                                       return months.map((month, index) => {
                                         const value = monthlyData[index];
