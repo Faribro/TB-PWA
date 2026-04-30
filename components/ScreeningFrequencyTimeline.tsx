@@ -45,8 +45,8 @@ export function ScreeningFrequencyTimeline({
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
   // Layout Constants
-  const MIN_SECTION_HEIGHT = 200;
-  const BAR_AREA_HEIGHT = 140;
+  const MIN_SECTION_HEIGHT = 220;
+  const BAR_AREA_HEIGHT = 150;
 
   // --- RENDER STATES ---
 
@@ -96,7 +96,7 @@ export function ScreeningFrequencyTimeline({
 
   // --- SUCCESS STATE ---
   return (
-    <div className="w-full relative bg-white/60 backdrop-blur-sm rounded-2xl p-6 pt-8 border border-white/50 shadow-lg flex flex-col" style={{ minHeight: `${MIN_SECTION_HEIGHT}px` }}>
+    <div className="w-full relative bg-gradient-to-br from-white/80 via-white/60 to-slate-50/80 backdrop-blur-sm rounded-2xl p-6 pt-8 border border-white/70 shadow-lg flex flex-col" style={{ minHeight: `${MIN_SECTION_HEIGHT}px` }}>
 
       {/* Chart Area */}
       <div className="relative flex-1 flex flex-col justify-end mt-auto">
@@ -105,9 +105,9 @@ export function ScreeningFrequencyTimeline({
           {[0, 1, 2, 3].map((_, i, arr) => {
             const isTop = i === 0;
             return (
-              <div key={i} className="w-full border-t border-dashed border-slate-200/70 relative">
+              <div key={i} className="w-full border-t border-dashed border-slate-300/60 relative">
                 {isTop && (
-                  <span className="absolute -top-2.5 -left-2 text-[9px] font-bold text-slate-300 bg-white/80 px-1">
+                  <span className="absolute -top-3 -left-2 text-[10px] font-black text-slate-500 bg-white/90 px-2 py-0.5 rounded-md shadow-sm">
                     {maxValue.toLocaleString()}
                   </span>
                 )}
@@ -129,10 +129,10 @@ export function ScreeningFrequencyTimeline({
               <div key={month} className="flex-1 flex flex-col items-center group relative h-full justify-end pb-8">
                 {/* Tooltip (Hover) */}
                 {hasMonthData && (
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full mb-2 opacity-0 group-hover:opacity-100 group-hover:-translate-y-[calc(100%+4px)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] z-30 pointer-events-none">
-                    <div className="bg-slate-900 text-white text-[11px] px-3 py-1.5 rounded-lg whitespace-nowrap font-bold shadow-xl">
-                      {value.toLocaleString()}
-                      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[90%] w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-transparent border-t-slate-900" />
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full mb-2 opacity-0 group-hover:opacity-100 group-hover:-translate-y-[calc(100%+6px)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] z-30 pointer-events-none">
+                    <div className="bg-slate-900 text-white text-xs px-3.5 py-2 rounded-xl whitespace-nowrap font-black shadow-2xl border border-slate-700">
+                      {value.toLocaleString()} screened
+                      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[90%] w-0 h-0 border-l-[6px] border-r-[6px] border-t-[7px] border-transparent border-t-slate-900" />
                     </div>
                   </div>
                 )}
@@ -143,37 +143,40 @@ export function ScreeningFrequencyTimeline({
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: barHeight, opacity: 1 }}
                     transition={{ duration: 0.8, delay: index * 0.04, ease: [0.22, 1, 0.36, 1] }}
-                    className={`w-full max-w-[32px] rounded-t-lg relative overflow-hidden transition-transform duration-300 group-hover:scale-x-[1.15] cursor-default ${
+                    className={`w-full max-w-[36px] rounded-t-xl relative overflow-hidden transition-all duration-300 group-hover:scale-x-[1.2] group-hover:scale-y-[1.02] cursor-default ${
                       !hasMonthData ? '' :
                       isCurrentMonth
-                        ? 'shadow-[0_4px_16px_rgba(79,70,229,0.3)]'
-                        : 'shadow-sm group-hover:shadow-md'
+                        ? 'shadow-[0_6px_20px_rgba(79,70,229,0.4)]'
+                        : 'shadow-md group-hover:shadow-xl'
                     }`}
                     style={{
                       background: !hasMonthData ? 'transparent' :
                         isCurrentMonth
-                          ? 'linear-gradient(180deg, #6366f1 0%, #818cf8 100%)'
-                          : 'linear-gradient(180deg, #94a3b8 0%, #cbd5e1 100%)',
+                          ? 'linear-gradient(180deg, #6366f1 0%, #818cf8 50%, #a5b4fc 100%)'
+                          : 'linear-gradient(180deg, #64748b 0%, #94a3b8 50%, #cbd5e1 100%)',
                     }}
                   >
                     {/* Inner highlight for glass effect */}
                     {hasMonthData && (
-                      <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent pointer-events-none" />
+                      <>
+                        <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-white/20 to-transparent pointer-events-none" />
+                        <div className="absolute inset-x-0 top-0 h-1 bg-white/60 rounded-t-xl" />
+                      </>
                     )}
                   </motion.div>
                 </div>
 
                 {/* Month Label pinned to bottom */}
                 <div className="absolute bottom-0 w-full flex flex-col items-center">
-                  <div className={`text-[10px] sm:text-xs font-black uppercase tracking-widest transition-colors duration-200 ${
+                  <div className={`text-[11px] sm:text-xs font-black uppercase tracking-[0.15em] transition-colors duration-200 ${
                     isCurrentMonth ? 'text-indigo-600' : 
-                    hasMonthData ? 'text-slate-500 group-hover:text-slate-700' : 'text-slate-300'
+                    hasMonthData ? 'text-slate-600 group-hover:text-slate-800' : 'text-slate-400'
                   }`}>
                     {month}
                   </div>
                   {/* Current month dot indicator */}
-                  <div className={`w-1.5 h-1.5 rounded-full mt-1.5 transition-all duration-300 ${
-                    isCurrentMonth ? 'bg-indigo-500 scale-100 shadow-[0_0_8px_rgba(99,102,241,0.6)]' : 'bg-transparent scale-0'
+                  <div className={`w-2 h-2 rounded-full mt-2 transition-all duration-300 ${
+                    isCurrentMonth ? 'bg-indigo-500 scale-100 shadow-[0_0_10px_rgba(99,102,241,0.7)]' : 'bg-transparent scale-0'
                   }`} />
                 </div>
               </div>
