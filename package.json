@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.43",
+    "@amcharts/amcharts4": "^4.10.40",
     "@auth/supabase-adapter": "^1.11.1",
     "@deck.gl/aggregation-layers": "^9.2.11",
     "@deck.gl/core": "^9.2.11",

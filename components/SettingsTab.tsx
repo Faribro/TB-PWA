@@ -684,36 +684,7 @@ export default function SettingsTab() {
 
   return (
     <div className="h-full flex bg-[#F4F6F9]" style={{ fontFamily: "'Inter', sans-serif" }}>
-        {/* Sub-tab navigation */}
-        <aside className="w-64 border-r border-slate-200/80 bg-white/90 backdrop-blur-xl p-5 flex flex-col">
-          <div className="mb-6">
-            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.4em]">Settings</h2>
-          </div>
-          <nav aria-label="Settings sub-navigation" className="flex flex-col gap-1">
-            {subTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeSubTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  ref={(el) => { (tabRefs.current as Record<string, HTMLButtonElement | null>)[tab.id] = el; }}
-                  onClick={() => setActiveSubTab(tab.id)}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={`relative flex items-center gap-3 px-3 py-2 rounded-xl text-left transition-all focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
-                    isActive
-                      ? 'bg-slate-900 text-white shadow-md'
-                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <div className="w-5 h-5 flex items-center justify-center">
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <span className="text-sm font-semibold">{tab.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
+        {/* Removed sidebar as requested */}
 
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto px-8 py-10">

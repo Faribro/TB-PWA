@@ -49,13 +49,11 @@ const TAB_CONFIG = [
   { id: 'vertex', path: '/dashboard/vertex', icon: Network, label: 'Vertex', description: 'Neural overview', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER], dataTourId: 'sidebar-vertex' },
   { id: 'mande', path: '/dashboard/mande', icon: Copy, label: 'M&E Tools', description: 'Monitoring & eval', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER], dataTourId: 'sidebar-mne' },
   { id: 'gis', path: '/dashboard/gis', icon: Map, label: 'GIS Map', description: 'Spatial intelligence', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER], dataTourId: 'sidebar-gis' },
-  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account & sync', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER, Role.PRISON_COORDINATOR] },
 ];
 
 const PC_TAB_CONFIG = [
   { id: 'my-submissions', path: '/dashboard/my-submissions', icon: Calendar, label: 'My Calendar', description: 'View submissions', roles: [Role.PRISON_COORDINATOR] },
   { id: 'submit-new', path: '/dashboard/submit-new', icon: FilePlus, label: 'New Screening', description: 'Submit record', roles: [Role.PRISON_COORDINATOR] },
-  { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings', description: 'Account', roles: [Role.PRISON_COORDINATOR] },
 ];
 
 function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
@@ -336,7 +334,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         {session && (
-          <div className={`flex-shrink-0 border-t border-slate-100/50 p-4 ${!sidebarOpen ? 'pb-6' : ''}`}>
+          <div className={`flex-shrink-0 border-t border-slate-100/50 p-4 ${!sidebarOpen ? 'pb-6 pt-4 space-y-4' : 'space-y-4'}`}>
+            {/* Settings Gear Button */}
+            <div className={`flex items-center ${!sidebarOpen ? 'justify-center' : 'justify-start'}`}>
+              <Link 
+                href="/dashboard/settings" 
+                className={`flex items-center gap-3 text-slate-500 hover:text-slate-900 transition-colors group ${!sidebarOpen ? 'w-10 h-10 bg-slate-100 group-hover:bg-slate-200 rounded-xl justify-center shadow-sm' : 'px-3 py-2 w-full rounded-2xl hover:bg-slate-900/5'}`}
+              >
+                <div className={!sidebarOpen ? '' : 'relative flex-shrink-0 w-10 h-10 min-w-10 min-h-10 rounded-xl bg-slate-100 group-hover:bg-slate-200 flex items-center justify-center transition-all duration-300'}>
+                  <Settings className={`w-5 h-5 ${pathname === '/dashboard/settings' ? 'text-slate-900' : ''}`} />
+                </div>
+                {sidebarOpen && (
+                  <div className="flex-1 overflow-hidden">
+                    <p className={`text-sm font-bold truncate tracking-tight ${pathname === '/dashboard/settings' ? 'text-slate-900' : 'text-slate-700'}`}>Settings</p>
+                    <p className="text-[10px] text-slate-400 truncate font-semibold uppercase tracking-wider">Account & Prefs</p>
+                  </div>
+                )}
+              </Link>
+            </div>
+
             <div className={`mb-3 rounded-2xl border border-slate-200/70 bg-white/80 px-3 py-3 shadow-[0_8px_25px_rgba(15,23,42,0.06)] ${!sidebarOpen ? 'border-transparent bg-transparent shadow-none p-0 mb-0' : ''}`}>
             <div className={`flex items-center gap-4 ${!sidebarOpen ? 'w-full flex-col justify-center items-center gap-3' : ''}`}>
               <div className="relative flex-shrink-0 w-10 h-10 min-w-10 min-h-10 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg text-white text-sm font-bold border border-white/40">
