@@ -321,15 +321,14 @@ export async function POST(request: NextRequest) {
     if (body.matchResults && body.matchResults.length > 0) {
       for (const result of body.matchResults) {
         const dec = body.decisions.find(d => d.sno === result.sno);
-        if (!dec || dec.action === 'pending') continue;
+        if (!dec) continue;
         
         const topCandidate = result.candidates?.[0];
         if (!topCandidate?.aiMatch) continue; // Only log AI-assisted matches
         
         const wasCorrect = 
           (dec.action === 'accept' && topCandidate.aiMatch.isMatch) ||
-          (dec.action === 'create' && !topCandidate.aiMatch.isMatch) ||
-          (dec.action === 'reject' && !topCandidate.aiMatch.isMatch);
+          (dec.action === 'create' && !topCandidate.aiMatch.isMatch);
         
         const feedback = {
           extracted_name: result.extractedRow.name,
@@ -428,7 +427,6 @@ export async function POST(request: NextRequest) {
         duplicatesSkipped: results.duplicatesSkipped,
         errors: results.errors.length,
       },
-      dbCommitted: true,
     });
 
     // ── Response ──

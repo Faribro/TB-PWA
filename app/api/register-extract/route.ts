@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
 
     // Structured scope audit log
     logReconciliationAudit('register_extract_start', {
+      action: 'register_extract_start',
       user: session.user.email || session.user.name,
       sessionId,
       screeningDate,

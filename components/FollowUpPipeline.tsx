@@ -75,7 +75,7 @@ const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelec
     {
       id: 'sputum',
       title: 'Sputum',
-      isComplete: Boolean(patient.referral_date && patient.referred_facility),
+      isComplete: Boolean(patient.referral_date),
     },
     {
       id: 'diagnosis',
@@ -86,11 +86,6 @@ const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelec
       id: 'treatment',
       title: 'Treatment',
       isComplete: Boolean(patient.att_start_date),
-    },
-    {
-      id: 'hiv',
-      title: 'HIV',
-      isComplete: Boolean(patient.hiv_status),
     },
     {
       id: 'nikshay',

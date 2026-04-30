@@ -1569,10 +1569,10 @@ export default function Vertex({
                     const year = currentDate.getFullYear();
 
                     return (
-                      <div className="flex flex-col flex-1 min-h-0">
+                      <div className="flex flex-col flex-1">
                         {/* Premium Care Cascade - Production-Grade Responsive Grid */}
-                        <div className="flex-shrink-0 px-6 py-6 overflow-hidden">
-                            <div className="flex items-center justify-between mb-8">
+                        <div className="flex-shrink-0 px-6 py-4">
+                            <div className="flex items-center justify-between mb-4">
                               <div>
                                 <h4 className="text-xl font-bold text-slate-900 tracking-widest uppercase">Care Cascade</h4>
                                 <p className="text-xs text-slate-600 mt-1 font-medium">Real-time patient journey analytics</p>
@@ -1619,7 +1619,7 @@ export default function Vertex({
                                       
                                       return months.map((month, index) => {
                                         const value = monthlyData[index];
-                                        const height = (value / maxValue) * 100;
+                                        const height = value > 0 ? Math.max((value / maxValue) * 100, 8) : 0; // Minimum 8% height for visibility
                                         const isCurrentMonth = index === currentDate.getMonth();
                                         
                                         return (

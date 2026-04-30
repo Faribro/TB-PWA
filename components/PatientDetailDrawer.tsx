@@ -872,13 +872,13 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                                         { value: 'Unknown', label: 'Unknown' }
                                       ]}
                                     />
-                                    <EditableField label="ART Start Date" value={watch('ART Start Date (dd/mm/yyyy)')} onChange={(val) => setValue('ART Start Date (dd/mm/yyyy)', val, { shouldDirty: true })} type="date" />
+                                    <EditableField label="ART Start Date" value={watch('Status at the time of referral (Pre ART/On ART)')} onChange={(val) => setValue('Status at the time of referral (Pre ART/On ART)', val, { shouldDirty: true })} type="date" />
                                   </div>
                                 )}
                                 {section.id === 'nikshay' && (
                                   <div data-tour-id="nikshay-section" className="space-y-3">
-                                    <EditableField label="Nikshay ID" value={watchedNikshay} onChange={(val) => setValue('Nikshay ID', val, { shouldDirty: true })} />
-                                    <EditableField label="Registration Date" value={watch('Nikshay Registration Date (dd/mm/yyyy)')} onChange={(val) => setValue('Nikshay Registration Date (dd/mm/yyyy)', val, { shouldDirty: true })} type="date" />
+                                    <EditableField label="Nikshay ID" value={watchedNikshay} onChange={(val) => setValue('NIKSHAY/ABHA ID', val, { shouldDirty: true })} />
+                                    <EditableField label="Registration Date" value={watch('Date of registration (dd/mm/yyyy)')} onChange={(val) => setValue('Date of registration (dd/mm/yyyy)', val, { shouldDirty: true })} type="date" />
                                   </div>
                                 )}
                               </HorizontalHoverAccordion>

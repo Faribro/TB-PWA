@@ -67,13 +67,13 @@ export async function GET(request: NextRequest) {
     
     // Check Redis cache directly (not using getCachedWithMemory which requires fetchFn)
     const { getCached, setCached } = await import('@/lib/redis');
-    const cached = await getCached(cacheKey);
+    const cached = await getCached(cacheKey) as BulkResponse | null;
     if (cached) {
       const durationMs = Date.now() - startTime;
       console.log(`[patients/bulk] ✅ Cache hit: ${cached.data.length} records in ${durationMs}ms`);
       return NextResponse.json(
         {
-          ...cached,
+          data: cached.data,
           meta: {
             ...cached.meta,
             cached: true,
