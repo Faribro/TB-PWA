@@ -203,7 +203,7 @@ export function DemographicsCarousel({
             {/* Identity Profile */}
             <div className="relative">
               <FormSectionTitle icon={User} title="Identity Profile" colorCode="#8b5cf6" />
-              <div className="bg-white/70 backdrop-blur-md rounded-[16px] p-1.5 border border-white shadow-[0_2px_12px_rgb(0,0,0,0.02)] relative">
+              <div className="bg-white/80 backdrop-blur-xl rounded-[18px] p-2 border border-white/90 shadow-[0_8px_32px_rgba(15,23,42,0.04),inset_0_1px_0_rgba(255,255,255,1)] relative">
                 <div className="flex flex-col gap-0.5">
                   <FormFieldRow label="Inmate Name" value={getValue('inmatename', patient?.inmate_name)} icon={User} editable fieldKey="inmatename" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
                   
@@ -227,7 +227,7 @@ export function DemographicsCarousel({
             {/* Location */}
             <div className="relative">
               <FormSectionTitle icon={MapPin} title="Location" colorCode="#10b981" />
-              <div className="bg-white/70 backdrop-blur-md rounded-[16px] p-1.5 border border-white shadow-[0_2px_12px_rgb(0,0,0,0.02)] relative">
+              <div className="bg-white/80 backdrop-blur-xl rounded-[18px] p-2 border border-white/90 shadow-[0_8px_32px_rgba(15,23,42,0.04),inset_0_1px_0_rgba(255,255,255,1)] relative">
                 <div className="flex flex-col gap-0.5">
                   <FormFieldRow label="Address" value={getValue('address', patient?.address)} icon={MapPin} editable fieldKey="address" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#10b981" />
                 </div>
@@ -242,7 +242,7 @@ export function DemographicsCarousel({
             {/* Screening Logistics */}
             <div className="relative">
               <FormSectionTitle icon={Calendar} title="Screening Logistics" colorCode="#3b82f6" />
-              <div className="bg-white/70 backdrop-blur-md rounded-[16px] p-1.5 border border-white shadow-[0_2px_12px_rgb(0,0,0,0.02)] relative">
+              <div className="bg-white/80 backdrop-blur-xl rounded-[18px] p-2 border border-white/90 shadow-[0_8px_32px_rgba(15,23,42,0.04),inset_0_1px_0_rgba(255,255,255,1)] relative">
                 <div className="flex flex-col gap-0.5">
                   <div className="grid grid-cols-2 gap-1">
                     <FormFieldRow label="Staff Name" value={getValue('staffname', patient?.staff_name)} icon={User} editable fieldKey="staffname" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#3b82f6" />
@@ -270,7 +270,7 @@ export function DemographicsCarousel({
             {/* TB Screening */}
             <div className="relative">
               <FormSectionTitle icon={Activity} title="TB Screening" colorCode="#f59e0b" />
-              <div className="bg-white/70 backdrop-blur-md rounded-[16px] p-1.5 border border-white shadow-[0_2px_12px_rgb(0,0,0,0.02)] relative">
+              <div className="bg-white/80 backdrop-blur-xl rounded-[18px] p-2 border border-white/90 shadow-[0_8px_32px_rgba(15,23,42,0.04),inset_0_1px_0_rgba(255,255,255,1)] relative">
                 <div className="flex flex-col gap-0.5">
                   <FormFieldRow label="X-Ray Result" value={getValue('xrayresult', patient?.xray_result)} options={['Normal', 'Suspected TB Case', 'Other Abnormality']} icon={Activity} editable fieldKey="xrayresult" fieldType="select" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
                   <div className="grid grid-cols-2 gap-1">
@@ -284,10 +284,10 @@ export function DemographicsCarousel({
             {/* System Metadata */}
             <div className="relative">
               <FormSectionTitle icon={Settings2} title="System Metadata" colorCode="#64748b" />
-              <div className="bg-white/70 backdrop-blur-md rounded-[16px] p-1.5 border border-white shadow-[0_2px_12px_rgb(0,0,0,0.02)] relative">
+              <div className="bg-white/80 backdrop-blur-xl rounded-[18px] p-2 border border-white/90 shadow-[0_8px_32px_rgba(15,23,42,0.04),inset_0_1px_0_rgba(255,255,255,1)] relative">
                 <div className="flex flex-col gap-0.5">
                   <FormFieldRow label="Kobo UUID" value={getValue('kobo_uuid', patient?.kobo_uuid)} icon={Hash} editable={false} colorCode="#64748b" />
-                  <FormFieldRow label="Unique ID" value={getValue('unique_id', patient?.unique_id)} icon={Hash} editable={false} colorCode="#64748b" />
+                  <FormFieldRow label="Serial Number" value={getValue('unique_id', patient?.unique_id)} icon={Hash} editable={false} colorCode="#64748b" />
                 </div>
               </div>
             </div>
