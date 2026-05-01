@@ -238,6 +238,7 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [tbFilteredPatients, setTbFilteredPatients] = useState<Patient[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const ITEMS_PER_PAGE = 50;
   
   // Local state for patients (updated via realtime)
@@ -360,9 +361,24 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
   }, [filteredPatients]);
 
   // The source of truth for the patient list below the TB toggle
-  const displayPatients = tbFilteredPatients.length > 0 || filterMode !== 'all'
-    ? tbFilteredPatients
-    : filteredPatients;
+  const displayPatients = useMemo(() => {
+    let patients = tbFilteredPatients.length > 0 || filterMode !== 'all'
+      ? tbFilteredPatients
+      : filteredPatients;
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      patients = patients.filter(p => 
+        p.inmate_name?.toLowerCase().includes(query) ||
+        p.unique_id?.toLowerCase().includes(query) ||
+        p.kobo_uuid?.toLowerCase().includes(query) ||
+        p.facility_name?.toLowerCase().includes(query)
+      );
+    }
+    
+    return patients;
+  }, [tbFilteredPatients, filteredPatients, filterMode, searchQuery]);
 
   // Task 2: Paginate filtered results
   const paginatedPatients = useMemo(() => {
@@ -498,6 +514,17 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
             Inmate List
           </h2>
           <div className="flex items-center gap-1.5">
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search inmates..."
+                className="h-8 pl-8 pr-3 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all w-48"
+              />
+            </div>
             {onUploadRegister && (
               <motion.button
                 whileHover={{ scale: 1.02 }}
