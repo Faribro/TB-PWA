@@ -24,6 +24,21 @@ import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 
 const supabaseClient = getSupabaseBrowserClient();
 
+// Helper to format dates for HTML5 date inputs (yyyy-MM-dd)
+const formatDateForInput = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '';
+  try {
+    // If it's already in yyyy-MM-dd format, return as-is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    // Otherwise parse and format
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '';
+    return date.toISOString().split('T')[0];
+  } catch {
+    return '';
+  }
+};
+
 interface PatientDetailDrawerProps {
   patient: any;
   isOpen: boolean;
@@ -131,13 +146,13 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   useEffect(() => {
     if (localPatient) {
       reset({
-        'Date of referral for TB Examination (sputum) (dd/mm/yy)': localPatient.referral_date || '',
+        'Date of referral for TB Examination (sputum) (dd/mm/yy)': formatDateForInput(localPatient.referral_date),
         'Name of facility where referred to (Give code/name of all facilities)': localPatient.referred_facility || '',
         'TB diagnosed (Y/N)': localPatient.tb_diagnosed || '',
-        'Date of TB Diagnosed (dd/mm/yy)': localPatient.tb_diagnosis_date || '',
+        'Date of TB Diagnosed (dd/mm/yy)': formatDateForInput(localPatient.tb_diagnosis_date),
         'Type of TB Diagnosed (P/EP)': localPatient.tb_type || '',
-        'Date of starting ATT (dd/mm/yyyy)': localPatient.att_start_date || '',
-        'Date of Treatment Completion (dd/mm/yyyy)': localPatient.att_completion_date || '',
+        'Date of starting ATT (dd/mm/yyyy)': formatDateForInput(localPatient.att_start_date),
+        'Date of Treatment Completion (dd/mm/yyyy)': formatDateForInput(localPatient.att_completion_date),
         'HIV Status (Positive/Negative/Unknown)': localPatient.hiv_status || '',
         'Status at the time of referral (Pre ART/On ART)': localPatient.art_status || '',
         'ART Number (if on ART at the time of referral)': localPatient.art_number || '',
@@ -153,18 +168,18 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const mapDemographics = (p: any) => ({
     // §1 Screening Details
     staffname:         p?.staff_name         || p?.['Staff Name']            || p?.data_collector        || '',
-    submittedon:       p?.submitted_on        || '',
+    submittedon:       formatDateForInput(p?.submitted_on),
     screeningstate:    p?.screening_state     || '',
     screeningdistrict: p?.screening_district  || p?.['District']              || '',
     facilitycode:      p?.facility_name       || p?.['Name of Facility']      || p?.facilitycode          || '',
     facilitytype:      p?.facility_type       || p?.['Facility Type']         || '',
-    screeningdate:     p?.screening_date      || p?.['Date of Screening']     || '',
+    screeningdate:     formatDateForInput(p?.screening_date || p?.['Date of Screening']),
     uniqueid:          p?.unique_id           || '',
     // §2 Identity
     inmatename:        p?.inmate_name         || p?.['Inmate Name']           || p?.patient_name           || p?.name || '',
     inmatetype:        p?.inmate_type         || p?.['Inmate Type']           || '',
     fatherhusbandname: p?.father_husband_name || p?.['Father/Husband Name']   || p?.father_name            || '',
-    dateofbirth:       p?.date_of_birth       || p?.['Date of Birth']         || p?.dob                    || '',
+    dateofbirth:       formatDateForInput(p?.date_of_birth || p?.['Date of Birth'] || p?.dob),
     age:               p?.age                 || p?.['Age']                   || '',
     sex:               p?.sex                 || p?.['Sex (Male/Female/TG)']  || p?.gender                 || '',
     contactnumber:     p?.contact_number      || p?.['Contact Number']        || p?.phone                  || p?.mobile || '',
