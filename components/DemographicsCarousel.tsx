@@ -12,13 +12,8 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ChevronLeft, ChevronRight, Calendar, User, MapPin, Activity, FileText, Shield, ClipboardList, Settings2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-
-if (typeof window !== 'undefined') {
-  gsap.registerPlugin(ScrollTrigger);
-}
+import { motion } from 'framer-motion';
 
 interface DemographicsCarouselProps {
   patient: any;
@@ -173,10 +168,9 @@ export function DemographicsCarousel({
   const galleryRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLUListElement>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
   const seamlessLoopRef = useRef<gsap.core.Timeline | null>(null);
   const scrubRef = useRef<gsap.core.Tween | null>(null);
-  const iterationRef = useRef(0);
+  const playheadRef = useRef(0);
 
   const spacing = 0.1;
   const snap = gsap.utils.snap(spacing);
@@ -199,7 +193,7 @@ export function DemographicsCarousel({
     const l = items.length + overlap * 2;
 
     // Set initial state
-    gsap.set(items, { xPercent: 400, opacity: 0, scale: 0.85 });
+    gsap.set(items, { xPercent: 400, opacity: 0, scale: 0 });
 
     // Create staggered animations
     for (let i = 0; i < l; i++) {
@@ -265,11 +259,13 @@ export function DemographicsCarousel({
   useEffect(() => {
     if (!cardsRef.current || !sections || sections.length === 0) return;
 
-    const cards = gsap.utils.toArray<HTMLElement>('.demo-card');
+    const cards = gsap.utils.toArray<HTMLElement>(
+      cardsRef.current?.querySelectorAll('.demo-card') ?? []
+    );
     if (cards.length === 0) return;
 
     // Fade in cards
-    gsap.to('.demo-card', { opacity: 1, delay: 0.1, stagger: 0.05 });
+    gsap.to(cards, { opacity: 1, delay: 0.1, stagger: 0.05 });
 
     const seamlessLoop = buildSeamlessLoop(cards, spacing);
     seamlessLoopRef.current = seamlessLoop;
@@ -285,53 +281,27 @@ export function DemographicsCarousel({
     return () => {
       seamlessLoop.kill();
       scrub.kill();
-      ScrollTrigger.getAll().forEach(t => t.kill());
     };
   }, [buildSeamlessLoop, spacing, sections.length]);
 
   // Navigation functions
   const scrubTo = useCallback((totalTime: number) => {
     if (!seamlessLoopRef.current || !scrubRef.current) return;
-
-    const seamlessLoop = seamlessLoopRef.current;
-    const scrub = scrubRef.current;
-    const iteration = iterationRef.current;
-
-    let progress = (totalTime - seamlessLoop.duration() * iteration) / seamlessLoop.duration();
-
-    if (progress > 1) {
-      iterationRef.current++;
-      progress = 0;
-    } else if (progress < 0) {
-      iterationRef.current--;
-      if (iterationRef.current < 0) {
-        iterationRef.current = 9;
-        seamlessLoop.totalTime(seamlessLoop.totalTime() + seamlessLoop.duration() * 10);
-      }
-      progress = 1;
-    }
-
-    scrub.vars.totalTime = snap(totalTime);
-    scrub.invalidate().restart();
+    const dur = seamlessLoopRef.current.duration();
+    playheadRef.current = ((totalTime % dur) + dur) % dur;
+    scrubRef.current.vars.totalTime = snap(playheadRef.current);
+    scrubRef.current.invalidate().restart();
   }, [snap]);
 
   const handleNext = useCallback(() => {
-    if (isAnimating || !scrubRef.current) return;
-    setIsAnimating(true);
-    const nextIndex = (currentIndex + 1) % sections.length;
-    setCurrentIndex(nextIndex);
-    scrubTo(scrubRef.current.vars.totalTime + spacing);
-    setTimeout(() => setIsAnimating(false), 500);
-  }, [currentIndex, sections.length, spacing, scrubTo, isAnimating]);
+    scrubTo(playheadRef.current + spacing);
+    setCurrentIndex(prev => (prev + 1) % sections.length);
+  }, [scrubTo, spacing, sections.length]);
 
   const handlePrev = useCallback(() => {
-    if (isAnimating || !scrubRef.current) return;
-    setIsAnimating(true);
-    const prevIndex = currentIndex === 0 ? sections.length - 1 : currentIndex - 1;
-    setCurrentIndex(prevIndex);
-    scrubTo(scrubRef.current.vars.totalTime - spacing);
-    setTimeout(() => setIsAnimating(false), 500);
-  }, [currentIndex, sections.length, spacing, scrubTo, isAnimating]);
+    scrubTo(playheadRef.current - spacing);
+    setCurrentIndex(prev => (prev === 0 ? sections.length - 1 : prev - 1));
+  }, [scrubTo, spacing, sections.length]);
 
   const nextSection = sections && sections.length > 0 ? sections[(currentIndex + 1) % sections.length] : null;
   const prevSection = sections && sections.length > 0 ? sections[currentIndex === 0 ? sections.length - 1 : currentIndex - 1] : null;
@@ -350,20 +320,18 @@ export function DemographicsCarousel({
       {/* Navigation Arrows - Fixed Position */}
       <motion.button
         onClick={handlePrev}
-        disabled={isAnimating || !prevSection}
         whileHover={{ scale: 1.1, x: -4 }}
         whileTap={{ scale: 0.9 }}
-        className="absolute left-4 top-1/2 -translate-y-1/2 z-50 w-12 h-12 bg-slate-900 text-white rounded-full shadow-xl shadow-slate-900/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300 hover:shadow-2xl flex items-center justify-center"
+        className="absolute left-4 top-1/2 -translate-y-1/2 z-50 w-12 h-12 bg-slate-900 text-white rounded-full shadow-xl shadow-slate-900/30 transition-all duration-300 hover:shadow-2xl flex items-center justify-center"
       >
         <ChevronLeft className="w-6 h-6" />
       </motion.button>
 
       <motion.button
         onClick={handleNext}
-        disabled={isAnimating || !nextSection}
         whileHover={{ scale: 1.1, x: 4 }}
         whileTap={{ scale: 0.9 }}
-        className="absolute right-4 top-1/2 -translate-y-1/2 z-50 w-12 h-12 bg-slate-900 text-white rounded-full shadow-xl shadow-slate-900/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300 hover:shadow-2xl flex items-center justify-center"
+        className="absolute right-4 top-1/2 -translate-y-1/2 z-50 w-12 h-12 bg-slate-900 text-white rounded-full shadow-xl shadow-slate-900/30 transition-all duration-300 hover:shadow-2xl flex items-center justify-center"
       >
         <ChevronRight className="w-6 h-6" />
       </motion.button>
