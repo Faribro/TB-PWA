@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabase-server';
 import { getSessionScope } from '@/lib/session-scope';
-import { syncToSheetsAsync } from '@/lib/sheetsSync';
+import { syncToSheetsAsync } from '@/lib/sheetsSyncHybrid';
 import { sanitizePatientUpdate } from '@/lib/db/sanitizePatientUpdate';
 import { invalidatePatientCaches } from '@/lib/cache-version';
 

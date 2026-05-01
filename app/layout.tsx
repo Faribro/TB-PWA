@@ -8,6 +8,7 @@ import { DataPacketChase } from "@/components/DataPacketChase";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { AudioContextInitializer } from "@/components/AudioContextInitializer";
 import { ScopeInitializer } from "@/components/ScopeInitializer";
+import QueueInitializer from "@/components/QueueInitializer";
 import TourProvider from "@/components/TourProvider";
 import { Analytics } from "@vercel/analytics/next";
 import { PostHogProvider } from "@/components/PostHogProvider";
@@ -55,6 +56,7 @@ export default function RootLayout({
       >
         <Providers>
           <PostHogProvider>
+            <QueueInitializer />
             <ScopeInitializer />
             <ServiceWorkerRegistration />
             <AudioContextInitializer />
