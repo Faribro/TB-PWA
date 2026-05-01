@@ -107,22 +107,23 @@ export async function GET(request: NextRequest) {
       }
 
       data.forEach((row: any) => {
-        // Normalize state names to title case to avoid duplicates (Uttarakhand vs uttarakhand)
+        // Normalize state names to handle all variants (Uttarakhand/uttarakhand, Madhya Pradesh/madhya_pradesh/Madhyapradesh)
         if (row.screening_state) {
-          const normalizedState = row.screening_state
+          let normalized = row.screening_state
             .toLowerCase()
-            .split('_')
+            .replace(/madhyapradesh/g, 'madhya_pradesh') // Handle Madhyapradesh → madhya_pradesh
+            .split(/[_\s]+/) // Split on underscore or space
             .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
             .join(' ');
-          statesSet.add(normalizedState);
+          statesSet.add(normalized);
         }
         if (row.screening_district) {
-          const normalizedDistrict = row.screening_district
+          let normalized = row.screening_district
             .toLowerCase()
-            .split('_')
+            .split(/[_\s]+/) // Split on underscore or space
             .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
             .join(' ');
-          districtsSet.add(normalizedDistrict);
+          districtsSet.add(normalized);
         }
       });
 
