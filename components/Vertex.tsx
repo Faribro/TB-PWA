@@ -52,6 +52,7 @@ import { useSessionScope } from '@/hooks/useSessionScope';
 import { useVertexHeatmap, useVertexMonthSummary, useVertexDaily } from '@/hooks/useVertexAggregates';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { GlassShatterOverlay } from '@/components/GlassShatterOverlay';
+import { GSAPCubeLoader } from '@/components/GSAPCubeLoader';
 
 // TypeScript Interfaces
 interface MonthlyHeatmapData {
@@ -1387,12 +1388,9 @@ export default function Vertex({
                     <div className="space-y-10">
                       {/* Interactive Metrics */}
                       {cachedDailySummary === undefined ? (
-                        // Skeleton for loading metrics
-                        <div className="grid grid-cols-2 gap-6">
-                          <Skeleton className="h-24 w-full rounded-xl" />
-                          <Skeleton className="h-24 w-full rounded-xl" />
-                          <Skeleton className="h-24 w-full rounded-xl" />
-                          <Skeleton className="h-24 w-full rounded-xl" />
+                        // GSAP Cube Loader for loading metrics
+                        <div className="flex items-center justify-center py-12">
+                          <GSAPCubeLoader />
                         </div>
                       ) : (
                         <div className="grid grid-cols-2 gap-6">
@@ -1483,11 +1481,9 @@ export default function Vertex({
                         >
                           {selectedDate ? (
                             geoSummaryData === undefined ? (
-                              // Skeleton for loading geo-summary
-                              <div className="space-y-3">
-                                <Skeleton className="h-16 w-full rounded-xl" />
-                                <Skeleton className="h-14 w-full rounded-xl" />
-                                <Skeleton className="h-14 w-full rounded-xl" />
+                              // GSAP Cube Loader for loading geo-summary
+                              <div className="flex items-center justify-center py-12">
+                                <GSAPCubeLoader />
                               </div>
                             ) : (
                               <GeographicHierarchy 
