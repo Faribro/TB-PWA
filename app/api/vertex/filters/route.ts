@@ -73,49 +73,60 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    // Fetch ALL states with explicit range (0-999999 to bypass 1000 row default limit)
-    let stateQuery = supabase
-      .from('patients')
-      .select('screening_state', { count: 'exact' })
-      .not('screening_state', 'is', null)
-      .range(0, 999999); // Explicit range to fetch all rows
+    // Batch fetch approach to get ALL unique states and districts
+    const batchSize = 1000;
+    const allStates = new Set<string>();
+    const allDistricts = new Set<string>();
+    let offset = 0;
+    let hasMore = true;
 
-    stateQuery = applyRBACFilters(stateQuery, role, state, staffName);
+    console.log('[vertex/filters] Starting batch fetch for states/districts...');
 
-    const { data: stateData, error: stateError } = await stateQuery;
+    while (hasMore) {
+      let query = supabase
+        .from('patients')
+        .select('screening_state, screening_district')
+        .not('screening_state', 'is', null)
+        .range(offset, offset + batchSize - 1);
 
-    if (stateError) {
-      console.error('[vertex/filters] State query error:', stateError);
-      throw stateError;
+      query = applyRBACFilters(query, role, state, staffName);
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('[vertex/filters] Batch query error:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      data.forEach((row: any) => {
+        if (row.screening_state) allStates.add(row.screening_state);
+        if (row.screening_district) allDistricts.add(row.screening_district);
+      });
+
+      console.log(`[vertex/filters] Batch ${Math.floor(offset / batchSize) + 1}: ${data.length} rows, States: ${allStates.size}, Districts: ${allDistricts.size}`);
+
+      if (data.length < batchSize) {
+        hasMore = false;
+      } else {
+        offset += batchSize;
+      }
+
+      if (offset > 100000) {
+        console.warn('[vertex/filters] Safety limit reached');
+        hasMore = false;
+      }
     }
 
-    // Fetch ALL districts with explicit range
-    let districtQuery = supabase
-      .from('patients')
-      .select('screening_district', { count: 'exact' })
-      .not('screening_district', 'is', null)
-      .range(0, 999999); // Explicit range to fetch all rows
+    const availableStates = Array.from(allStates).sort();
+    const availableDistricts = Array.from(allDistricts).sort();
 
-    districtQuery = applyRBACFilters(districtQuery, role, state, staffName);
-
-    const { data: districtData, error: districtError } = await districtQuery;
-
-    if (districtError) {
-      console.error('[vertex/filters] District query error:', districtError);
-      throw districtError;
-    }
-
-    // Extract unique values and sort
-    const availableStates = Array.from(
-      new Set((stateData || []).map((r: any) => r.screening_state).filter(Boolean))
-    ).sort();
-    
-    const availableDistricts = Array.from(
-      new Set((districtData || []).map((r: any) => r.screening_district).filter(Boolean))
-    ).sort();
-
-    console.log(`[vertex/filters] Found ${availableStates.length} unique states from ${stateData?.length || 0} rows`);
-    console.log(`[vertex/filters] Found ${availableDistricts.length} unique districts from ${districtData?.length || 0} rows`);
+    console.log(`[vertex/filters] ✅ Final: ${availableStates.length} states, ${availableDistricts.length} districts`);
+    console.log(`[vertex/filters] States: ${availableStates.join(', ')}`);
 
     const result = {
       availableStates,
@@ -125,6 +136,7 @@ export async function GET(request: NextRequest) {
         durationMs: Date.now() - startTime,
         stateCount: availableStates.length,
         districtCount: availableDistricts.length,
+        rowsProcessed: offset,
       },
     };
 
