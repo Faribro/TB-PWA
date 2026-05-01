@@ -10,14 +10,31 @@ interface EditableFieldProps {
   type?: string;
 }
 
+// Helper function to format date values for HTML date inputs
+const formatDateValue = (value: any, type: string): string => {
+  if (type === 'date' && value) {
+    // Extract only YYYY-MM-DD from ISO datetime strings
+    if (typeof value === 'string') {
+      // Handle ISO 8601 format: "2026-05-01T02:01:41+00:00"
+      const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
+      if (match) {
+        return match[1];
+      }
+    }
+  }
+  return value || '';
+};
+
 export function EditableField({ label, value, onChange, type = 'text' }: EditableFieldProps) {
+  const formattedValue = formatDateValue(value, type);
+  
   return (
     <div>
       <label className="block text-xs font-medium text-slate-500 mb-1">{label}</label>
       <div className="relative group">
         <Input
           type={type}
-          value={value}
+          value={formattedValue}
           onChange={(e) => onChange(e.target.value)}
           className="h-10 text-sm font-medium bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/60 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] rounded-xl transition-all duration-300"
         />
