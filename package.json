@@ -38,7 +38,8 @@
     "test:reconciliation": "bun scripts/test-reconciliation-pipeline.ts",
     "test:openrouter": "bun scripts/test-openrouter-fallback.ts",
     "test:context-validation": "bun scripts/test-register-context-validation.ts",
-    "clear:cache": "node scripts/clear-patient-cache.js"
+    "clear:cache": "node scripts/clear-patient-cache.js",
+    "test:state-normalization": "bun run lib/normalization/state.test.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.43",

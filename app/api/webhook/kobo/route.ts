@@ -20,7 +20,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabase-server';
-import { normalizeState, normalizeDistrict } from '@/lib/stateMapper';
+import { normalizeState, normalizeDistrict } from '@/lib/normalization/state';
 import { syncToSheetsAsync } from '@/lib/sheetsSync';
 import { invalidatePatientCaches } from '@/lib/cache-version';
 
@@ -135,7 +135,7 @@ function normalizeKoboPayload(payload: Record<string, unknown>): Record<string, 
       'screening_state',
       'grp_screening/State',
       'State'
-    ]) as string | null),
+    ]) as string | null).normalizedName,
     
     screening_district: normalizeDistrict(getField(payload, [
       'grp_screening/screening_district',

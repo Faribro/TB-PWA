@@ -1,298 +1,182 @@
 /**
  * State Normalization Utility
  * Ensures consistent state names across webhook ingestion, database, and UI
+ * Uses intelligent normalization logic instead of exhaustive mapping
  */
 
-const STATE_MAPPING: Record<string, string> = {
-  // Normalize variations to canonical names - ALL INDIAN STATES & UTs
-  
-  // Andhra Pradesh
-  'andhra pradesh': 'Andhra Pradesh',
-  'ANDHRA PRADESH': 'Andhra Pradesh',
-  'Andhra Pradesh': 'Andhra Pradesh',
-  'andhrapradesh': 'Andhra Pradesh',
-  'AP': 'Andhra Pradesh',
-  'ap': 'Andhra Pradesh',
-  
-  // Arunachal Pradesh
-  'arunachal pradesh': 'Arunachal Pradesh',
-  'ARUNACHAL PRADESH': 'Arunachal Pradesh',
-  'Arunachal Pradesh': 'Arunachal Pradesh',
-  'arunachalpradesh': 'Arunachal Pradesh',
-  
-  // Assam
-  'assam': 'Assam',
-  'ASSAM': 'Assam',
-  'Assam': 'Assam',
-  
-  // Bihar
-  'bihar': 'Bihar',
-  'BIHAR': 'Bihar',
-  'Bihar': 'Bihar',
-  
-  // Chhattisgarh
-  'chhattisgarh': 'Chhattisgarh',
-  'CHHATTISGARH': 'Chhattisgarh',
-  'Chhattisgarh': 'Chhattisgarh',
-  'chattisgarh': 'Chhattisgarh',
-  'Chattisgarh': 'Chhattisgarh',
-  'CG': 'Chhattisgarh',
-  'cg': 'Chhattisgarh',
-  
-  // Goa
-  'goa': 'Goa',
-  'GOA': 'Goa',
-  'Goa': 'Goa',
-  
-  // Gujarat
-  'gujarat': 'Gujarat',
-  'GUJARAT': 'Gujarat',
-  'Gujarat': 'Gujarat',
-  'GJ': 'Gujarat',
-  'gj': 'Gujarat',
-  
-  // Haryana
-  'haryana': 'Haryana',
-  'HARYANA': 'Haryana',
-  'Haryana': 'Haryana',
-  'HR': 'Haryana',
-  'hr': 'Haryana',
-  
-  // Himachal Pradesh
-  'himachal pradesh': 'Himachal Pradesh',
-  'HIMACHAL PRADESH': 'Himachal Pradesh',
-  'Himachal Pradesh': 'Himachal Pradesh',
-  'himachalpradesh': 'Himachal Pradesh',
-  'HP': 'Himachal Pradesh',
-  'hp': 'Himachal Pradesh',
-  
-  // Jharkhand
-  'jharkhand': 'Jharkhand',
-  'JHARKHAND': 'Jharkhand',
-  'Jharkhand': 'Jharkhand',
-  'JH': 'Jharkhand',
-  'jh': 'Jharkhand',
-  
-  // Karnataka
-  'karnataka': 'Karnataka',
-  'KARNATAKA': 'Karnataka',
-  'Karnataka': 'Karnataka',
-  'KA': 'Karnataka',
-  'ka': 'Karnataka',
-  
-  // Kerala
-  'kerala': 'Kerala',
-  'KERALA': 'Kerala',
-  'Kerala': 'Kerala',
-  'KL': 'Kerala',
-  'kl': 'Kerala',
-  
-  // Madhya Pradesh
-  'madhya pradesh': 'Madhya Pradesh',
-  'MADHYA PRADESH': 'Madhya Pradesh',
-  'Madhya Pradesh': 'Madhya Pradesh',
-  'madhyapradesh': 'Madhya Pradesh',
-  'Madhyapradesh': 'Madhya Pradesh',
-  'madhya_pradesh': 'Madhya Pradesh',
-  'MP': 'Madhya Pradesh',
-  'mp': 'Madhya Pradesh',
-  
-  // Maharashtra
-  'maharashtra': 'Maharashtra',
-  'MAHARASHTRA': 'Maharashtra',
-  'Maharashtra': 'Maharashtra',
-  'MH': 'Maharashtra',
-  'mh': 'Maharashtra',
-  
-  // Mumbai (sometimes listed separately)
-  'mumbai': 'Maharashtra',
-  'MUMBAI': 'Maharashtra',
-  'Mumbai': 'Maharashtra',
-  
-  // Manipur
-  'manipur': 'Manipur',
-  'MANIPUR': 'Manipur',
-  'Manipur': 'Manipur',
-  'MN': 'Manipur',
-  'mn': 'Manipur',
-  
-  // Meghalaya
-  'meghalaya': 'Meghalaya',
-  'MEGHALAYA': 'Meghalaya',
-  'Meghalaya': 'Meghalaya',
-  'ML': 'Meghalaya',
-  'ml': 'Meghalaya',
-  
-  // Mizoram
-  'mizoram': 'Mizoram',
-  'MIZORAM': 'Mizoram',
-  'Mizoram': 'Mizoram',
-  'MZ': 'Mizoram',
-  'mz': 'Mizoram',
-  
-  // Nagaland
-  'nagaland': 'Nagaland',
-  'NAGALAND': 'Nagaland',
-  'Nagaland': 'Nagaland',
-  'NL': 'Nagaland',
-  'nl': 'Nagaland',
-  
-  // Odisha
-  'odisha': 'Odisha',
-  'ODISHA': 'Odisha',
-  'Odisha': 'Odisha',
-  'orissa': 'Odisha',
-  'Orissa': 'Orissa',
-  'ORISSA': 'Odisha',
-  'OR': 'Odisha',
-  'or': 'Odisha',
-  
-  // Punjab
-  'punjab': 'Punjab',
-  'PUNJAB': 'Punjab',
-  'Punjab': 'Punjab',
-  'PB': 'Punjab',
-  'pb': 'Punjab',
-  
-  // Rajasthan
-  'rajasthan': 'Rajasthan',
-  'RAJASTHAN': 'Rajasthan',
-  'Rajasthan': 'Rajasthan',
-  'RJ': 'Rajasthan',
-  'rj': 'Rajasthan',
-  
-  // Sikkim
-  'sikkim': 'Sikkim',
-  'SIKKIM': 'Sikkim',
-  'Sikkim': 'Sikkim',
-  'SK': 'Sikkim',
-  'sk': 'Sikkim',
-  
-  // Tamil Nadu
-  'tamil nadu': 'Tamil Nadu',
-  'TAMIL NADU': 'Tamil Nadu',
-  'Tamil Nadu': 'Tamil Nadu',
-  'tamilnadu': 'Tamil Nadu',
-  'Tamilnadu': 'Tamil Nadu',
-  'TN': 'Tamil Nadu',
-  'tn': 'Tamil Nadu',
-  
-  // Telangana
-  'telangana': 'Telangana',
-  'TELANGANA': 'Telangana',
-  'Telangana': 'Telangana',
-  'TG': 'Telangana',
-  'tg': 'Telangana',
-  
-  // Tripura
-  'tripura': 'Tripura',
-  'TRIPURA': 'Tripura',
-  'Tripura': 'Tripura',
-  'TR': 'Tripura',
-  'tr': 'Tripura',
-  
-  // Uttar Pradesh
-  'uttar pradesh': 'Uttar Pradesh',
-  'UTTAR PRADESH': 'Uttar Pradesh',
-  'Uttar Pradesh': 'Uttar Pradesh',
-  'uttarpradesh': 'Uttar Pradesh',
-  'UP': 'Uttar Pradesh',
-  'up': 'Uttar Pradesh',
-  
-  // Uttarakhand
-  'uttarakhand': 'Uttarakhand',
-  'UTTARAKHAND': 'Uttarakhand',
-  'Uttarakhand': 'Uttarakhand',
-  'uttrakhand': 'Uttarakhand',
-  'Uttrakhand': 'Uttarakhand',
-  'uttaranchal': 'Uttarakhand',
-  'Uttaranchal': 'Uttarakhand',
-  'UK': 'Uttarakhand',
-  'uk': 'Uttarakhand',
-  
-  // West Bengal
-  'west bengal': 'West Bengal',
-  'WEST BENGAL': 'West Bengal',
-  'West Bengal': 'West Bengal',
-  'westbengal': 'West Bengal',
-  'WB': 'West Bengal',
-  'wb': 'West Bengal',
-  
+// Canonical state names (28 States + 8 UTs)
+const CANONICAL_STATES = [
+  // States
+  'Andhra Pradesh',
+  'Arunachal Pradesh',
+  'Assam',
+  'Bihar',
+  'Chhattisgarh',
+  'Goa',
+  'Gujarat',
+  'Haryana',
+  'Himachal Pradesh',
+  'Jharkhand',
+  'Karnataka',
+  'Kerala',
+  'Madhya Pradesh',
+  'Maharashtra',
+  'Manipur',
+  'Meghalaya',
+  'Mizoram',
+  'Nagaland',
+  'Odisha',
+  'Punjab',
+  'Rajasthan',
+  'Sikkim',
+  'Tamil Nadu',
+  'Telangana',
+  'Tripura',
+  'Uttar Pradesh',
+  'Uttarakhand',
+  'West Bengal',
   // Union Territories
-  
-  // Andaman and Nicobar Islands
-  'andaman and nicobar islands': 'Andaman and Nicobar Islands',
-  'ANDAMAN AND NICOBAR ISLANDS': 'Andaman and Nicobar Islands',
-  'Andaman and Nicobar Islands': 'Andaman and Nicobar Islands',
-  'andaman': 'Andaman and Nicobar Islands',
-  'Andaman': 'Andaman and Nicobar Islands',
+  'Andaman and Nicobar Islands',
+  'Chandigarh',
+  'Dadra and Nagar Haveli and Daman and Diu',
+  'Delhi',
+  'Jammu and Kashmir',
+  'Ladakh',
+  'Lakshadweep',
+  'Puducherry',
+];
+
+// Common abbreviations and aliases
+const STATE_ALIASES: Record<string, string> = {
+  'AP': 'Andhra Pradesh',
+  'AR': 'Arunachal Pradesh',
+  'AS': 'Assam',
+  'BR': 'Bihar',
+  'CG': 'Chhattisgarh',
+  'GA': 'Goa',
+  'GJ': 'Gujarat',
+  'HR': 'Haryana',
+  'HP': 'Himachal Pradesh',
+  'JH': 'Jharkhand',
+  'KA': 'Karnataka',
+  'KL': 'Kerala',
+  'MP': 'Madhya Pradesh',
+  'MH': 'Maharashtra',
+  'MN': 'Manipur',
+  'ML': 'Meghalaya',
+  'MZ': 'Mizoram',
+  'NL': 'Nagaland',
+  'OR': 'Odisha',
+  'PB': 'Punjab',
+  'RJ': 'Rajasthan',
+  'SK': 'Sikkim',
+  'TN': 'Tamil Nadu',
+  'TG': 'Telangana',
+  'TR': 'Tripura',
+  'UP': 'Uttar Pradesh',
+  'UK': 'Uttarakhand',
+  'WB': 'West Bengal',
   'AN': 'Andaman and Nicobar Islands',
-  'an': 'Andaman and Nicobar Islands',
-  
-  // Chandigarh
-  'chandigarh': 'Chandigarh',
-  'CHANDIGARH': 'Chandigarh',
-  'Chandigarh': 'Chandigarh',
   'CH': 'Chandigarh',
-  'ch': 'Chandigarh',
-  
-  // Dadra and Nagar Haveli and Daman and Diu
-  'dadra and nagar haveli and daman and diu': 'Dadra and Nagar Haveli and Daman and Diu',
-  'DADRA AND NAGAR HAVELI AND DAMAN AND DIU': 'Dadra and Nagar Haveli and Daman and Diu',
-  'Dadra and Nagar Haveli and Daman and Diu': 'Dadra and Nagar Haveli and Daman and Diu',
-  'dadra and nagar haveli': 'Dadra and Nagar Haveli and Daman and Diu',
-  'daman and diu': 'Dadra and Nagar Haveli and Daman and Diu',
   'DN': 'Dadra and Nagar Haveli and Daman and Diu',
-  'dn': 'Dadra and Nagar Haveli and Daman and Diu',
-  
-  // Delhi
-  'delhi': 'Delhi',
-  'DELHI': 'Delhi',
-  'Delhi': 'Delhi',
-  'new delhi': 'Delhi',
-  'New Delhi': 'Delhi',
-  'NCR': 'Delhi',
-  'ncr': 'Delhi',
   'DL': 'Delhi',
-  'dl': 'Delhi',
-  
-  // Jammu and Kashmir
-  'jammu and kashmir': 'Jammu and Kashmir',
-  'JAMMU AND KASHMIR': 'Jammu and Kashmir',
-  'Jammu and Kashmir': 'Jammu and Kashmir',
-  'jammu & kashmir': 'Jammu and Kashmir',
-  'J&K': 'Jammu and Kashmir',
-  'j&k': 'Jammu and Kashmir',
   'JK': 'Jammu and Kashmir',
-  'jk': 'Jammu and Kashmir',
-  
-  // Ladakh
-  'ladakh': 'Ladakh',
-  'LADAKH': 'Ladakh',
-  'Ladakh': 'Ladakh',
   'LA': 'Ladakh',
-  'la': 'Ladakh',
-  
-  // Lakshadweep
-  'lakshadweep': 'Lakshadweep',
-  'LAKSHADWEEP': 'Lakshadweep',
-  'Lakshadweep': 'Lakshadweep',
   'LD': 'Lakshadweep',
-  'ld': 'Lakshadweep',
-  
-  // Puducherry
-  'puducherry': 'Puducherry',
-  'PUDUCHERRY': 'Puducherry',
-  'Puducherry': 'Puducherry',
-  'pondicherry': 'Puducherry',
-  'Pondicherry': 'Puducherry',
   'PY': 'Puducherry',
-  'py': 'Puducherry',
+  // Common aliases
+  'NCR': 'Delhi',
+  'Mumbai': 'Maharashtra',
+  'Orissa': 'Odisha',
+  'Pondicherry': 'Puducherry',
+  'Uttaranchal': 'Uttarakhand',
 };
 
 /**
- * Normalize state name to canonical form
- * Returns null if state is invalid/unknown
+ * Calculate Levenshtein distance between two strings
+ * Used for fuzzy matching state names
+ */
+function levenshteinDistance(str1: string, str2: string): number {
+  const len1 = str1.length;
+  const len2 = str2.length;
+  const matrix: number[][] = [];
+
+  for (let i = 0; i <= len1; i++) {
+    matrix[i] = [i];
+  }
+
+  for (let j = 0; j <= len2; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= len1; i++) {
+    for (let j = 1; j <= len2; j++) {
+      const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,      // deletion
+        matrix[i][j - 1] + 1,      // insertion
+        matrix[i - 1][j - 1] + cost // substitution
+      );
+    }
+  }
+
+  return matrix[len1][len2];
+}
+
+/**
+ * Normalize string for comparison
+ * - Lowercase
+ * - Remove special characters
+ * - Remove extra spaces
+ * - Remove common words (and, &, etc.)
+ */
+function normalizeForComparison(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '') // Remove special chars
+    .replace(/\s+/g, ' ')        // Normalize spaces
+    .replace(/\b(and|the)\b/g, '') // Remove common words
+    .trim();
+}
+
+/**
+ * Find best matching canonical state using fuzzy matching
+ */
+function findBestMatch(input: string): string | null {
+  const normalized = normalizeForComparison(input);
+  let bestMatch: string | null = null;
+  let bestScore = Infinity;
+  const threshold = 3; // Max edit distance allowed
+
+  for (const canonical of CANONICAL_STATES) {
+    const canonicalNormalized = normalizeForComparison(canonical);
+    const distance = levenshteinDistance(normalized, canonicalNormalized);
+
+    if (distance < bestScore) {
+      bestScore = distance;
+      bestMatch = canonical;
+    }
+
+    // Early exit for exact match
+    if (distance === 0) break;
+  }
+
+  // Only return match if within threshold
+  return bestScore <= threshold ? bestMatch : null;
+}
+
+/**
+ * Normalize state name to canonical form using intelligent logic
+ * 
+ * Algorithm:
+ * 1. Check if null/empty → return null
+ * 2. Trim and check abbreviation lookup → return canonical
+ * 3. Check exact case-insensitive match → return canonical
+ * 4. Use fuzzy matching (Levenshtein distance) → return best match
+ * 5. If no match found → log warning and return original (Title Case)
+ * 
+ * @param state - Raw state name from Kobo/user input
+ * @returns Canonical state name or null
  */
 export function normalizeState(state: string | null | undefined): string | null {
   if (!state) return null;
@@ -300,27 +184,48 @@ export function normalizeState(state: string | null | undefined): string | null 
   const trimmed = state.trim();
   if (!trimmed) return null;
   
-  // Direct lookup
-  const normalized = STATE_MAPPING[trimmed];
-  if (normalized) return normalized;
+  // Step 1: Check abbreviation/alias lookup (fast path)
+  const upperTrimmed = trimmed.toUpperCase();
+  if (STATE_ALIASES[upperTrimmed]) {
+    return STATE_ALIASES[upperTrimmed];
+  }
   
-  // Case-insensitive fallback
-  const lowerKey = Object.keys(STATE_MAPPING).find(
-    k => k.toLowerCase() === trimmed.toLowerCase()
+  // Step 2: Check exact case-insensitive match
+  const exactMatch = CANONICAL_STATES.find(
+    canonical => canonical.toLowerCase() === trimmed.toLowerCase()
   );
+  if (exactMatch) return exactMatch;
   
-  if (lowerKey) return STATE_MAPPING[lowerKey];
+  // Step 3: Fuzzy matching for typos and variations
+  const fuzzyMatch = findBestMatch(trimmed);
+  if (fuzzyMatch) {
+    console.log(`[stateMapper] Fuzzy matched "${state}" → "${fuzzyMatch}"`);
+    return fuzzyMatch;
+  }
   
-  // Return original if no mapping found (log warning in production)
-  console.warn(`[stateMapper] Unknown state: "${state}" - using as-is`);
-  return trimmed;
+  // Step 4: No match found - return Title Case version with warning
+  const titleCase = trimmed
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+  
+  console.warn(`[stateMapper] Unknown state: "${state}" - using Title Case: "${titleCase}"`);
+  return titleCase;
 }
 
 /**
- * Normalize district name
+ * Normalize district name to Title Case
  */
 export function normalizeDistrict(district: string | null | undefined): string | null {
   if (!district) return null;
   const trimmed = district.trim();
-  return trimmed || null;
+  if (!trimmed) return null;
+  
+  // Convert to Title Case
+  return trimmed
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
