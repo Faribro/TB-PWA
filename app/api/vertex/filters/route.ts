@@ -107,8 +107,23 @@ export async function GET(request: NextRequest) {
       }
 
       data.forEach((row: any) => {
-        if (row.screening_state) statesSet.add(row.screening_state);
-        if (row.screening_district) districtsSet.add(row.screening_district);
+        // Normalize state names to title case to avoid duplicates (Uttarakhand vs uttarakhand)
+        if (row.screening_state) {
+          const normalizedState = row.screening_state
+            .toLowerCase()
+            .split('_')
+            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+          statesSet.add(normalizedState);
+        }
+        if (row.screening_district) {
+          const normalizedDistrict = row.screening_district
+            .toLowerCase()
+            .split('_')
+            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+          districtsSet.add(normalizedDistrict);
+        }
       });
 
       totalRowsProcessed += data.length;

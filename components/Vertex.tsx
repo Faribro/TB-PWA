@@ -982,7 +982,10 @@ export default function Vertex({
     const totalScreened = patientsForSelectedDate.length;
     const pendingSputum = patientsForSelectedDate.filter((p: any) => !p.referral_date).length;
     const diagnosed = patientsForSelectedDate.filter((p: any) => p.tb_diagnosed === 'Y').length;
-    const suspected = patientsForSelectedDate.filter((p: any) => p.xray_result === 'Suspected TB Case').length;
+    const suspected = patientsForSelectedDate.filter((p: any) => {
+      const xrayResult = (p.xray_result || '').toLowerCase();
+      return xrayResult === 'suspected tb case' || xrayResult.includes('abnormal') || xrayResult.includes('suspected');
+    }).length;
 
     return { totalScreened, pendingSputum, diagnosed, onTrack: suspected };
   }, [cachedDailySummary, patientsForSelectedDate]);
@@ -1087,7 +1090,10 @@ export default function Vertex({
       }
 
       // Priority 2: Actionable - Abnormal X-Ray or Symptoms Present
-      const hasAbnormalXray = patient.xray_result === 'Suspected TB Case';
+      const hasAbnormalXray = (() => {
+        const xrayResult = (patient.xray_result || '').toLowerCase();
+        return xrayResult === 'suspected tb case' || xrayResult.includes('abnormal') || xrayResult.includes('suspected');
+      })();
       const hasSymptoms = patient.symptoms_10s === 'Yes' || patient.symptoms_10s === 'Y';
       if ((hasAbnormalXray || hasSymptoms) && !patient.tb_diagnosed) {
         return 2;
@@ -1282,7 +1288,10 @@ export default function Vertex({
                   <div className="flex items-center gap-1">
                     <span className="text-lg sm:text-xl lg:text-2xl font-black text-rose-600 tracking-tighter whitespace-nowrap leading-none">
                       {(summaryData?.pending ?? globalPatients.filter((p: any) => {
-                        const isAbnormal = p.xray_result === 'Suspected TB Case';
+                        const isAbnormal = (() => {
+                          const xrayResult = (p.xray_result || '').toLowerCase();
+                          return xrayResult === 'suspected tb case' || xrayResult.includes('abnormal') || xrayResult.includes('suspected');
+                        })();
                         const noTreatment = !p.att_start_date && !p.referral_date;
                         return isAbnormal && noTreatment;
                       }).length).toLocaleString()}
@@ -1558,8 +1567,14 @@ export default function Vertex({
 
                     const stats = {
                       total: monthPatients.length,
-                      suspected: monthPatients.filter((p: any) => p.xray_result === 'Suspected TB Case').length,
-                      notSuspected: monthPatients.filter((p: any) => p.xray_result !== 'Suspected TB Case').length,
+                      suspected: monthPatients.filter((p: any) => {
+                        const xrayResult = (p.xray_result || '').toLowerCase();
+                        return xrayResult === 'suspected tb case' || xrayResult.includes('abnormal') || xrayResult.includes('suspected');
+                      }).length,
+                      notSuspected: monthPatients.filter((p: any) => {
+                        const xrayResult = (p.xray_result || '').toLowerCase();
+                        return !(xrayResult === 'suspected tb case' || xrayResult.includes('abnormal') || xrayResult.includes('suspected'));
+                      }).length,
                       diagnosed: monthPatients.filter((p: any) => p.tb_diagnosed === 'Y').length,
                       notDiagnosed: monthPatients.filter((p: any) => p.tb_diagnosed !== 'Y').length,
                       attStarted: monthPatients.filter((p: any) => p.att_start_date != null).length,
