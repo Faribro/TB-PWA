@@ -129,23 +129,161 @@ class GlassShatterEngine {
   }
 
   private playSound() {
-    // Create a short glass break sound using Web Audio API
+    // Ultra-realistic glass shatter sound with multiple layers
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
+      const masterGain = audioContext.createGain();
+      masterGain.connect(audioContext.destination);
+      masterGain.gain.setValueAtTime(0.4, audioContext.currentTime);
 
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
+      const now = audioContext.currentTime;
 
-      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.1);
+      // Layer 1: Initial impact crack (high-pitched metallic)
+      const impact = audioContext.createOscillator();
+      const impactGain = audioContext.createGain();
+      const impactFilter = audioContext.createBiquadFilter();
+      
+      impactFilter.type = 'bandpass';
+      impactFilter.frequency.setValueAtTime(3200, now);
+      impactFilter.Q.setValueAtTime(8, now);
+      
+      impact.type = 'square';
+      impact.frequency.setValueAtTime(3200, now);
+      impact.frequency.exponentialRampToValueAtTime(1800, now + 0.02);
+      
+      impactGain.gain.setValueAtTime(0.6, now);
+      impactGain.gain.exponentialRampToValueAtTime(0.01, now + 0.02);
+      
+      impact.connect(impactFilter);
+      impactFilter.connect(impactGain);
+      impactGain.connect(masterGain);
+      
+      impact.start(now);
+      impact.stop(now + 0.02);
 
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+      // Layer 2: Main shatter (cascading high frequencies)
+      const shatter = audioContext.createOscillator();
+      const shatterGain = audioContext.createGain();
+      const shatterFilter = audioContext.createBiquadFilter();
+      
+      shatterFilter.type = 'highpass';
+      shatterFilter.frequency.setValueAtTime(2000, now);
+      
+      shatter.type = 'sawtooth';
+      shatter.frequency.setValueAtTime(2400, now + 0.01);
+      shatter.frequency.exponentialRampToValueAtTime(800, now + 0.15);
+      
+      shatterGain.gain.setValueAtTime(0, now + 0.01);
+      shatterGain.gain.linearRampToValueAtTime(0.5, now + 0.02);
+      shatterGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+      
+      shatter.connect(shatterFilter);
+      shatterFilter.connect(shatterGain);
+      shatterGain.connect(masterGain);
+      
+      shatter.start(now + 0.01);
+      shatter.stop(now + 0.15);
 
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.1);
+      // Layer 3: Glass fragments falling (mid-range tinkles)
+      for (let i = 0; i < 5; i++) {
+        const tinkle = audioContext.createOscillator();
+        const tinkleGain = audioContext.createGain();
+        const tinkleFilter = audioContext.createBiquadFilter();
+        
+        tinkleFilter.type = 'bandpass';
+        tinkleFilter.frequency.setValueAtTime(1200 + i * 200, now);
+        tinkleFilter.Q.setValueAtTime(12, now);
+        
+        tinkle.type = 'sine';
+        const startTime = now + 0.03 + i * 0.015;
+        const freq = 1200 + Math.random() * 800;
+        tinkle.frequency.setValueAtTime(freq, startTime);
+        tinkle.frequency.exponentialRampToValueAtTime(freq * 0.7, startTime + 0.08);
+        
+        tinkleGain.gain.setValueAtTime(0, startTime);
+        tinkleGain.gain.linearRampToValueAtTime(0.15, startTime + 0.005);
+        tinkleGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.08);
+        
+        tinkle.connect(tinkleFilter);
+        tinkleFilter.connect(tinkleGain);
+        tinkleGain.connect(masterGain);
+        
+        tinkle.start(startTime);
+        tinkle.stop(startTime + 0.08);
+      }
+
+      // Layer 4: Low-end rumble (structural stress)
+      const rumble = audioContext.createOscillator();
+      const rumbleGain = audioContext.createGain();
+      const rumbleFilter = audioContext.createBiquadFilter();
+      
+      rumbleFilter.type = 'lowpass';
+      rumbleFilter.frequency.setValueAtTime(200, now);
+      
+      rumble.type = 'triangle';
+      rumble.frequency.setValueAtTime(80, now);
+      rumble.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+      
+      rumbleGain.gain.setValueAtTime(0.3, now);
+      rumbleGain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+      
+      rumble.connect(rumbleFilter);
+      rumbleFilter.connect(rumbleGain);
+      rumbleGain.connect(masterGain);
+      
+      rumble.start(now);
+      rumble.stop(now + 0.2);
+
+      // Layer 5: White noise burst (realistic texture)
+      const bufferSize = audioContext.sampleRate * 0.15;
+      const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+      const noiseData = noiseBuffer.getChannelData(0);
+      
+      for (let i = 0; i < bufferSize; i++) {
+        noiseData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+      }
+      
+      const noise = audioContext.createBufferSource();
+      const noiseGain = audioContext.createGain();
+      const noiseFilter = audioContext.createBiquadFilter();
+      
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.setValueAtTime(2500, now);
+      noiseFilter.Q.setValueAtTime(2, now);
+      
+      noise.buffer = noiseBuffer;
+      noiseGain.gain.setValueAtTime(0.25, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+      
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(masterGain);
+      
+      noise.start(now);
+
+      // Layer 6: Resonant ring (glass harmonic)
+      const ring = audioContext.createOscillator();
+      const ringGain = audioContext.createGain();
+      const ringFilter = audioContext.createBiquadFilter();
+      
+      ringFilter.type = 'bandpass';
+      ringFilter.frequency.setValueAtTime(1800, now);
+      ringFilter.Q.setValueAtTime(20, now);
+      
+      ring.type = 'sine';
+      ring.frequency.setValueAtTime(1800, now + 0.02);
+      
+      ringGain.gain.setValueAtTime(0, now + 0.02);
+      ringGain.gain.linearRampToValueAtTime(0.2, now + 0.04);
+      ringGain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+      
+      ring.connect(ringFilter);
+      ringFilter.connect(ringGain);
+      ringGain.connect(masterGain);
+      
+      ring.start(now + 0.02);
+      ring.stop(now + 0.3);
+
     } catch (e) {
       // Silently fail if Web Audio API is not available
     }
