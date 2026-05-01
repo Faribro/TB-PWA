@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import gsap from 'gsap';
-import { ChevronLeft, ChevronRight, Calendar, User, MapPin, Activity, FileText, Shield, ClipboardList, Settings2, CheckCircle2, XCircle } from 'lucide-react';
+import { Calendar, User, MapPin, Activity, CheckCircle2, XCircle, Building2, Phone, Hash, FileText, Settings2, Shield, ClipboardList, Lock, Unlock, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface DemographicsCarouselProps {
@@ -13,6 +12,126 @@ interface DemographicsCarouselProps {
   setIsEditingDemographics: (editing: boolean) => void;
 }
 
+const FormSectionTitle = ({ icon: Icon, title, colorCode }: { icon: any; title: string; colorCode: string }) => (
+  <div className="flex items-center gap-3 mb-4 mt-2">
+    <div 
+      className="flex items-center justify-center w-7 h-7 rounded-[10px] shadow-sm relative overflow-hidden"
+      style={{ backgroundColor: `${colorCode}15`, border: `1px solid ${colorCode}30` }}
+    >
+      <div className="absolute inset-0 opacity-50" style={{ background: `linear-gradient(135deg, transparent, ${colorCode}20)` }} />
+      <Icon className="w-3.5 h-3.5 relative z-10" style={{ color: colorCode }} />
+    </div>
+    <div className="flex-1 flex items-center gap-3">
+      <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-800">{title}</h3>
+      <div className="flex-1 h-px bg-gradient-to-r from-slate-200/80 to-transparent" />
+    </div>
+  </div>
+);
+
+const FormFieldRow = ({ 
+  label, 
+  value, 
+  icon: Icon,
+  editable = false,
+  fieldKey,
+  fieldType = 'text',
+  options,
+  isEditing,
+  onChange,
+  colorCode = '#64748b'
+}: { 
+  label: string; 
+  value: any; 
+  icon?: any;
+  editable?: boolean;
+  fieldKey?: string;
+  fieldType?: 'text' | 'date' | 'select';
+  options?: string[];
+  isEditing?: boolean;
+  onChange?: (key: string, value: string) => void;
+  colorCode?: string;
+}) => {
+  const displayValue = value || '';
+  const showInput = editable && isEditing && fieldKey && onChange;
+
+  return (
+    <div className="group relative flex flex-col gap-1.5 p-3 rounded-2xl transition-all duration-300 hover:bg-white/60 border border-transparent hover:border-white/80 hover:shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
+      {/* Label Row */}
+      <div className="flex items-center gap-1.5">
+        {Icon && <Icon className="w-3.5 h-3.5 transition-colors duration-300" style={{ color: showInput ? colorCode : '#94a3b8' }} />}
+        <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500/90">{label}</span>
+      </div>
+
+      {/* Value / Input Row */}
+      <div className="relative">
+        {showInput ? (
+          fieldType === 'select' && options ? (
+            <div className="relative">
+              <select
+                value={value || ''}
+                onChange={(e) => onChange(fieldKey, e.target.value)}
+                className="w-full appearance-none text-[13px] font-bold text-slate-900 bg-white/90 border border-slate-200/80 rounded-xl px-3 py-2.5 outline-none transition-all duration-300 focus:bg-white focus:shadow-[0_4px_20px_rgb(0,0,0,0.06)] cursor-pointer"
+                style={{
+                  boxShadow: `inset 0 2px 4px rgba(0,0,0,0.02)`
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = colorCode;
+                  e.target.style.boxShadow = `0 0 0 3px ${colorCode}15`;
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#e2e8f0';
+                  e.target.style.boxShadow = `inset 0 2px 4px rgba(0,0,0,0.02)`;
+                }}
+              >
+                <option value="" disabled className="text-slate-400">Select...</option>
+                {options.map(opt => (
+                  <option key={opt} value={opt} className="text-slate-900 font-medium">{opt}</option>
+                ))}
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          ) : (
+            <input
+              type={fieldType}
+              value={value || ''}
+              onChange={(e) => onChange(fieldKey, e.target.value)}
+              className="w-full text-[13px] font-bold text-slate-900 bg-white/90 border border-slate-200/80 rounded-xl px-3 py-2.5 outline-none transition-all duration-300 focus:bg-white"
+              style={{
+                boxShadow: `inset 0 2px 4px rgba(0,0,0,0.02)`
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = colorCode;
+                e.target.style.boxShadow = `0 0 0 3px ${colorCode}15`;
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#e2e8f0';
+                e.target.style.boxShadow = `inset 0 2px 4px rgba(0,0,0,0.02)`;
+              }}
+              placeholder={fieldType === 'date' ? 'YYYY-MM-DD' : `Enter ${label.toLowerCase()}`}
+            />
+          )
+        ) : (
+          <div className="w-full min-h-[42px] flex items-center px-3 py-2 rounded-xl bg-slate-100/50 border border-slate-200/40">
+            {displayValue ? (
+              <span className="text-[13px] font-bold text-slate-800 tracking-tight leading-snug">
+                {displayValue}
+              </span>
+            ) : (
+              <span className="text-[13px] font-medium text-slate-400 italic">
+                Not specified
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export function DemographicsCarousel({ 
   patient,
   editedDemographics,
@@ -20,697 +139,234 @@ export function DemographicsCarousel({
   isEditingDemographics,
   setIsEditingDemographics 
 }: DemographicsCarouselProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [localInputValues, setLocalInputValues] = useState<Record<string, string>>({});
+  const [localValues, setLocalValues] = useState<Record<string, string>>({});
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
-  
-  // Helper to render field (OPTIMIZED: Memoized + Debounced input)
-  const renderField = useCallback((label: string, value: any, editable = false, fieldKey?: string, sectionId?: string) => {
-    const displayValue = value || 'N/A';
-    const sectionLabelColor: Record<string,string> = {
-      'screening': '#3b82f6',
-      'identity':  '#8b5cf6',
-      'location':  '#10b981',
-      'tb-screening': '#f59e0b',
-      'referral': '#ef4444',
-      'hiv': '#ec4899',
-      'nikshay': '#06b6d4',
-      'admin': '#64748b'
-    };
-    
-    const labelColor = sectionId && sectionLabelColor[sectionId] ? sectionLabelColor[sectionId] : '#64748b';
-    const isEditing = editable && isEditingDemographics && fieldKey;
 
-    // Debounced input handler (300ms delay)
-    const handleInputChange = (key: string, newValue: string) => {
-      // Update local state immediately for responsive UI
-      setLocalInputValues(prev => ({ ...prev, [key]: newValue }));
-      
-      // Clear existing timer
-      if (debounceTimers.current[key]) {
-        clearTimeout(debounceTimers.current[key]);
-      }
-      
-      // Set new timer to update parent state
-      debounceTimers.current[key] = setTimeout(() => {
-        setEditedDemographics(prev => ({ ...prev, [key]: newValue }));
-      }, 300);
-    };
-
-    return (
-      <div className="group flex items-start justify-between py-2.5 border-b border-slate-100/60 last:border-0 transition-all hover:bg-slate-50/80 hover:rounded-lg px-2 -mx-2">
-        <span 
-          className="text-[10px] uppercase tracking-[0.08em] font-semibold flex items-center gap-1.5"
-          style={{ color: labelColor }}
-        >
-          {label}
-          {editable && (
-            <span className="text-[8px] opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: labelColor }}>
-              {isEditingDemographics ? '✎' : '🔒'}
-            </span>
-          )}
-        </span>
-        {isEditing ? (
-          <input
-            type="text"
-            value={localInputValues[fieldKey!] ?? editedDemographics[fieldKey!] ?? displayValue}
-            onChange={(e) => handleInputChange(fieldKey!, e.target.value)}
-            className="text-xs font-semibold text-slate-900 text-right bg-white border-2 rounded-lg px-3 py-1.5 max-w-[220px] outline-none transition-all shadow-sm"
-            style={{
-              borderColor: `${labelColor}40`,
-              boxShadow: `0 0 0 3px ${labelColor}10`
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = labelColor;
-              e.target.style.boxShadow = `0 0 0 4px ${labelColor}20`;
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = `${labelColor}40`;
-              e.target.style.boxShadow = `0 0 0 3px ${labelColor}10`;
-              // Flush debounce on blur
-              if (debounceTimers.current[fieldKey!]) {
-                clearTimeout(debounceTimers.current[fieldKey!]);
-                setEditedDemographics(prev => ({ ...prev, [fieldKey!]: e.target.value }));
-              }
-            }}
-            placeholder={`Enter ${label.toLowerCase()}`}
-          />
-        ) : (
-          <span className="text-xs font-semibold text-slate-800 text-right max-w-[220px] truncate">{displayValue}</span>
-        )}
-      </div>
-    );
-  }, [editedDemographics, isEditingDemographics, setEditedDemographics, localInputValues]);
-
-  // Build sections from patient data (OPTIMIZED: useMemo to prevent rebuilding on every render)
-  const sections = useMemo(() => [
-    {
-      id: 'screening',
-      title: 'Screening Details',
-      icon: Calendar,
-      color: '#3b82f6',
-      children: (
-        <div className="space-y-0.5">
-          {renderField('Screening Date', patient?.screening_date, true, 'screening_date', 'screening')}
-          {renderField('Submitted On', patient?.submitted_on, false, undefined, 'screening')}
-          {renderField('Facility', patient?.facility_name, true, 'facility_name', 'screening')}
-          {renderField('Screened By', patient?.screened_by, true, 'screened_by', 'screening')}
-        </div>
-      )
-    },
-    {
-      id: 'identity',
-      title: 'Identity',
-      icon: User,
-      color: '#8b5cf6',
-      children: (
-        <div className="space-y-0.5">
-          {renderField('Name', patient?.inmate_name, true, 'inmate_name', 'identity')}
-          {renderField('Age', patient?.age, true, 'age', 'identity')}
-          {renderField('Gender', patient?.gender, true, 'gender', 'identity')}
-          {renderField('Contact', patient?.contact_number, true, 'contact_number', 'identity')}
-        </div>
-      )
-    },
-    {
-      id: 'location',
-      title: 'Location',
-      icon: MapPin,
-      color: '#10b981',
-      children: (
-        <div className="space-y-0.5">
-          {renderField('State', patient?.screening_state, true, 'screening_state', 'location')}
-          {renderField('District', patient?.screening_district, true, 'screening_district', 'location')}
-          {renderField('Address', patient?.address, true, 'address', 'location')}
-          {renderField('GPS', patient?.gps_coordinates, false, undefined, 'location')}
-        </div>
-      )
-    },
-    {
-      id: 'tb-screening',
-      title: 'TB Screening',
-      icon: Activity,
-      color: '#f59e0b',
-      children: (
-        <div className="space-y-0.5">
-          {renderField('Symptoms (10S)', patient?.symptoms_10s, true, 'symptoms_10s', 'tb-screening')}
-          {renderField('X-Ray Result', patient?.xray_result, true, 'xray_result', 'tb-screening')}
-          {renderField('AI Confidence', patient?.ai_confidence_score, false, undefined, 'tb-screening')}
-          {renderField('Sputum Collected', patient?.sputum_collected, true, 'sputum_collected', 'tb-screening')}
-        </div>
-      )
-    },
-    {
-      id: 'referral',
-      title: 'Referral/Diagnosis',
-      icon: FileText,
-      color: '#ef4444',
-      children: (
-        <div className="space-y-0.5">
-          {renderField('Referral Date', patient?.referral_date, true, 'referral_date', 'referral')}
-          {renderField('Referred To', patient?.referred_to_facility, true, 'referred_to_facility', 'referral')}
-          {renderField('TB Diagnosed', patient?.tb_diagnosed, true, 'tb_diagnosed', 'referral')}
-          {renderField('Diagnosis Date', patient?.diagnosis_date, true, 'diagnosis_date', 'referral')}
-        </div>
-      )
-    },
-    {
-      id: 'hiv',
-      title: 'HIV/ART',
-      icon: Shield,
-      color: '#ec4899',
-      children: (
-        <div className="space-y-0.5">
-          {renderField('HIV Status', patient?.hiv_status, true, 'hiv_status', 'hiv')}
-          {renderField('ART Started', patient?.art_started, true, 'art_started', 'hiv')}
-          {renderField('ART Center', patient?.art_center, true, 'art_center', 'hiv')}
-          {renderField('CPT Given', patient?.cpt_given, true, 'cpt_given', 'hiv')}
-        </div>
-      )
-    },
-    {
-      id: 'nikshay',
-      title: 'Nikshay/Reg',
-      icon: ClipboardList,
-      color: '#06b6d4',
-      children: (
-        <div className="space-y-0.5">
-          {renderField('NIKSHAY ID', patient?.nikshay_id, true, 'nikshay_id', 'nikshay')}
-          {renderField('ABHA ID', patient?.abha_id, true, 'abha_id', 'nikshay')}
-          {renderField('ATT Start Date', patient?.att_start_date, true, 'att_start_date', 'nikshay')}
-          {renderField('Regimen', patient?.treatment_regimen, true, 'treatment_regimen', 'nikshay')}
-        </div>
-      )
-    },
-    {
-      id: 'admin',
-      title: 'Administrative',
-      icon: Settings2,
-      color: '#64748b',
-      children: (
-        <div className="space-y-0.5">
-          {renderField('Kobo UUID', patient?.kobo_uuid, false, undefined, 'admin')}
-          {renderField('Serial Number', patient?.serial_number, false, undefined, 'admin')}
-          {renderField('Created At', patient?.created_at, false, undefined, 'admin')}
-          {renderField('Updated At', patient?.updated_at, false, undefined, 'admin')}
-        </div>
-      )
-    }
-  ], [patient, renderField]);
-
-  const galleryRef = useRef<HTMLDivElement>(null);
-  const cardsRef = useRef<HTMLUListElement>(null);
-  const ribbonRef = useRef<HTMLDivElement>(null);
-  
-  const seamlessLoopRef = useRef<gsap.core.Timeline | null>(null);
-  const scrubRef = useRef<gsap.core.Tween | null>(null);
-  const playheadRef = useRef(0);
-  
-  // Inertial scroll physics state
-  const velRef = useRef(0);
-  const posRef = useRef(0);
-  const rafRef = useRef(0);
-  const lastInputRef = useRef(0);
-
-  const spacing = 0.1;
-  const snap = gsap.utils.snap(spacing);
-
-  // Build seamless loop animation
-  const buildSeamlessLoop = useCallback((items: HTMLElement[], spacing: number) => {
-    const overlap = Math.ceil(1 / spacing);
-    const startTime = items.length * spacing + 0.5;
-    const loopTime = (items.length + overlap) * spacing + 1;
-    const rawSequence = gsap.timeline({ paused: true });
-    const seamlessLoop = gsap.timeline({
-      paused: true,
-      repeat: -1,
-      onRepeat() {
-        // @ts-ignore
-        this._time === this._dur && (this._tTime += this._dur - 0.01);
-      }
-    });
-
-    const l = items.length + overlap * 2;
-
-    // Set initial state
-    gsap.set(items, { xPercent: 400, opacity: 0, scale: 0 });
-
-    // Create staggered animations
-    for (let i = 0; i < l; i++) {
-      const index = i % items.length;
-      const item = items[index];
-      const time = i * spacing;
-
-      rawSequence
-        .fromTo(
-          item,
-          { scale: 0.88, opacity: 0.35, filter: 'blur(2px)' },
-          {
-            scale: 1,
-            opacity: 1,
-            filter: 'blur(0px)',
-            zIndex: 100,
-            duration: 0.5,
-            yoyo: true,
-            repeat: 1,
-            ease: 'power2.inOut',
-            immediateRender: false
-          },
-          time
-        )
-        .fromTo(
-          item,
-          { xPercent: 400 },
-          {
-            xPercent: -400,
-            duration: 1,
-            ease: 'none',
-            immediateRender: false
-          },
-          time
-        );
-
-      if (i <= items.length) {
-        seamlessLoop.add('label' + i, time);
-      }
-    }
-
-    rawSequence.time(startTime);
-    seamlessLoop
-      .to(rawSequence, {
-        time: loopTime,
-        duration: loopTime - startTime,
-        ease: 'none'
-      })
-      .fromTo(
-        rawSequence,
-        { time: overlap * spacing + 1 },
-        {
-          time: startTime,
-          duration: startTime - (overlap * spacing + 1),
-          immediateRender: false,
-          ease: 'none'
-        }
-      );
-
-    return seamlessLoop;
-  }, []);
-
-  // Cleanup debounce timers on unmount
   useEffect(() => {
     return () => {
       Object.values(debounceTimers.current).forEach(timer => clearTimeout(timer));
     };
   }, []);
 
-  // Initialize GSAP animation
-  useEffect(() => {
-    if (!cardsRef.current || !sections || sections.length === 0) return;
-
-    const cards = gsap.utils.toArray<HTMLElement>(
-      cardsRef.current?.querySelectorAll('.demo-card') ?? []
-    );
-    if (cards.length === 0) return;
-
-    // Fade in cards
-    gsap.to(cards, { opacity: 1, delay: 0.1, stagger: 0.05 });
-
-    const seamlessLoop = buildSeamlessLoop(cards, spacing);
-    seamlessLoopRef.current = seamlessLoop;
-
-    const scrub = gsap.to(seamlessLoop, {
-      totalTime: 0,
-      duration: 0.5,
-      ease: 'power3',
-      paused: true
-    });
-    scrubRef.current = scrub;
-
-    return () => {
-      seamlessLoop.kill();
-      scrub.kill();
-    };
-  }, [buildSeamlessLoop, spacing, sections.length]);
-
-  // Navigation functions
-  const scrubTo = useCallback((totalTime: number) => {
-    if (!seamlessLoopRef.current || !scrubRef.current) return;
-    const dur = seamlessLoopRef.current.duration();
-    playheadRef.current = ((totalTime % dur) + dur) % dur;
-    scrubRef.current.vars.totalTime = snap(playheadRef.current);
-    scrubRef.current.invalidate().restart();
+  const handleFieldChange = useCallback((key: string, value: string) => {
+    setLocalValues(prev => ({ ...prev, [key]: value }));
     
-    // Update active index
-    const normalizedTime = playheadRef.current;
-    const rawIndex = Math.round(normalizedTime / spacing) % sections.length;
-    setCurrentIndex(rawIndex);
-  }, [snap, spacing, sections.length]);
-
-  // Inertial Scroll Physics
-  useEffect(() => {
-    const el = galleryRef.current;
-    if (!el) return;
-    
-    let lastTime = performance.now();
-    let isDragging = false;
-    let startY = 0;
-    
-    const tick = (time: number) => {
-      const dt = (time - lastTime) / 16.666;
-      lastTime = time;
-      
-      if (Math.abs(velRef.current) > 0.001) {
-        posRef.current += velRef.current * dt;
-        velRef.current *= Math.pow(0.82, dt); // friction
-        
-        const idleTime = time - lastInputRef.current;
-        if (!isDragging && idleTime > 120) {
-          // Snap to nearest
-          const nearest = Math.round(posRef.current / spacing) * spacing;
-          const diff = nearest - posRef.current;
-          posRef.current += diff * 0.1 * dt;
-          
-          if (Math.abs(diff) < 0.001 && Math.abs(velRef.current) < 0.001) {
-            velRef.current = 0;
-            posRef.current = nearest;
-          }
-        }
-        
-        scrubTo(posRef.current);
-      }
-      
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const delta = e.deltaY * 0.004;
-      velRef.current = Math.max(-3, Math.min(3, velRef.current + delta));
-      lastInputRef.current = performance.now();
-    };
-
-    const onPointerDown = (e: PointerEvent) => {
-      isDragging = true;
-      startY = e.clientY;
-      velRef.current = 0;
-      lastInputRef.current = performance.now();
-    };
-
-    const onPointerMove = (e: PointerEvent) => {
-      if (!isDragging) return;
-      const delta = (startY - e.clientY) * 0.012;
-      velRef.current = delta;
-      startY = e.clientY;
-      lastInputRef.current = performance.now();
-    };
-
-    const onPointerUp = () => {
-      isDragging = false;
-    };
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-        e.preventDefault();
-        velRef.current += 0.8;
-        lastInputRef.current = performance.now();
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        velRef.current -= 0.8;
-        lastInputRef.current = performance.now();
-      }
-    };
-
-    el.addEventListener('wheel', onWheel, { passive: false });
-    el.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    el.addEventListener('keydown', onKeyDown);
-
-    return () => {
-      cancelAnimationFrame(rafRef.current);
-      el.removeEventListener('wheel', onWheel);
-      el.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      el.removeEventListener('keydown', onKeyDown);
-    };
-  }, [scrubTo, spacing]);
-
-  // Sync internal position with currentIndex changes from other sources
-  useEffect(() => {
-    posRef.current = currentIndex * spacing;
-    
-    // Auto-scroll ribbon to keep active pill visible
-    const activePill = ribbonRef.current?.querySelector(`[data-pill-index="${currentIndex}"]`);
-    if (activePill) {
-      activePill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    if (debounceTimers.current[key]) {
+      clearTimeout(debounceTimers.current[key]);
     }
-  }, [currentIndex, spacing]);
+    
+    debounceTimers.current[key] = setTimeout(() => {
+      setEditedDemographics(prev => ({ ...prev, [key]: value }));
+    }, 300);
+  }, [setEditedDemographics]);
 
-  const handleNext = useCallback(() => {
-    velRef.current += 1.2;
-    lastInputRef.current = performance.now();
-  }, []);
+  const getValue = useCallback((key: string, fallback: any) => {
+    return localValues[key] ?? editedDemographics[key] ?? fallback;
+  }, [localValues, editedDemographics]);
 
-  const handlePrev = useCallback(() => {
-    velRef.current -= 1.2;
-    lastInputRef.current = performance.now();
-  }, []);
+  // Section configs for the 2-column layout
+  const col1 = [
+    {
+      id: 'identity',
+      title: 'Identity Profile',
+      icon: User,
+      color: '#8b5cf6', // Violet
+      fields: [
+        { label: 'Inmate Name', key: 'inmatename', fallback: patient?.inmate_name, icon: User, readonly: false },
+        { label: 'Inmate Type', key: 'inmatetype', fallback: patient?.inmate_type, icon: User, readonly: false },
+        { label: 'Father/Husband', key: 'fatherhusbandname', fallback: patient?.father_husband_name, icon: User, readonly: false },
+        { label: 'Date of Birth', key: 'dateofbirth', fallback: patient?.date_of_birth, type: 'date' as const, icon: Calendar, readonly: false },
+        { label: 'Age', key: 'age', fallback: patient?.age, icon: Hash, readonly: false },
+        { label: 'Sex', key: 'sex', fallback: patient?.sex, type: 'select' as const, options: ['Male', 'Female', 'Transgender'], icon: User, readonly: false },
+        { label: 'Contact', key: 'contactnumber', fallback: patient?.contact_number, icon: Phone, readonly: false }
+      ]
+    },
+    {
+      id: 'tb-screening',
+      title: 'TB Screening',
+      icon: Activity,
+      color: '#f59e0b', // Amber
+      fields: [
+        { label: 'X-Ray Result', key: 'xrayresult', fallback: patient?.xray_result, type: 'select' as const, options: ['Normal', 'Suspected TB Case', 'Other Abnormality'], icon: Activity, readonly: false },
+        { label: 'Symptoms (10S)', key: 'symptoms10s', fallback: patient?.symptoms_10s, type: 'select' as const, options: ['Yes', 'No'], icon: Activity, readonly: false },
+        { label: 'TB Past History', key: 'tbpasthistory', fallback: patient?.tb_past_history, type: 'select' as const, options: ['Yes', 'No'], icon: Activity, readonly: false }
+      ]
+    },
+    {
+      id: 'location',
+      title: 'Location',
+      icon: MapPin,
+      color: '#10b981', // Emerald
+      fields: [
+        { label: 'Address', key: 'address', fallback: patient?.address, icon: MapPin, readonly: false }
+      ]
+    }
+  ];
 
-  // Safety check
-  if (!sections || sections.length === 0) {
-    return (
-      <div className="relative w-full h-[520px] flex items-center justify-center">
-        <div className="text-sm text-slate-500">Loading demographics...</div>
-      </div>
-    );
-  }
+  const col2 = [
+    {
+      id: 'screening',
+      title: 'Screening Logistics',
+      icon: Calendar,
+      color: '#3b82f6', // Blue
+      fields: [
+        { label: 'Staff Name', key: 'staffname', fallback: patient?.staff_name, icon: User, readonly: false },
+        { label: 'Submitted On', key: 'submittedon', fallback: patient?.submitted_on, type: 'date' as const, icon: Calendar, readonly: false },
+        { label: 'Screening State', key: 'screeningstate', fallback: patient?.screening_state, icon: MapPin, readonly: false },
+        { label: 'Screening District', key: 'screeningdistrict', fallback: patient?.screening_district, icon: MapPin, readonly: false },
+        { label: 'Facility Name', key: 'facilitycode', fallback: patient?.facility_name, icon: Building2, readonly: false },
+        { label: 'Facility Type', key: 'facilitytype', fallback: patient?.facility_type, icon: Building2, readonly: false },
+        { label: 'Screening Date', key: 'screeningdate', fallback: patient?.screening_date, type: 'date' as const, icon: Calendar, readonly: false },
+        { label: 'Unique ID', key: 'uniqueid', fallback: patient?.unique_id, icon: Hash, readonly: false }
+      ]
+    },
+    {
+      id: 'admin',
+      title: 'System Metadata',
+      icon: Settings2,
+      color: '#64748b', // Slate
+      fields: [
+        { label: 'Kobo UUID', key: 'kobo_uuid', fallback: patient?.kobo_uuid, icon: Hash, readonly: true },
+        { label: 'Serial Number', key: 'serial_number', fallback: patient?.serial_number, icon: Hash, readonly: true }
+      ]
+    }
+  ];
+
+  if (!patient) return null;
 
   return (
-    <div className="flex flex-col w-full h-full bg-slate-50/30 overflow-hidden">
+    <div className="flex flex-col w-full h-full relative overflow-hidden bg-slate-50/50">
       
-      {/* ────────────────────────────────────────────────────── */}
-      {/* CHANGE 1: Section Navigation Ribbon */}
-      {/* ────────────────────────────────────────────────────── */}
-      <div className="w-full border-b border-slate-200/50 bg-white/80 backdrop-blur-md sticky top-0 z-20">
-        <div 
-          ref={ribbonRef}
-          className="flex items-center gap-2 px-4 py-3 overflow-x-auto hide-scrollbar w-full"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          {sections.map((section, idx) => {
-            const isActive = idx === currentIndex;
-            const Icon = section.icon;
-            
-            return (
-              <button
-                key={section.id}
-                data-pill-index={idx}
-                onClick={() => {
-                  velRef.current = 0;
-                  posRef.current = idx * spacing;
-                  scrubTo(idx * spacing);
-                  lastInputRef.current = performance.now();
-                }}
-                className={`relative flex items-center gap-2 px-3 py-1.5 rounded-full whitespace-nowrap transition-all duration-300 ${
-                  isActive 
-                    ? '' 
-                    : 'bg-transparent border border-slate-400/25 hover:border-slate-400/40 text-slate-400 hover:text-slate-600'
-                }`}
-                style={isActive ? {
-                  background: `${section.color}25`, // 15% opacity roughly
-                  border: `1px solid ${section.color}66`, // 40% opacity
-                  color: section.color,
-                  fontWeight: 700,
-                  transform: 'scale(1.04)',
-                  boxShadow: `0 0 0 3px ${section.color}25, 0 4px 16px ${section.color}30`
-                } : {}}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="active-pill-bg"
-                    className="absolute inset-0 rounded-full"
-                    style={{ background: `${section.color}15`, zIndex: -1 }}
-                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                  />
-                )}
-                <Icon className="w-4 h-4 shrink-0" />
-                <span className="text-xs font-semibold tracking-wide hidden md:block">
-                  {section.title}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {/* Decorative Background Elements */}
+      <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-slate-100 to-transparent pointer-events-none z-0" />
+      <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-100/40 rounded-full blur-3xl pointer-events-none z-0" />
+      <div className="absolute top-48 -left-24 w-72 h-72 bg-emerald-100/30 rounded-full blur-3xl pointer-events-none z-0" />
 
-      {/* ────────────────────────────────────────────────────── */}
-      {/* CHANGE 2 & 4: Carousel Container with specific calc height */}
-      {/* ────────────────────────────────────────────────────── */}
-      <div 
-        ref={galleryRef} 
-        tabIndex={0}
-        className="relative w-full flex-1 overflow-hidden touch-none outline-none flex items-center justify-center min-h-[360px]"
-      >
+      {/* Main Grid Content */}
+      <div className="flex-1 overflow-y-auto z-10 px-6 py-6 hide-scrollbar relative">
         
-        {/* Ghost Vignettes */}
-        <div className="absolute top-0 bottom-0 left-0 w-20 z-10 pointer-events-none" style={{ background: 'linear-gradient(to right, white 0%, transparent 100%)' }} />
-        <div className="absolute top-0 bottom-0 right-0 w-20 z-10 pointer-events-none" style={{ background: 'linear-gradient(to left, white 0%, transparent 100%)' }} />
+        {/* Title Header area if needed */}
+        <div className="flex items-center justify-between mb-8 px-2">
+          <div>
+            <h2 className="text-lg font-black text-slate-900 tracking-tight">Clinical Demographics</h2>
+            <p className="text-xs font-semibold text-slate-500 mt-1">Unified patient record view</p>
+          </div>
+          {/* Animated Status Pill */}
+          <motion.div 
+            animate={{ backgroundColor: isEditingDemographics ? '#ecfdf5' : '#f8fafc', borderColor: isEditingDemographics ? '#a7f3d0' : '#e2e8f0' }}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-sm"
+          >
+            <div className={`w-1.5 h-1.5 rounded-full ${isEditingDemographics ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+            <span className={`text-[10px] font-black uppercase tracking-widest ${isEditingDemographics ? 'text-emerald-700' : 'text-slate-500'}`}>
+              {isEditingDemographics ? 'Editing' : 'Read-Only'}
+            </span>
+          </motion.div>
+        </div>
 
-        {/* Navigation Arrows - Moved down */}
-        <button
-          onClick={handlePrev}
-          className="absolute left-6 top-1/2 -translate-y-1/2 z-50 w-10 h-10 bg-white border border-slate-200 text-slate-700 rounded-full shadow-md transition-all duration-200 hover:bg-slate-900 hover:text-white hover:border-transparent hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-
-        <button
-          onClick={handleNext}
-          className="absolute right-6 top-1/2 -translate-y-1/2 z-50 w-10 h-10 bg-white border border-slate-200 text-slate-700 rounded-full shadow-md transition-all duration-200 hover:bg-slate-900 hover:text-white hover:border-transparent hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
-
-        {/* Cards Container */}
-        <ul ref={cardsRef} className="absolute w-full h-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 m-0 p-0">
-          {sections.map((section, index) => (
-            <li
-              key={section.id}
-              className="demo-card absolute top-0 left-0 w-full h-full opacity-0 flex items-center justify-center pointer-events-auto"
-              style={{ listStyle: 'none' }}
-            >
-              <div className="w-full max-w-[460px] h-[340px] perspective-1000 group">
-                
-                {/* ────────────────────────────────────────────────────── */}
-                {/* CHANGE 5: Premium Card Visual Upgrades */}
-                {/* ────────────────────────────────────────────────────── */}
-                <div 
-                  className="w-full h-full rounded-[20px] overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
-                  style={{
-                    background: 'rgba(255,255,255,0.92)',
-                    backdropFilter: 'blur(28px) saturate(180%)',
-                    border: '1px solid rgba(255,255,255,0.5)',
-                    boxShadow: '0 0 0 1px rgba(148,163,184,0.08), 0 8px 32px rgba(15,23,42,0.08), 0 2px 8px rgba(15,23,42,0.04)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = `0 0 0 1px ${section.color}20, 0 20px 60px rgba(15,23,42,0.12), 0 0 40px ${section.color}12`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 0 0 1px rgba(148,163,184,0.08), 0 8px 32px rgba(15,23,42,0.08), 0 2px 8px rgba(15,23,42,0.04)';
-                  }}
-                >
-                  
-                  {/* Hover Shine Effect */}
-                  <motion.div
-                    initial={{ x: '-200%' }}
-                    whileHover={{ x: '200%' }}
-                    transition={{ duration: 0.6, ease: 'easeInOut' }}
-                    className="absolute inset-0 z-20 pointer-events-none"
-                    style={{
-                      background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.8) 50%, transparent 60%)'
-                    }}
-                  />
-
-                  {/* Card Header */}
-                  <div
-                    className="relative px-5 py-4 border-b border-slate-100"
-                    style={{
-                      background: `linear-gradient(135deg, ${section.color}12 0%, ${section.color}04 60%, transparent 100%)`
-                    }}
-                  >
-                    
-                    {/* ────────────────────────────────────────────────────── */}
-                    {/* CHANGE 8: Progress Dots -> Arc Indicator */}
-                    {/* ────────────────────────────────────────────────────── */}
-                    <span className="absolute top-4 right-5 text-[10px] font-black tabular-nums tracking-tight select-none" style={{ color: `${section.color}60` }}>
-                      {String(index + 1).padStart(2,'0')} / {String(sections.length).padStart(2,'0')}
-                    </span>
-
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="flex items-center justify-center p-1.5 rounded-lg"
-                        style={{ 
-                          backgroundColor: `${section.color}14`, // 8% roughly
-                          border: `1px solid ${section.color}33`, // 20% roughly
-                        }}
-                      >
-                        <section.icon className="w-5 h-5" style={{ color: section.color }} />
-                      </div>
-                      <div className="flex-1 pr-12">
-                        <h3 className="text-sm font-black uppercase tracking-tight text-slate-900">
-                          {section.title}
-                        </h3>
-                      </div>
-                      {isEditingDemographics && (
-                        <span className="absolute right-5 bottom-4 inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-50 border border-emerald-200">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          <span className="text-[8px] font-bold text-emerald-700 uppercase tracking-wider">
-                            Edit Mode
-                          </span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Card Content */}
-                  <div className="h-[calc(100%-72px)] p-5 overflow-y-auto hide-scrollbar">
-                    {section.children}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
+          
+          {/* COLUMN 1 */}
+          <div className="flex flex-col gap-8">
+            {col1.map((section) => (
+              <div key={section.id} className="relative">
+                <FormSectionTitle icon={section.icon} title={section.title} colorCode={section.color} />
+                <div className="bg-white/60 backdrop-blur-md rounded-[24px] p-2 border border-white/80 shadow-[0_4px_24px_rgb(0,0,0,0.02)] relative">
+                  <div className="grid grid-cols-1 gap-1">
+                    {section.fields.map((f: any) => (
+                      <FormFieldRow 
+                        key={f.key}
+                        label={f.label} 
+                        value={getValue(f.key, f.fallback)}
+                        icon={f.icon}
+                        editable={!f.readonly}
+                        fieldKey={f.key}
+                        fieldType={f.type || 'text'}
+                        options={f.options}
+                        isEditing={isEditingDemographics}
+                        onChange={handleFieldChange}
+                        colorCode={section.color}
+                      />
+                    ))}
                   </div>
                 </div>
               </div>
-            </li>
-          ))}
-        </ul>
+            ))}
+          </div>
+
+          {/* COLUMN 2 */}
+          <div className="flex flex-col gap-8">
+            {col2.map((section) => (
+              <div key={section.id} className="relative">
+                <FormSectionTitle icon={section.icon} title={section.title} colorCode={section.color} />
+                <div className="bg-white/60 backdrop-blur-md rounded-[24px] p-2 border border-white/80 shadow-[0_4px_24px_rgb(0,0,0,0.02)] relative">
+                  <div className="grid grid-cols-1 gap-1">
+                    {section.fields.map((f: any) => (
+                      <FormFieldRow 
+                        key={f.key}
+                        label={f.label} 
+                        value={getValue(f.key, f.fallback)}
+                        icon={f.icon}
+                        editable={!f.readonly}
+                        fieldKey={f.key}
+                        fieldType={f.type || 'text'}
+                        options={f.options}
+                        isEditing={isEditingDemographics}
+                        onChange={handleFieldChange}
+                        colorCode={section.color}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+        </div>
+        {/* Bottom padding spacer to ensure scrolling clears the sticky action bar perfectly */}
+        <div className="h-6 w-full" />
       </div>
 
-      {/* ────────────────────────────────────────────────────── */}
-      {/* CHANGE 3: Action Bar Layout Fix */}
-      {/* ────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-4 py-3 border-t border-slate-200 bg-white/95 backdrop-blur-sm z-30 shrink-0">
-        {/* Edit/Lock Toggle — left */}
+      {/* Action Bar */}
+      <div 
+        className="flex items-center gap-3 px-6 py-4 border-t border-slate-200/60 bg-white/95 backdrop-blur-xl shrink-0 z-30 shadow-[0_-4px_24px_rgb(0,0,0,0.02)]"
+      >
         <button 
-          className="flex-1 flex items-center justify-center gap-2 h-10 rounded-xl border transition-all shadow-sm"
+          className="flex-1 flex items-center justify-center gap-2 h-[46px] rounded-[14px] transition-all duration-300 font-bold text-[11px] uppercase tracking-[0.1em]"
           style={{
-            borderColor: isEditingDemographics ? '#10b98140' : '#64748b40',
-            backgroundColor: isEditingDemographics ? '#10b98110' : 'white',
+            border: `1.5px solid ${isEditingDemographics ? '#10b98140' : '#e2e8f0'}`,
+            backgroundColor: isEditingDemographics ? '#10b98110' : '#f8fafc',
             color: isEditingDemographics ? '#10b981' : '#64748b'
           }}
           onClick={() => setIsEditingDemographics(!isEditingDemographics)}
         >
           {isEditingDemographics ? (
             <>
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span className="text-xs font-bold uppercase tracking-wider">Lock</span>
+              <Lock className="w-4 h-4" />
+              <span>Lock Editing</span>
             </>
           ) : (
             <>
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-              <span className="text-xs font-bold uppercase tracking-wider hidden sm:inline">Edit</span>
+              <Unlock className="w-4 h-4" />
+              <span>Unlock to Edit</span>
             </>
           )}
         </button>
 
-        {/* Close Loop — center, ghost danger */}
         <button 
-          className="flex-1 flex items-center justify-center gap-2 h-10 rounded-xl border border-red-200/60 text-red-500 text-xs font-bold uppercase tracking-wider hover:bg-red-50 transition-colors shadow-sm"
+          className="flex-1 flex items-center justify-center gap-2 h-[46px] rounded-[14px] border-1.5 border-red-200 text-red-500 font-bold text-[11px] uppercase tracking-[0.1em] hover:bg-red-50 hover:border-red-300 transition-all duration-300 shadow-sm"
           onClick={() => {
             document.dispatchEvent(new CustomEvent('openCloseLoopModal'));
           }}
         >
-          <XCircle className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Close Loop</span>
+          <XCircle className="w-4 h-4" />
+          <span>Close Loop</span>
         </button>
 
-        {/* Submit — right, primary solid */}
         <button 
-          className="flex-[2] flex items-center justify-center gap-2 h-10 rounded-xl bg-slate-900 text-white text-xs font-bold uppercase tracking-wider hover:bg-slate-800 transition-colors shadow-[0_8px_16px_rgba(15,23,42,0.15)] hover:shadow-[0_12px_24px_rgba(15,23,42,0.2)]"
+          className="flex-[2] relative flex items-center justify-center gap-2 h-[46px] rounded-[14px] font-bold text-[11px] uppercase tracking-[0.1em] text-white overflow-hidden group transition-all duration-300 shadow-[0_8px_20px_rgb(15,23,42,0.15)] hover:shadow-[0_12px_28px_rgb(15,23,42,0.25)] hover:-translate-y-0.5 active:translate-y-0"
+          style={{
+            background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)'
+          }}
           onClick={() => {
             if (isEditingDemographics) {
               document.dispatchEvent(new CustomEvent('saveDemographicsEvent'));
@@ -720,8 +376,11 @@ export function DemographicsCarousel({
             }
           }}
         >
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          {isEditingDemographics ? 'Save Changes' : 'Submit Update'}
+          {/* Subtle button shine effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[200%] group-hover:translate-x-[200%] transition-transform duration-700 ease-in-out" />
+          
+          <CheckCircle2 className="w-4 h-4 text-white/80" />
+          <span>{isEditingDemographics ? 'Save Changes' : 'Submit Update'}</span>
         </button>
       </div>
 
