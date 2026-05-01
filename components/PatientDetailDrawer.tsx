@@ -167,28 +167,28 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   // happens in mapDemographics (read) and handleSaveDemographics (write).
   const mapDemographics = (p: any) => ({
     // §1 Screening Details
-    staffname:         p?.staff_name         || p?.['Staff Name']            || p?.data_collector        || '',
+    staffname:         p?.staff_name         || '',
     submittedon:       formatDateForInput(p?.submitted_on),
     screeningstate:    p?.screening_state     || '',
-    screeningdistrict: p?.screening_district  || p?.['District']              || '',
-    facilitycode:      p?.facility_name       || p?.['Name of Facility']      || p?.facilitycode          || '',
-    facilitytype:      p?.facility_type       || p?.['Facility Type']         || '',
-    screeningdate:     formatDateForInput(p?.screening_date || p?.['Date of Screening']),
+    screeningdistrict: p?.screening_district  || '',
+    facilitycode:      p?.facility_name       || '',
+    facilitytype:      p?.facility_type       || '',
+    screeningdate:     formatDateForInput(p?.screening_date),
     uniqueid:          p?.unique_id           || '',
     // §2 Identity
-    inmatename:        p?.inmate_name         || p?.['Inmate Name']           || p?.patient_name           || p?.name || '',
-    inmatetype:        p?.inmate_type         || p?.['Inmate Type']           || '',
-    fatherhusbandname: p?.father_husband_name || p?.['Father/Husband Name']   || p?.father_name            || '',
-    dateofbirth:       formatDateForInput(p?.date_of_birth || p?.['Date of Birth'] || p?.dob),
-    age:               p?.age                 || p?.['Age']                   || '',
-    sex:               p?.sex                 || p?.['Sex (Male/Female/TG)']  || p?.gender                 || '',
-    contactnumber:     p?.contact_number      || p?.['Contact Number']        || p?.phone                  || p?.mobile || '',
+    inmatename:        p?.inmate_name         || '',
+    inmatetype:        p?.inmate_type         || '',
+    fatherhusbandname: p?.father_husband_name || '',
+    dateofbirth:       formatDateForInput(p?.date_of_birth),
+    age:               p?.age                 || '',
+    sex:               p?.sex                 || '',
+    contactnumber:     p?.contact_number      || '',
     // §3 Location
-    address:           p?.address             || p?.['Address']               || p?.residential_address    || '',
+    address:           p?.address             || '',
     // §4 TB Screening (editable in demographics, not in clinical accordion)
     xrayresult:        p?.xray_result         || p?.chest_x_ray_result        || '',
-    symptoms10s:       p?.symptoms_10s        || p?.['Symptoms 10s']          || p?.symptoms_present       || '',
-    tbpasthistory:     p?.tb_past_history     || p?.['Past TB History']       || p?.past_tb_history        || p?.tb_history || '',
+    symptoms10s:       p?.symptoms_10s        || p?.symptoms_present          || '',
+    tbpasthistory:     p?.tb_past_history     || '',
   });
 
   const [editedDemographics, setEditedDemographics] = useState(mapDemographics(localPatient));
