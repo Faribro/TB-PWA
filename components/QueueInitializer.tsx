@@ -1,5 +1,3 @@
-'use server';
-
 import { initSheetsQueue } from '@/lib/sheetsSyncQueue';
 
 // Initialize queue on server startup
