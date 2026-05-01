@@ -73,60 +73,59 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    // Batch fetch approach to get ALL unique states and districts
-    const batchSize = 1000;
-    const allStates = new Set<string>();
-    const allDistricts = new Set<string>();
+    // Industry best practice: Batch pagination to handle large datasets
+    const BATCH_SIZE = 1000;
+    const MAX_ROWS = 100000;
+    const statesSet = new Set<string>();
+    const districtsSet = new Set<string>();
+    
     let offset = 0;
-    let hasMore = true;
+    let hasMoreData = true;
+    let totalRowsProcessed = 0;
 
-    console.log('[vertex/filters] Starting batch fetch for states/districts...');
+    console.log('[vertex/filters] Starting paginated fetch...');
 
-    while (hasMore) {
+    while (hasMoreData && offset < MAX_ROWS) {
       let query = supabase
         .from('patients')
         .select('screening_state, screening_district')
         .not('screening_state', 'is', null)
-        .range(offset, offset + batchSize - 1);
+        .range(offset, offset + BATCH_SIZE - 1);
 
       query = applyRBACFilters(query, role, state, staffName);
 
       const { data, error } = await query;
 
       if (error) {
-        console.error('[vertex/filters] Batch query error:', error);
+        console.error('[vertex/filters] Query error at offset', offset, error);
         throw error;
       }
 
       if (!data || data.length === 0) {
-        hasMore = false;
+        hasMoreData = false;
         break;
       }
 
       data.forEach((row: any) => {
-        if (row.screening_state) allStates.add(row.screening_state);
-        if (row.screening_district) allDistricts.add(row.screening_district);
+        if (row.screening_state) statesSet.add(row.screening_state);
+        if (row.screening_district) districtsSet.add(row.screening_district);
       });
 
-      console.log(`[vertex/filters] Batch ${Math.floor(offset / batchSize) + 1}: ${data.length} rows, States: ${allStates.size}, Districts: ${allDistricts.size}`);
+      totalRowsProcessed += data.length;
+      console.log(`[vertex/filters] Batch ${Math.floor(offset / BATCH_SIZE) + 1}: +${data.length} rows | Total: ${totalRowsProcessed} | States: ${statesSet.size} | Districts: ${districtsSet.size}`);
 
-      if (data.length < batchSize) {
-        hasMore = false;
+      if (data.length < BATCH_SIZE) {
+        hasMoreData = false;
       } else {
-        offset += batchSize;
-      }
-
-      if (offset > 100000) {
-        console.warn('[vertex/filters] Safety limit reached');
-        hasMore = false;
+        offset += BATCH_SIZE;
       }
     }
 
-    const availableStates = Array.from(allStates).sort();
-    const availableDistricts = Array.from(allDistricts).sort();
+    const availableStates = Array.from(statesSet).sort();
+    const availableDistricts = Array.from(districtsSet).sort();
 
-    console.log(`[vertex/filters] ✅ Final: ${availableStates.length} states, ${availableDistricts.length} districts`);
-    console.log(`[vertex/filters] States: ${availableStates.join(', ')}`);
+    console.log(`[vertex/filters] ✅ Complete: ${availableStates.length} states, ${availableDistricts.length} districts from ${totalRowsProcessed} rows`);
+    console.log(`[vertex/filters] States found: ${availableStates.join(', ')}`);
 
     const result = {
       availableStates,
@@ -136,7 +135,7 @@ export async function GET(request: NextRequest) {
         durationMs: Date.now() - startTime,
         stateCount: availableStates.length,
         districtCount: availableDistricts.length,
-        rowsProcessed: offset,
+        rowsProcessed: totalRowsProcessed,
       },
     };
 
