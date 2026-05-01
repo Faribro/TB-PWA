@@ -87,6 +87,8 @@ class GlassShatterEngine {
   private svg: SVGSVGElement;
   private layers: Record<string, SVGGElement>;
   private currentStressId: string | null = null;
+  private activeTileSvgs: Set<SVGSVGElement> = new Set();
+  private isHealing: boolean = false;
 
   constructor(svg: SVGSVGElement) {
     this.svg = svg;
@@ -112,13 +114,19 @@ class GlassShatterEngine {
     });
   }
 
-  handleImpact(clientX: number, clientY: number, tileElement: HTMLElement) {
+  async handleImpact(clientX: number, clientY: number, tileElement: HTMLElement) {
+    // Heal all existing shatters before creating new one
+    if (this.activeTileSvgs.size > 0) {
+      await this.healAllShatters();
+    }
+    
     const rect = tileElement.getBoundingClientRect();
     const localX = clientX - rect.left;
     const localY = clientY - rect.top;
 
     // Create a tile-specific SVG overlay
     const tileSvg = this.createTileSvg(tileElement);
+    this.activeTileSvgs.add(tileSvg);
     
     // Use local coordinates within the tile
     this.addCrack(localX, localY, tileSvg);
@@ -128,8 +136,149 @@ class GlassShatterEngine {
     
     // Auto-remove tile SVG after animation completes
     setTimeout(() => {
+      this.activeTileSvgs.delete(tileSvg);
       tileSvg.remove();
     }, 5000);
+  }
+
+  private async healAllShatters(): Promise<void> {
+    if (this.isHealing || this.activeTileSvgs.size === 0) return;
+    
+    this.isHealing = true;
+    const healPromises: Promise<void>[] = [];
+    
+    this.activeTileSvgs.forEach(tileSvg => {
+      const promise = this.healShatter(tileSvg);
+      healPromises.push(promise);
+    });
+    
+    await Promise.all(healPromises);
+    this.activeTileSvgs.clear();
+    this.isHealing = false;
+  }
+
+  private healShatter(tileSvg: SVGSVGElement): Promise<void> {
+    return new Promise((resolve) => {
+      // Play healing sound
+      this.playHealSound();
+      
+      // Get all layers
+      const layers = [
+        tileSvg.querySelector('#crack-layer'),
+        tileSvg.querySelector('#shard-layer'),
+        tileSvg.querySelector('#ring-layer'),
+        tileSvg.querySelector('#dust-layer'),
+        tileSvg.querySelector('#shadow-layer'),
+        tileSvg.querySelector('#bloom-layer'),
+        tileSvg.querySelector('#impact-layer')
+      ].filter(Boolean) as SVGGElement[];
+      
+      // Reverse animation: fade out and scale down
+      layers.forEach((layer, index) => {
+        const elements = Array.from(layer.children) as SVGElement[];
+        
+        elements.forEach((el, elIndex) => {
+          const delay = index * 20 + elIndex * 5;
+          
+          // Animate opacity and transform
+          el.style.transition = `opacity 200ms ease-out ${delay}ms, transform 200ms ease-out ${delay}ms`;
+          el.style.opacity = '0';
+          el.style.transform = 'scale(0.8)';
+        });
+      });
+      
+      // Add healing glow effect
+      const healGlow = document.createElementNS(SVG_NS, 'circle');
+      const rect = tileSvg.getBoundingClientRect();
+      const cx = rect.width / 2;
+      const cy = rect.height / 2;
+      
+      healGlow.setAttribute('cx', String(cx));
+      healGlow.setAttribute('cy', String(cy));
+      healGlow.setAttribute('r', '5');
+      healGlow.setAttribute('fill', 'oklch(85% 0.15 140 / 0.8)');
+      healGlow.setAttribute('filter', 'url(#glassBloom)');
+      
+      const bloomLayer = tileSvg.querySelector('#bloom-layer');
+      if (bloomLayer) {
+        bloomLayer.appendChild(healGlow);
+        
+        // Animate healing glow expansion
+        healGlow.animate(
+          [
+            { r: '5', opacity: '0.8' },
+            { r: String(Math.max(rect.width, rect.height)), opacity: '0' }
+          ],
+          {
+            duration: 300,
+            easing: 'ease-out',
+            fill: 'forwards'
+          }
+        );
+      }
+      
+      // Remove SVG after healing animation
+      setTimeout(() => {
+        tileSvg.remove();
+        resolve();
+      }, 400);
+    });
+  }
+
+  private playHealSound() {
+    // Reverse glass sound - healing chime
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const masterGain = audioContext.createGain();
+      masterGain.connect(audioContext.destination);
+      masterGain.gain.setValueAtTime(0.2, audioContext.currentTime);
+
+      const now = audioContext.currentTime;
+
+      // Ascending chime (opposite of breaking)
+      const heal = audioContext.createOscillator();
+      const healGain = audioContext.createGain();
+      const healFilter = audioContext.createBiquadFilter();
+      
+      healFilter.type = 'bandpass';
+      healFilter.frequency.setValueAtTime(800, now);
+      healFilter.Q.setValueAtTime(10, now);
+      
+      heal.type = 'sine';
+      heal.frequency.setValueAtTime(800, now);
+      heal.frequency.exponentialRampToValueAtTime(1600, now + 0.15);
+      
+      healGain.gain.setValueAtTime(0, now);
+      healGain.gain.linearRampToValueAtTime(0.3, now + 0.02);
+      healGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+      
+      heal.connect(healFilter);
+      healFilter.connect(healGain);
+      healGain.connect(masterGain);
+      
+      heal.start(now);
+      heal.stop(now + 0.15);
+
+      // Soft shimmer
+      const shimmer = audioContext.createOscillator();
+      const shimmerGain = audioContext.createGain();
+      
+      shimmer.type = 'sine';
+      shimmer.frequency.setValueAtTime(2400, now + 0.05);
+      
+      shimmerGain.gain.setValueAtTime(0, now + 0.05);
+      shimmerGain.gain.linearRampToValueAtTime(0.15, now + 0.08);
+      shimmerGain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+      
+      shimmer.connect(shimmerGain);
+      shimmerGain.connect(masterGain);
+      
+      shimmer.start(now + 0.05);
+      shimmer.stop(now + 0.2);
+
+    } catch (e) {
+      // Silently fail
+    }
   }
 
   private createTileSvg(tileElement: HTMLElement): SVGSVGElement {
@@ -832,6 +981,17 @@ export function GlassShatterOverlay() {
           to {
             opacity: 0;
             transform: scale(2.5);
+          }
+        }
+
+        @keyframes healGlow {
+          from {
+            opacity: 0.8;
+            transform: scale(0);
+          }
+          to {
+            opacity: 0;
+            transform: scale(3);
           }
         }
       `}</style>
