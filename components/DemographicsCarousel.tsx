@@ -35,6 +35,26 @@ export function DemographicsCarousel({
   isEditingDemographics,
   setIsEditingDemographics 
 }: DemographicsCarouselProps) {
+  // Helper to render field
+  const renderField = (label: string, value: any, editable = false, fieldKey?: string) => {
+    const displayValue = value || 'N/A';
+    return (
+      <div className="flex items-start justify-between py-2 border-b border-slate-100 last:border-0">
+        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">{label}</span>
+        {editable && isEditingDemographics && fieldKey ? (
+          <input
+            type="text"
+            value={editedDemographics[fieldKey] ?? displayValue}
+            onChange={(e) => setEditedDemographics(prev => ({ ...prev, [fieldKey]: e.target.value }))}
+            className="text-xs font-semibold text-slate-900 text-right bg-blue-50 border border-blue-200 rounded px-2 py-1 max-w-[200px]"
+          />
+        ) : (
+          <span className="text-xs font-semibold text-slate-900 text-right max-w-[200px] truncate">{displayValue}</span>
+        )}
+      </div>
+    );
+  };
+
   // Build sections from patient data
   const sections = [
     {
@@ -42,56 +62,112 @@ export function DemographicsCarousel({
       title: 'Screening Details',
       icon: Calendar,
       color: '#3b82f6',
-      children: <div className="text-sm text-slate-600">Screening section content</div>
+      children: (
+        <div className="space-y-1">
+          {renderField('Screening Date', patient?.screening_date, true, 'screening_date')}
+          {renderField('Submitted On', patient?.submitted_on)}
+          {renderField('Facility', patient?.facility_name, true, 'facility_name')}
+          {renderField('Screened By', patient?.screened_by, true, 'screened_by')}
+        </div>
+      )
     },
     {
       id: 'identity',
       title: 'Identity',
       icon: User,
       color: '#8b5cf6',
-      children: <div className="text-sm text-slate-600">Identity section content</div>
+      children: (
+        <div className="space-y-1">
+          {renderField('Name', patient?.inmate_name, true, 'inmate_name')}
+          {renderField('Age', patient?.age, true, 'age')}
+          {renderField('Gender', patient?.gender, true, 'gender')}
+          {renderField('Contact', patient?.contact_number, true, 'contact_number')}
+        </div>
+      )
     },
     {
       id: 'location',
       title: 'Location',
       icon: MapPin,
       color: '#10b981',
-      children: <div className="text-sm text-slate-600">Location section content</div>
+      children: (
+        <div className="space-y-1">
+          {renderField('State', patient?.screening_state, true, 'screening_state')}
+          {renderField('District', patient?.screening_district, true, 'screening_district')}
+          {renderField('Address', patient?.address, true, 'address')}
+          {renderField('GPS', patient?.gps_coordinates)}
+        </div>
+      )
     },
     {
       id: 'tb-screening',
       title: 'TB Screening',
       icon: Activity,
       color: '#f59e0b',
-      children: <div className="text-sm text-slate-600">TB Screening section content</div>
+      children: (
+        <div className="space-y-1">
+          {renderField('Symptoms (10S)', patient?.symptoms_10s, true, 'symptoms_10s')}
+          {renderField('X-Ray Result', patient?.xray_result, true, 'xray_result')}
+          {renderField('AI Confidence', patient?.ai_confidence_score)}
+          {renderField('Sputum Collected', patient?.sputum_collected, true, 'sputum_collected')}
+        </div>
+      )
     },
     {
       id: 'referral',
       title: 'Referral/Diagnosis',
       icon: FileText,
       color: '#ef4444',
-      children: <div className="text-sm text-slate-600">Referral section content</div>
+      children: (
+        <div className="space-y-1">
+          {renderField('Referral Date', patient?.referral_date, true, 'referral_date')}
+          {renderField('Referred To', patient?.referred_to_facility, true, 'referred_to_facility')}
+          {renderField('TB Diagnosed', patient?.tb_diagnosed, true, 'tb_diagnosed')}
+          {renderField('Diagnosis Date', patient?.diagnosis_date, true, 'diagnosis_date')}
+        </div>
+      )
     },
     {
       id: 'hiv',
       title: 'HIV/ART',
       icon: Shield,
       color: '#ec4899',
-      children: <div className="text-sm text-slate-600">HIV/ART section content</div>
+      children: (
+        <div className="space-y-1">
+          {renderField('HIV Status', patient?.hiv_status, true, 'hiv_status')}
+          {renderField('ART Started', patient?.art_started, true, 'art_started')}
+          {renderField('ART Center', patient?.art_center, true, 'art_center')}
+          {renderField('CPT Given', patient?.cpt_given, true, 'cpt_given')}
+        </div>
+      )
     },
     {
       id: 'nikshay',
       title: 'Nikshay/Registration',
       icon: ClipboardList,
       color: '#06b6d4',
-      children: <div className="text-sm text-slate-600">Nikshay section content</div>
+      children: (
+        <div className="space-y-1">
+          {renderField('NIKSHAY ID', patient?.nikshay_id, true, 'nikshay_id')}
+          {renderField('ABHA ID', patient?.abha_id, true, 'abha_id')}
+          {renderField('ATT Start Date', patient?.att_start_date, true, 'att_start_date')}
+          {renderField('Treatment Regimen', patient?.treatment_regimen, true, 'treatment_regimen')}
+        </div>
+      )
     },
     {
       id: 'admin',
       title: 'Administrative',
       icon: Settings2,
       color: '#64748b',
-      children: <div className="text-sm text-slate-600">Administrative section content</div>
+      children: (
+        <div className="space-y-1">
+          {renderField('Kobo UUID', patient?.kobo_uuid)}
+          {renderField('Serial Number', patient?.serial_number)}
+          {renderField('Created At', patient?.created_at)}
+          {renderField('Updated At', patient?.updated_at)}
+        </div>
+      )
     }
   ];
   const galleryRef = useRef<HTMLDivElement>(null);
@@ -270,54 +346,73 @@ export function DemographicsCarousel({
   }
 
   return (
-    <div ref={galleryRef} className="relative w-full h-[520px] overflow-hidden">
+    <div ref={galleryRef} className="relative w-full h-[480px] overflow-hidden">
+      {/* Navigation Arrows - Fixed Position */}
+      <motion.button
+        onClick={handlePrev}
+        disabled={isAnimating || !prevSection}
+        whileHover={{ scale: 1.1, x: -4 }}
+        whileTap={{ scale: 0.9 }}
+        className="absolute left-4 top-1/2 -translate-y-1/2 z-50 w-12 h-12 bg-slate-900 text-white rounded-full shadow-xl shadow-slate-900/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300 hover:shadow-2xl flex items-center justify-center"
+      >
+        <ChevronLeft className="w-6 h-6" />
+      </motion.button>
+
+      <motion.button
+        onClick={handleNext}
+        disabled={isAnimating || !nextSection}
+        whileHover={{ scale: 1.1, x: 4 }}
+        whileTap={{ scale: 0.9 }}
+        className="absolute right-4 top-1/2 -translate-y-1/2 z-50 w-12 h-12 bg-slate-900 text-white rounded-full shadow-xl shadow-slate-900/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300 hover:shadow-2xl flex items-center justify-center"
+      >
+        <ChevronRight className="w-6 h-6" />
+      </motion.button>
+
       {/* Cards Container */}
-      <ul ref={cardsRef} className="absolute w-full h-[420px] top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2">
+      <ul ref={cardsRef} className="absolute w-full h-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
         {sections.map((section, index) => (
           <li
             key={section.id}
             className="demo-card absolute top-0 left-0 w-full h-full opacity-0"
             style={{ listStyle: 'none' }}
           >
-            <div className="w-full h-full flex items-center justify-center px-8">
-              <div className="w-full max-w-[580px] h-full bg-white rounded-3xl border-2 border-slate-200/60 shadow-2xl shadow-slate-900/10 overflow-hidden">
+            <div className="w-full h-full flex items-center justify-center px-20">
+              <div className="w-full max-w-[520px] h-[400px] bg-white rounded-2xl border border-slate-200/60 shadow-xl overflow-hidden">
                 {/* Card Header */}
                 <div
-                  className="px-6 py-4 border-b border-slate-100"
+                  className="px-5 py-3 border-b border-slate-100"
                   style={{
                     background: `linear-gradient(135deg, ${section.color}15 0%, ${section.color}05 100%)`
                   }}
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center"
+                      className="w-9 h-9 rounded-lg flex items-center justify-center"
                       style={{ backgroundColor: `${section.color}20` }}
                     >
-                      <section.icon className="w-5 h-5" style={{ color: section.color }} />
+                      <section.icon className="w-4.5 h-4.5" style={{ color: section.color }} />
                     </div>
-                    <div>
-                      <h3 className="text-base font-black uppercase tracking-tight text-slate-900">
+                    <div className="flex-1">
+                      <h3 className="text-sm font-black uppercase tracking-tight text-slate-900">
                         {section.title}
                       </h3>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-0.5">
-                        Section {index + 1} of {sections.length}
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
+                        {index + 1} of {sections.length}
                       </p>
                     </div>
                     {isEditingDemographics && (
-                      <div className="ml-auto">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-wider">
-                            Editing
-                          </span>
+                      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-50 border border-emerald-200">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[8px] font-bold text-emerald-700 uppercase tracking-wider">
+                          Edit Mode
                         </span>
-                      </div>
+                      </span>
                     )}
                   </div>
                 </div>
 
-                {/* Card Content */}
-                <div className="h-[calc(100%-80px)] overflow-y-auto p-6">
+                {/* Card Content - No Scroll */}
+                <div className="h-[calc(100%-64px)] p-5">
                   {section.children}
                 </div>
               </div>
@@ -326,79 +421,21 @@ export function DemographicsCarousel({
         ))}
       </ul>
 
-      {/* Navigation Controls */}
+      {/* Progress Indicator - Bottom Center */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50">
-        <div className="flex items-center gap-3">
-          {/* Previous Button */}
-          <motion.button
-            onClick={handlePrev}
-            disabled={isAnimating || !prevSection}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="group relative flex items-center gap-3 px-5 py-3 bg-slate-900 text-white rounded-2xl shadow-lg shadow-slate-900/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:shadow-xl hover:shadow-slate-900/30"
-          >
-            <ChevronLeft className="w-5 h-5" />
-            <div className="flex flex-col items-start">
-              <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">
-                Previous
-              </span>
-              <span className="text-xs font-black uppercase tracking-tight">
-                {prevSection?.title || 'N/A'}
-              </span>
-            </div>
-          </motion.button>
-
-          {/* Progress Indicator */}
-          <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-slate-200 shadow-sm">
-            {sections && sections.map((_, index) => (
-              <div
-                key={index}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  index === currentIndex
-                    ? 'w-8 bg-slate-900'
-                    : 'w-1.5 bg-slate-300'
-                }`}
-              />
-            ))}
-          </div>
-
-          {/* Next Button */}
-          <motion.button
-            onClick={handleNext}
-            disabled={isAnimating || !nextSection}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="group relative flex items-center gap-3 px-5 py-3 bg-slate-900 text-white rounded-2xl shadow-lg shadow-slate-900/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:shadow-xl hover:shadow-slate-900/30"
-          >
-            <div className="flex flex-col items-end">
-              <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">
-                Next
-              </span>
-              <span className="text-xs font-black uppercase tracking-tight">
-                {nextSection?.title || 'N/A'}
-              </span>
-            </div>
-            <ChevronRight className="w-5 h-5" />
-          </motion.button>
+        <div className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm rounded-full border border-slate-200 shadow-lg">
+          {sections && sections.map((_, index) => (
+            <div
+              key={index}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                index === currentIndex
+                  ? 'w-8 bg-slate-900'
+                  : 'w-1.5 bg-slate-300'
+              }`}
+            />
+          ))}
         </div>
       </div>
-
-      {/* Keyboard Hint */}
-      <AnimatePresence>
-        {!isAnimating && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="absolute top-6 right-6 flex items-center gap-2 px-3 py-2 bg-slate-900/90 backdrop-blur-sm text-white rounded-lg text-[10px] font-bold uppercase tracking-wider"
-          >
-            <span className="opacity-60">Use</span>
-            <kbd className="px-2 py-0.5 bg-white/20 rounded">←</kbd>
-            <kbd className="px-2 py-0.5 bg-white/20 rounded">→</kbd>
-            <span className="opacity-60">to navigate</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
