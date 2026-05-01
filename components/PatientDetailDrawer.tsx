@@ -395,7 +395,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         .from('patients')
         .select('*')
         .eq('id', localPatient.id)
-        .single();
+        .maybeSingle();
       if (freshPatient && !fetchError) {
         setLocalPatient(freshPatient);
       }
@@ -540,7 +540,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         .from('patients')
         .select('*')
         .eq('id', localPatient.id)
-        .single();
+        .maybeSingle();
       if (freshPatient && !fetchError) {
         setLocalPatient(freshPatient);
         setEditedDemographics(mapDemographics(freshPatient));
