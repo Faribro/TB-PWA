@@ -641,7 +641,7 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
         </AnimatePresence>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 cyan-scrollbar">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 cyan-scrollbar scroll-smooth">
         {paginatedPatients.length > 0 ? (
           viewMode === 'loop' ? (
             <InmateVerticalLoop
@@ -689,9 +689,19 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
                   }}
                 >
                   <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: virtualRow.index * 0.03 }}
+                    initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    transition={{ 
+                      delay: virtualRow.index * 0.02,
+                      type: "spring",
+                      stiffness: 300,
+                      damping: 25
+                    }}
+                    whileHover={{ 
+                      scale: 1.01,
+                      x: 4,
+                      transition: { duration: 0.2 }
+                    }}
                     className={`relative rounded-xl p-4 cursor-pointer group overflow-hidden ${
                       suspectedTB 
                         ? 'bg-white border-2 border-rose-400/60 shadow-[0_0_20px_rgba(244,63,94,0.15),0_4px_20px_-4px_rgba(244,63,94,0.3)] hover:shadow-[0_0_30px_rgba(244,63,94,0.25),0_8px_30px_-4px_rgba(244,63,94,0.4)]' 
