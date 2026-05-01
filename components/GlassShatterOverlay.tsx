@@ -117,15 +117,50 @@ class GlassShatterEngine {
     const localX = clientX - rect.left;
     const localY = clientY - rect.top;
 
-    // Convert to SVG coordinates
-    const svgRect = this.svg.getBoundingClientRect();
-    const svgX = clientX - svgRect.left;
-    const svgY = clientY - svgRect.top;
-
-    this.addCrack(svgX, svgY);
-    this.spawnParticles(clientX, clientY);
+    // Create a tile-specific SVG overlay
+    const tileSvg = this.createTileSvg(tileElement);
+    
+    // Use local coordinates within the tile
+    this.addCrack(localX, localY, tileSvg);
+    this.spawnParticles(clientX, clientY, rect);
     this.shakeElement(tileElement);
     this.playSound();
+    
+    // Auto-remove tile SVG after animation completes
+    setTimeout(() => {
+      tileSvg.remove();
+    }, 5000);
+  }
+
+  private createTileSvg(tileElement: HTMLElement): SVGSVGElement {
+    const rect = tileElement.getBoundingClientRect();
+    
+    // Create SVG that exactly matches tile dimensions
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'absolute inset-0 w-full h-full pointer-events-none overflow-hidden');
+    svg.setAttribute('style', 'z-index: 10;');
+    
+    // Clone defs from main SVG
+    const mainDefs = this.svg.querySelector('defs');
+    if (mainDefs) {
+      svg.appendChild(mainDefs.cloneNode(true));
+    }
+    
+    // Create layers
+    const layerOrder = ['shadow', 'shard', 'ring', 'crack', 'dust', 'stress', 'bloom', 'impact'];
+    layerOrder.forEach(name => {
+      const layer = SvgUtils.group({ id: `${name}-layer` }) as SVGGElement;
+      svg.appendChild(layer);
+    });
+    
+    // Add to tile (make tile position relative if not already)
+    const position = window.getComputedStyle(tileElement).position;
+    if (position === 'static') {
+      tileElement.style.position = 'relative';
+    }
+    tileElement.appendChild(svg);
+    
+    return svg;
   }
 
   private playSound() {
@@ -307,10 +342,10 @@ class GlassShatterEngine {
     return points;
   }
 
-  private addCrack(cx: number, cy: number) {
+  private addCrack(cx: number, cy: number, tileSvg: SVGSVGElement) {
     const { crack, impact, color } = CONFIG;
     this.currentStressId = `stress-${Date.now()}`;
-    const defs = this.svg.querySelector('defs') || this.svg.appendChild(SvgUtils.create('defs'));
+    const defs = tileSvg.querySelector('defs') || tileSvg.appendChild(SvgUtils.create('defs'));
 
     const filter = SvgUtils.create('filter', {
       id: this.currentStressId,
@@ -339,24 +374,35 @@ class GlassShatterEngine {
 
     const crackElements = this.buildCrackLayer(rays, angles);
 
-    this.layers.shard?.appendChild(this.buildShardLayer(cx, cy, rays, angles));
-    this.layers.shadow?.appendChild(crackElements.shadowGroup);
+    // Get layers from tile SVG
+    const layers = {
+      shadow: tileSvg.querySelector('#shadow-layer') as SVGGElement,
+      shard: tileSvg.querySelector('#shard-layer') as SVGGElement,
+      ring: tileSvg.querySelector('#ring-layer') as SVGGElement,
+      crack: tileSvg.querySelector('#crack-layer') as SVGGElement,
+      dust: tileSvg.querySelector('#dust-layer') as SVGGElement,
+      impact: tileSvg.querySelector('#impact-layer') as SVGGElement,
+      bloom: tileSvg.querySelector('#bloom-layer') as SVGGElement
+    };
 
-    this.layers.crack?.append(
+    layers.shard?.appendChild(this.buildShardLayer(cx, cy, rays, angles));
+    layers.shadow?.appendChild(crackElements.shadowGroup);
+
+    layers.crack?.append(
       crackElements.glowGroup,
       crackElements.crackGroup,
       crackElements.branchGroup
     );
 
-    this.layers.ring?.appendChild(this.buildRingLayer(cx, cy, angles, count));
-    this.layers.dust?.appendChild(this.buildDustLayer(cx, cy));
+    layers.ring?.appendChild(this.buildRingLayer(cx, cy, angles, count));
+    layers.dust?.appendChild(this.buildDustLayer(cx, cy));
 
     const pit = SvgUtils.create('circle', {
       cx, cy, r: impact.pitRadius,
       fill: ColorUtils.oklch(color.pit)
     });
 
-    this.layers.impact?.appendChild(pit);
+    layers.impact?.appendChild(pit);
 
     const flash = SvgUtils.create('circle', {
       cx, cy, r: impact.flashRadius,
@@ -364,10 +410,7 @@ class GlassShatterEngine {
       filter: 'url(#glassBloom)'
     });
     (flash as SVGElement).style.animation = `flashOut ${impact.flashDuration}s ease-out forwards`;
-    this.layers.bloom?.appendChild(flash);
-
-    // Auto-cleanup after 5 seconds
-    setTimeout(() => this.clearOldEffects(), 5000);
+    layers.bloom?.appendChild(flash);
   }
 
   private buildShardLayer(cx: number, cy: number, rays: number[][][], angles: number[]): SVGGElement {
@@ -559,7 +602,7 @@ class GlassShatterEngine {
     return g;
   }
 
-  private spawnParticles(cx: number, cy: number) {
+  private spawnParticles(cx: number, cy: number, tileRect: DOMRect) {
     const { particle, color } = CONFIG;
     const count = MathUtils.randInt(particle.countMin, particle.countMax);
 
@@ -583,8 +626,19 @@ class GlassShatterEngine {
 
       const a = MathUtils.rand(0, Math.PI * 2);
       const f = MathUtils.rand(particle.forceMin, particle.forceMax);
-      const vx = Math.cos(a) * f;
-      const vy = Math.sin(a) * f - particle.liftOffset;
+      let vx = Math.cos(a) * f;
+      let vy = Math.sin(a) * f - particle.liftOffset;
+      
+      // Constrain particles to stay within tile bounds
+      const finalX = cx + vx;
+      const finalY = cy + vy + MathUtils.rand(particle.gravityMin, particle.gravityMax);
+      
+      // Clamp to tile boundaries
+      if (finalX < tileRect.left) vx = tileRect.left - cx;
+      if (finalX > tileRect.right) vx = tileRect.right - cx;
+      if (finalY < tileRect.top) vy = tileRect.top - cy;
+      if (finalY > tileRect.bottom) vy = (tileRect.bottom - cy) - MathUtils.rand(particle.gravityMin, particle.gravityMax);
+      
       const rot = MathUtils.rand(-particle.rotateMax, particle.rotateMax);
 
       el.animate(
