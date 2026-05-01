@@ -108,13 +108,14 @@ function normalizeStateFilter(state: string): string {
     case 'mumbai':
       return 'screening_state.ilike.%maharashtra%,screening_state.ilike.%mumbai%';
     case 'madhyapradesh':
-      return 'screening_state.ilike.%madhya%pradesh%';
+      return 'screening_state.eq.Madhya Pradesh';
     case 'uttarakhand':
-      return 'screening_state.ilike.%uttarakhand%';
+    case 'uttaranchal':
+      return 'screening_state.eq.Uttarakhand';
     case 'gujarat':
-      return 'screening_state.ilike.%gujarat%';
+      return 'screening_state.eq.Gujarat';
     case 'chandigarh':
-      return 'screening_state.ilike.%chandigarh%';
+      return 'screening_state.eq.Chandigarh';
     default:
       return `screening_state.ilike.%${state}%`;
   }
