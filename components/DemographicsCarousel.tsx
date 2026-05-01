@@ -161,22 +161,8 @@ export function DemographicsCarousel({
   }, [setEditedDemographics]);
 
   const getValue = useCallback((key: string, fallback: any) => {
-    const result = localValues[key] ?? editedDemographics[key] ?? fallback;
-    console.log(`[Demographics] getValue('${key}'):`, { localValues: localValues[key], edited: editedDemographics[key], fallback, result });
-    return result;
+    return localValues[key] ?? editedDemographics[key] ?? fallback;
   }, [localValues, editedDemographics]);
-
-  // Debug patient data on mount
-  useEffect(() => {
-    if (patient) {
-      console.log('[Demographics] Patient data:', {
-        address: patient.address,
-        symptoms_10s: patient.symptoms_10s,
-        kobo_uuid: patient.kobo_uuid,
-        serial_number: patient.serial_number
-      });
-    }
-  }, [patient]);
 
   if (!patient) return null;
 
@@ -299,9 +285,9 @@ export function DemographicsCarousel({
             <div className="relative">
               <FormSectionTitle icon={Settings2} title="System Metadata" colorCode="#64748b" />
               <div className="bg-white/70 backdrop-blur-md rounded-[16px] p-1.5 border border-white shadow-[0_2px_12px_rgb(0,0,0,0.02)] relative">
-                <div className="grid grid-cols-2 gap-1">
+                <div className="flex flex-col gap-0.5">
                   <FormFieldRow label="Kobo UUID" value={getValue('kobo_uuid', patient?.kobo_uuid)} icon={Hash} editable={false} colorCode="#64748b" />
-                  <FormFieldRow label="Serial Number" value={getValue('serial_number', patient?.serial_number)} icon={Hash} editable={false} colorCode="#64748b" />
+                  <FormFieldRow label="Unique ID" value={getValue('unique_id', patient?.unique_id)} icon={Hash} editable={false} colorCode="#64748b" />
                 </div>
               </div>
             </div>

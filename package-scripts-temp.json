@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "test:demographics": "node scripts/test-demographics-fields.js"
+  }
+}
