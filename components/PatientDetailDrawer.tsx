@@ -876,7 +876,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                     <DemographicsCarousel
                       patient={localPatient}
                       editedDemographics={editedDemographics}
-                      setEditedDemographics={setEditedDemographics}
+                      setEditedDemographics={setEditedDemographics as React.Dispatch<React.SetStateAction<Record<string, any>>>}
                       isEditingDemographics={isEditingDemographics}
                       setIsEditingDemographics={setIsEditingDemographics}
                     />
