@@ -51,6 +51,7 @@ import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope } from '@/hooks/useSessionScope';
 import { useVertexHeatmap, useVertexMonthSummary, useVertexDaily } from '@/hooks/useVertexAggregates';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { GlassShatterOverlay } from '@/components/GlassShatterOverlay';
 
 // TypeScript Interfaces
 interface MonthlyHeatmapData {
@@ -1220,7 +1221,9 @@ export default function Vertex({
   }, [selectedDate, dailySparks, globalPatients, now]);
 
   return (
-    <div className="relative w-full font-outfit overflow-x-hidden">
+    <>
+      <GlassShatterOverlay />
+      <div className="relative w-full font-outfit overflow-x-hidden">
       {/* Premium Background Decorative Elements / Synthwave Aurora */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[rgba(167,139,250,0.15)] blur-[120px] rounded-full mix-blend-screen" style={{ animation: 'vertex-aurora 15s ease-in-out infinite alternate' }} />
@@ -1758,5 +1761,6 @@ export default function Vertex({
         )}
       </AnimatePresence>
     </div>
+    </>
   );
 }

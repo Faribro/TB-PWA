@@ -16,6 +16,7 @@ import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { Z_INDEX } from '@/lib/zIndex';
 import { sounds } from '@/lib/sound';
 import { useRealtimePatients } from '@/lib/useRealtimePatients';
+import { InmateVerticalLoop } from './InmateVerticalLoop';
 
 const supabase = getSupabaseBrowserClient();
 
@@ -235,7 +236,7 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
   const [triageIds, setTriageIds] = useState<number[]>([]);
   const [isTriaging, setIsTriaging] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'grid' | 'loop'>('list');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [tbFilteredPatients, setTbFilteredPatients] = useState<Patient[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -542,6 +543,7 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
                 onClick={() => { sounds.toggle(); setViewMode('list'); }}
                 className={`w-6 h-6 flex items-center justify-center rounded transition-all duration-200 ${viewMode === 'list' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 aria-label="List view"
+                title="List view"
               >
                 <List className="w-3.5 h-3.5" />
               </button>
@@ -549,8 +551,17 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
                 onClick={() => { sounds.toggle(); setViewMode('grid'); }}
                 className={`w-6 h-6 flex items-center justify-center rounded transition-all duration-200 ${viewMode === 'grid' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 aria-label="Grid view"
+                title="Grid view"
               >
                 <Grid3x3 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => { sounds.toggle(); setViewMode('loop'); }}
+                className={`w-6 h-6 flex items-center justify-center rounded transition-all duration-200 ${viewMode === 'loop' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                aria-label="Vertical loop view"
+                title="Vertical loop view"
+              >
+                <Activity className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -632,7 +643,12 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 cyan-scrollbar">
         {paginatedPatients.length > 0 ? (
-          viewMode === 'list' ? (
+          viewMode === 'loop' ? (
+            <InmateVerticalLoop
+              patients={paginatedPatients}
+              onPatientClick={(patient) => onPatientClick?.(patient)}
+            />
+          ) : viewMode === 'list' ? (
             <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
             {virtualizer.getVirtualItems().map((virtualRow) => {
               const patient = paginatedPatients[virtualRow.index];
