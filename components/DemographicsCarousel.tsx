@@ -20,24 +20,80 @@ if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger);
 }
 
-interface DemographicsSection {
-  id: string;
-  title: string;
-  icon: any;
-  color: string;
-  children: React.ReactNode;
-}
-
 interface DemographicsCarouselProps {
-  sections: DemographicsSection[];
-  isEditMode: boolean;
-  editedDemographics?: Record<string, any>;
-  setEditedDemographics?: React.Dispatch<React.SetStateAction<Record<string, any>>>;
-  isEditingDemographics?: boolean;
-  setIsEditingDemographics?: (editing: boolean) => void;
+  patient: any;
+  editedDemographics: Record<string, any>;
+  setEditedDemographics: React.Dispatch<React.SetStateAction<Record<string, any>>>;
+  isEditingDemographics: boolean;
+  setIsEditingDemographics: (editing: boolean) => void;
 }
 
-export function DemographicsCarousel({ sections, isEditMode }: DemographicsCarouselProps) {
+export function DemographicsCarousel({ 
+  patient,
+  editedDemographics,
+  setEditedDemographics,
+  isEditingDemographics,
+  setIsEditingDemographics 
+}: DemographicsCarouselProps) {
+  // Build sections from patient data
+  const sections = [
+    {
+      id: 'screening',
+      title: 'Screening Details',
+      icon: Calendar,
+      color: '#3b82f6',
+      children: <div className="text-sm text-slate-600">Screening section content</div>
+    },
+    {
+      id: 'identity',
+      title: 'Identity',
+      icon: User,
+      color: '#8b5cf6',
+      children: <div className="text-sm text-slate-600">Identity section content</div>
+    },
+    {
+      id: 'location',
+      title: 'Location',
+      icon: MapPin,
+      color: '#10b981',
+      children: <div className="text-sm text-slate-600">Location section content</div>
+    },
+    {
+      id: 'tb-screening',
+      title: 'TB Screening',
+      icon: Activity,
+      color: '#f59e0b',
+      children: <div className="text-sm text-slate-600">TB Screening section content</div>
+    },
+    {
+      id: 'referral',
+      title: 'Referral/Diagnosis',
+      icon: FileText,
+      color: '#ef4444',
+      children: <div className="text-sm text-slate-600">Referral section content</div>
+    },
+    {
+      id: 'hiv',
+      title: 'HIV/ART',
+      icon: Shield,
+      color: '#ec4899',
+      children: <div className="text-sm text-slate-600">HIV/ART section content</div>
+    },
+    {
+      id: 'nikshay',
+      title: 'Nikshay/Registration',
+      icon: ClipboardList,
+      color: '#06b6d4',
+      children: <div className="text-sm text-slate-600">Nikshay section content</div>
+    },
+    {
+      id: 'admin',
+      title: 'Administrative',
+      icon: Settings2,
+      color: '#64748b',
+      children: <div className="text-sm text-slate-600">Administrative section content</div>
+    }
+  ];
   const galleryRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLUListElement>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -238,7 +294,7 @@ export function DemographicsCarousel({ sections, isEditMode }: DemographicsCarou
                         Section {index + 1} of {sections.length}
                       </p>
                     </div>
-                    {isEditMode && (
+                    {isEditingDemographics && (
                       <div className="ml-auto">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200">
                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
