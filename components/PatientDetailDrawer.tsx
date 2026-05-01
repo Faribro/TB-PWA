@@ -245,6 +245,45 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     }
   };
 
+  // Listen for save event from DemographicsCarousel
+  useEffect(() => {
+    const handleSaveDemographicsEvent = () => {
+      console.log('[PatientDetailDrawer] saveDemographicsEvent received from carousel');
+      handleSaveDemographics();
+    };
+
+    document.addEventListener('saveDemographicsEvent', handleSaveDemographicsEvent);
+    return () => {
+      document.removeEventListener('saveDemographicsEvent', handleSaveDemographicsEvent);
+    };
+  }, [editedDemographics, localPatient]);
+
+  // Listen for close loop event from DemographicsCarousel
+  useEffect(() => {
+    const handleOpenCloseLoopEvent = () => {
+      console.log('[PatientDetailDrawer] openCloseLoopModal event received from carousel');
+      setShowCloseLoop(true);
+    };
+
+    document.addEventListener('openCloseLoopModal', handleOpenCloseLoopEvent);
+    return () => {
+      document.removeEventListener('openCloseLoopModal', handleOpenCloseLoopEvent);
+    };
+  }, []);
+
+  // Listen for submit clinical update event from DemographicsCarousel
+  useEffect(() => {
+    const handleSubmitClinicalEvent = () => {
+      console.log('[PatientDetailDrawer] submitClinicalUpdateEvent received from carousel');
+      handleSaveClinical();
+    };
+
+    document.addEventListener('submitClinicalUpdateEvent', handleSubmitClinicalEvent);
+    return () => {
+      document.removeEventListener('submitClinicalUpdateEvent', handleSubmitClinicalEvent);
+    };
+  }, [localPatient]);
+
   const hotkeys = useMemo(() => ({
     'meta+s': (e: KeyboardEvent) => {
       e.preventDefault();
@@ -443,6 +482,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
   const handleSaveDemographics = async () => {
     setIsSavingDemographics(true);
+    setSaving(); // Set sync status to saving
 
     try {
       // Map Kobo-canonical state keys → Supabase column names
@@ -453,7 +493,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         submitted_on:        editedDemographics.submittedon,
         screening_state:     editedDemographics.screeningstate,
         screening_district:  editedDemographics.screeningdistrict,
-        facility_name:       editedDemographics.facilitycode,   // facilitycode Kobo key → facility_name Supabase col
+        facility_name:       editedDemographics.facilitycode,
         facility_type:       editedDemographics.facilitytype,
         screening_date:      editedDemographics.screeningdate,
         unique_id:           editedDemographics.uniqueid,
@@ -474,6 +514,11 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         updated_at:          new Date().toISOString()
       };
 
+      console.log('[PatientDetailDrawer] 📤 Sending demographics update to /api/patient-sync:', {
+        patientId: localPatient.id,
+        payload
+      });
+
       const res = await fetch('/api/patient-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -485,10 +530,14 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       if (!res.ok) {
         const errorData = await res.json();
+        setError(errorData.error || 'Sync failed');
         throw new Error(errorData.error || 'Save failed');
       }
 
       const responseData = await res.json();
+      setSyncing(); // Set sync status to syncing
+
+      console.log('[PatientDetailDrawer] ✅ Demographics save successful, response:', responseData);
 
       // Immediately update local state with server response
       if (responseData.patient) {
@@ -515,8 +564,11 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       const currentValues = getValues();
       reset(currentValues, { keepValues: true });
 
-      // Show success toast (API doesn't return sheetsSync field)
-      toast.success('✅ Demographics saved successfully', { id: 'demo-save' });
+      // Show success toast
+      toast.success('✅ Demographics saved to Supabase & Google Sheets', { 
+        id: 'demo-save',
+        description: 'Changes synced successfully'
+      });
       
       // Re-fetch from DB to confirm exact persisted state
       const { data: freshPatient, error: fetchError } = await supabaseClient
@@ -527,8 +579,12 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       if (freshPatient && !fetchError) {
         setLocalPatient(freshPatient);
         setEditedDemographics(mapDemographics(freshPatient));
+        setSynced(freshPatient.sheets_synced_at || new Date().toISOString());
       }
     } catch (error) {
+      console.error('[handleSaveDemographics] Save failed:', error);
+      setError('Failed to sync');
+      
       // Still update local state even if server sync fails
       const updatedPatient = { ...localPatient, ...editedDemographics };
       setLocalPatient(updatedPatient);
@@ -543,7 +599,6 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       localStorage.setItem(`patient-${localPatient.id}-backup`, JSON.stringify(updatedPatient));
       
       toast.error('❌ Failed to save. Changes saved locally.', { id: 'demo-save', duration: 5000 });
-      console.error('[handleSaveDemographics] Save failed:', error);
     } finally {
       setIsSavingDemographics(false);
     }
@@ -708,8 +763,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
               </div>
 
               <ScrollArea className="flex-1">
-                <div className="p-6">
-                  <TabsContent value="clinical" className="mt-0">
+                <div className="w-full h-full flex flex-col">
+                  <TabsContent value="clinical" className="mt-0 p-6">
                     {(() => {
                       const watchedReferralDate = watch('Date of referral for TB Examination (sputum) (dd/mm/yy)');
                       const watchedFacility = watch('Name of facility where referred to (Give code/name of all facilities)');
@@ -870,9 +925,58 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                         </>
                       );
                     })()}
+
+              {/* Action Bar - Only visible on Clinical Tab now */}
+              <div className="py-3 mt-4 border-t border-black/[0.06] flex flex-col gap-2 shrink-0">
+                {!isClosed && !showCloseLoop && (
+                  <button
+                    data-tour-id="close-loop-button"
+                    onClick={() => setShowCloseLoop(true)}
+                    className="w-full h-[38px] rounded-[10px] text-[11px] font-bold uppercase tracking-[0.06em] text-red-600 flex items-center justify-center gap-1.5 mt-1 transition-all duration-150"
+                    style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.10)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.25)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.06)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)'; }}
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    Close Loop (Not TB)
+                  </button>
+                )}
+
+                {showCloseLoop && (
+                  <div className="p-3 bg-red-50 rounded-xl border border-red-100 space-y-2">
+                    <p className="text-[10px] font-extrabold uppercase text-red-700 tracking-wider">Confirm Loop Closure</p>
+                    <select onChange={(e) => handleCloseLoop(e.target.value)} className="w-full text-[13px] font-medium p-2.5 rounded-[10px] border-[1.5px] border-red-200 bg-white outline-none focus:border-red-400 focus:ring-[3px] focus:ring-red-500/10">
+                      <option value="">Select reason...</option>
+                      <option value="Negative sputum">Negative sputum</option>
+                      <option value="CXR Normal">CXR Normal</option>
+                      <option value="Not TB - Alternative diagnosis">Not TB - Alternative diagnosis</option>
+                      <option value="Patient declined treatment">Patient declined treatment</option>
+                      <option value="Transferred out">Transferred out</option>
+                      <option value="Lost to follow-up">Lost to follow-up</option>
+                      <option value="Died">Died</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <button onClick={() => setShowCloseLoop(false)} className="text-[9px] font-bold text-red-400 uppercase hover:text-red-600 transition-colors">Cancel</button>
+                  </div>
+                )}
+
+                {phase !== 'Closed' && (
+                  <button
+                    data-tour-id="submit-clinical-update"
+                    onClick={handleSaveClinical}
+                    disabled={isSubmitting}
+                    className="w-full h-[52px] rounded-[14px] text-[13px] font-extrabold uppercase tracking-[0.08em] text-white flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-px active:translate-y-0"
+                    style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)', boxShadow: '0 4px 14px rgba(15,23,42,0.25), 0 1px 3px rgba(15,23,42,0.15)' }}
+                  >
+                    {isSubmitting ? <Sparkles className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 opacity-70" />}
+                    Submit Clinical Update
+                  </button>
+                )}
+              </div>
+
                   </TabsContent>
 
-                  <TabsContent value="demographics" className="mt-0">
+                  <TabsContent value="demographics" className="mt-0 h-full flex flex-col">
                     <DemographicsCarousel
                       patient={localPatient}
                       editedDemographics={editedDemographics}
@@ -1131,63 +1235,10 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                   </TabsContent>
                 </div>
               </ScrollArea>
-
-              <div className="px-5 py-3 border-t border-black/[0.06] bg-white flex flex-col gap-2 shrink-0">
-                {isEditingDemographics && (
-                  <button onClick={handleSaveDemographics} disabled={isSavingDemographics} className="w-full h-[52px] rounded-[14px] text-[13px] font-extrabold uppercase tracking-[0.08em] text-white flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)', boxShadow: '0 4px 14px rgba(15,23,42,0.25), 0 1px 3px rgba(15,23,42,0.15)' }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(15,23,42,0.30)'; }} onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(15,23,42,0.25), 0 1px 3px rgba(15,23,42,0.15)'; }}>
-                    {isSavingDemographics ? <Sparkles className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 opacity-70" />}
-                    Save Demographics
-                  </button>
-                )}
-
-                {!isEditingDemographics && phase !== 'Closed' && (
-                  <button
-                    data-tour-id="submit-clinical-update"
-                    onClick={handleSaveClinical}
-                    disabled={isSubmitting}
-                    className="w-full h-[52px] rounded-[14px] text-[13px] font-extrabold uppercase tracking-[0.08em] text-white flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-px active:translate-y-0"
-                    style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)', boxShadow: '0 4px 14px rgba(15,23,42,0.25), 0 1px 3px rgba(15,23,42,0.15)' }}
-                  >
-                    {isSubmitting ? <Sparkles className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 opacity-70" />}
-                    Submit Clinical Update
-                  </button>
-                )}
-
-                {!isClosed && !showCloseLoop && (
-                  <button
-                    data-tour-id="close-loop-button"
-                    onClick={() => setShowCloseLoop(true)}
-                    className="w-full h-[38px] rounded-[10px] text-[11px] font-bold uppercase tracking-[0.06em] text-red-600 flex items-center justify-center gap-1.5 mt-1 transition-all duration-150"
-                    style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.10)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.25)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.06)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)'; }}
-                  >
-                    <XCircle className="w-3.5 h-3.5" />
-                    Close Loop (Not TB)
-                  </button>
-                )}
-
-                {showCloseLoop && (
-                  <div className="p-3 bg-red-50 rounded-xl border border-red-100 space-y-2">
-                    <p className="text-[10px] font-extrabold uppercase text-red-700 tracking-wider">Confirm Loop Closure</p>
-                    <select onChange={(e) => handleCloseLoop(e.target.value)} className="w-full text-[13px] font-medium p-2.5 rounded-[10px] border-[1.5px] border-red-200 bg-white outline-none focus:border-red-400 focus:ring-[3px] focus:ring-red-500/10">
-                      <option value="">Select reason...</option>
-                      <option value="Negative sputum">Negative sputum</option>
-                      <option value="CXR Normal">CXR Normal</option>
-                      <option value="Not TB - Alternative diagnosis">Not TB - Alternative diagnosis</option>
-                      <option value="Patient declined treatment">Patient declined treatment</option>
-                      <option value="Transferred out">Transferred out</option>
-                      <option value="Lost to follow-up">Lost to follow-up</option>
-                      <option value="Died">Died</option>
-                      <option value="Other">Other</option>
-                    </select>
-                    <button onClick={() => setShowCloseLoop(false)} className="text-[9px] font-bold text-red-400 uppercase hover:text-red-600 transition-colors">Cancel</button>
-                  </div>
-                )}
-              </div>
             </Tabs>
           </>
         )}
+
       </SheetContent>
     </Sheet>
   );

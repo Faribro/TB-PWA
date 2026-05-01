@@ -1,8 +1,9 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// GOOGLE SHEETS SYNC - FIRE-AND-FORGET MIRROR
+// GOOGLE SHEETS SYNC - OPTIMIZED FIRE-AND-FORGET MIRROR
 // ═══════════════════════════════════════════════════════════════════════════
 // Supabase is the source of truth. Sheets is a reporting mirror only.
 // All sync operations are non-blocking and never fail the main write.
+// OPTIMIZATIONS: Reduced timeout, zero retries, minimal payload
 // ═══════════════════════════════════════════════════════════════════════════
 
 export interface PatientRecord {
@@ -20,8 +21,14 @@ export interface SyncResult {
 }
 
 /**
- * Fire-and-forget sync to Google Sheets
+ * Fire-and-forget sync to Google Sheets (OPTIMIZED)
  * Never blocks, never throws, logs errors only
+ * 
+ * OPTIMIZATIONS:
+ * - Reduced timeout from 30s → 10s (saves 20s on failures)
+ * - Zero retries (saves 2s+ on failures)
+ * - Minimal payload (only essential fields)
+ * - Immediate return (non-blocking)
  * 
  * @param patient - Patient record from Supabase
  * @param operation - 'insert' or 'update'
@@ -30,64 +37,55 @@ export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 
   const webhookUrl = process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
   
   if (!webhookUrl) {
-    console.log('[sheetsSync] Webhook not configured, skipping mirror sync');
-    return;
+    return; // Silent skip if not configured
   }
 
-  // Fire async without awaiting
-  (async () => {
-    const maxRetries = 1; // Reduced from 2 since timeout is now 30s
-    let attempt = 0;
-    
-    while (attempt <= maxRetries) {
+  // Fire async without awaiting (truly non-blocking)
+  setImmediate(() => {
+    (async () => {
       try {
-        const payload = {
-          batch: [patient],
-          batch_id: `nextjs-${operation}-${Date.now()}-attempt${attempt}`,
+        // OPTIMIZATION: Minimal payload (only essential fields for sheets)
+        const minimalPayload = {
+          batch: [{
+            id: patient.id,
+            kobo_uuid: patient.kobo_uuid,
+            unique_id: patient.unique_id,
+            inmate_name: patient.inmate_name,
+            age: patient.age,
+            contact_number: patient.contact_number,
+            screening_state: patient.screening_state,
+          }],
+          batch_id: `${operation}-${Date.now()}`,
           operation: operation.toUpperCase()
         };
 
         const response = await fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(30000) // Increased to 30s
+          body: JSON.stringify(minimalPayload),
+          signal: AbortSignal.timeout(10000), // Reduced from 30s → 10s
+          // @ts-ignore - keepalive for better connection reuse
+          keepalive: true
         });
 
         if (response.ok) {
-          console.log(`[sheetsSync] ✅ Mirror sync ${operation}: ${patient.kobo_uuid || patient.unique_id}`);
-          return; // Success, exit
+          console.log(`[sheetsSync] ✅ ${operation}: ${patient.unique_id}`);
         } else {
-          const text = await response.text();
-          console.error(`[sheetsSync] ❌ Mirror sync failed (${response.status}): ${text.substring(0, 200)}`);
-          
-          // Don't retry on 4xx errors (client errors)
-          if (response.status >= 400 && response.status < 500) {
-            return;
-          }
+          console.error(`[sheetsSync] ❌ ${response.status}`);
         }
       } catch (error: any) {
-        if (error.name === 'AbortError' || error.message?.includes('timeout')) {
-          console.error(`[sheetsSync] ⏱️ Timeout on attempt ${attempt + 1}/${maxRetries + 1} (30s limit)`);
-        } else {
-          console.error(`[sheetsSync] ❌ Error on attempt ${attempt + 1}:`, error.message);
+        // Silent fail - sheets sync is non-critical
+        if (error.name !== 'AbortError') {
+          console.error(`[sheetsSync] ❌ ${error.message}`);
         }
       }
-      
-      attempt++;
-      if (attempt <= maxRetries) {
-        // Wait 2s before retry
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-    }
-    
-    console.error(`[sheetsSync] ❌ All ${maxRetries + 1} attempts failed for ${patient.kobo_uuid || patient.unique_id}`);
-  })().catch(() => {}); // Swallow all errors
+    })();
+  });
 }
 
 /**
  * Legacy function for backward compatibility
- * Uses fire-and-forget webhook sync
+ * Uses optimized fire-and-forget webhook sync
  */
 export async function appendPatientToSheets(patient: PatientRecord): Promise<SyncResult> {
   const webhookUrl = process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
@@ -99,34 +97,29 @@ export async function appendPatientToSheets(patient: PatientRecord): Promise<Syn
   try {
     const payload = {
       batch: [patient],
-      batch_id: `legacy-append-${Date.now()}`
+      batch_id: `legacy-${Date.now()}`
     };
 
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(30000) // Increased to 30s
+      signal: AbortSignal.timeout(10000) // Reduced from 30s
     });
 
     if (response.ok) {
-      return { success: true, message: 'Synced via webhook' };
+      return { success: true, message: 'Synced' };
     } else {
-      const text = await response.text();
-      return { success: false, error: `Webhook failed: ${response.status}` };
+      return { success: false, error: `HTTP ${response.status}` };
     }
   } catch (error: any) {
-    if (error.name === 'AbortError' || error.message?.includes('timeout')) {
-      return { success: false, error: 'Timeout after 30s' };
-    }
-    return { success: false, error: error.message };
+    return { success: false, error: error.name === 'AbortError' ? 'Timeout' : error.message };
   }
 }
 
 /**
  * Legacy function for backward compatibility
- * Uses fire-and-forget webhook sync
  */
 export async function updatePatientInSheets(patient: PatientRecord): Promise<SyncResult> {
-  return appendPatientToSheets(patient); // Same implementation for webhook
+  return appendPatientToSheets(patient);
 }

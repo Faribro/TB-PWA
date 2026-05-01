@@ -17,6 +17,7 @@
     "test:supabase": "node scripts/verify-supabase-connection.js",
     "test:sync": "node scripts/test-triple-sync.js",
     "test:e2e": "node scripts/run-test.js",
+    "test:demographics": "node scripts/test-demographics-sync.js",
     "test:pipeline": "node scripts/verify-supabase-connection.js && node scripts/test-triple-sync.js",
     "test:stabilization": "node scripts/test-stabilization.js",
     "load:test": "bun run scripts/load-test.ts",

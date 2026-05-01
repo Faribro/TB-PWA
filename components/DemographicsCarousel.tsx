@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import gsap from 'gsap';
 import { ChevronLeft, ChevronRight, Calendar, User, MapPin, Activity, FileText, Shield, ClipboardList, Settings2, CheckCircle2, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,9 +21,11 @@ export function DemographicsCarousel({
   setIsEditingDemographics 
 }: DemographicsCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [localInputValues, setLocalInputValues] = useState<Record<string, string>>({});
+  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
   
-  // Helper to render field
-  const renderField = (label: string, value: any, editable = false, fieldKey?: string, sectionId?: string) => {
+  // Helper to render field (OPTIMIZED: Memoized + Debounced input)
+  const renderField = useCallback((label: string, value: any, editable = false, fieldKey?: string, sectionId?: string) => {
     const displayValue = value || 'N/A';
     const sectionLabelColor: Record<string,string> = {
       'screening': '#3b82f6',
@@ -38,6 +40,22 @@ export function DemographicsCarousel({
     
     const labelColor = sectionId && sectionLabelColor[sectionId] ? sectionLabelColor[sectionId] : '#64748b';
     const isEditing = editable && isEditingDemographics && fieldKey;
+
+    // Debounced input handler (300ms delay)
+    const handleInputChange = (key: string, newValue: string) => {
+      // Update local state immediately for responsive UI
+      setLocalInputValues(prev => ({ ...prev, [key]: newValue }));
+      
+      // Clear existing timer
+      if (debounceTimers.current[key]) {
+        clearTimeout(debounceTimers.current[key]);
+      }
+      
+      // Set new timer to update parent state
+      debounceTimers.current[key] = setTimeout(() => {
+        setEditedDemographics(prev => ({ ...prev, [key]: newValue }));
+      }, 300);
+    };
 
     return (
       <div className="group flex items-start justify-between py-2.5 border-b border-slate-100/60 last:border-0 transition-all hover:bg-slate-50/80 hover:rounded-lg px-2 -mx-2">
@@ -55,8 +73,8 @@ export function DemographicsCarousel({
         {isEditing ? (
           <input
             type="text"
-            value={editedDemographics[fieldKey] ?? displayValue}
-            onChange={(e) => setEditedDemographics(prev => ({ ...prev, [fieldKey]: e.target.value }))}
+            value={localInputValues[fieldKey!] ?? editedDemographics[fieldKey!] ?? displayValue}
+            onChange={(e) => handleInputChange(fieldKey!, e.target.value)}
             className="text-xs font-semibold text-slate-900 text-right bg-white border-2 rounded-lg px-3 py-1.5 max-w-[220px] outline-none transition-all shadow-sm"
             style={{
               borderColor: `${labelColor}40`,
@@ -69,6 +87,11 @@ export function DemographicsCarousel({
             onBlur={(e) => {
               e.target.style.borderColor = `${labelColor}40`;
               e.target.style.boxShadow = `0 0 0 3px ${labelColor}10`;
+              // Flush debounce on blur
+              if (debounceTimers.current[fieldKey!]) {
+                clearTimeout(debounceTimers.current[fieldKey!]);
+                setEditedDemographics(prev => ({ ...prev, [fieldKey!]: e.target.value }));
+              }
             }}
             placeholder={`Enter ${label.toLowerCase()}`}
           />
@@ -77,10 +100,10 @@ export function DemographicsCarousel({
         )}
       </div>
     );
-  };
+  }, [editedDemographics, isEditingDemographics, setEditedDemographics, localInputValues]);
 
-  // Build sections from patient data
-  const sections = [
+  // Build sections from patient data (OPTIMIZED: useMemo to prevent rebuilding on every render)
+  const sections = useMemo(() => [
     {
       id: 'screening',
       title: 'Screening Details',
@@ -193,7 +216,7 @@ export function DemographicsCarousel({
         </div>
       )
     }
-  ];
+  ], [patient, renderField]);
 
   const galleryRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLUListElement>(null);
@@ -291,6 +314,13 @@ export function DemographicsCarousel({
       );
 
     return seamlessLoop;
+  }, []);
+
+  // Cleanup debounce timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(debounceTimers.current).forEach(timer => clearTimeout(timer));
+    };
   }, []);
 
   // Initialize GSAP animation
@@ -459,7 +489,7 @@ export function DemographicsCarousel({
   }
 
   return (
-    <div className="flex flex-col w-full bg-slate-50/30">
+    <div className="flex flex-col w-full h-full bg-slate-50/30 overflow-hidden">
       
       {/* ────────────────────────────────────────────────────── */}
       {/* CHANGE 1: Section Navigation Ribbon */}
@@ -522,11 +552,7 @@ export function DemographicsCarousel({
       <div 
         ref={galleryRef} 
         tabIndex={0}
-        className="relative w-full overflow-hidden flex-shrink-0 touch-none outline-none"
-        style={{ 
-          height: 'calc(100dvh - 72px - 48px - 56px - 48px - 32px)', 
-          minHeight: '320px'
-        }}
+        className="relative w-full flex-1 overflow-hidden touch-none outline-none flex items-center justify-center min-h-[360px]"
       >
         
         {/* Ghost Vignettes */}
@@ -645,7 +671,7 @@ export function DemographicsCarousel({
       {/* ────────────────────────────────────────────────────── */}
       {/* CHANGE 3: Action Bar Layout Fix */}
       {/* ────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-4 py-3 border-t border-slate-200 bg-white/95 backdrop-blur-sm sticky bottom-0 z-30 shrink-0">
+      <div className="flex items-center gap-3 px-4 py-3 border-t border-slate-200 bg-white/95 backdrop-blur-sm z-30 shrink-0">
         {/* Edit/Lock Toggle — left */}
         <button 
           className="flex-1 flex items-center justify-center gap-2 h-10 rounded-xl border transition-all shadow-sm"
