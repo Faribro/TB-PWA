@@ -161,8 +161,22 @@ export function DemographicsCarousel({
   }, [setEditedDemographics]);
 
   const getValue = useCallback((key: string, fallback: any) => {
-    return localValues[key] ?? editedDemographics[key] ?? fallback;
+    const result = localValues[key] ?? editedDemographics[key] ?? fallback;
+    console.log(`[Demographics] getValue('${key}'):`, { localValues: localValues[key], edited: editedDemographics[key], fallback, result });
+    return result;
   }, [localValues, editedDemographics]);
+
+  // Debug patient data on mount
+  useEffect(() => {
+    if (patient) {
+      console.log('[Demographics] Patient data:', {
+        address: patient.address,
+        symptoms_10s: patient.symptoms_10s,
+        kobo_uuid: patient.kobo_uuid,
+        serial_number: patient.serial_number
+      });
+    }
+  }, [patient]);
 
   if (!patient) return null;
 
