@@ -506,22 +506,15 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       const updatedPatient = { ...localPatient, ...editedDemographics };
       setLocalPatient(updatedPatient);
       
-      // Update SWR cache with new data
+      // Update SWR cache with new data and revalidate
       await mutate(
         (key: unknown) => {
           if (Array.isArray(key) &&
               ['patients', 'allPatients', 'patient'].includes(key[0] as string)) return true;
           return false;
         },
-        (currentData: any) => {
-          if (Array.isArray(currentData)) {
-            return currentData.map((p: any) => 
-              p.id === localPatient.id ? updatedPatient : p
-            );
-          }
-          return currentData;
-        },
-        { revalidate: false }  // Don't revalidate immediately since we just saved
+        undefined,
+        { revalidate: true }  // Force revalidation to get fresh data
       );
       
       setIsEditingDemographics(false);
