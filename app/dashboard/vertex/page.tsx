@@ -302,7 +302,14 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
   const clearFilters = () => setFilters(DEFAULT_FILTERS);
 
   const filteredPatients = useMemo(() => {
+    console.log('[Vertex] Filtering patients:', {
+      totalPatients: globalPatients.length,
+      filters,
+      selectedCalendarDate
+    });
+    
     return globalPatients.filter(p => {
+      // Search filter
       if (filters.search) {
         const q = filters.search.toLowerCase();
         const match = [
@@ -311,23 +318,59 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
           p.facility_name,
           p.staff_name
         ].some(v => v?.toLowerCase().includes(q));
-        if (!match) return false;
+        if (!match) {
+          console.log('[Vertex] Filtered out by search:', p.inmate_name);
+          return false;
+        }
       }
-      if (filters.dateFrom && p.screening_date && p.screening_date < filters.dateFrom) return false;
-      if (filters.dateTo && p.screening_date && p.screening_date > filters.dateTo) return false;
-      if (filters.state && p.screening_state !== filters.state) return false;
-      if (filters.district && p.screening_district !== filters.district) return false;
-      if (filters.facilityType && p.facility_type !== filters.facilityType) return false;
+      
+      // Date range filters
+      if (filters.dateFrom && p.screening_date && p.screening_date < filters.dateFrom) {
+        console.log('[Vertex] Filtered out by dateFrom:', p.inmate_name, p.screening_date);
+        return false;
+      }
+      if (filters.dateTo && p.screening_date && p.screening_date > filters.dateTo) {
+        console.log('[Vertex] Filtered out by dateTo:', p.inmate_name, p.screening_date);
+        return false;
+      }
+      
+      // State/District filters - REMOVED (already filtered by API)
+      // The API already filters by state/district via stableFilters
+      // No need to filter again on client side
+      
+      // Facility type filter
+      if (filters.facilityType && p.facility_type !== filters.facilityType) {
+        console.log('[Vertex] Filtered out by facilityType:', p.inmate_name, p.facility_type);
+        return false;
+      }
       
       // X-Ray Result filter (suspected field maps to xray_result)
       if (filters.suspected !== 'all') {
         const xrayResult = p.xray_result || p.chest_x_ray_result;
-        if (xrayResult !== filters.suspected) return false;
+        if (xrayResult !== filters.suspected) {
+          console.log('[Vertex] Filtered out by xray:', p.inmate_name, xrayResult);
+          return false;
+        }
       }
       
-      if (filters.tbDiagnosed !== 'all' && p.tb_diagnosed !== filters.tbDiagnosed) return false;
-      if (filters.treatmentStatus !== 'all' && p.treatment_status !== filters.treatmentStatus) return false;
-      if (selectedCalendarDate && p.screening_date !== selectedCalendarDate) return false;
+      // TB Diagnosed filter
+      if (filters.tbDiagnosed !== 'all' && p.tb_diagnosed !== filters.tbDiagnosed) {
+        console.log('[Vertex] Filtered out by tbDiagnosed:', p.inmate_name, p.tb_diagnosed);
+        return false;
+      }
+      
+      // Treatment status filter
+      if (filters.treatmentStatus !== 'all' && p.treatment_status !== filters.treatmentStatus) {
+        console.log('[Vertex] Filtered out by treatmentStatus:', p.inmate_name, p.treatment_status);
+        return false;
+      }
+      
+      // Calendar date filter
+      if (selectedCalendarDate && p.screening_date !== selectedCalendarDate) {
+        console.log('[Vertex] Filtered out by calendar date:', p.inmate_name, p.screening_date);
+        return false;
+      }
+      
       return true;
     });
   }, [globalPatients, filters, selectedCalendarDate]);
