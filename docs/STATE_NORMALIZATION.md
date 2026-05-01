@@ -9,29 +9,96 @@
 
 ## Root Cause Analysis
 
-### 1. Database Level Issue
-**Cause**: Inconsistent state name capitalization in the `patients` table
-- 784 records: `"Uttarakhand"` (proper capitalization)
-- 118 records: `"uttarakhand"` (lowercase)
+### TRUE ROOT CAUSE: Missing State Mapping in Webhook ⚠️
+
+**File**: `lib/stateMapper.ts`
+
+**Problem**: The KoboToolbox webhook normalization was missing Uttarakhand in the STATE_MAPPING dictionary.
+
+**What Happened**:
+1. New KoboCollect version sends state names in lowercase: `"uttarakhand"`
+2. Webhook calls `normalizeState("uttarakhand")`
+3. STATE_MAPPING didn't have `'uttarakhand': 'Uttarakhand'` entry
+4. Function returned lowercase value as-is: `"uttarakhand"`
+5. Database stored 118 records with lowercase state name
+6. Existing 784 records had proper capitalization from older Kobo version
+
+**Code Evidence**:
+```typescript
+// BEFORE (Missing Uttarakhand)
+const STATE_MAPPING: Record<string, string> = {
+  'gujarat': 'Gujarat',
+  'maharashtra': 'Maharashtra',
+  'madhya pradesh': 'Madhya Pradesh',
+  // ❌ 'uttarakhand' was MISSING!
+};
+
+export function normalizeState(state: string | null | undefined): string | null {
+  // ...
+  const normalized = STATE_MAPPING[trimmed];
+  if (normalized) return normalized;
+  
+  // ⚠️ Fallback returns original value if not in mapping
+  console.warn(`[stateMapper] Unknown state: "${state}" - using as-is`);
+  return trimmed; // Returns "uttarakhand" instead of "Uttarakhand"
+}
+```
+
+**AFTER (Fixed)**:
+```typescript
+const STATE_MAPPING: Record<string, string> = {
+  'uttarakhand': 'Uttarakhand',
+  'UTTARAKHAND': 'Uttarakhand',
+  'Uttarakhand': 'Uttarakhand',
+  'uttrakhand': 'Uttarakhand', // Common typo
+  // ... other states
+};
+```
+
+### Secondary Issue: Redis Cache Layer
+
+**Problem**: After database normalization, Redis cache served stale data
+
+**Cache Details**:
+- Endpoint: `/api/patients/bulk`
+- TTL: 30 seconds
+- Keys: `patients:bulk:{role}:{state}:{district}:{filters}`
 
 **Impact**: 
-- Geographic aggregations counted these as separate states
-- Filters failed to match all records
-- Analytics showed incorrect patient counts
-
-### 2. Application Cache Issue
-**Cause**: Redis caching layer serving stale data
-- Bulk API endpoint (`/api/patients/bulk`) uses aggressive 30-second Redis cache
-- Cache key: `patients:bulk:{role}:{state}:{district}:{filters}`
-- Cache was populated BEFORE database normalization
-- Subsequent requests served old data with lowercase "uttarakhand"
-
-**Impact**:
 - Database was fixed but application still showed old data
-- Vertex tab, GIS map, and Care Cascade all affected
-- Cache invalidation required to see updated data
+- Cache invalidation required to see updated records
 
 ## Solution Implementation
+
+### Step 0: Fix Webhook State Mapping (PREVENTION) ✅
+**File**: `lib/stateMapper.ts`
+
+**Changes**:
+```typescript
+const STATE_MAPPING: Record<string, string> = {
+  // Added missing states
+  'uttarakhand': 'Uttarakhand',
+  'UTTARAKHAND': 'Uttarakhand',
+  'Uttarakhand': 'Uttarakhand',
+  'uttrakhand': 'Uttarakhand', // Common typo
+  
+  'chandigarh': 'Chandigarh',
+  'CHANDIGARH': 'Chandigarh',
+  'Chandigarh': 'Chandigarh',
+  
+  // Added Madhya Pradesh variations
+  'madhyapradesh': 'Madhya Pradesh',
+  'Madhyapradesh': 'Madhya Pradesh',
+  'madhya_pradesh': 'Madhya Pradesh',
+  
+  // ... existing mappings
+};
+```
+
+**Impact**: 
+- ✅ Future Kobo submissions will be normalized correctly
+- ✅ Prevents new lowercase state names from entering database
+- ✅ Handles common typos and variations
 
 ### Step 1: Database Normalization ✅
 **Script**: `scripts/normalize-state-names.js`
