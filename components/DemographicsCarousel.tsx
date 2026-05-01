@@ -187,7 +187,7 @@ export function DemographicsCarousel({
 
   // Initialize GSAP animation
   useEffect(() => {
-    if (!cardsRef.current) return;
+    if (!cardsRef.current || !sections || sections.length === 0) return;
 
     const cards = gsap.utils.toArray<HTMLElement>('.demo-card');
     if (cards.length === 0) return;
@@ -257,8 +257,17 @@ export function DemographicsCarousel({
     setTimeout(() => setIsAnimating(false), 500);
   }, [currentIndex, sections.length, spacing, scrubTo, isAnimating]);
 
-  const nextSection = sections[(currentIndex + 1) % sections.length];
-  const prevSection = sections[currentIndex === 0 ? sections.length - 1 : currentIndex - 1];
+  const nextSection = sections && sections.length > 0 ? sections[(currentIndex + 1) % sections.length] : null;
+  const prevSection = sections && sections.length > 0 ? sections[currentIndex === 0 ? sections.length - 1 : currentIndex - 1] : null;
+
+  // Safety check
+  if (!sections || sections.length === 0) {
+    return (
+      <div className="relative w-full h-[520px] flex items-center justify-center">
+        <div className="text-sm text-slate-500">Loading demographics...</div>
+      </div>
+    );
+  }
 
   return (
     <div ref={galleryRef} className="relative w-full h-[520px] overflow-hidden">
@@ -323,7 +332,7 @@ export function DemographicsCarousel({
           {/* Previous Button */}
           <motion.button
             onClick={handlePrev}
-            disabled={isAnimating}
+            disabled={isAnimating || !prevSection}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="group relative flex items-center gap-3 px-5 py-3 bg-slate-900 text-white rounded-2xl shadow-lg shadow-slate-900/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:shadow-xl hover:shadow-slate-900/30"
@@ -334,14 +343,14 @@ export function DemographicsCarousel({
                 Previous
               </span>
               <span className="text-xs font-black uppercase tracking-tight">
-                {prevSection.title}
+                {prevSection?.title || 'N/A'}
               </span>
             </div>
           </motion.button>
 
           {/* Progress Indicator */}
           <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-slate-200 shadow-sm">
-            {sections.map((_, index) => (
+            {sections && sections.map((_, index) => (
               <div
                 key={index}
                 className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -356,7 +365,7 @@ export function DemographicsCarousel({
           {/* Next Button */}
           <motion.button
             onClick={handleNext}
-            disabled={isAnimating}
+            disabled={isAnimating || !nextSection}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="group relative flex items-center gap-3 px-5 py-3 bg-slate-900 text-white rounded-2xl shadow-lg shadow-slate-900/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:shadow-xl hover:shadow-slate-900/30"
@@ -366,7 +375,7 @@ export function DemographicsCarousel({
                 Next
               </span>
               <span className="text-xs font-black uppercase tracking-tight">
-                {nextSection.title}
+                {nextSection?.title || 'N/A'}
               </span>
             </div>
             <ChevronRight className="w-5 h-5" />
