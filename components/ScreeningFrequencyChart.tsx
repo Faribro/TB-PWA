@@ -60,8 +60,8 @@ export function ScreeningFrequencyChart({ data }: { data: any[] }) {
       }
     ];
 
-    // Label configuration - white text with shadow for visibility
-    pieSeries.labels.template.disabled = false;
+    // Label configuration - disabled to prevent clutter
+    pieSeries.labels.template.disabled = true;
     pieSeries.labels.template.text = '{category}\n{value.formatNumber("#,###")}';
     pieSeries.labels.template.fontSize = 12;
     pieSeries.labels.template.fontWeight = '800';
@@ -125,11 +125,11 @@ export function ScreeningFrequencyChart({ data }: { data: any[] }) {
     sublabel.fontWeight = '800';
     sublabel.fill = am4core.color('#64748b');
     sublabel.dy = 28;
-    sublabel.letterSpacing = 3;
 
     // Premium legend configuration
     chart.legend = new am4charts.Legend();
-    chart.legend.position = 'bottom';
+    chart.legend.position = 'right';
+    chart.legend.valign = 'middle';
     chart.legend.contentAlign = 'center';
     chart.legend.paddingTop = 24;
     chart.legend.paddingBottom = 4;
@@ -145,10 +145,6 @@ export function ScreeningFrequencyChart({ data }: { data: any[] }) {
     chart.legend.itemContainers.template.background.fillOpacity = 0.95;
     chart.legend.itemContainers.template.background.strokeWidth = 1.5;
     chart.legend.itemContainers.template.background.stroke = am4core.color('#e2e8f0');
-    chart.legend.itemContainers.template.background.cornerRadiusTopLeft = 10;
-    chart.legend.itemContainers.template.background.cornerRadiusTopRight = 10;
-    chart.legend.itemContainers.template.background.cornerRadiusBottomLeft = 10;
-    chart.legend.itemContainers.template.background.cornerRadiusBottomRight = 10;
     
     // Add shadow to legend items
     const legendShadow = chart.legend.itemContainers.template.background.filters.push(new am4core.DropShadowFilter());
@@ -185,10 +181,6 @@ export function ScreeningFrequencyChart({ data }: { data: any[] }) {
     // Legend markers (colored squares) - larger and more prominent
     chart.legend.markers.template.width = 14;
     chart.legend.markers.template.height = 14;
-    chart.legend.markers.template.cornerRadiusTopLeft = 4;
-    chart.legend.markers.template.cornerRadiusTopRight = 4;
-    chart.legend.markers.template.cornerRadiusBottomLeft = 4;
-    chart.legend.markers.template.cornerRadiusBottomRight = 4;
     
     // Add subtle shadow to markers
     const markerShadow = chart.legend.markers.template.filters.push(new am4core.DropShadowFilter());
@@ -234,10 +226,10 @@ export function ScreeningFrequencyChart({ data }: { data: any[] }) {
     return () => {
       chart.dispose();
     };
-  }, [data]);
+  }, [JSON.stringify(data)]);
 
   return (
-    <div className="relative w-full h-[420px] rounded-2xl overflow-hidden bg-gradient-to-br from-slate-50/90 via-white/60 to-slate-100/90 backdrop-blur-3xl p-8 shadow-lg border border-white/60">
+    <div className="relative w-full h-[280px] rounded-2xl overflow-hidden bg-gradient-to-br from-slate-50/90 via-white/60 to-slate-100/90 backdrop-blur-3xl p-4 sm:p-8 shadow-lg border border-white/60">
       {/* Decorative background orbs */}
       <div className="absolute -top-32 -left-32 w-96 h-96 bg-sky-300/20 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-fuchsia-300/20 rounded-full blur-[100px] pointer-events-none" />
@@ -246,7 +238,7 @@ export function ScreeningFrequencyChart({ data }: { data: any[] }) {
       <div 
         ref={chartDivRef} 
         className="relative w-full h-full z-10"
-        style={{ minHeight: '400px' }}
+        style={{ minHeight: '100%' }}
       />
     </div>
   );
