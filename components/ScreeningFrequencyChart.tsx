@@ -242,9 +242,6 @@ export function ScreeningFrequencyChart({ data }: { data: any[] }) {
     };
   }, [JSON.stringify(data)]);
 
-  const screenedData = data.find(d => d.stage === 'Screened');
-  const cascadeData = data.filter(item => item.stage !== 'Screened');
-
   return (
     <div className="relative w-full h-[320px] rounded-3xl overflow-hidden bg-gradient-to-br from-white via-slate-50/50 to-white backdrop-blur-3xl shadow-2xl border border-slate-200/60">
       {/* Premium background with mesh gradient */}
@@ -266,36 +263,6 @@ export function ScreeningFrequencyChart({ data }: { data: any[] }) {
         className="relative w-full h-full z-10 p-6"
         style={{ minHeight: '100%' }}
       />
-
-      {/* Premium header badge */}
-      <motion.div 
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.6 }}
-        className="absolute top-6 left-6 z-20"
-      >
-        <div className="flex items-center gap-2 px-4 py-2 bg-white/95 backdrop-blur-xl rounded-full shadow-lg border border-slate-200/60">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs font-black text-slate-700 uppercase tracking-wider">Care Cascade</span>
-        </div>
-      </motion.div>
-
-      {/* Conversion rate indicator */}
-      {screenedData && cascadeData.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.5, duration: 0.6 }}
-          className="absolute bottom-6 left-6 z-20"
-        >
-          <div className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl shadow-lg">
-            <div className="text-white text-xs font-bold uppercase tracking-wider mb-0.5">Conversion</div>
-            <div className="text-white text-2xl font-black">
-              {((cascadeData.reduce((sum, item) => sum + item.value, 0) / screenedData.value) * 100).toFixed(1)}%
-            </div>
-          </div>
-        </motion.div>
-      )}
     </div>
   );
 }
