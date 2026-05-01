@@ -1558,27 +1558,37 @@ export default function Vertex({
                   className="flex flex-col flex-1 min-h-0"
                 >
                   {(() => {
-                    const monthPatients = globalPatients.filter((p: any) => {
+                    // Apply state and district filters to month patients
+                    const filteredMonthPatients = globalPatients.filter((p: any) => {
                       const dateValue = p.screening_date || p.submitted_on;
                       if (!dateValue) return false;
                       const date = new Date(dateValue);
-                      return date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
+                      const isInMonth = date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
+                      if (!isInMonth) return false;
+                      
+                      // Apply state filter
+                      if (filterState !== 'All' && p.screening_state !== filterState) return false;
+                      
+                      // Apply district filter
+                      if (filterDistrict !== 'All' && p.screening_district !== filterDistrict) return false;
+                      
+                      return true;
                     });
 
                     const stats = {
-                      total: monthPatients.length,
-                      suspected: monthPatients.filter((p: any) => {
+                      total: filteredMonthPatients.length,
+                      suspected: filteredMonthPatients.filter((p: any) => {
                         const xrayResult = (p.xray_result || '').toLowerCase();
                         return xrayResult === 'suspected tb case' || xrayResult.includes('abnormal') || xrayResult.includes('suspected');
                       }).length,
-                      notSuspected: monthPatients.filter((p: any) => {
+                      notSuspected: filteredMonthPatients.filter((p: any) => {
                         const xrayResult = (p.xray_result || '').toLowerCase();
                         return !(xrayResult === 'suspected tb case' || xrayResult.includes('abnormal') || xrayResult.includes('suspected'));
                       }).length,
-                      diagnosed: monthPatients.filter((p: any) => p.tb_diagnosed === 'Y').length,
-                      notDiagnosed: monthPatients.filter((p: any) => p.tb_diagnosed !== 'Y').length,
-                      attStarted: monthPatients.filter((p: any) => p.att_start_date != null).length,
-                      referralDone: monthPatients.filter((p: any) => p.referral_date != null).length,
+                      diagnosed: filteredMonthPatients.filter((p: any) => p.tb_diagnosed === 'Y').length,
+                      notDiagnosed: filteredMonthPatients.filter((p: any) => p.tb_diagnosed !== 'Y').length,
+                      attStarted: filteredMonthPatients.filter((p: any) => p.att_start_date != null).length,
+                      referralDone: filteredMonthPatients.filter((p: any) => p.referral_date != null).length,
                     };
 
                     const monthName = currentDate.toLocaleDateString('en-US', { month: 'long' });
@@ -1615,7 +1625,7 @@ export default function Vertex({
                               {/* Timeline Band - Screening Frequency Jan-Dec */}
                               <div className="-mt-1">
                                 <ScreeningFrequencyTimeline
-                                  patients={globalPatients}
+                                  patients={filteredMonthPatients}
                                   year={year}
                                   currentMonth={currentDate.getMonth()}
                                   isLoading={isLoading}
