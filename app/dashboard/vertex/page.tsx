@@ -377,17 +377,31 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
 
   // Calendar data comes directly from useRealtimeCalendar hook (no memoization needed)
 
-  // Monthly overview panel uses monthMetrics
+  // Monthly overview panel uses filteredPatients for accurate counts
   const monthlyStats = useMemo(() => {
-    if (!monthMetrics) return null;
+    // Calculate stats from filtered patients
+    const screened = filteredPatients.length;
+    const suspected = filteredPatients.filter(p => 
+      (p.xray_result || p.chest_x_ray_result) === 'Suspected TB Case'
+    ).length;
+    const diagnosed = filteredPatients.filter(p => 
+      p.tb_diagnosed === 'Y' || p.tb_diagnosed === 'Yes'
+    ).length;
+    const attStarted = filteredPatients.filter(p => 
+      p.att_start_date
+    ).length;
+    const referred = filteredPatients.filter(p => 
+      p.referral_date
+    ).length;
+    
     return {
-      screened: monthMetrics.screened,
-      suspected: monthMetrics.suspected,
-      diagnosed: monthMetrics.diagnosed,
-      attStarted: monthMetrics.attStarted,
-      referred: monthMetrics.referred,
+      screened,
+      suspected,
+      diagnosed,
+      attStarted,
+      referred,
     };
-  }, [monthMetrics]);
+  }, [filteredPatients]);
 
   // Month navigation - update currentMonth and currentYear
   const handlePrevMonth = () => {
@@ -730,15 +744,8 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
       <div className="flex-1 overflow-y-auto">
         {view === 'calendar' ? (
           <>
-            {/* Monthly Overview Panel - with loading & error states */}
-            {isLoadingMonthMetrics ? (
-              <MetricsSkeleton />
-            ) : monthMetricsError ? (
-              <MetricsError 
-                error={monthMetricsError} 
-                onRetry={() => mutateMonthMetrics()} 
-              />
-            ) : monthlyStats ? (
+            {/* Monthly Overview Panel - now uses filtered data */}
+            {monthlyStats ? (
               <div className="bg-slate-900 text-white rounded-lg p-4 mb-4 mx-4 mt-4">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-sm font-medium text-slate-300">MONTHLY OVERVIEW</h3>
