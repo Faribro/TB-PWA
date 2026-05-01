@@ -645,8 +645,17 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
         {paginatedPatients.length > 0 ? (
           viewMode === 'loop' ? (
             <InmateVerticalLoop
-              patients={paginatedPatients}
-              onPatientClick={(patient) => onPatientClick?.(patient)}
+              patients={paginatedPatients.map(p => ({
+                ...p,
+                id: String(p.id),
+                referral_date: p.referral_date || undefined,
+                att_start_date: p.att_start_date || undefined,
+                screening_district: p.screening_district || ''
+              }))}
+              onPatientClick={(patient) => {
+                const originalPatient = paginatedPatients.find(p => String(p.id) === patient.id);
+                if (originalPatient) onPatientClick?.(originalPatient);
+              }}
             />
           ) : viewMode === 'list' ? (
             <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>

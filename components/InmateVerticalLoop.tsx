@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import gsap from 'gsap';
-import { Draggable } from 'gsap/Draggable';
-import { InertiaPlugin } from 'gsap/InertiaPlugin';
+import { Draggable } from 'gsap/dist/Draggable';
+import { InertiaPlugin } from 'gsap/dist/InertiaPlugin';
 import { User, Calendar, MapPin, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -126,7 +126,7 @@ export function InmateVerticalLoop({ patients, onPatientClick, className }: Inma
         timeOffset = 0,
         container = center === true ? items[0].parentNode : gsap.utils.toArray(center)[0] || items[0].parentNode,
         totalHeight: number,
-        getTotalHeight = () => items[length-1].offsetTop + yPercents[length-1] / 100 * heights[length-1] - startY + spaceBefore[0] + items[length-1].offsetHeight * gsap.getProperty(items[length-1], 'scaleY') + (parseFloat(config.paddingBottom) || 0),
+        getTotalHeight = () => items[length-1].offsetTop + yPercents[length-1] / 100 * heights[length-1] - startY + spaceBefore[0] + items[length-1].offsetHeight * (gsap.getProperty(items[length-1], 'scaleY') as number) + (parseFloat(config.paddingBottom) || 0),
         populateHeights = () => {
           let b1 = (container as HTMLElement).getBoundingClientRect(), b2;
           items.forEach((el, i) => {
@@ -171,7 +171,7 @@ export function InmateVerticalLoop({ patients, onPatientClick, className }: Inma
             item = items[i];
             curY = yPercents[i] / 100 * heights[i];
             distanceToStart = item.offsetTop + curY - startY + spaceBefore[0];
-            distanceToLoop = distanceToStart + heights[i] * parseFloat(gsap.getProperty(item, 'scaleY') as string);
+            distanceToLoop = distanceToStart + heights[i] * (gsap.getProperty(item, 'scaleY') as number);
             tl.to(item, {yPercent: snap((curY - distanceToLoop) / heights[i] * 100), duration: distanceToLoop / pixelsPerSecond}, 0)
               .fromTo(item, {yPercent: snap((curY - distanceToLoop + totalHeight) / heights[i] * 100)}, {yPercent: yPercents[i], duration: (curY - distanceToLoop + totalHeight - curY) / pixelsPerSecond, immediateRender: false}, distanceToLoop / pixelsPerSecond)
               .add('label' + i, distanceToStart / pixelsPerSecond);
@@ -243,7 +243,7 @@ export function InmateVerticalLoop({ patients, onPatientClick, className }: Inma
         typeof(InertiaPlugin) === 'undefined' && console.warn('InertiaPlugin required for momentum-based scrolling and snapping.');
         
         draggable = Draggable.create(proxy, {
-          trigger: items[0].parentNode,
+          trigger: items[0].parentNode as HTMLElement,
           type: 'y',
           onPressInit() {
             let y = this.y;
@@ -260,8 +260,8 @@ export function InmateVerticalLoop({ patients, onPatientClick, className }: Inma
           onThrowUpdate: align,
           overshootTolerance: 0,
           inertia: true,
-          snap(value: number) {
-            let time = -(value * ratio) * tl.duration(),
+          snap(val: number) {
+            let time = -(val * ratio) * tl.duration(),
               wrappedTime = timeWrap(time),
               snapTime = times[getClosest(times, wrappedTime, tl.duration())],
               dif = snapTime - wrappedTime;

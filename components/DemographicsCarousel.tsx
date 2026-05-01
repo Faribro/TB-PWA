@@ -31,6 +31,10 @@ interface DemographicsSection {
 interface DemographicsCarouselProps {
   sections: DemographicsSection[];
   isEditMode: boolean;
+  editedDemographics?: Record<string, any>;
+  setEditedDemographics?: React.Dispatch<React.SetStateAction<Record<string, any>>>;
+  isEditingDemographics?: boolean;
+  setIsEditingDemographics?: (editing: boolean) => void;
 }
 
 export function DemographicsCarousel({ sections, isEditMode }: DemographicsCarouselProps) {
