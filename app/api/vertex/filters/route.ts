@@ -73,34 +73,49 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    // Fetch distinct states (high limit to ensure all states are captured)
+    // Fetch ALL states with explicit range (0-999999 to bypass 1000 row default limit)
     let stateQuery = supabase
       .from('patients')
-      .select('screening_state')
+      .select('screening_state', { count: 'exact' })
       .not('screening_state', 'is', null)
-      .limit(100000);
+      .range(0, 999999); // Explicit range to fetch all rows
 
     stateQuery = applyRBACFilters(stateQuery, role, state, staffName);
 
     const { data: stateData, error: stateError } = await stateQuery;
 
-    if (stateError) throw stateError;
+    if (stateError) {
+      console.error('[vertex/filters] State query error:', stateError);
+      throw stateError;
+    }
 
-    // Fetch distinct districts (high limit to ensure all districts are captured)
+    // Fetch ALL districts with explicit range
     let districtQuery = supabase
       .from('patients')
-      .select('screening_district')
+      .select('screening_district', { count: 'exact' })
       .not('screening_district', 'is', null)
-      .limit(100000);
+      .range(0, 999999); // Explicit range to fetch all rows
 
     districtQuery = applyRBACFilters(districtQuery, role, state, staffName);
 
     const { data: districtData, error: districtError } = await districtQuery;
 
-    if (districtError) throw districtError;
+    if (districtError) {
+      console.error('[vertex/filters] District query error:', districtError);
+      throw districtError;
+    }
 
-    const availableStates = Array.from(new Set((stateData || []).map((r: any) => r.screening_state))).sort();
-    const availableDistricts = Array.from(new Set((districtData || []).map((r: any) => r.screening_district))).sort();
+    // Extract unique values and sort
+    const availableStates = Array.from(
+      new Set((stateData || []).map((r: any) => r.screening_state).filter(Boolean))
+    ).sort();
+    
+    const availableDistricts = Array.from(
+      new Set((districtData || []).map((r: any) => r.screening_district).filter(Boolean))
+    ).sort();
+
+    console.log(`[vertex/filters] Found ${availableStates.length} unique states from ${stateData?.length || 0} rows`);
+    console.log(`[vertex/filters] Found ${availableDistricts.length} unique districts from ${districtData?.length || 0} rows`);
 
     const result = {
       availableStates,
@@ -108,6 +123,8 @@ export async function GET(request: NextRequest) {
       meta: {
         cached: false,
         durationMs: Date.now() - startTime,
+        stateCount: availableStates.length,
+        districtCount: availableDistricts.length,
       },
     };
 
