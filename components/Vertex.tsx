@@ -1558,14 +1558,8 @@ export default function Vertex({
                   className="flex flex-col flex-1 min-h-0"
                 >
                   {(() => {
-                    // Apply state and district filters to month patients
-                    const filteredMonthPatients = globalPatients.filter((p: any) => {
-                      const dateValue = p.screening_date || p.submitted_on;
-                      if (!dateValue) return false;
-                      const date = new Date(dateValue);
-                      const isInMonth = date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
-                      if (!isInMonth) return false;
-                      
+                    // Apply state and district filters to ALL patients for the year (for bar chart)
+                    const filteredYearPatients = globalPatients.filter((p: any) => {
                       // Apply state filter
                       if (filterState !== 'All' && p.screening_state !== filterState) return false;
                       
@@ -1573,6 +1567,14 @@ export default function Vertex({
                       if (filterDistrict !== 'All' && p.screening_district !== filterDistrict) return false;
                       
                       return true;
+                    });
+
+                    // Apply state and district filters to month patients (for pie chart)
+                    const filteredMonthPatients = filteredYearPatients.filter((p: any) => {
+                      const dateValue = p.screening_date || p.submitted_on;
+                      if (!dateValue) return false;
+                      const date = new Date(dateValue);
+                      return date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
                     });
 
                     const stats = {
@@ -1625,7 +1627,7 @@ export default function Vertex({
                               {/* Timeline Band - Screening Frequency Jan-Dec */}
                               <div className="-mt-1">
                                 <ScreeningFrequencyTimeline
-                                  patients={filteredMonthPatients}
+                                  patients={filteredYearPatients}
                                   year={year}
                                   currentMonth={currentDate.getMonth()}
                                   isLoading={isLoading}
