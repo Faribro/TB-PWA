@@ -21,6 +21,7 @@ import { useSessionScope, isSuperuser } from '@/hooks/useSessionScope';
 import { SyncStatusBadge } from './ui/SyncStatusBadge';
 import { useSyncStatus } from '@/lib/useSyncStatus';
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
+import { DemographicsCarousel } from './DemographicsCarousel';
 
 const supabaseClient = getSupabaseBrowserClient();
 
@@ -872,7 +873,15 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                   </TabsContent>
 
                   <TabsContent value="demographics" className="mt-0">
-                    <div className="p-4 space-y-0">
+                    <DemographicsCarousel
+                      patient={localPatient}
+                      editedDemographics={editedDemographics}
+                      setEditedDemographics={setEditedDemographics}
+                      isEditingDemographics={isEditingDemographics}
+                      setIsEditingDemographics={setIsEditingDemographics}
+                    />
+                    {/* Legacy sections preserved below for reference */}
+                    <div className="p-4 space-y-0 hidden">
                       {/* Lock/Unlock Toggle */}
                       <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 mb-5">
                         <div className="flex items-center gap-2">
