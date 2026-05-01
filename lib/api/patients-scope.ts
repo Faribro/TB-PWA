@@ -95,11 +95,33 @@ export function validateCursor(cursor: string): [string, string] {
 }
 
 /**
+ * Normalizes state names to handle case variations and underscores
+ * Returns array of all known variations for a given state
+ */
+function normalizeStateFilter(state: string): string[] {
+  const normalized = state.toLowerCase().replace(/[_\s]+/g, ' ').trim();
+  
+  // State variation mappings
+  const stateVariations: Record<string, string[]> = {
+    'maharashtra': ['Maharashtra', 'Mumbai'],
+    'mumbai': ['Maharashtra', 'Mumbai'],
+    'madhya pradesh': ['Madhya Pradesh', 'madhya_pradesh', 'Madhyapradesh'],
+    'madhyapradesh': ['Madhya Pradesh', 'madhya_pradesh', 'Madhyapradesh'],
+    'uttarakhand': ['Uttarakhand', 'uttarakhand'],
+    'gujarat': ['Gujarat', 'gujarat'],
+    'chandigarh': ['Chandigarh', 'chandigarh']
+  };
+  
+  return stateVariations[normalized] || [state];
+}
+
+/**
  * Normalizes Maharashtra state filter
  * Handles both 'Maharashtra' and 'Mumbai' as equivalent
+ * @deprecated Use normalizeStateFilter instead
  */
 function normalizeMaharashtraFilter(state: string): string[] {
-  return state === 'Maharashtra' ? ['Maharashtra', 'Mumbai'] : [state];
+  return normalizeStateFilter(state);
 }
 
 export interface ScopedQueryResult {
@@ -164,7 +186,7 @@ export function applyRBACFilters<T>(
   // State-level access
   if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
     if (sessionState && sessionState !== 'All') {
-      const states = normalizeMaharashtraFilter(sessionState);
+      const states = normalizeStateFilter(sessionState);
       console.log('[RBAC] Applying state filter:', states);
       if (states.length > 1) {
         (query as any) = (query as any).in('screening_state', states);
@@ -195,7 +217,7 @@ export function applyUserFilters<T>(
   const { state, district, dateFrom, dateTo, search, facilityType, suspected, tbDiagnosed, treatmentStatus } = filters;
   
   if (state && state !== 'all') {
-    const states = normalizeMaharashtraFilter(state);
+    const states = normalizeStateFilter(state);
     if (states.length > 1) {
       (query as any) = (query as any).in('screening_state', states);
     } else {
