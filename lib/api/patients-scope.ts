@@ -96,32 +96,28 @@ export function validateCursor(cursor: string): [string, string] {
 
 /**
  * Normalizes state names to handle case variations and underscores
- * Returns array of all known variations for a given state
+ * Returns SQL OR condition for case-insensitive matching
  */
-function normalizeStateFilter(state: string): string[] {
-  const normalized = state.toLowerCase().replace(/[_\s]+/g, ' ').trim();
+function normalizeStateFilter(state: string): string {
+  const normalized = state.toLowerCase().replace(/[_\s]+/g, '');
   
-  // State variation mappings
-  const stateVariations: Record<string, string[]> = {
-    'maharashtra': ['Maharashtra', 'Mumbai'],
-    'mumbai': ['Maharashtra', 'Mumbai'],
-    'madhya pradesh': ['Madhya Pradesh', 'madhya_pradesh', 'Madhyapradesh'],
-    'madhyapradesh': ['Madhya Pradesh', 'madhya_pradesh', 'Madhyapradesh'],
-    'uttarakhand': ['Uttarakhand', 'uttarakhand'],
-    'gujarat': ['Gujarat', 'gujarat'],
-    'chandigarh': ['Chandigarh', 'chandigarh']
-  };
-  
-  return stateVariations[normalized] || [state];
-}
-
-/**
- * Normalizes Maharashtra state filter
- * Handles both 'Maharashtra' and 'Mumbai' as equivalent
- * @deprecated Use normalizeStateFilter instead
- */
-function normalizeMaharashtraFilter(state: string): string[] {
-  return normalizeStateFilter(state);
+  // Generate case-insensitive ILIKE pattern
+  // This handles: Madhya Pradesh, madhya_pradesh, Madhyapradesh, etc.
+  switch (normalized) {
+    case 'maharashtra':
+    case 'mumbai':
+      return 'screening_state.ilike.%maharashtra%,screening_state.ilike.%mumbai%';
+    case 'madhyapradesh':
+      return 'screening_state.ilike.%madhya%pradesh%';
+    case 'uttarakhand':
+      return 'screening_state.ilike.%uttarakhand%';
+    case 'gujarat':
+      return 'screening_state.ilike.%gujarat%';
+    case 'chandigarh':
+      return 'screening_state.ilike.%chandigarh%';
+    default:
+      return `screening_state.ilike.%${state}%`;
+  }
 }
 
 export interface ScopedQueryResult {
@@ -186,13 +182,9 @@ export function applyRBACFilters<T>(
   // State-level access
   if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
     if (sessionState && sessionState !== 'All') {
-      const states = normalizeStateFilter(sessionState);
-      console.log('[RBAC] Applying state filter:', states);
-      if (states.length > 1) {
-        (query as any) = (query as any).in('screening_state', states);
-      } else {
-        (query as any) = (query as any).eq('screening_state', states[0]);
-      }
+      const stateCondition = normalizeStateFilter(sessionState);
+      console.log('[RBAC] Applying state filter:', stateCondition);
+      (query as any) = (query as any).or(stateCondition);
     }
   } 
   // Staff-level access
@@ -217,12 +209,8 @@ export function applyUserFilters<T>(
   const { state, district, dateFrom, dateTo, search, facilityType, suspected, tbDiagnosed, treatmentStatus } = filters;
   
   if (state && state !== 'all') {
-    const states = normalizeStateFilter(state);
-    if (states.length > 1) {
-      (query as any) = (query as any).in('screening_state', states);
-    } else {
-      (query as any) = (query as any).eq('screening_state', states[0]);
-    }
+    const stateCondition = normalizeStateFilter(state);
+    (query as any) = (query as any).or(stateCondition);
   }
   
   if (district && district !== 'all') {
