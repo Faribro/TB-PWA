@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Calendar, User, MapPin, Activity, CheckCircle2, XCircle, Building2, Phone, Hash, FileText, Settings2, Lock, Unlock } from 'lucide-react';
+import { Calendar, User, MapPin, Activity, CheckCircle2, XCircle, Building2, Phone, Hash, Settings2, Lock, Unlock } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface DemographicsCarouselProps {
@@ -177,25 +177,9 @@ export function DemographicsCarousel({
       {/* Main Grid Content */}
       <div className="flex-1 overflow-y-auto z-10 px-4 py-3 hide-scrollbar relative">
         
-        {/* Title Header area */}
-        <div className="flex items-center justify-between mb-4 px-2">
-          <div>
-            <h2 className="text-[13px] font-black text-slate-800 tracking-tight">Clinical Demographics</h2>
-            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mt-0.5">Unified patient record view</p>
-          </div>
-          {/* Animated Status Pill */}
-          <motion.div 
-            animate={{ backgroundColor: isEditingDemographics ? '#ecfdf5' : '#f8fafc', borderColor: isEditingDemographics ? '#a7f3d0' : '#e2e8f0' }}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-          >
-            <div className={`w-1 h-1 rounded-full ${isEditingDemographics ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-            <span className={`text-[8px] font-black uppercase tracking-[0.2em] ${isEditingDemographics ? 'text-emerald-700' : 'text-slate-500'}`}>
-              {isEditingDemographics ? 'Editing' : 'Read-Only'}
-            </span>
-          </motion.div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+        {/* Removed Title Header to maximize space and reduce redundancy with main tabs */}
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 pt-1">
           
           {/* COLUMN 1 */}
           <div className="flex flex-col gap-3">
