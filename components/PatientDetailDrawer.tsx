@@ -333,28 +333,6 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         payload
       });
 
-      // Optimistic update - update local state immediately
-      const optimisticPatient = { ...localPatient, ...payload };
-      setLocalPatient(optimisticPatient);
-      
-      // Update SWR cache optimistically
-      mutate(
-        (key: unknown) => {
-          if (Array.isArray(key) &&
-              ['patients', 'allPatients', 'patient'].includes(key[0] as string)) return true;
-          return false;
-        },
-        (currentData: any) => {
-          if (Array.isArray(currentData)) {
-            return currentData.map((p: any) => 
-              p.id === localPatient.id ? optimisticPatient : p
-            );
-          }
-          return currentData;
-        },
-        { revalidate: false }
-      );
-
       const res = await fetch('/api/patient-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -366,17 +344,6 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       if (!res.ok) {
         const errorData = await res.json();
-        // Revert optimistic update on error
-        setLocalPatient(localPatient);
-        mutate(
-          (key: unknown) => {
-            if (Array.isArray(key) &&
-                ['patients', 'allPatients', 'patient'].includes(key[0] as string)) return true;
-            return false;
-          },
-          undefined,
-          { revalidate: true }
-        );
         setError(errorData.error || 'Sync failed');
         throw new Error(errorData.error || 'Sync failed');
       }
@@ -386,7 +353,12 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       
       console.log('[PatientDetailDrawer] ✅ Save successful, response:', responseData);
       
-      // Revalidate to ensure consistency
+      // Immediately update local state with server response
+      if (responseData.patient) {
+        setLocalPatient(responseData.patient);
+      }
+      
+      // Force immediate SWR revalidation
       await mutate(
         (key: unknown) => {
           if (Array.isArray(key) &&
@@ -405,7 +377,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       // Show success toast
       toast.success('✅ Clinical data saved successfully', { id: 'clinical-save' });
       
-      // FIX 3: Re-fetch from DB to confirm exact persisted state
+      // Re-fetch from DB to confirm exact persisted state
       const { data: freshPatient, error: fetchError } = await supabaseClient
         .from('patients')
         .select('*')
@@ -517,11 +489,13 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       const responseData = await res.json();
 
-      // Optimistic update - update local state immediately
-      const updatedPatient = { ...localPatient, ...editedDemographics };
-      setLocalPatient(updatedPatient);
+      // Immediately update local state with server response
+      if (responseData.patient) {
+        setLocalPatient(responseData.patient);
+        setEditedDemographics(mapDemographics(responseData.patient));
+      }
       
-      // Update SWR cache with new data and revalidate
+      // Force immediate SWR revalidation
       await mutate(
         (key: unknown) => {
           if (Array.isArray(key) &&
@@ -543,7 +517,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       // Show success toast (API doesn't return sheetsSync field)
       toast.success('✅ Demographics saved successfully', { id: 'demo-save' });
       
-      // FIX 3: Re-fetch from DB to confirm exact persisted state
+      // Re-fetch from DB to confirm exact persisted state
       const { data: freshPatient, error: fetchError } = await supabaseClient
         .from('patients')
         .select('*')
