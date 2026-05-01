@@ -48,9 +48,9 @@ interface PatientDetailDrawerProps {
 
 const ReadOnlyField = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
   <div className="flex flex-col gap-0.5 group">
-    <label className="block text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400 mb-1">{label}</label>
-    <div className="text-[13px] font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded-[10px] px-3 py-2.5 transition-all group-hover:bg-white group-hover:border-slate-300">
-      {value || <span className="text-slate-300 font-normal italic">Not recorded</span>}
+    <label className="block text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-500 mb-1">{label}</label>
+    <div className="text-[13px] font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-[10px] px-3 py-2.5 transition-all group-hover:bg-white group-hover:border-slate-300">
+      {value || <span className="text-slate-400 font-normal italic">Not recorded</span>}
     </div>
   </div>
 );
