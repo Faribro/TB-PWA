@@ -186,7 +186,7 @@ const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, 
         ) : fopts ? (
           <div className="relative">
             <select value={value ?? ''} onChange={e => onChange!(fieldKey, e.target.value)} className={inputCls + ' appearance-none pr-7 cursor-pointer'}>
-              <option value="" disabled>Selectâ€¦</option>
+              <option value="" disabled>Select…</option>
               {fopts.map(o => <option key={o} value={o}>{o}</option>)}
             </select>
             <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -288,9 +288,10 @@ export function DemographicsCarousel({
       return result;
     }
     
-    // Normalize: lowercase, trim, replace underscores/spaces, handle comma-separated
-    const normalized = raw.toLowerCase().trim().replace(/_/g, ' ').replace(/\s+/g, ' ');
-    const symptomsArray = normalized.split(/[,;\|]/).map(s => s.trim()).filter(Boolean);
+    // Normalize: lowercase, trim, replace underscores with spaces
+    // Split on multiple delimiters: comma, semicolon, pipe, space, or mixed
+    const normalized = raw.toLowerCase().trim().replace(/_/g, ' ');
+    const symptomsArray = normalized.split(/[,;\|\s]+/).map(s => s.trim()).filter(Boolean);
     
     SYMPTOMS_MASTER.forEach(sym => {
       const labelLower = sym.label.toLowerCase();
@@ -312,6 +313,20 @@ export function DemographicsCarousel({
 
   const toBool = (v: any) => v === true || v === 'yes' || v === 'Yes';
 
+  // Format X-Ray result from Kobo underscored format to human-readable
+  const formatXrayResult = (value: string | null | undefined) => {
+    if (!value) return null;
+    const map: Record<string, string> = {
+      'Suspected_TB_Case': 'Suspected TB',
+      'Not_Suspected': 'Not Suspected',
+      'Normal': 'Normal',
+      'Abnormal': 'Abnormal',
+      'PTB': 'Pulmonary TB',
+      'EPTB': 'Extra-Pulmonary TB',
+    };
+    return map[value] ?? value.replace(/_/g, ' ');
+  };
+
   if (!patient) return null;
 
   const gv = getValue;
@@ -324,13 +339,14 @@ export function DemographicsCarousel({
   const facility= gv('facility_name', patient?.facility_name);
   const ftype   = gv('facility_type', patient?.facility_type);
   const state   = gv('screening_state', patient?.screening_state);
-  const xray    = gv('xray_result', patient?.xray_result);
+  const xrayRaw = gv('xray_result', patient?.xray_result);
+  const xray    = formatXrayResult(xrayRaw);
   const hiv     = gv('hiv_status', patient?.hiv_status);
   const tbDx    = gv('tb_diagnosed_select', gv('tb_diagnosed', patient?.tb_diagnosed));
   const sDate   = gv('screening_date', patient?.screening_date);
   const isTBDx  = toBool(tbDx) || tbDx === 'Yes';
   const isHIV   = hiv === 'Positive';
-  const isSusp  = xray === 'Suspected TB Case';
+  const isSusp  = xray === 'Suspected TB' || xrayRaw === 'Suspected_TB_Case';
   const symCount= Object.values(parsedSymptoms).filter(Boolean).length;
 
   return (
@@ -390,7 +406,7 @@ export function DemographicsCarousel({
           <div className="px-6 py-7 flex flex-col gap-8">
 
             {/* Â§ Identity & Contact */}
-            <DocSection title="Identity & Contact" accent="bg-violet-500">
+            <DocSection title="Identity & Contact" accent="bg-slate-900">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="Father / Husband"  value={gv('father_husband_name', patient?.father_husband_name)} fieldKey="father_husband_name" editable isEditing={E} onChange={H} />
                 <Field label="Date of Birth"      value={gv('date_of_birth', patient?.date_of_birth)}            fieldKey="date_of_birth"      editable isEditing={E} onChange={H} />
@@ -437,9 +453,9 @@ export function DemographicsCarousel({
             </DocSection>
 
             {/* Â§ Diagnostics & Treatment */}
-            <DocSection title="Diagnostics & Treatment" accent="bg-sky-500">
+            <DocSection title="Diagnostics & Treatment" accent="bg-blue-600">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
-                <Field label="X-Ray Result"       value={gv('xray_result', patient?.xray_result)}                fieldKey="xray_result"         editable isEditing={E} onChange={H} />
+                <Field label="X-Ray Result"       value={formatXrayResult(gv('xray_result', patient?.xray_result))}                fieldKey="xray_result"         editable isEditing={E} onChange={H} />
                 <Field label="Sputum Collected"   value={gv('sputum_collected_select', gv('sputum_collected', patient?.sputum_collected))} fieldKey="sputum_collected_select" editable isEditing={E} onChange={H} />
                 <Field label="TB Past History"    value={gv('tb_past_history', patient?.tb_past_history)}        fieldKey="tb_past_history"     editable isEditing={E} onChange={H} />
                 <Field label="TB Diagnosed"       value={gv('tb_diagnosed_select', gv('tb_diagnosed', patient?.tb_diagnosed))} fieldKey="tb_diagnosed_select" editable isEditing={E} onChange={H} />
@@ -468,7 +484,7 @@ export function DemographicsCarousel({
             </DocSection>
 
             {/* Â§ Registration & System */}
-            <DocSection title="Registration & System" accent="bg-teal-500">
+            <DocSection title="Registration & System" accent="bg-slate-400">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="Nikshay ID"   value={gv('nikshay_id', patient?.nikshay_id)}   fieldKey="nikshay_id"  editable isEditing={E} onChange={H} />
                 <Field label="ABHA ID"      value={gv('abha_id', patient?.abha_id)}          fieldKey="abha_id"     editable isEditing={E} onChange={H} />
