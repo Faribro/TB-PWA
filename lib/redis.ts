@@ -17,11 +17,29 @@ export const upstashRedis = process.env.UPSTASH_REDIS_REST_URL && process.env.UP
 
 // IORedis (Traditional - for BullMQ)
 export const ioredis = process.env.REDIS_URL
-  ? new IORedis(process.env.REDIS_URL, {
-      maxRetriesPerRequest: null, // Required for BullMQ
-      enableReadyCheck: false,
-      retryStrategy: (times) => Math.min(times * 50, 2000),
-    })
+  ? (() => {
+      const client = new IORedis(process.env.REDIS_URL, {
+        maxRetriesPerRequest: null, // Required for BullMQ
+        enableReadyCheck: false,
+        retryStrategy: (times) => {
+          if (times > 3) return null; // Stop retrying after 3 attempts
+          return Math.min(times * 50, 2000);
+        },
+        lazyConnect: true, // Don't connect immediately
+      });
+      
+      // Handle connection errors gracefully
+      client.on('error', (err) => {
+        console.warn('[IORedis] Connection error (non-critical):', err.message);
+      });
+      
+      // Try to connect, but don't fail if it doesn't work
+      client.connect().catch((err) => {
+        console.warn('[IORedis] Failed to connect (continuing without Redis):', err.message);
+      });
+      
+      return client;
+    })()
   : null;
 
 // Health check
