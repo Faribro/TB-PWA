@@ -13,6 +13,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { Client } from '@upstash/qstash';
+import { queuePatientSyncDB } from './sheetsSyncFallback';
 
 export interface PatientRecord {
   id?: string;
@@ -154,6 +155,7 @@ export async function queuePatientSyncQStash(
 
 /**
  * Fire-and-forget wrapper (never throws)
+ * Automatically falls back to DB queue if QStash is not configured
  */
 export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 'update'): void {
   console.log('[QStash] 🎯 syncToSheetsAsync START - patient:', patient.id, 'operation:', operation);
@@ -168,8 +170,25 @@ export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 
     .then(result => {
       console.log('[QStash] 📊 Queue result:', result);
       if (!result.queued) {
-        console.warn('[QStash] ⚠️ Sync not queued:', result.error);
+        console.warn('[QStash] ⚠️ QStash not available, falling back to DB queue:', result.error);
         console.warn('[QStash] 📋 Patient data:', { id: patient.id, name: patient.inmate_name });
+        
+        // Fallback to DB queue
+        queuePatientSyncDB(patient, operation)
+          .then(dbResult => {
+            if (dbResult.queued) {
+              console.log('[QStash] ✅ Sync queued to DB fallback successfully');
+            } else {
+              console.error('[QStash] ❌ DB fallback also failed:', dbResult.error);
+            }
+          })
+          .catch(err => {
+            console.error('[QStash] ❌ Unexpected error in DB fallback:', {
+              error: err.message,
+              stack: err.stack,
+              patientId: patient.id,
+            });
+          });
       } else {
         console.log('[QStash] ✅ Sync queued successfully:', result.messageId);
       }
