@@ -1004,7 +1004,7 @@ export default function Vertex({
 
   // Task 1: Data Aggregation - Grouped Geography (use server summary when available)
   const groupedGeography = useMemo((): StateData[] => {
-    if (!selectedDate) return {}; // FIX A: Guard - clear on no date
+    if (!selectedDate) return []; // FIX A: Guard - clear on no date
     if (serverGeoSummary) return serverGeoSummary;
     
     if (!patientsForSelectedDate || !patientsForSelectedDate.length) return [];

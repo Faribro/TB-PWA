@@ -7,6 +7,7 @@ export const patientFormSchema = z.object({
   // Group A: Sputum & Referral
   'Date of referral for TB Examination (sputum) (dd/mm/yy)': optionalString,
   'Name of facility where referred to (Give code/name of all facilities)': optionalString,
+  'Other Facility Name': optionalString,
   
   // Group B: Diagnosis
   'TB diagnosed (Y/N)': optionalString,

@@ -869,11 +869,24 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                                       onChange={(val) => setValue('Name of facility where referred to (Give code/name of all facilities)', val, { shouldDirty: true })}
                                       options={[
                                         { value: '', label: 'Select facility' },
-                                        { value: 'DMC-Designated microscopy Centre', label: 'DMC' },
+                                        { value: 'DMC-Designated microscopy centre', label: 'DMC-Designated microscopy centre' },
+                                        { value: 'TDC-TB Diagnostic Centre', label: 'TDC-TB Diagnostic Centre' },
                                         { value: 'CBNAAT', label: 'CBNAAT' },
-                                        { value: 'Radiology', label: 'Radiology' }
+                                        { value: 'DST-Drug susceptibility testing', label: 'DST-Drug susceptibility testing' },
+                                        { value: 'Radiology', label: 'Radiology' },
+                                        { value: 'Histopathology', label: 'Histopathology' },
+                                        { value: 'ART Centre', label: 'ART Centre' },
+                                        { value: 'Pvt. & Others', label: 'Pvt. & Others' },
+                                        { value: 'Other', label: 'Other (specify)' }
                                       ]}
                                     />
+                                    {watchedFacility === 'Other' && (
+                                      <EditableField 
+                                        label="Specify Other Facility" 
+                                        value={watch('Other Facility Name') || ''} 
+                                        onChange={(val) => setValue('Other Facility Name', val, { shouldDirty: true })} 
+                                      />
+                                    )}
                                   </div>
                                 )}
                                 {section.id === 'diagnosis' && (
@@ -882,7 +895,11 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                                       label="TB Diagnosed"
                                       value={watchedTbDiagnosed}
                                       onChange={(val) => setValue('TB diagnosed (Y/N)', val, { shouldDirty: true })}
-                                      options={[{ value: '', label: 'Select' }, { value: 'Y', label: 'Yes' }, { value: 'N', label: 'No' }]}
+                                      options={[
+                                        { value: '', label: 'Select' }, 
+                                        { value: 'Y', label: 'Yes' }, 
+                                        { value: 'N', label: 'No' }
+                                      ]}
                                     />
                                     <EditableField label="Date of Diagnosis" value={watchedDiagnosisDate} onChange={(val) => setValue('Date of TB Diagnosed (dd/mm/yy)', val, { shouldDirty: true })} type="date" />
                                     <EditableSelect
@@ -891,8 +908,9 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                                       onChange={(val) => setValue('Type of TB Diagnosed (P/EP)', val, { shouldDirty: true })}
                                       options={[
                                         { value: '', label: 'Select' },
-                                        { value: 'P', label: 'Pulmonary (P)' },
-                                        { value: 'EP', label: 'Extra-Pulmonary (EP)' }
+                                        { value: 'Pulmonary', label: 'Pulmonary' },
+                                        { value: 'Extrapulmonary Tuberculosis', label: 'Extrapulmonary Tuberculosis' },
+                                        { value: 'Unknown', label: 'Unknown' }
                                       ]}
                                     />
                                   </div>
@@ -916,7 +934,17 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                                         { value: 'Unknown', label: 'Unknown' }
                                       ]}
                                     />
-                                    <EditableField label="ART Start Date" value={watch('Status at the time of referral (Pre ART/On ART)')} onChange={(val) => setValue('Status at the time of referral (Pre ART/On ART)', val, { shouldDirty: true })} type="date" />
+                                    <EditableSelect
+                                      label="ART Status"
+                                      value={watch('Status at the time of referral (Pre ART/On ART)')}
+                                      onChange={(val) => setValue('Status at the time of referral (Pre ART/On ART)', val, { shouldDirty: true })}
+                                      options={[
+                                        { value: '', label: 'Select' },
+                                        { value: 'Pre ART', label: 'Pre ART' },
+                                        { value: 'On ART', label: 'On ART' }
+                                      ]}
+                                    />
+                                    <EditableField label="ART Number" value={watch('ART Number (if on ART at the time of referral)')} onChange={(val) => setValue('ART Number (if on ART at the time of referral)', val, { shouldDirty: true })} />
                                   </div>
                                 )}
                                 {section.id === 'nikshay' && (
