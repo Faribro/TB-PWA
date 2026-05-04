@@ -1,13 +1,13 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// REDIS CONNECTION - UPSTASH SERVERLESS REDIS
+// REDIS CONNECTION - UPSTASH SERVERLESS REDIS (CACHE ONLY)
 // ═══════════════════════════════════════════════════════════════════════════
-// Production-grade Redis with automatic failover and connection pooling
+// Production-grade Redis for caching only
+// No TCP/IORedis - pure HTTP REST API
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { Redis } from '@upstash/redis';
-import IORedis from 'ioredis';
 
-// Upstash Redis (Serverless - for Vercel Edge)
+// Upstash Redis (Serverless - HTTP-based)
 export const upstashRedis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
   ? new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL,
@@ -15,88 +15,11 @@ export const upstashRedis = process.env.UPSTASH_REDIS_REST_URL && process.env.UP
     })
   : null;
 
-// IORedis (Traditional - for BullMQ)
-export const ioredis = (() => {
-  // Check for required Upstash TCP credentials
-  const host = process.env.UPSTASH_REDIS_HOST;
-  const password = process.env.UPSTASH_REDIS_PASSWORD;
-  const port = parseInt(process.env.UPSTASH_REDIS_PORT || '6379', 10);
-  
-  if (!host || !password) {
-    console.warn(
-      '[IORedis] ⚠️  UPSTASH_REDIS_HOST or UPSTASH_REDIS_PASSWORD missing.\n' +
-      '  Get from: Upstash Console → Your DB → Details → Password\n' +
-      '  Add to Vercel: Settings → Environment Variables\n' +
-      '  Falling back to in-memory queue.'
-    );
-    return null;
-  }
-
-  try {
-    console.log(`[IORedis] 🔧 Connecting to ${host}:${port} with TCP credentials`);
-    
-    const client = new IORedis({
-      host,
-      port,
-      password,
-      tls: {}, // Required for Upstash TLS - empty object enables TLS
-      maxRetriesPerRequest: null, // Required for BullMQ
-      enableReadyCheck: false,
-      lazyConnect: true,
-      connectTimeout: 10000,
-      commandTimeout: 30000, // 30s for long-running Supabase queries
-      retryStrategy: (times) => {
-        if (times > 3) {
-          console.warn(`[IORedis] ⚠️  Max retries (3) reached, giving up`);
-          return null;
-        }
-        const delay = Math.min(times * 200, 2000);
-        console.log(`[IORedis] 🔄 Retry attempt ${times}, waiting ${delay}ms`);
-        return delay;
-      },
-    });
-    
-    // Event handlers
-    client.on('error', (err) => {
-      console.error('[IORedis] ❌ Connection error:', err.message);
-    });
-    
-    client.on('connect', () => {
-      console.log('[IORedis] ✅ TCP connection established');
-    });
-    
-    client.on('ready', () => {
-      console.log('[IORedis] 🚀 Redis client ready');
-    });
-    
-    client.on('close', () => {
-      console.warn('[IORedis] ⚠️  Connection closed');
-    });
-    
-    // Verify connection works with actual credentials
-    client.connect()
-      .then(() => client.ping())
-      .then(() => console.log('[IORedis] ✅ Upstash TCP connection verified'))
-      .catch((err) => {
-        console.error('[IORedis] ❌ Connection failed — check UPSTASH_REDIS_PASSWORD:', err.message);
-      });
-    
-    return client;
-  } catch (error: any) {
-    console.error('[IORedis] ❌ Failed to initialize:', error.message);
-    return null;
-  }
-})();
-
 // Health check
 export async function checkRedisHealth(): Promise<boolean> {
   try {
     if (upstashRedis) {
       await upstashRedis.ping();
-      return true;
-    }
-    if (ioredis) {
-      await ioredis.ping();
       return true;
     }
     return false;

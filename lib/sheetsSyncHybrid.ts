@@ -37,8 +37,10 @@ let lastFlushTime = 0;
 const CONFIG = {
   BATCH_SIZE: 50,
   DEBOUNCE_MS: 2000,
-  TIMEOUT_MS: 15000,
-  CIRCUIT_BREAKER_THRESHOLD: 3,
+  TIMEOUT_MS: 20000,
+  MAX_RETRIES: 2,
+  RETRY_DELAY_MS: 3000,
+  CIRCUIT_BREAKER_THRESHOLD: 5,
   CIRCUIT_BREAKER_RESET_MS: 60000,
   MIN_FLUSH_INTERVAL_MS: 1000
 };
@@ -97,46 +99,60 @@ async function flushQueue(webhookUrl: string): Promise<void> {
 
   setImmediate(() => {
     (async () => {
-      try {
-        const payload = {
-          batch: batch.map(p => ({
-            id: p.id,
-            kobo_uuid: p.kobo_uuid,
-            unique_id: p.unique_id,
-            inmate_name: p.inmate_name,
-            age: p.age,
-            contact_number: p.contact_number,
-            screening_state: p.screening_state,
-          })),
-          batch_id: `batch-${now}`,
-          count: batch.length
-        };
+      let retries = 0;
+      
+      while (retries <= CONFIG.MAX_RETRIES) {
+        try {
+          const payload = {
+            batch: batch.map(p => ({
+              id: p.id,
+              kobo_uuid: p.kobo_uuid,
+              unique_id: p.unique_id,
+              inmate_name: p.inmate_name,
+              age: p.age,
+              contact_number: p.contact_number,
+              screening_state: p.screening_state,
+            })),
+            batch_id: `batch-${now}`,
+            count: batch.length
+          };
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), CONFIG.TIMEOUT_MS);
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), CONFIG.TIMEOUT_MS);
 
-        const response = await fetch(webhookUrl, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify(payload),
-          signal: controller.signal,
-          // @ts-ignore
-          keepalive: true
-        });
+          const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+            // @ts-ignore
+            keepalive: true
+          });
 
-        clearTimeout(timeoutId);
+          clearTimeout(timeoutId);
 
-        if (response.ok) {
-          failureCount = 0;
-          console.log(`[sheetsSync] ✅ Batch synced: ${batch.length} records (fallback mode)`);
-        } else {
-          handleFailure(`HTTP ${response.status}`);
+          if (response.ok) {
+            failureCount = 0;
+            console.log(`[sheetsSync] ✅ Batch synced: ${batch.length} records (fallback mode)`);
+            return;
+          } else {
+            throw new Error(`HTTP ${response.status}`);
+          }
+        } catch (error: any) {
+          const errorMsg = error.name === 'AbortError' ? 'Timeout' : error.message;
+          
+          if (retries < CONFIG.MAX_RETRIES) {
+            retries++;
+            console.warn(`[sheetsSync] ⚠️ ${errorMsg} - retry ${retries}/${CONFIG.MAX_RETRIES} in ${CONFIG.RETRY_DELAY_MS}ms`);
+            await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY_MS));
+          } else {
+            handleFailure(errorMsg);
+            return;
+          }
         }
-      } catch (error: any) {
-        handleFailure(error.name === 'AbortError' ? 'Timeout' : error.message);
       }
     })();
   });

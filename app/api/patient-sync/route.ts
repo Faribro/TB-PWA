@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabase-server';
 import { getSessionScope } from '@/lib/session-scope';
-import { syncToSheetsAsync } from '@/lib/sheetsSyncHybrid';
+import { syncToSheetsAsync } from '@/lib/sheetsSyncQStash';
 import { sanitizePatientUpdate } from '@/lib/db/sanitizePatientUpdate';
 import { invalidatePatientCaches } from '@/lib/cache-version';
 
@@ -142,16 +142,15 @@ export async function POST(request: NextRequest) {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // OPTIMIZATION 6: Parallel cache invalidation + sheets sync (saves ~100-200ms)
+    // OPTIMIZATION 6: Non-blocking background tasks (cache + sync)
     // ═══════════════════════════════════════════════════════════════════════
-    Promise.all([
-      invalidatePatientCaches(),
-      // Sheets sync is already fire-and-forget, but we can trigger it immediately
-      Promise.resolve(syncToSheetsAsync(updatedPatient, 'update'))
-    ]).catch(err => console.error('[patient-sync] Background task error:', err));
+    // Fire-and-forget: never blocks response
+    invalidatePatientCaches().catch(err => console.error('[patient-sync] Cache invalidation error:', err));
+    syncToSheetsAsync(updatedPatient, 'update');
+    
+    console.log(`[patient-sync] ✅ Save succeeded, sync queued`);
 
     const duration = Date.now() - startTime;
-    console.log(`[patient-sync] ✅ Completed in ${duration}ms`);
 
     // ═══════════════════════════════════════════════════════════════════════
     // OPTIMIZATION 7: Return minimal response (saves ~5-10ms on serialization)
