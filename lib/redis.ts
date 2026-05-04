@@ -17,51 +17,52 @@ export const upstashRedis = process.env.UPSTASH_REDIS_REST_URL && process.env.UP
 
 // IORedis (Traditional - for BullMQ)
 export const ioredis = (() => {
-  // Try REDIS_URL first, then construct from Upstash credentials
-  let redisUrl = process.env.REDIS_URL;
+  // Check for required Upstash TCP credentials
+  const host = process.env.UPSTASH_REDIS_HOST;
+  const password = process.env.UPSTASH_REDIS_PASSWORD;
+  const port = parseInt(process.env.UPSTASH_REDIS_PORT || '6379', 10);
   
-  if (!redisUrl && process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-    // Extract hostname from REST URL (remove https://)
-    const hostname = process.env.UPSTASH_REDIS_REST_URL.replace('https://', '').replace('http://', '');
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-    // Construct rediss:// URL for IORedis
-    redisUrl = `rediss://default:${token}@${hostname}:6379`;
-    console.log(`[IORedis] Constructed URL from Upstash credentials: rediss://default:***@${hostname}:6379`);
-  }
-  
-  if (!redisUrl) {
-    console.warn('[IORedis] ⚠️ No Redis configuration found (REDIS_URL or UPSTASH_REDIS_REST_TOKEN)');
+  if (!host || !password) {
+    console.warn(
+      '[IORedis] ⚠️  UPSTASH_REDIS_HOST or UPSTASH_REDIS_PASSWORD missing.\n' +
+      '  Get from: Upstash Console → Your DB → Details → Password\n' +
+      '  Add to Vercel: Settings → Environment Variables\n' +
+      '  Falling back to in-memory queue.'
+    );
     return null;
   }
 
   try {
-    const client = new IORedis(redisUrl, {
+    console.log(`[IORedis] 🔧 Connecting to ${host}:${port} with TCP credentials`);
+    
+    const client = new IORedis({
+      host,
+      port,
+      password,
+      tls: {}, // Required for Upstash TLS - empty object enables TLS
       maxRetriesPerRequest: null, // Required for BullMQ
       enableReadyCheck: false,
+      lazyConnect: true,
+      connectTimeout: 10000,
+      commandTimeout: 5000,
       retryStrategy: (times) => {
         if (times > 3) {
-          console.warn(`[IORedis] ⚠️ Max retries (3) reached, giving up`);
-          return null; // Stop retrying after 3 attempts
+          console.warn(`[IORedis] ⚠️  Max retries (3) reached, giving up`);
+          return null;
         }
-        const delay = Math.min(times * 50, 2000);
+        const delay = Math.min(times * 200, 2000);
         console.log(`[IORedis] 🔄 Retry attempt ${times}, waiting ${delay}ms`);
         return delay;
       },
-      lazyConnect: true, // Don't connect immediately
-      tls: redisUrl.startsWith('rediss://') ? {
-        rejectUnauthorized: false // Accept self-signed certs from Upstash
-      } : undefined,
-      connectTimeout: 10000, // 10 second timeout
-      commandTimeout: 5000, // 5 second command timeout
     });
     
-    // Handle connection errors gracefully
+    // Event handlers
     client.on('error', (err) => {
-      console.warn('[IORedis] ❌ Connection error:', err.message);
+      console.error('[IORedis] ❌ Connection error:', err.message);
     });
     
     client.on('connect', () => {
-      console.log('[IORedis] ✅ Connected to Redis successfully');
+      console.log('[IORedis] ✅ TCP connection established');
     });
     
     client.on('ready', () => {
@@ -69,14 +70,16 @@ export const ioredis = (() => {
     });
     
     client.on('close', () => {
-      console.warn('[IORedis] ⚠️ Connection closed');
+      console.warn('[IORedis] ⚠️  Connection closed');
     });
     
-    // Try to connect, but don't fail if it doesn't work
-    client.connect().catch((err) => {
-      console.error('[IORedis] ❌ Failed to connect:', err.message);
-      console.warn('[IORedis] ℹ️ Continuing without Redis - will use in-memory fallback');
-    });
+    // Verify connection works with actual credentials
+    client.connect()
+      .then(() => client.ping())
+      .then(() => console.log('[IORedis] ✅ Upstash TCP connection verified'))
+      .catch((err) => {
+        console.error('[IORedis] ❌ Connection failed — check UPSTASH_REDIS_PASSWORD:', err.message);
+      });
     
     return client;
   } catch (error: any) {
