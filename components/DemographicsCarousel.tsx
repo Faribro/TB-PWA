@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Calendar, User, MapPin, Activity, CheckCircle2, XCircle, Building2, Phone, Hash, Settings2, Lock, Unlock, FileText, Shield, ClipboardList, Check, Minus } from 'lucide-react';
+import { Calendar, User, MapPin, Activity, CheckCircle2, XCircle, Building2, Phone, Hash, Settings2, Lock, Unlock, FileText, Shield, ClipboardList, Check, Minus, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 // Field configuration for smart rendering (using exact Supabase snake_case column names)
@@ -19,7 +19,7 @@ const FIELD_CONFIG: Record<string, {
   // Select fields
   sex: {
     type: 'select',
-    options: ['Male', 'Female', 'TG']
+    options: ['Male', 'Female', 'Other', 'Prefer not to say']
   },
   screening_state: {
     type: 'select',
@@ -48,11 +48,11 @@ const FIELD_CONFIG: Record<string, {
   },
   hiv_status: {
     type: 'select',
-    options: ['Positive', 'Negative', 'Unknown']
+    options: ['Positive', 'Negative', 'Unknown', 'Not tested']
   },
   xray_result: {
     type: 'select',
-    options: ['Normal', 'Suspected TB Case']
+    options: ['Normal', 'Suspected TB Case', 'Abnormal', 'Not Done', 'Pending', 'Technically Inadequate']
   },
   tb_past_history: {
     type: 'select',
@@ -63,11 +63,15 @@ const FIELD_CONFIG: Record<string, {
   },
   tb_diagnosed_select: {
     type: 'select',
-    options: ['Yes', 'No', 'Pending']
+    options: ['Yes', 'No', 'Inconclusive', 'Pending']
   },
   sputum_collected_select: {
     type: 'select',
-    options: ['Yes', 'No']
+    options: ['Yes', 'No', 'Refused', 'Not applicable']
+  },
+  art_started: {
+    type: 'select',
+    options: ['Yes', 'No', 'Not applicable']
   },
   referred_to_facility: {
     type: 'select',
@@ -86,7 +90,6 @@ const FIELD_CONFIG: Record<string, {
   referral_date: { type: 'date' },
   diagnosis_date: { type: 'date' },
   att_start_date: { type: 'date' },
-  art_started: { type: 'date' },
 
   // Number fields
   age: { type: 'number', placeholder: 'Age in years' },
@@ -120,6 +123,148 @@ const SYMPTOMS_MASTER = [
   { id: 'swelling_neck', label: 'Swelling in neck' },
 ];
 
+// TypeScript return type for parseKoboSymptoms
+interface ParsedSymptomsResult {
+  symptoms: Record<string, boolean>;
+  unrecognized: string[];
+  rawValue: string | null;
+}
+
+// Alias map for known alternate symptom names
+const SYMPTOM_ALIASES: Record<string, string> = {
+  'weightloss': 'weight loss',
+  'weight_loss': 'weight loss',
+  'nightsweats': 'night sweats',
+  'night_sweats': 'night sweats',
+  'bloodinsputum': 'blood in sputum',
+  'blood_in_sputum': 'blood in sputum',
+  'shortnessofbreath': 'shortness of breath',
+  'shortness_of_breath': 'shortness of breath',
+  'chestpain': 'chest pain',
+  'chest_pain': 'chest pain',
+  'lossofappetite': 'loss of appetite',
+  'loss_of_appetite': 'loss of appetite',
+  'swellingneck': 'swelling in neck',
+  'swelling_neck': 'swelling in neck',
+};
+
+// Export pure function for testing and reusability
+export function parseKoboSymptoms(raw: string | null | undefined): ParsedSymptomsResult {
+  const result: Record<string, boolean> = {};
+  const unrecognized: string[] = [];
+  
+  // Initialize all symptoms as false
+  SYMPTOMS_MASTER.forEach(sym => result[sym.id] = false);
+  
+  // Handle null/undefined/empty
+  if (!raw || typeof raw !== 'string') {
+    return { symptoms: result, unrecognized: [], rawValue: null };
+  }
+  
+  const rawTrimmed = raw.trim();
+  if (rawTrimmed.toLowerCase() === 'n/a' || rawTrimmed.includes('No_Symptomps') || rawTrimmed.toLowerCase().includes('no symptoms')) {
+    return { symptoms: result, unrecognized: [], rawValue: rawTrimmed };
+  }
+  
+  // Check for non-ASCII characters (Hindi, etc.) - treat as unknown
+  if (/[^\x00-\x7F]/.test(rawTrimmed)) {
+    return { symptoms: result, unrecognized: [rawTrimmed], rawValue: rawTrimmed };
+  }
+  
+  // Normalize: lowercase, strip punctuation, collapse spaces, replace underscores
+  const normalized = rawTrimmed
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ') // Remove punctuation except word chars and spaces
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  // Split on multiple delimiters: comma, semicolon, pipe, space, or mixed
+  const tokens = normalized.split(/[,;\|\s]+/).map(t => t.trim()).filter(Boolean);
+  
+  // Process each token
+  tokens.forEach(token => {
+    // Apply alias mapping
+    const aliased = SYMPTOM_ALIASES[token] || token;
+    
+    // Try exact match
+    const exactMatch = SYMPTOMS_MASTER.find(sym => sym.label.toLowerCase() === aliased);
+    if (exactMatch) {
+      result[exactMatch.id] = true;
+      return;
+    }
+    
+    // Try partial match (≥60% word overlap)
+    const tokenWords = aliased.split(' ');
+    let bestMatch: typeof SYMPTOMS_MASTER[0] | null = null;
+    let bestScore = 0;
+    
+    SYMPTOMS_MASTER.forEach(sym => {
+      const symWords = sym.label.toLowerCase().split(' ');
+      const matches = tokenWords.filter(tw => symWords.some(sw => sw.includes(tw) || tw.includes(sw))).length;
+      const score = matches / Math.max(tokenWords.length, symWords.length);
+      
+      if (score >= 0.6 && score > bestScore) {
+        bestMatch = sym;
+        bestScore = score;
+      }
+    });
+    
+    if (bestMatch) {
+      result[bestMatch.id] = true;
+      return;
+    }
+    
+    // No match found - add to unrecognized
+    unrecognized.push(token);
+  });
+  
+  return { symptoms: result, unrecognized, rawValue: rawTrimmed };
+}
+
+// Export pure function for X-Ray value formatting
+export function formatXrayValue(raw: string | null | undefined): string {
+  if (!raw || raw === '') return 'Not recorded';
+  
+  const normalized = raw.replace(/_/g, ' ').trim();
+  
+  const map: Record<string, string> = {
+    'Suspected TB Case': 'Suspected TB',
+    'Suspected_TB_Case': 'Suspected TB',
+    'No TB Suspected': 'Normal',
+    'No_TB_Suspected': 'Normal',
+    'Other Abnormality': 'Other Abnormality',
+    'Other_Abnormality': 'Other Abnormality',
+    'Not Done': 'Not Done',
+    'Not_Done': 'Not Done',
+    'Pending': 'Pending',
+    'Normal': 'Normal',
+    'Abnormal': 'Abnormal',
+    'Technically Inadequate': 'Technically Inadequate',
+    'Technically_Inadequate': 'Technically Inadequate',
+    'PTB': 'Pulmonary TB',
+    'EPTB': 'Extra-Pulmonary TB',
+  };
+  
+  // Try exact match on normalized input
+  if (map[normalized]) {
+    return map[normalized];
+  }
+  
+  // Try exact match on original raw value
+  if (map[raw]) {
+    return map[raw];
+  }
+  
+  // Generic normalization: replace underscores, title case
+  const titleCased = normalized
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+  
+  return titleCased;
+}
+
 interface DemographicsCarouselProps {
   patient: any;
   editedDemographics: Record<string, any>;
@@ -142,25 +287,26 @@ const DocSection = ({ title, accent = 'bg-slate-700', children }: { title: strin
 
 // â”€â”€ Symptom row: clinical checklist style for better scanning
 const SymptomRow = ({ label, selected }: { label: string; selected: boolean }) => (
-  <div className={`flex items-center gap-2.5 px-3 py-2.5 border rounded-[4px] transition-all duration-150 select-none ${
+  <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-[4px] transition-all duration-150 select-none ${
     selected 
-      ? 'bg-red-50 border-red-300 text-red-900' 
-      : 'bg-white border-slate-200 text-slate-400'
+      ? 'bg-red-50 text-slate-900' 
+      : 'bg-white text-slate-400'
   }`}>
     <div className={`flex items-center justify-center w-4 h-4 rounded-full shrink-0 ${
-      selected ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-400'
+      selected ? 'bg-red-500' : 'bg-transparent border-2 border-slate-300'
     }`}>
-      {selected ? <Check className="w-2.5 h-2.5" strokeWidth={3}/> : <Minus className="w-2.5 h-2.5" strokeWidth={2}/>}
+      {selected ? <div className="w-1.5 h-1.5 rounded-full bg-white" /> : null}
     </div>
-    <span className={`text-[11px] font-medium leading-tight ${selected ? 'font-semibold' : ''}`}>{label}</span>
+    <span className={`text-[11px] font-medium leading-tight ${selected ? 'font-semibold' : 'font-normal'}`}>{label}</span>
   </div>
 );
 
 // â”€â”€ Data field: label over value, view or edit
-const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, span = 1 }: {
+const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, span = 1, hint }: {
   label: string; value: any; fieldKey: string;
   editable?: boolean; isEditing?: boolean;
   onChange?: (k: string, v: any) => void; span?: number;
+  hint?: string;
 }) => {
   const cfg = FIELD_CONFIG[fieldKey];
   const ftype = cfg?.type ?? 'text';
@@ -199,18 +345,27 @@ const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, 
             className={inputCls} />
         )
       ) : (
-        <div className="text-[15px] font-semibold text-slate-900 leading-snug break-words">
-          {missing ? (
-            <span className="text-slate-400 font-medium italic text-[12px]">Not recorded</span>
-          ) : ftype === 'checkbox' ? (
-            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide ${
-              toBool(value) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${toBool(value) ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-              {toBool(value) ? 'Yes' : 'No'}
-            </span>
-          ) : value}
-        </div>
+        <>
+          <div className="text-[15px] font-semibold text-slate-900 leading-snug break-words">
+            {missing ? (
+              hint ? (
+                <div className="flex items-center gap-1.5 text-slate-400 text-[12px]">
+                  <Info className="w-3 h-3 shrink-0" />
+                  <span className="italic">{hint}</span>
+                </div>
+              ) : (
+                <span className="text-slate-400 font-medium italic text-[12px]">Not recorded</span>
+              )
+            ) : ftype === 'checkbox' ? (
+              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide ${
+                toBool(value) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${toBool(value) ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                {toBool(value) ? 'Yes' : 'No'}
+              </span>
+            ) : value}
+          </div>
+        </>
       )}
     </div>
   );
@@ -278,54 +433,13 @@ export function DemographicsCarousel({
     return parts.length > 0 ? parts.join(', ') : null;
   }, [patient, localValues, editedDemographics]);
 
-  // Map 10S string to canonical symptom list with defensive parsing
-  const parsedSymptoms = useMemo(() => {
-    const result: Record<string, boolean> = {};
-    SYMPTOMS_MASTER.forEach(sym => result[sym.id] = false);
-
-    const raw = patient?.symptoms_10s;
-    if (!raw || typeof raw !== 'string' || raw.toLowerCase() === 'n/a' || raw.includes('No_Symptomps') || raw.toLowerCase().includes('no symptoms')) {
-      return result;
-    }
-    
-    // Normalize: lowercase, trim, replace underscores with spaces
-    // Split on multiple delimiters: comma, semicolon, pipe, space, or mixed
-    const normalized = raw.toLowerCase().trim().replace(/_/g, ' ');
-    const symptomsArray = normalized.split(/[,;\|\s]+/).map(s => s.trim()).filter(Boolean);
-    
-    SYMPTOMS_MASTER.forEach(sym => {
-      const labelLower = sym.label.toLowerCase();
-      const labelSpaced = labelLower.replace(/\s+/g, ' ');
-      
-      // Check if symptom is present in any format
-      const isPresent = symptomsArray.some(s => {
-        const sNormalized = s.replace(/\s+/g, ' ');
-        return sNormalized === labelSpaced || sNormalized.includes(labelSpaced) || labelSpaced.includes(sNormalized);
-      });
-      
-      if (isPresent) {
-        result[sym.id] = true;
-      }
-    });
-
-    return result;
-  }, [patient?.symptoms_10s]);
+  // Use exported parseKoboSymptoms function for robust parsing
+  const parsedSymptomsResult = useMemo(() => parseKoboSymptoms(patient?.symptoms_10s), [patient?.symptoms_10s]);
+  const parsedSymptoms = parsedSymptomsResult.symptoms;
+  const unrecognizedSymptoms = parsedSymptomsResult.unrecognized;
+  const symptomsRawValue = parsedSymptomsResult.rawValue;
 
   const toBool = (v: any) => v === true || v === 'yes' || v === 'Yes';
-
-  // Format X-Ray result from Kobo underscored format to human-readable
-  const formatXrayResult = (value: string | null | undefined) => {
-    if (!value) return null;
-    const map: Record<string, string> = {
-      'Suspected_TB_Case': 'Suspected TB',
-      'Not_Suspected': 'Not Suspected',
-      'Normal': 'Normal',
-      'Abnormal': 'Abnormal',
-      'PTB': 'Pulmonary TB',
-      'EPTB': 'Extra-Pulmonary TB',
-    };
-    return map[value] ?? value.replace(/_/g, ' ');
-  };
 
   if (!patient) return null;
 
@@ -340,7 +454,7 @@ export function DemographicsCarousel({
   const ftype   = gv('facility_type', patient?.facility_type);
   const state   = gv('screening_state', patient?.screening_state);
   const xrayRaw = gv('xray_result', patient?.xray_result);
-  const xray    = formatXrayResult(xrayRaw);
+  const xray    = formatXrayValue(xrayRaw);
   const hiv     = gv('hiv_status', patient?.hiv_status);
   const tbDx    = gv('tb_diagnosed_select', gv('tb_diagnosed', patient?.tb_diagnosed));
   const sDate   = gv('screening_date', patient?.screening_date);
@@ -442,9 +556,31 @@ export function DemographicsCarousel({
 
             {/* Â§ 10S Symptom Checklist */}
             <DocSection title="10S Symptom Checklist" accent="bg-red-500">
+              <div className="flex items-center gap-3 mb-3">
+                <span className={`text-[11px] font-semibold ${
+                  symCount >= 3 ? 'text-red-600' : symCount >= 1 ? 'text-amber-600' : 'text-slate-400'
+                }`}>
+                  {symCount} of 10 symptoms
+                </span>
+              </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
                 {SYMPTOMS_MASTER.map(s => <SymptomRow key={s.id} label={s.label} selected={parsedSymptoms[s.id]} />)}
               </div>
+              {symCount === 0 && (
+                <div className="mt-4 text-slate-400 italic text-[12px]">
+                  No symptoms recorded
+                </div>
+              )}
+              {unrecognizedSymptoms.length > 0 && (
+                <div className="mt-3 flex flex-col gap-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Unrecognized symptoms:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {unrecognizedSymptoms.map((sym, i) => (
+                      <span key={i} className="text-[11px] text-slate-400 italic bg-slate-50 px-2 py-0.5 rounded">{sym}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
               {symCount >= 3 && (
                 <div className="mt-4 flex items-center gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-[4px]">
                   <span className="text-[11px] font-black uppercase tracking-wider text-red-700">âš‘ High Risk â€” {symCount} symptoms present. Prioritise immediate referral.</span>
@@ -455,12 +591,12 @@ export function DemographicsCarousel({
             {/* Â§ Diagnostics & Treatment */}
             <DocSection title="Diagnostics & Treatment" accent="bg-blue-600">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
-                <Field label="X-Ray Result"       value={formatXrayResult(gv('xray_result', patient?.xray_result))}                fieldKey="xray_result"         editable isEditing={E} onChange={H} />
+                <Field label="X-Ray Result"       value={formatXrayValue(gv('xray_result', patient?.xray_result))}                fieldKey="xray_result"         editable isEditing={E} onChange={H} />
                 <Field label="Sputum Collected"   value={gv('sputum_collected_select', gv('sputum_collected', patient?.sputum_collected))} fieldKey="sputum_collected_select" editable isEditing={E} onChange={H} />
                 <Field label="TB Past History"    value={gv('tb_past_history', patient?.tb_past_history)}        fieldKey="tb_past_history"     editable isEditing={E} onChange={H} />
                 <Field label="TB Diagnosed"       value={gv('tb_diagnosed_select', gv('tb_diagnosed', patient?.tb_diagnosed))} fieldKey="tb_diagnosed_select" editable isEditing={E} onChange={H} />
                 <Field label="Diagnosis Date"     value={gv('diagnosis_date', patient?.diagnosis_date)}          fieldKey="diagnosis_date"      editable isEditing={E} onChange={H} />
-                <Field label="ATT Start Date"     value={gv('att_start_date', patient?.att_start_date)}          fieldKey="att_start_date"      editable isEditing={E} onChange={H} />
+                <Field label="ATT Start Date"     value={gv('att_start_date', patient?.att_start_date)}          fieldKey="att_start_date"      editable isEditing={E} onChange={H} hint="Set when treatment begins" />
                 <Field label="Referral Date"      value={gv('referral_date', patient?.referral_date)}            fieldKey="referral_date"       editable isEditing={E} onChange={H} />
                 <Field label="Referred To"        value={gv('referred_to_facility', patient?.referred_to_facility)} fieldKey="referred_to_facility" editable isEditing={E} onChange={H} />
                 <Field label="AI Confidence"      value={gv('ai_confidence_score', patient?.ai_confidence_score)} fieldKey="ai_confidence_score" isEditing={E} onChange={H} />
@@ -478,7 +614,7 @@ export function DemographicsCarousel({
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="HIV Status"   value={gv('hiv_status', patient?.hiv_status)}   fieldKey="hiv_status"  editable isEditing={E} onChange={H} />
                 <Field label="ART Started"  value={gv('art_started', patient?.art_started)}  fieldKey="art_started" editable isEditing={E} onChange={H} />
-                <Field label="ART Center"   value={gv('art_center', patient?.art_center)}    fieldKey="art_center"  editable isEditing={E} onChange={H} />
+                <Field label="ART Center"   value={gv('art_center', patient?.art_center)}    fieldKey="art_center"  editable isEditing={E} onChange={H} hint="Required if HIV positive" />
                 <Field label="CPT Given"    value={gv('cpt_given', patient?.cpt_given)}      fieldKey="cpt_given"   editable isEditing={E} onChange={H} />
               </div>
             </DocSection>
@@ -486,15 +622,14 @@ export function DemographicsCarousel({
             {/* Â§ Registration & System */}
             <DocSection title="Registration & System" accent="bg-slate-400">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
-                <Field label="Nikshay ID"   value={gv('nikshay_id', patient?.nikshay_id)}   fieldKey="nikshay_id"  editable isEditing={E} onChange={H} />
-                <Field label="ABHA ID"      value={gv('abha_id', patient?.abha_id)}          fieldKey="abha_id"     editable isEditing={E} onChange={H} />
-                <Field label="Kobo UUID"    value={gv('kobo_uuid', patient?.kobo_uuid)}      fieldKey="kobo_uuid"   isEditing={E} onChange={H} />
+                <Field label="Nikshay ID"   value={gv('nikshay_id', patient?.nikshay_id)}   fieldKey="nikshay_id"  editable isEditing={E} onChange={H} hint="Assign after TB confirmation" />
+                <Field label="ABHA ID"      value={gv('abha_id', patient?.abha_id)}          fieldKey="abha_id"     editable isEditing={E} onChange={H} hint="Link via ABHA portal" />
+                <Field label="Kobo UUID"    value={gv('kobo_uuid', patient?.kobo_uuid)}      fieldKey="kobo_uuid"   isEditing={E} onChange={H} hint="Generated by Kobo on submission" />
               </div>
             </DocSection>
 
           </div>{/* /body */}
         </div>{/* /document */}
-      </motion.div>
 
       {/* â•â• ACTION BAR â•â• */}
       <div className="absolute bottom-0 left-0 w-full flex items-center gap-2.5 px-5 py-3.5 bg-white/95 backdrop-blur-md border-t border-slate-200 z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.07)]">
