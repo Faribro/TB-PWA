@@ -141,7 +141,7 @@ export function InmateVerticalLoop({ patients, onPatientClick, className }: Inma
           });
           totalHeight = getTotalHeight();
         },
-        timeWrap: (value: number) => value,
+        timeWrap: (val: number) => val,
         populateOffsets = () => {
           timeOffset = center ? tl.duration() * ((container as HTMLElement).offsetHeight / 2) / totalHeight : 0;
           center && times.forEach((t, i) => {
@@ -260,8 +260,8 @@ export function InmateVerticalLoop({ patients, onPatientClick, className }: Inma
           onThrowUpdate: align,
           overshootTolerance: 0,
           inertia: true,
-          snap(val: number) {
-            let time = -(val * ratio) * tl.duration(),
+          snap(snapVal: number) {
+            let time = -(snapVal * ratio) * tl.duration(),
               wrappedTime = timeWrap(time),
               snapTime = times[getClosest(times, wrappedTime, tl.duration())],
               dif = snapTime - wrappedTime;

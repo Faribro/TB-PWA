@@ -23,9 +23,9 @@ export function ScreeningFrequencyTimeline({
   
   // Data Aggregation
   const monthlyData = useMemo(() => {
-    if (!patients || patients.length === 0) return Array(12).fill(0);
+    if (!patients || patients.length === 0) return Array(12).fill(0).map(() => ({ count: 0, corrected: 0 }));
     
-    const data = Array(12).fill(0);
+    const data = Array(12).fill(0).map(() => ({ count: 0, corrected: 0 }));
     for (let i = 0; i < patients.length; i++) {
       const p = patients[i];
       if (!p) continue;
@@ -34,14 +34,18 @@ export function ScreeningFrequencyTimeline({
       
       const date = new Date(dateValue);
       if (date.getFullYear() === year) {
-        data[date.getMonth()] += 1;
+        const monthIndex = date.getMonth();
+        data[monthIndex].count += 1;
+        if (p.date_corrected === true) {
+          data[monthIndex].corrected += 1;
+        }
       }
     }
     return data;
   }, [patients, year]);
 
-  const hasData = useMemo(() => monthlyData.some(v => v > 0), [monthlyData]);
-  const maxValue = Math.max(...monthlyData, 1);
+  const hasData = useMemo(() => monthlyData.some(v => v.count > 0), [monthlyData]);
+  const maxValue = Math.max(...monthlyData.map(m => m.count), 1);
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
   // Layout Constants
@@ -119,7 +123,10 @@ export function ScreeningFrequencyTimeline({
         {/* Bars Container */}
         <div className="flex items-end gap-1.5 sm:gap-2 h-full z-10 relative">
           {months.map((month, index) => {
-            const value = monthlyData[index];
+            const monthData = monthlyData[index];
+            const value = monthData.count;
+            const correctedCount = monthData.corrected;
+            const hasCorrectedDates = correctedCount > 0;
             // Minimum 6px height if value > 0 for visibility
             const barHeight = value > 0 ? Math.max(Math.round((value / maxValue) * BAR_AREA_HEIGHT), 6) : 0;
             const isCurrentMonth = index === currentMonth;
@@ -132,6 +139,12 @@ export function ScreeningFrequencyTimeline({
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full mb-2 opacity-0 group-hover:opacity-100 group-hover:-translate-y-[calc(100%+6px)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] z-30 pointer-events-none">
                     <div className="bg-slate-900 text-white text-xs px-3.5 py-2 rounded-xl whitespace-nowrap font-black shadow-2xl border border-slate-700">
                       {value.toLocaleString()} screened
+                      {hasCorrectedDates && (
+                        <div className="text-[10px] text-amber-300 mt-1 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                          {correctedCount} date{correctedCount > 1 ? 's' : ''} corrected
+                        </div>
+                      )}
                       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[90%] w-0 h-0 border-l-[6px] border-r-[6px] border-t-[7px] border-transparent border-t-slate-900" />
                     </div>
                   </div>
@@ -148,6 +161,8 @@ export function ScreeningFrequencyTimeline({
                       isCurrentMonth
                         ? 'shadow-[0_6px_20px_rgba(79,70,229,0.4)]'
                         : 'shadow-md group-hover:shadow-xl'
+                    } ${
+                      hasCorrectedDates ? 'ring-2 ring-amber-400/60 ring-offset-2' : ''
                     }`}
                     style={{
                       background: !hasMonthData ? 'transparent' :
@@ -161,6 +176,35 @@ export function ScreeningFrequencyTimeline({
                       <>
                         <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-white/20 to-transparent pointer-events-none" />
                         <div className="absolute inset-x-0 top-0 h-1 bg-white/60 rounded-t-xl" />
+                        
+                        {/* Glowing indicator for corrected dates */}
+                        {hasCorrectedDates && (
+                          <>
+                            <motion.div
+                              className="absolute inset-0 bg-amber-400/30 rounded-t-xl"
+                              animate={{
+                                opacity: [0.3, 0.6, 0.3],
+                              }}
+                              transition={{
+                                duration: 2,
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                              }}
+                            />
+                            <motion.div
+                              className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-amber-400 rounded-full"
+                              animate={{
+                                scale: [1, 1.5, 1],
+                                opacity: [1, 0.5, 1],
+                              }}
+                              transition={{
+                                duration: 1.5,
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                              }}
+                            />
+                          </>
+                        )}
                       </>
                     )}
                   </motion.div>

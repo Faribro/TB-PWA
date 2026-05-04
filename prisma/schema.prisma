@@ -59,6 +59,9 @@ model patients {
   closure_reason         String?
   remarks                String?
   
+  // Data Quality
+  date_corrected         Boolean?  @default(false)
+  
   // Sync
   ai_link_status         String?
   synced_to_sheets       Boolean?  @default(false)
@@ -76,6 +79,7 @@ model patients {
   @@index([unique_id])
   @@index([tb_diagnosed])
   @@index([updated_at(sort: Desc)])
+  @@index([date_corrected], map: "idx_patients_date_corrected")
 }
 
 

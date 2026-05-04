@@ -52,8 +52,8 @@ const TAB_CONFIG = [
 ];
 
 const PC_TAB_CONFIG = [
-  { id: 'my-submissions', path: '/dashboard/my-submissions', icon: Calendar, label: 'My Calendar', description: 'View submissions', roles: [Role.PRISON_COORDINATOR] },
-  { id: 'submit-new', path: '/dashboard/submit-new', icon: FilePlus, label: 'New Screening', description: 'Submit record', roles: [Role.PRISON_COORDINATOR] },
+  { id: 'my-submissions', path: '/dashboard/my-submissions', icon: Calendar, label: 'My Calendar', description: 'View submissions', roles: [Role.PRISON_COORDINATOR], dataTourId: 'sidebar-my-submissions' },
+  { id: 'submit-new', path: '/dashboard/submit-new', icon: FilePlus, label: 'New Screening', description: 'Submit record', roles: [Role.PRISON_COORDINATOR], dataTourId: 'sidebar-submit-new' },
 ];
 
 function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
@@ -235,6 +235,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         label: 'Today Queue',
         description: 'Submissions due',
         roles: [Role.PRISON_COORDINATOR],
+        dataTourId: 'sidebar-quick-slot',
       };
     }
     if (userRole === Role.ME_OFFICER) {
@@ -245,6 +246,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         label: 'Pending Reviews',
         description: 'Clinical checks',
         roles: [Role.ME_OFFICER],
+        dataTourId: 'sidebar-quick-slot',
       };
     }
     return {
@@ -254,6 +256,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       label: 'Critical Queue',
       description: 'Escalations & SLA',
       roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER],
+      dataTourId: 'sidebar-quick-slot',
     };
   }, [userRole]);
 
