@@ -1,9 +1,9 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Calendar, User, MapPin, Activity, CheckCircle2, XCircle, Building2, Phone, Hash, Settings2, Lock, Unlock, FileText, Shield, ClipboardList, Check, Minus } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { AnimatedToggle } from './ui/AnimatedToggle';
+import { AnimatedToggle } from '@/components/ui/AnimatedToggle';
 
 // Field configuration for smart rendering (using exact Supabase snake_case column names)
 const FIELD_CONFIG: Record<string, {
@@ -128,6 +128,85 @@ interface DemographicsCarouselProps {
   isEditingDemographics: boolean;
   setIsEditingDemographics: (editing: boolean) => void;
 }
+
+// â”€â”€ Section header: bold uppercase + full-width rule (LaTeX \section style)
+const DocSection = ({ title, accent = 'bg-slate-700', children }: { title: string; accent?: string; children: React.ReactNode }) => (
+  <div className="flex flex-col gap-4">
+    <div className="flex items-center gap-2.5">
+      <div className={`w-[3px] h-[18px] rounded-full shrink-0 ${accent}`} />
+      <span className="text-[9.5px] font-black uppercase tracking-[0.22em] text-slate-600">{title}</span>
+      <div className="flex-1 h-px bg-slate-800/20" />
+    </div>
+    {children}
+  </div>
+);
+
+// â”€â”€ Symptom chip: colored pill (LaTeX certstyle equivalent)
+const SymptomChip = ({ label, selected }: { label: string; selected: boolean }) => (
+  <span className={`inline-flex items-center gap-1.5 px-2.5 py-[5px] text-[9.5px] font-bold uppercase tracking-wide border rounded-[3px] transition-all duration-150 select-none ${
+    selected ? 'bg-red-50 border-red-400 text-red-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-400'
+  }`}>
+    {selected ? <Check className="w-2.5 h-2.5 shrink-0" strokeWidth={3}/> : <Minus className="w-2.5 h-2.5 shrink-0" strokeWidth={2}/>}
+    {label}
+  </span>
+);
+
+// â”€â”€ Data field: label over value, view or edit
+const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, span = 1 }: {
+  label: string; value: any; fieldKey: string;
+  editable?: boolean; isEditing?: boolean;
+  onChange?: (k: string, v: any) => void; span?: number;
+}) => {
+  const cfg = FIELD_CONFIG[fieldKey];
+  const ftype = cfg?.type ?? 'text';
+  const fopts = cfg?.options;
+  const showInput = editable && !cfg?.readOnly && isEditing && onChange;
+  const toBool = (v: any) => v === true || v === 1 || v === 'true' || v === 'yes' || v === 'Yes';
+  const missing = value === null || value === undefined || value === '';
+  const inputCls = 'w-full text-[12px] font-semibold text-slate-800 bg-white border border-slate-300 rounded px-2 py-1.5 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-300 transition-all shadow-sm';
+  return (
+    <div className="flex flex-col gap-1 min-w-0" style={span > 1 ? { gridColumn: `span ${span}` } : {}}>
+      <span className="text-[8.5px] font-extrabold uppercase tracking-[0.2em] text-slate-400">{label}</span>
+      {showInput ? (
+        ftype === 'checkbox' ? (
+          <button type="button" onClick={() => onChange!(fieldKey, !toBool(value))}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 focus:outline-none ${
+              toBool(value) ? 'bg-emerald-500 border-emerald-500' : 'bg-slate-200 border-slate-300'
+            }`}>
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition duration-200 ${toBool(value) ? 'translate-x-4' : 'translate-x-0'}`} />
+          </button>
+        ) : fopts ? (
+          <div className="relative">
+            <select value={value ?? ''} onChange={e => onChange!(fieldKey, e.target.value)} className={inputCls + ' appearance-none pr-7 cursor-pointer'}>
+              <option value="" disabled>Selectâ€¦</option>
+              {fopts.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+            <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+          </div>
+        ) : (
+          <input type={ftype === 'number' ? 'number' : ftype === 'date' ? 'date' : 'text'}
+            value={value ?? ''}
+            onChange={e => onChange!(fieldKey, ftype === 'number' ? Number(e.target.value) : e.target.value)}
+            placeholder={cfg?.placeholder ?? `Enter ${label.toLowerCase()}`}
+            className={inputCls} />
+        )
+      ) : (
+        <div className="text-[13px] font-semibold text-slate-900 leading-snug break-words">
+          {missing ? (
+            <span className="text-slate-400 font-medium italic text-[11px]">Not recorded</span>
+          ) : ftype === 'checkbox' ? (
+            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${
+              toBool(value) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${toBool(value) ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+              {toBool(value) ? 'Yes' : 'No'}
+            </span>
+          ) : value}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Chapter = ({ title, icon: Icon, children }: { title: string, icon: any, children: React.ReactNode }) => (
   <div className="flex flex-col">
@@ -327,206 +406,197 @@ export function DemographicsCarousel({
 
   if (!patient) return null;
 
+  const gv = getValue;
+  const E = isEditingDemographics;
+  const H = handleFieldChange;
+  const name    = gv('inmate_name', patient?.inmate_name) || 'Unknown Patient';
+  const uid     = gv('unique_id', patient?.unique_id || patient?.serial_number);
+  const age     = gv('age', patient?.age);
+  const sex     = gv('sex', patient?.sex);
+  const facility= gv('facility_name', patient?.facility_name);
+  const ftype   = gv('facility_type', patient?.facility_type);
+  const state   = gv('screening_state', patient?.screening_state);
+  const xray    = gv('xray_result', patient?.xray_result);
+  const hiv     = gv('hiv_status', patient?.hiv_status);
+  const tbDx    = gv('tb_diagnosed_select', gv('tb_diagnosed', patient?.tb_diagnosed));
+  const sDate   = gv('screening_date', patient?.screening_date);
+  const isTBDx  = toBool(tbDx) || tbDx === 'Yes';
+  const isHIV   = hiv === 'Positive';
+  const isSusp  = xray === 'Suspected TB Case';
+  const symCount= Object.values(parsedSymptoms).filter(Boolean).length;
+
   return (
-    <div className="flex flex-col w-full h-full relative overflow-hidden bg-slate-50/50">
-      <motion.div 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex-1 overflow-y-auto px-4 md:px-8 py-8 pb-32 hide-scrollbar"
+    <div className="flex flex-col w-full h-full relative overflow-hidden" style={{ background: '#edecea' }}>
+      <motion.div
+        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
+        className="flex-1 overflow-y-auto px-3 py-4 pb-28 hide-scrollbar"
       >
-        <div className="max-w-5xl mx-auto">
-          
-          {/* Single Page Document Surface with Liquid Metal Border */}
-          <div className="relative p-[2px] rounded-xl mb-8 group">
-            {/* Animated gradient border */}
-            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-slate-200 via-indigo-200 to-slate-200 opacity-60 group-hover:opacity-100 transition-opacity duration-500" 
-                 style={{
-                   backgroundSize: '200% 100%',
-                   animation: 'shimmer 3s linear infinite'
-                 }} />
-            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-indigo-500/20 via-purple-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-500" />
-            
-            <div className="relative bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden flex flex-col">
-             
-             {/* Document Header Zone */}
-             <div className="bg-slate-900 px-6 sm:px-10 py-8 flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b-[5px] border-indigo-500 relative overflow-hidden">
-               {/* Soft glow accent in background */}
-               <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 blur-[80px] rounded-full pointer-events-none" />
-               
-               <div className="flex flex-col gap-2.5 relative z-10">
-                  <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-                    {getValue('inmate_name', patient?.inmate_name) || 'Unknown Patient'}
-                  </h1>
-                  <div className="flex flex-wrap items-center gap-3 text-[13px] font-semibold text-slate-300">
-                    <span className="flex items-center gap-1.5"><Hash className="w-4 h-4 text-indigo-400"/> ID: {getValue('unique_id', patient?.unique_id || patient?.serial_number)}</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
-                    <span className="flex items-center gap-1.5"><User className="w-4 h-4 text-indigo-400"/> {getValue('age', patient?.age)} Yrs • {getValue('sex', patient?.sex)}</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
-                    <span className="flex items-center gap-1.5"><Building2 className="w-4 h-4 text-indigo-400"/> {getValue('facility_name', patient?.facility_name)}</span>
-                  </div>
-               </div>
-               
-               <div className="flex items-center gap-2 relative z-10">
-                  {toBool(getValue('tb_diagnosed_select', getValue('tb_diagnosed', patient?.tb_diagnosed))) && (
-                    <span className="px-3 py-1.5 bg-red-500/10 text-red-400 rounded-lg font-bold text-[11px] uppercase tracking-wider border border-red-500/20 flex items-center gap-1.5">
-                      <Activity className="w-3.5 h-3.5" />
-                      TB Diagnosed
+        {/* â”€â”€ DOCUMENT â”€â”€ */}
+        <div className="bg-white border border-slate-300/80 shadow-[0_3px_20px_rgba(0,0,0,0.09)] overflow-hidden" style={{ borderRadius: 2 }}>
+
+          {/* â•â• HEADER: name panel left + status box right â•â• */}
+          <div className="flex items-stretch">
+            {/* Left dark panel */}
+            <div className="flex-1 px-6 py-6 flex flex-col justify-between" style={{ background: '#111827' }}>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 mb-1">Patient Clinical Record</p>
+                <h1 className="text-[28px] font-black text-white leading-tight tracking-tight mb-3">{name}</h1>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-semibold text-slate-400">
+                  {[ftype, facility, state].filter(Boolean).map((v, i) => (
+                    <span key={i} className="flex items-center gap-1">
+                      <span className="w-1 h-1 rounded-full bg-slate-600 shrink-0" />{v}
                     </span>
-                  )}
-                  {getValue('hiv_status', patient?.hiv_status) === 'Positive' && (
-                    <span className="px-3 py-1.5 bg-pink-500/10 text-pink-400 rounded-lg font-bold text-[11px] uppercase tracking-wider border border-pink-500/20 flex items-center gap-1.5">
-                      <Shield className="w-3.5 h-3.5" />
-                      HIV Positive
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-x-5 gap-y-1 mt-4 text-[11px] font-semibold text-slate-400">
+                {age  && <span className="text-white/70">Age: <strong className="text-white">{age}</strong></span>}
+                {sex  && <span className="text-white/70">Sex: <strong className="text-white">{sex}</strong></span>}
+                {uid  && <span className="text-white/70">ID: <strong className="text-white font-mono">{uid}</strong></span>}
+                {sDate&& <span className="text-white/70">Screened: <strong className="text-white">{sDate}</strong></span>}
+              </div>
+            </div>
+
+            {/* Right: clinical status box (LaTeX tcolorbox equivalent) */}
+            <div className="w-52 shrink-0 border-l-4 border-slate-700 bg-slate-50 px-4 py-4 flex flex-col gap-2.5">
+              <p className="text-[8px] font-black uppercase tracking-[0.25em] text-slate-400 mb-1">Clinical Status</p>
+              {[
+                { label: 'X-Ray',       val: xray,  flag: isSusp, flagColor: 'text-amber-700 bg-amber-50 border-amber-300' },
+                { label: 'HIV',         val: hiv,   flag: isHIV,  flagColor: 'text-pink-700 bg-pink-50 border-pink-300'   },
+                { label: 'TB Dx',       val: tbDx,  flag: isTBDx, flagColor: 'text-red-700 bg-red-50 border-red-300'      },
+                { label: 'Symptoms',    val: `${symCount} / 10`, flag: symCount >= 3, flagColor: 'text-orange-700 bg-orange-50 border-orange-300' },
+              ].map(({ label, val, flag, flagColor }) => (
+                <div key={label} className="flex items-center justify-between gap-2">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 shrink-0">{label}</span>
+                  {val ? (
+                    <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded border ${flag ? flagColor : 'text-emerald-700 bg-emerald-50 border-emerald-200'}`}>
+                      {flag && 'âš‘ '}{String(val)}
                     </span>
-                  )}
-               </div>
-             </div>
-
-             {/* Document Body */}
-             <div className="p-6 sm:p-10 flex flex-col gap-12">
-                
-                <Chapter title="Identity & Contact" icon={User}>
-                  <DataField label="Father / Husband" value={getValue('father_husband_name', patient?.father_husband_name)} fieldKey="father_husband_name" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="Date of Birth" value={getValue('date_of_birth', patient?.date_of_birth)} fieldKey="date_of_birth" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="Age" value={getValue('age', patient?.age)} fieldKey="age" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="Sex" value={getValue('sex', patient?.sex)} fieldKey="sex" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="Inmate Type" value={getValue('inmate_type', patient?.inmate_type)} fieldKey="inmate_type" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  {getValue('inmate_type', patient?.inmate_type) === 'Other' && (
-                    <DataField label="Specify Other Type" value={getValue('inmate_type_other', patient?.inmate_type_other)} fieldKey="inmate_type_other" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  )}
-                  <DataField label="Contact Number" value={getValue('contact_number', patient?.contact_number)} fieldKey="contact_number" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  
-                  <div className="col-span-1 sm:col-span-2 lg:col-span-3 mt-2">
-                    <DataField label="Full Address" value={getFullAddress()} fieldKey="address" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  </div>
-                </Chapter>
-
-                <Chapter title="Screening Encounter" icon={Activity}>
-                  <DataField label="Screening Date" value={getValue('screening_date', patient?.screening_date)} fieldKey="screening_date" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="Facility Type" value={getValue('facility_type', patient?.facility_type)} fieldKey="facility_type" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="Screening State" value={getValue('screening_state', patient?.screening_state)} fieldKey="screening_state" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  {getValue('screening_state', patient?.screening_state) === 'Other' && (
-                    <DataField label="Specify Other State" value={getValue('screening_state_other', patient?.screening_state_other)} fieldKey="screening_state_other" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  )}
-                  <DataField label="Screening District" value={getValue('screening_district', patient?.screening_district)} fieldKey="screening_district" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  {getValue('screening_district', patient?.screening_district) === 'Other' && (
-                    <DataField label="Specify Other District" value={getValue('screening_district_other', patient?.screening_district_other)} fieldKey="screening_district_other" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  )}
-                  <DataField label="Staff Name" value={getValue('staff_name', patient?.staff_name)} fieldKey="staff_name" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="Submitted On" value={getValue('submitted_on', patient?.submitted_on)} fieldKey="submitted_on" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                </Chapter>
-
-                <Chapter title="TB 10S Symptoms Checklist" icon={ClipboardList}>
-                  <div className="col-span-1 sm:col-span-2 lg:col-span-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-1">
-                      {SYMPTOMS_MASTER.map(sym => (
-                        <ChecklistItem key={sym.id} label={sym.label} isSelected={parsedSymptoms[sym.id]} />
-                      ))}
-                    </div>
-                  </div>
-                </Chapter>
-
-                <Chapter title="Diagnostics & Treatment" icon={FileText}>
-                  <DataField label="X-Ray Result" value={getValue('xray_result', patient?.xray_result)} fieldKey="xray_result" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="Sputum Collected" value={getValue('sputum_collected_select', getValue('sputum_collected', patient?.sputum_collected))} fieldKey="sputum_collected_select" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="TB Past History" value={getValue('tb_past_history', patient?.tb_past_history)} fieldKey="tb_past_history" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="TB Diagnosed" value={getValue('tb_diagnosed_select', getValue('tb_diagnosed', patient?.tb_diagnosed))} fieldKey="tb_diagnosed_select" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="Diagnosis Date" value={getValue('diagnosis_date', patient?.diagnosis_date)} fieldKey="diagnosis_date" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="ATT Start Date" value={getValue('att_start_date', patient?.att_start_date)} fieldKey="att_start_date" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  
-                  <div className="col-span-1 sm:col-span-2">
-                    <DataField label="Treatment Regimen" value={getValue('treatment_regimen', patient?.treatment_regimen)} fieldKey="treatment_regimen" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  </div>
-
-                  <DataField label="Referral Date" value={getValue('referral_date', patient?.referral_date)} fieldKey="referral_date" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <div className="col-span-1 sm:col-span-2">
-                     <DataField label="Referred To" value={getValue('referred_to_facility', patient?.referred_to_facility)} fieldKey="referred_to_facility" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                     {getValue('referred_to_facility', patient?.referred_to_facility) === 'Other' && (
-                       <div className="mt-4">
-                         <DataField label="Specify Other Facility" value={getValue('referred_to_facility_other', patient?.referred_to_facility_other)} fieldKey="referred_to_facility_other" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                       </div>
-                     )}
-                  </div>
-                  <DataField label="AI Confidence Score" value={getValue('ai_confidence_score', patient?.ai_confidence_score)} fieldKey="ai_confidence_score" editable={false} isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                </Chapter>
-
-                <Chapter title="HIV / ART Status" icon={Shield}>
-                  <DataField label="HIV Status" value={getValue('hiv_status', patient?.hiv_status)} fieldKey="hiv_status" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="ART Started" value={getValue('art_started', patient?.art_started)} fieldKey="art_started" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="ART Center" value={getValue('art_center', patient?.art_center)} fieldKey="art_center" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="CPT Given" value={getValue('cpt_given', patient?.cpt_given)} fieldKey="cpt_given" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                </Chapter>
-
-                <Chapter title="Registration & System" icon={Settings2}>
-                  <DataField label="Nikshay ID" value={getValue('nikshay_id', patient?.nikshay_id)} fieldKey="nikshay_id" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="ABHA ID" value={getValue('abha_id', patient?.abha_id)} fieldKey="abha_id" editable isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                  <DataField label="Kobo UUID" value={getValue('kobo_uuid', patient?.kobo_uuid)} fieldKey="kobo_uuid" editable={false} isEditing={isEditingDemographics} onChange={handleFieldChange} />
-                </Chapter>
-
-             </div>
+                  ) : <span className="text-[10px] italic text-slate-400">â€”</span>}
+                </div>
+              ))}
+            </div>
           </div>
-          </div>
-        </div>
+
+          {/* â•â• BODY â•â• */}
+          <div className="px-6 py-7 flex flex-col gap-8">
+
+            {/* Â§ Identity & Contact */}
+            <DocSection title="Identity & Contact" accent="bg-violet-500">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-5">
+                <Field label="Father / Husband"  value={gv('father_husband_name', patient?.father_husband_name)} fieldKey="father_husband_name" editable isEditing={E} onChange={H} />
+                <Field label="Date of Birth"      value={gv('date_of_birth', patient?.date_of_birth)}            fieldKey="date_of_birth"      editable isEditing={E} onChange={H} />
+                <Field label="Age"                value={gv('age', patient?.age)}                                fieldKey="age"                 editable isEditing={E} onChange={H} />
+                <Field label="Sex"                value={gv('sex', patient?.sex)}                                fieldKey="sex"                 editable isEditing={E} onChange={H} />
+                <Field label="Inmate Type"        value={gv('inmate_type', patient?.inmate_type)}                fieldKey="inmate_type"         editable isEditing={E} onChange={H} />
+                <Field label="Contact"            value={gv('contact_number', patient?.contact_number)}          fieldKey="contact_number"      editable isEditing={E} onChange={H} />
+                {gv('inmate_type', patient?.inmate_type) === 'Other' && (
+                  <Field label="Specify Type"     value={gv('inmate_type_other', patient?.inmate_type_other)}    fieldKey="inmate_type_other"   editable isEditing={E} onChange={H} />
+                )}
+              </div>
+              <div className="mt-4">
+                <Field label="Full Address" value={getFullAddress()} fieldKey="address" editable isEditing={E} onChange={H} />
+              </div>
+            </DocSection>
+
+            {/* Â§ Screening Encounter */}
+            <DocSection title="Screening Encounter" accent="bg-amber-500">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-5">
+                <Field label="Screening Date"     value={gv('screening_date', patient?.screening_date)}          fieldKey="screening_date"      editable isEditing={E} onChange={H} />
+                <Field label="Facility Name"      value={gv('facility_name', patient?.facility_name)}            fieldKey="facility_name"       editable isEditing={E} onChange={H} />
+                <Field label="Facility Type"      value={gv('facility_type', patient?.facility_type)}            fieldKey="facility_type"       editable isEditing={E} onChange={H} />
+                <Field label="Screening State"    value={gv('screening_state', patient?.screening_state)}        fieldKey="screening_state"     editable isEditing={E} onChange={H} />
+                <Field label="Screening District" value={gv('screening_district', patient?.screening_district)}  fieldKey="screening_district"  editable isEditing={E} onChange={H} />
+                <Field label="Staff Name"         value={gv('staff_name', patient?.staff_name)}                  fieldKey="staff_name"          editable isEditing={E} onChange={H} />
+                <Field label="Submitted On"       value={gv('submitted_on', patient?.submitted_on)}              fieldKey="submitted_on"        editable isEditing={E} onChange={H} />
+                {gv('screening_state', patient?.screening_state) === 'Other' && (
+                  <Field label="Specify State"    value={gv('screening_state_other', patient?.screening_state_other)} fieldKey="screening_state_other" editable isEditing={E} onChange={H} />
+                )}
+                {gv('screening_district', patient?.screening_district) === 'Other' && (
+                  <Field label="Specify District" value={gv('screening_district_other', patient?.screening_district_other)} fieldKey="screening_district_other" editable isEditing={E} onChange={H} />
+                )}
+              </div>
+            </DocSection>
+
+            {/* Â§ 10S Symptom Checklist */}
+            <DocSection title="10S Symptom Checklist" accent="bg-red-500">
+              <div className="flex flex-wrap gap-2">
+                {SYMPTOMS_MASTER.map(s => <SymptomChip key={s.id} label={s.label} selected={parsedSymptoms[s.id]} />)}
+              </div>
+              {symCount >= 3 && (
+                <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-[3px]">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-red-700">âš‘ High Risk â€” {symCount} symptoms present. Prioritise immediate referral.</span>
+                </div>
+              )}
+            </DocSection>
+
+            {/* Â§ Diagnostics & Treatment */}
+            <DocSection title="Diagnostics & Treatment" accent="bg-sky-500">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-5">
+                <Field label="X-Ray Result"       value={gv('xray_result', patient?.xray_result)}                fieldKey="xray_result"         editable isEditing={E} onChange={H} />
+                <Field label="Sputum Collected"   value={gv('sputum_collected_select', gv('sputum_collected', patient?.sputum_collected))} fieldKey="sputum_collected_select" editable isEditing={E} onChange={H} />
+                <Field label="TB Past History"    value={gv('tb_past_history', patient?.tb_past_history)}        fieldKey="tb_past_history"     editable isEditing={E} onChange={H} />
+                <Field label="TB Diagnosed"       value={gv('tb_diagnosed_select', gv('tb_diagnosed', patient?.tb_diagnosed))} fieldKey="tb_diagnosed_select" editable isEditing={E} onChange={H} />
+                <Field label="Diagnosis Date"     value={gv('diagnosis_date', patient?.diagnosis_date)}          fieldKey="diagnosis_date"      editable isEditing={E} onChange={H} />
+                <Field label="ATT Start Date"     value={gv('att_start_date', patient?.att_start_date)}          fieldKey="att_start_date"      editable isEditing={E} onChange={H} />
+                <Field label="Referral Date"      value={gv('referral_date', patient?.referral_date)}            fieldKey="referral_date"       editable isEditing={E} onChange={H} />
+                <Field label="Referred To"        value={gv('referred_to_facility', patient?.referred_to_facility)} fieldKey="referred_to_facility" editable isEditing={E} onChange={H} />
+                <Field label="AI Confidence"      value={gv('ai_confidence_score', patient?.ai_confidence_score)} fieldKey="ai_confidence_score" isEditing={E} onChange={H} />
+                {gv('referred_to_facility', patient?.referred_to_facility) === 'Other' && (
+                  <Field label="Specify Facility" value={gv('referred_to_facility_other', patient?.referred_to_facility_other)} fieldKey="referred_to_facility_other" editable isEditing={E} onChange={H} />
+                )}
+              </div>
+              <div className="mt-4">
+                <Field label="Treatment Regimen" value={gv('treatment_regimen', patient?.treatment_regimen)} fieldKey="treatment_regimen" editable isEditing={E} onChange={H} />
+              </div>
+            </DocSection>
+
+            {/* Â§ HIV / ART */}
+            <DocSection title="HIV / ART Status" accent="bg-pink-500">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-5">
+                <Field label="HIV Status"   value={gv('hiv_status', patient?.hiv_status)}   fieldKey="hiv_status"  editable isEditing={E} onChange={H} />
+                <Field label="ART Started"  value={gv('art_started', patient?.art_started)}  fieldKey="art_started" editable isEditing={E} onChange={H} />
+                <Field label="ART Center"   value={gv('art_center', patient?.art_center)}    fieldKey="art_center"  editable isEditing={E} onChange={H} />
+                <Field label="CPT Given"    value={gv('cpt_given', patient?.cpt_given)}      fieldKey="cpt_given"   editable isEditing={E} onChange={H} />
+              </div>
+            </DocSection>
+
+            {/* Â§ Registration & System */}
+            <DocSection title="Registration & System" accent="bg-teal-500">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-5">
+                <Field label="Nikshay ID"   value={gv('nikshay_id', patient?.nikshay_id)}   fieldKey="nikshay_id"  editable isEditing={E} onChange={H} />
+                <Field label="ABHA ID"      value={gv('abha_id', patient?.abha_id)}          fieldKey="abha_id"     editable isEditing={E} onChange={H} />
+                <Field label="Kobo UUID"    value={gv('kobo_uuid', patient?.kobo_uuid)}      fieldKey="kobo_uuid"   isEditing={E} onChange={H} />
+              </div>
+            </DocSection>
+
+          </div>{/* /body */}
+        </div>{/* /document */}
       </motion.div>
-      
-      <style jsx>{`
-        @keyframes shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-      `}</style>
 
-      {/* Fixed Action Bar */}
-      <div className="absolute bottom-0 left-0 w-full flex items-center gap-3 px-6 py-4 bg-white/90 backdrop-blur-md border-t border-slate-200 z-30 shadow-[0_-8px_30px_rgb(0,0,0,0.06)]">
-        <button 
-          className="flex-1 flex items-center justify-center gap-2 h-11 rounded-xl transition-all duration-300 font-bold text-[11px] uppercase tracking-[0.1em]"
-          style={{
-            border: `1.5px solid ${isEditingDemographics ? '#10b98140' : '#e2e8f0'}`,
-            backgroundColor: isEditingDemographics ? '#10b98110' : '#f8fafc',
-            color: isEditingDemographics ? '#10b981' : '#64748b'
-          }}
-          onClick={() => setIsEditingDemographics(!isEditingDemographics)}
+      {/* â•â• ACTION BAR â•â• */}
+      <div className="absolute bottom-0 left-0 w-full flex items-center gap-2.5 px-5 py-3.5 bg-white/95 backdrop-blur-md border-t border-slate-200 z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.07)]">
+        <button
+          className="flex-1 flex items-center justify-center gap-2 h-10 rounded font-bold text-[10px] uppercase tracking-[0.12em] transition-all duration-200 border"
+          style={{ borderColor: E ? '#10b98150' : '#e2e8f0', backgroundColor: E ? '#f0fdf4' : '#f8fafc', color: E ? '#059669' : '#64748b' }}
+          onClick={() => setIsEditingDemographics(!E)}
         >
-          {isEditingDemographics ? (
-            <>
-              <Lock className="w-4 h-4" />
-              <span>Lock Editing</span>
-            </>
-          ) : (
-            <>
-              <Unlock className="w-4 h-4" />
-              <span>Unlock to Edit</span>
-            </>
-          )}
+          {E ? <><Lock className="w-3.5 h-3.5"/><span>Lock Editing</span></> : <><Unlock className="w-3.5 h-3.5"/><span>Unlock to Edit</span></>}
         </button>
-
-        <button 
-          className="flex-1 flex items-center justify-center gap-2 h-11 rounded-xl border border-red-200 text-red-500 font-bold text-[11px] uppercase tracking-[0.1em] hover:bg-red-50 hover:border-red-300 transition-all duration-300 shadow-sm"
-          onClick={() => {
-            document.dispatchEvent(new CustomEvent('openCloseLoopModal'));
-          }}
+        <button
+          className="flex-1 flex items-center justify-center gap-2 h-10 rounded font-bold text-[10px] uppercase tracking-[0.12em] border border-red-200 text-red-500 hover:bg-red-50 transition-all duration-200"
+          onClick={() => document.dispatchEvent(new CustomEvent('openCloseLoopModal'))}
         >
-          <XCircle className="w-4 h-4" />
-          <span>Close Loop</span>
+          <XCircle className="w-3.5 h-3.5"/><span>Close Loop</span>
         </button>
-
-        <button 
-          className="flex-[2] relative flex items-center justify-center gap-2 h-11 rounded-xl font-bold text-[11px] uppercase tracking-[0.1em] text-white overflow-hidden group transition-all duration-300 shadow-[0_4px_14px_rgb(15,23,42,0.15)] hover:shadow-[0_8px_20px_rgb(15,23,42,0.25)] hover:-translate-y-px active:translate-y-0"
-          style={{
-            background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)'
-          }}
-          onClick={() => {
-            if (isEditingDemographics) {
-              document.dispatchEvent(new CustomEvent('saveDemographicsEvent'));
-              setIsEditingDemographics(false);
-            } else {
-              document.dispatchEvent(new CustomEvent('submitClinicalUpdateEvent'));
-            }
-          }}
+        <button
+          className="flex-[2] relative flex items-center justify-center gap-2 h-10 rounded font-bold text-[10px] uppercase tracking-[0.12em] text-white overflow-hidden group transition-all duration-200 shadow-[0_2px_10px_rgba(15,23,42,0.2)] hover:-translate-y-px"
+          style={{ background: 'linear-gradient(135deg,#0f172a,#1e293b)' }}
+          onClick={() => { if (E) { document.dispatchEvent(new CustomEvent('saveDemographicsEvent')); setIsEditingDemographics(false); } else { document.dispatchEvent(new CustomEvent('submitClinicalUpdateEvent')); } }}
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[200%] group-hover:translate-x-[200%] transition-transform duration-700 ease-in-out" />
-          <CheckCircle2 className="w-4 h-4 text-white/80" />
-          <span>{isEditingDemographics ? 'Save Changes' : 'Submit Update'}</span>
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+          <CheckCircle2 className="w-3.5 h-3.5 text-white/80"/>
+          <span>{E ? 'Save Changes' : 'Submit Update'}</span>
         </button>
       </div>
     </div>
