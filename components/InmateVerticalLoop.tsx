@@ -141,7 +141,7 @@ export function InmateVerticalLoop({ patients, onPatientClick, className }: Inma
           });
           totalHeight = getTotalHeight();
         },
-        timeWrap: (val: number) => val,
+        timeWrap = (wrapVal: number) => wrapVal,
         populateOffsets = () => {
           timeOffset = center ? tl.duration() * ((container as HTMLElement).offsetHeight / 2) / totalHeight : 0;
           center && times.forEach((t, i) => {
