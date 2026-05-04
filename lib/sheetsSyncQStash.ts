@@ -32,13 +32,30 @@ function getQStashClient(): Client | null {
   if (qstashClient) return qstashClient;
   
   const token = process.env.QSTASH_TOKEN;
+  
+  // Detailed logging for debugging
+  console.log('[QStash] 🔍 Environment check:', {
+    hasToken: !!token,
+    tokenLength: token?.length || 0,
+    tokenPrefix: token?.substring(0, 10) || 'none',
+    nodeEnv: process.env.NODE_ENV,
+    runtime: process.env.NEXT_RUNTIME,
+  });
+  
   if (!token) {
-    console.warn('[QStash] ⚠️ QSTASH_TOKEN not configured');
+    console.error('[QStash] ❌ QSTASH_TOKEN not found in environment variables');
+    console.error('[QStash] 📋 Available env vars:', Object.keys(process.env).filter(k => k.includes('QSTASH')));
     return null;
   }
   
-  qstashClient = new Client({ token });
-  return qstashClient;
+  try {
+    qstashClient = new Client({ token });
+    console.log('[QStash] ✅ Client initialized successfully');
+    return qstashClient;
+  } catch (error: any) {
+    console.error('[QStash] ❌ Failed to initialize client:', error.message);
+    return null;
+  }
 }
 
 /**
@@ -49,11 +66,16 @@ export async function queuePatientSyncQStash(
   patient: PatientRecord,
   operation: 'insert' | 'update'
 ): Promise<{ queued: boolean; messageId?: string; error?: string }> {
+  console.log('[QStash] 🚀 Starting queue operation for patient:', patient.id);
+  
   const client = getQStashClient();
   
   if (!client) {
+    console.error('[QStash] ❌ Client is null, cannot queue');
     return { queued: false, error: 'QStash not configured' };
   }
+  
+  console.log('[QStash] ✅ Client obtained, proceeding with publish');
   
   try {
     // Get webhook endpoint URL
@@ -61,8 +83,14 @@ export async function queuePatientSyncQStash(
       ? `https://${process.env.VERCEL_URL}` 
       : process.env.NEXTAUTH_URL;
     
+    console.log('[QStash] 🌐 URL resolution:', {
+      vercelUrl: process.env.VERCEL_URL,
+      nextauthUrl: process.env.NEXTAUTH_URL,
+      resolvedBase: baseUrl,
+    });
+    
     if (!baseUrl) {
-      console.error('[QStash] ❌ No base URL found. VERCEL_URL:', process.env.VERCEL_URL, 'NEXTAUTH_URL:', process.env.NEXTAUTH_URL);
+      console.error('[QStash] ❌ No base URL found');
       return { queued: false, error: 'Base URL not configured' };
     }
     
@@ -84,22 +112,36 @@ export async function queuePatientSyncQStash(
       timestamp: Date.now(),
     };
     
+    console.log('[QStash] 📦 Payload prepared:', {
+      patientId: patient.id,
+      operation,
+      payloadSize: JSON.stringify(payload).length,
+    });
+    
     // Publish to QStash with retries
+    console.log('[QStash] 🔄 Calling client.publishJSON...');
+    
     const result = await client.publishJSON({
       url: webhookUrl,
       body: payload,
-      retries: 3, // Retry 3 times with exponential backoff
-      deduplicationId: `patient-${patient.id}-${Date.now()}`, // Prevent duplicates
+      retries: 3,
+      deduplicationId: `patient-${patient.id}-${Date.now()}`,
       headers: {
         'Content-Type': 'application/json',
       },
     });
     
-    console.log(`[QStash] ✅ Queued patient ${patient.id} (messageId: ${result.messageId})`);
+    console.log('[QStash] ✅ Queued patient', patient.id, 'messageId:', result.messageId);
+    console.log('[QStash] 📊 Full result:', result);
     
     return { queued: true, messageId: result.messageId };
   } catch (error: any) {
-    console.error('[QStash] ❌ Failed to queue:', error.message);
+    console.error('[QStash] ❌ Failed to queue:', {
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+      patientId: patient.id,
+    });
     return { queued: false, error: error.message };
   }
 }
@@ -108,13 +150,22 @@ export async function queuePatientSyncQStash(
  * Fire-and-forget wrapper (never throws)
  */
 export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 'update'): void {
+  console.log('[QStash] 🎯 syncToSheetsAsync called for patient:', patient.id, 'operation:', operation);
+  
   queuePatientSyncQStash(patient, operation)
     .then(result => {
       if (!result.queued) {
-        console.warn(`[QStash] ⚠️ Sync not queued: ${result.error}`);
+        console.warn('[QStash] ⚠️ Sync not queued:', result.error);
+        console.warn('[QStash] 📋 Patient data:', { id: patient.id, name: patient.inmate_name });
+      } else {
+        console.log('[QStash] ✅ Sync queued successfully:', result.messageId);
       }
     })
     .catch(err => {
-      console.error('[QStash] ❌ Unexpected error:', err);
+      console.error('[QStash] ❌ Unexpected error in syncToSheetsAsync:', {
+        error: err.message,
+        stack: err.stack,
+        patientId: patient.id,
+      });
     });
 }
