@@ -57,12 +57,17 @@ export async function queuePatientSyncQStash(
   
   try {
     // Get webhook endpoint URL
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL;
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : process.env.NEXTAUTH_URL;
+    
     if (!baseUrl) {
+      console.error('[QStash] ❌ No base URL found. VERCEL_URL:', process.env.VERCEL_URL, 'NEXTAUTH_URL:', process.env.NEXTAUTH_URL);
       return { queued: false, error: 'Base URL not configured' };
     }
     
     const webhookUrl = `${baseUrl}/api/internal/process-sheets-sync`;
+    console.log('[QStash] 📤 Publishing to:', webhookUrl);
     
     // Minimal payload
     const payload = {
