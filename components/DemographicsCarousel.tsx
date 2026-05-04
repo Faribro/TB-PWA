@@ -19,7 +19,32 @@ const FIELD_CONFIG: Record<string, {
   // Select fields
   sex: {
     type: 'select',
-    options: ['Male', 'Female', 'Transgender']
+    options: ['Male', 'Female', 'TG']
+  },
+  screening_state: {
+    type: 'select',
+    options: ['Gujarat', 'Maharashtra', 'Madhya Pradesh', 'Uttar Pradesh', 'Rajasthan', 'Bihar', 'Uttarakhand', 'Jammu and Kashmir', 'Ladakh', 'Goa', 'Chandigarh', 'DD & DNH', 'Mumbai', 'Mizoram', 'Manipur', 'Other']
+  },
+  screening_district: {
+    type: 'select',
+    options: [
+      // Gujarat
+      'Ahmedabad', 'Surat', 'Vadodara', 'Rajkot', 'Bhavnagar', 'Jamnagar', 'Junagadh', 'Gandhinagar', 'Anand', 'Mehsana',
+      // Maharashtra
+      'Mumbai City', 'Pune', 'Nagpur', 'Thane', 'Nashik', 'Chhatrapati Sambhajinagar (Aurangabad)', 'Solapur', 'Kolhapur',
+      // Madhya Pradesh
+      'Indore', 'Bhopal', 'Jabalpur', 'Gwalior', 'Ujjain', 'Dewas', 'Sagar',
+      // Other
+      'Other'
+    ]
+  },
+  facility_type: {
+    type: 'select',
+    options: ['Central Jail', 'District Jail', 'Sub Jail', 'Special Jail', 'Open Jail', 'Borstal Jail', 'Women Jail', 'Other Jail', 'Shakti Sadan', 'Swadhar Greh', 'Ujjawala Home', 'Nari Niketan', 'One Stop Center', 'Other State Run Home', 'Juvenile Homes & CCI', 'DDRC/DDAC/Pvt. DAC', 'Others']
+  },
+  inmate_type: {
+    type: 'select',
+    options: ['Under Trial', 'Convicted', 'Other']
   },
   hiv_status: {
     type: 'select',
@@ -27,7 +52,7 @@ const FIELD_CONFIG: Record<string, {
   },
   xray_result: {
     type: 'select',
-    options: ['Normal', 'Suspected TB Case', 'Other Abnormality']
+    options: ['Normal', 'Suspected TB Case']
   },
   tb_past_history: {
     type: 'select',
@@ -44,6 +69,15 @@ const FIELD_CONFIG: Record<string, {
     type: 'select',
     options: ['Yes', 'No']
   },
+  referred_to_facility: {
+    type: 'select',
+    options: ['DMC-Designated microscopy centre', 'TDC-TB Diagnostic Centre', 'CBNAAT', 'DST-Drug susceptibility testing', 'Radiology', 'Histopathology', 'ART Centre', 'Pvt. & Others', 'Other']
+  },
+  // Text fields for "Other" specifications
+  screening_state_other: { type: 'text', placeholder: 'Specify other state' },
+  screening_district_other: { type: 'text', placeholder: 'Specify other district' },
+  inmate_type_other: { type: 'text', placeholder: 'Specify other inmate type' },
+  referred_to_facility_other: { type: 'text', placeholder: 'Specify other facility' },
 
   // Date fields
   screening_date: { type: 'date' },
@@ -60,17 +94,12 @@ const FIELD_CONFIG: Record<string, {
 
   // Text fields (explicit for clarity)
   inmate_name: { type: 'text' },
-  inmate_type: { type: 'text' },
   father_husband_name: { type: 'text' },
   contact_number: { type: 'text' },
   address: { type: 'text' },
   staff_name: { type: 'text' },
-  screening_state: { type: 'text' },
-  screening_district: { type: 'text' },
   facility_name: { type: 'text' },
-  facility_type: { type: 'text' },
   unique_id: { type: 'text' },
-  referred_to_facility: { type: 'text' },
   art_center: { type: 'text' },
   nikshay_id: { type: 'text' },
   abha_id: { type: 'text' },
@@ -360,6 +389,11 @@ export function DemographicsCarousel({
                     <FormFieldRow label="Inmate Type" value={getValue('inmate_type', patient?.inmate_type)} icon={User} editable fieldKey="inmate_type" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
                     <FormFieldRow label="Sex" value={getValue('sex', patient?.sex)} icon={User} editable fieldKey="sex" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
                   </div>
+                  
+                  {/* Conditional "Other" field for Inmate Type */}
+                  {getValue('inmate_type', patient?.inmate_type) === 'Other' && isEditingDemographics && (
+                    <FormFieldRow label="Specify Other Inmate Type" value={getValue('inmate_type_other', patient?.inmate_type_other)} icon={User} editable fieldKey="inmate_type_other" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
+                  )}
 
                   <FormFieldRow label="Father/Husband" value={getValue('father_husband_name', patient?.father_husband_name)} icon={User} editable fieldKey="father_husband_name" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
                   
@@ -384,6 +418,11 @@ export function DemographicsCarousel({
                     <FormFieldRow label="Referral Date" value={getValue('referral_date', patient?.referral_date)} icon={Calendar} editable fieldKey="referral_date" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#ef4444" />
                     <FormFieldRow label="Referred To" value={getValue('referred_to_facility', patient?.referred_to_facility)} icon={Building2} editable fieldKey="referred_to_facility" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#ef4444" />
                   </div>
+                  
+                  {/* Conditional "Other" field for Referred Facility */}
+                  {getValue('referred_to_facility', patient?.referred_to_facility) === 'Other' && isEditingDemographics && (
+                    <FormFieldRow label="Specify Other Facility" value={getValue('referred_to_facility_other', patient?.referred_to_facility_other)} icon={Building2} editable fieldKey="referred_to_facility_other" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#ef4444" />
+                  )}
                   <div className="grid grid-cols-2 gap-1">
                     <FormFieldRow label="TB Diagnosed" value={getValue('tb_diagnosed', patient?.tb_diagnosed)} icon={Activity} editable fieldKey="tb_diagnosed_select" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#ef4444" />
                     <FormFieldRow label="Diagnosis Date" value={getValue('diagnosis_date', patient?.diagnosis_date)} icon={Calendar} editable fieldKey="diagnosis_date" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#ef4444" />
@@ -429,6 +468,14 @@ export function DemographicsCarousel({
                     <FormFieldRow label="Screening State" value={getValue('screening_state', patient?.screening_state)} icon={MapPin} editable fieldKey="screening_state" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
                     <FormFieldRow label="Screening District" value={getValue('screening_district', patient?.screening_district)} icon={MapPin} editable fieldKey="screening_district" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
                   </div>
+                  
+                  {/* Conditional "Other" fields */}
+                  {getValue('screening_state', patient?.screening_state) === 'Other' && isEditingDemographics && (
+                    <FormFieldRow label="Specify Other State" value={getValue('screening_state_other', patient?.screening_state_other)} icon={MapPin} editable fieldKey="screening_state_other" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
+                  )}
+                  {getValue('screening_district', patient?.screening_district) === 'Other' && isEditingDemographics && (
+                    <FormFieldRow label="Specify Other District" value={getValue('screening_district_other', patient?.screening_district_other)} icon={MapPin} editable fieldKey="screening_district_other" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
+                  )}
 
                   <div className="grid grid-cols-2 gap-1">
                     <FormFieldRow label="Facility Name" value={getValue('facility_name', patient?.facility_name)} icon={Building2} editable fieldKey="facility_name" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
