@@ -29,7 +29,12 @@ export interface PatientRecord {
 let qstashClient: Client | null = null;
 
 function getQStashClient(): Client | null {
-  if (qstashClient) return qstashClient;
+  console.log('[QStash] 🔍 getQStashClient called, existing client:', !!qstashClient);
+  
+  if (qstashClient) {
+    console.log('[QStash] ♻️ Returning cached client');
+    return qstashClient;
+  }
   
   const token = process.env.QSTASH_TOKEN;
   
@@ -40,11 +45,12 @@ function getQStashClient(): Client | null {
     tokenPrefix: token?.substring(0, 10) || 'none',
     nodeEnv: process.env.NODE_ENV,
     runtime: process.env.NEXT_RUNTIME,
+    allQstashVars: Object.keys(process.env).filter(k => k.includes('QSTASH')),
   });
   
   if (!token) {
     console.error('[QStash] ❌ QSTASH_TOKEN not found in environment variables');
-    console.error('[QStash] 📋 Available env vars:', Object.keys(process.env).filter(k => k.includes('QSTASH')));
+    console.error('[QStash] 📋 All env var keys:', Object.keys(process.env).sort());
     return null;
   }
   
@@ -150,10 +156,17 @@ export async function queuePatientSyncQStash(
  * Fire-and-forget wrapper (never throws)
  */
 export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 'update'): void {
-  console.log('[QStash] 🎯 syncToSheetsAsync called for patient:', patient.id, 'operation:', operation);
+  console.log('[QStash] 🎯 syncToSheetsAsync START - patient:', patient.id, 'operation:', operation);
+  console.log('[QStash] 🔑 Environment snapshot:', {
+    hasQstashToken: !!process.env.QSTASH_TOKEN,
+    hasVercelUrl: !!process.env.VERCEL_URL,
+    hasNextauthUrl: !!process.env.NEXTAUTH_URL,
+    nodeEnv: process.env.NODE_ENV,
+  });
   
   queuePatientSyncQStash(patient, operation)
     .then(result => {
+      console.log('[QStash] 📊 Queue result:', result);
       if (!result.queued) {
         console.warn('[QStash] ⚠️ Sync not queued:', result.error);
         console.warn('[QStash] 📋 Patient data:', { id: patient.id, name: patient.inmate_name });
