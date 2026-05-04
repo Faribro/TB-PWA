@@ -132,7 +132,18 @@ export async function GET(request: NextRequest) {
         
         if (error) {
           console.error(`[patients/bulk] Page ${page} error:`, error);
-          throw new Error(`Database error: ${error.message}`);
+          // Return empty dataset instead of throwing
+          return {
+            data: [],
+            meta: {
+              total: 0,
+              role: scope.role,
+              scope: scope.sessionState || 'national',
+              durationMs: Date.now() - startTime,
+              cached: false,
+              error: error.message
+            }
+          };
         }
         
         if (page === 0 && count) {

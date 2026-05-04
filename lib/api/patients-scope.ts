@@ -183,9 +183,15 @@ export function applyRBACFilters<T>(
   // State-level access
   if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
     if (sessionState && sessionState !== 'All') {
-      const stateCondition = normalizeStateFilter(sessionState);
-      console.log('[RBAC] Applying state filter:', stateCondition);
-      (query as any) = (query as any).or(stateCondition);
+      try {
+        const stateCondition = normalizeStateFilter(sessionState);
+        console.log('[RBAC] Applying state filter:', stateCondition);
+        (query as any) = (query as any).or(stateCondition);
+      } catch (err) {
+        console.error('[RBAC] State filter error:', err);
+        // Fallback to simple eq filter
+        (query as any) = (query as any).eq('screening_state', sessionState);
+      }
     }
   } 
   // Staff-level access
@@ -210,8 +216,13 @@ export function applyUserFilters<T>(
   const { state, district, dateFrom, dateTo, search, facilityType, suspected, tbDiagnosed, treatmentStatus } = filters;
   
   if (state && state !== 'all') {
-    const stateCondition = normalizeStateFilter(state);
-    (query as any) = (query as any).or(stateCondition);
+    try {
+      const stateCondition = normalizeStateFilter(state);
+      (query as any) = (query as any).or(stateCondition);
+    } catch (err) {
+      console.error('[Filter] State filter error:', err);
+      (query as any) = (query as any).eq('screening_state', state);
+    }
   }
   
   if (district && district !== 'all') {

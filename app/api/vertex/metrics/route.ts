@@ -41,6 +41,20 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const year = parseInt(searchParams.get('year') ?? new Date().getFullYear().toString(), 10);
     const month = parseInt(searchParams.get('month') ?? (new Date().getMonth() + 1).toString(), 10);
+    
+    // Validate year is not too far in future
+    const currentYear = new Date().getFullYear();
+    if (year > currentYear + 1) {
+      return NextResponse.json({
+        screened: 0,
+        suspected: 0,
+        diagnosed: 0,
+        attStarted: 0,
+        referred: 0,
+        dailyBreakdown: [],
+        _meta: { year, month, view: searchParams.get('view') ?? 'month', error: 'Future date' }
+      });
+    }
     const view = searchParams.get('view') ?? 'month'; // 'month' or 'year'
 
     // Optional state/district filters from query params (for future filter bar integration)
@@ -172,7 +186,20 @@ export async function GET(request: NextRequest) {
       let totalAttStarted = 0;
       let totalReferred = 0;
 
-      (yearData as PatientRecord[] || []).forEach((record) => {
+      if (!yearData || yearData.length === 0) {
+        console.log(`[/api/vertex/metrics] Year ${year}: No data found`);
+        return {
+          screened: 0,
+          suspected: 0,
+          diagnosed: 0,
+          attStarted: 0,
+          referred: 0,
+          dailyBreakdown: [],
+          _meta: { year, view: 'year', yearStart, yearEnd, role, state: state || null, totalRecords: 0 }
+        };
+      }
+
+      (yearData as PatientRecord[]).forEach((record) => {
         const date = record.screening_date;
         totalScreened++;
 
@@ -307,7 +334,20 @@ export async function GET(request: NextRequest) {
       let totalAttStarted = 0;
       let totalReferred = 0;
       
-      (monthData as PatientRecord[] || []).forEach((record) => {
+      if (!monthData || monthData.length === 0) {
+        console.log(`[/api/vertex/metrics] Month ${year}-${month}: No data found`);
+        return {
+          screened: 0,
+          suspected: 0,
+          diagnosed: 0,
+          attStarted: 0,
+          referred: 0,
+          dailyBreakdown: [],
+          _meta: { year, month, view: 'month', monthStart, monthEnd, role, state: state || null, totalRecords: 0 }
+        };
+      }
+      
+      (monthData as PatientRecord[]).forEach((record) => {
         const date = record.screening_date;
         totalScreened++;
         
