@@ -1,19 +1,19 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Calendar, User, MapPin, Activity, CheckCircle2, XCircle, Building2, Phone, Hash, Settings2, Lock, Unlock } from 'lucide-react';
+import { Calendar, User, MapPin, Activity, CheckCircle2, XCircle, Building2, Phone, Hash, Settings2, Lock, Unlock, FileText, Shield, ClipboardList } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-// Field configuration for smart rendering
+// Field configuration for smart rendering (using exact Supabase snake_case column names)
 const FIELD_CONFIG: Record<string, {
   type: 'text' | 'checkbox' | 'select' | 'date' | 'number';
   options?: string[];
   placeholder?: string;
+  readOnly?: boolean;
 }> = {
   // Checkbox (Yes/No) fields
   sputum_collected: { type: 'checkbox' },
   tb_diagnosed: { type: 'checkbox' },
-  art_started: { type: 'checkbox' },
   cpt_given: { type: 'checkbox' },
 
   // Select fields
@@ -23,32 +23,58 @@ const FIELD_CONFIG: Record<string, {
   },
   hiv_status: {
     type: 'select',
-    options: ['Positive', 'Negative', 'Unknown', 'Not tested']
+    options: ['Positive', 'Negative', 'Unknown']
   },
-  xrayresult: {
+  xray_result: {
     type: 'select',
     options: ['Normal', 'Suspected TB Case', 'Other Abnormality']
   },
-  tbpasthistory: {
+  tb_past_history: {
     type: 'select',
     options: ['Yes', 'No']
   },
   treatment_regimen: {
+    type: 'text'
+  },
+  tb_diagnosed_select: {
     type: 'select',
-    options: ['Category I', 'Category II', 'DRTB', 'Preventive Therapy']
+    options: ['Yes', 'No', 'Pending']
+  },
+  sputum_collected_select: {
+    type: 'select',
+    options: ['Yes', 'No']
   },
 
   // Date fields
-  screeningdate: { type: 'date' },
-  submittedon: { type: 'date' },
-  dateofbirth: { type: 'date' },
+  screening_date: { type: 'date' },
+  submitted_on: { type: 'date' },
+  date_of_birth: { type: 'date' },
   referral_date: { type: 'date' },
   diagnosis_date: { type: 'date' },
   att_start_date: { type: 'date' },
+  art_started: { type: 'date' },
 
   // Number fields
   age: { type: 'number', placeholder: 'Age in years' },
-  ai_confidence_score: { type: 'number', placeholder: '0-100' },
+  ai_confidence_score: { type: 'number', placeholder: '0-100', readOnly: true },
+
+  // Text fields (explicit for clarity)
+  inmate_name: { type: 'text' },
+  inmate_type: { type: 'text' },
+  father_husband_name: { type: 'text' },
+  contact_number: { type: 'text' },
+  address: { type: 'text' },
+  staff_name: { type: 'text' },
+  screening_state: { type: 'text' },
+  screening_district: { type: 'text' },
+  facility_name: { type: 'text' },
+  facility_type: { type: 'text' },
+  unique_id: { type: 'text' },
+  referred_to_facility: { type: 'text' },
+  art_center: { type: 'text' },
+  nikshay_id: { type: 'text' },
+  abha_id: { type: 'text' },
+  kobo_uuid: { type: 'text' },
 };
 
 interface DemographicsCarouselProps {
@@ -118,7 +144,8 @@ const FormFieldRow = ({
   };
 
   const displayValue = value ?? '';
-  const showInput = editable && isEditing && fieldKey && onChange;
+  const isReadOnly = config?.readOnly ?? false;
+  const showInput = editable && !isReadOnly && isEditing && fieldKey && onChange;
 
   // Render checkbox toggle switch
   const renderCheckbox = () => {
@@ -327,31 +354,23 @@ export function DemographicsCarousel({
               <FormSectionTitle icon={User} title="Identity Profile" colorCode="#8b5cf6" />
               <div className="bg-white/80 backdrop-blur-xl rounded-[18px] p-2 border border-white/90 shadow-[0_8px_32px_rgba(15,23,42,0.04),inset_0_1px_0_rgba(255,255,255,1)] relative">
                 <div className="flex flex-col gap-0.5">
-                  <FormFieldRow label="Inmate Name" value={getValue('inmatename', patient?.inmate_name)} icon={User} editable fieldKey="inmatename" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
+                  <FormFieldRow label="Inmate Name" value={getValue('inmate_name', patient?.inmate_name)} icon={User} editable fieldKey="inmate_name" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
                   
                   <div className="grid grid-cols-2 gap-1">
-                    <FormFieldRow label="Inmate Type" value={getValue('inmatetype', patient?.inmate_type)} icon={User} editable fieldKey="inmatetype" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
-                    <FormFieldRow label="Sex" value={getValue('sex', patient?.sex)} options={['Male', 'Female', 'Transgender']} icon={User} editable fieldKey="sex" fieldType="select" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
+                    <FormFieldRow label="Inmate Type" value={getValue('inmate_type', patient?.inmate_type)} icon={User} editable fieldKey="inmate_type" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
+                    <FormFieldRow label="Sex" value={getValue('sex', patient?.sex)} icon={User} editable fieldKey="sex" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
                   </div>
 
-                  <FormFieldRow label="Father/Husband" value={getValue('fatherhusbandname', patient?.father_husband_name)} icon={User} editable fieldKey="fatherhusbandname" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
+                  <FormFieldRow label="Father/Husband" value={getValue('father_husband_name', patient?.father_husband_name)} icon={User} editable fieldKey="father_husband_name" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
                   
                   <div className="grid grid-cols-2 gap-1">
-                    <FormFieldRow label="Date of Birth" value={getValue('dateofbirth', patient?.date_of_birth)} icon={Calendar} editable fieldKey="dateofbirth" fieldType="date" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
+                    <FormFieldRow label="Date of Birth" value={getValue('date_of_birth', patient?.date_of_birth)} icon={Calendar} editable fieldKey="date_of_birth" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
                     <FormFieldRow label="Age" value={getValue('age', patient?.age)} icon={Hash} editable fieldKey="age" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
                   </div>
                   
-                  <FormFieldRow label="Contact" value={getValue('contactnumber', patient?.contact_number)} icon={Phone} editable fieldKey="contactnumber" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
-                </div>
-              </div>
-            </div>
-
-            {/* Location */}
-            <div className="relative">
-              <FormSectionTitle icon={MapPin} title="Location" colorCode="#10b981" />
-              <div className="bg-white/80 backdrop-blur-xl rounded-[18px] p-2 border border-white/90 shadow-[0_8px_32px_rgba(15,23,42,0.04),inset_0_1px_0_rgba(255,255,255,1)] relative">
-                <div className="flex flex-col gap-0.5">
-                  <FormFieldRow label="Address" value={getValue('address', patient?.address)} icon={MapPin} editable fieldKey="address" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#10b981" />
+                  <FormFieldRow label="Contact" value={getValue('contact_number', patient?.contact_number)} icon={Phone} editable fieldKey="contact_number" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
+                  
+                  <FormFieldRow label="Address" value={getValue('address', patient?.address)} icon={MapPin} editable fieldKey="address" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#8b5cf6" />
                 </div>
               </div>
             </div>
@@ -361,43 +380,95 @@ export function DemographicsCarousel({
           {/* COLUMN 2 */}
           <div className="flex flex-col gap-3">
             
-            {/* Screening Logistics */}
+            {/* TB Screening (merged with logistics) */}
             <div className="relative">
-              <FormSectionTitle icon={Calendar} title="Screening Logistics" colorCode="#3b82f6" />
+              <FormSectionTitle icon={Activity} title="TB Screening" colorCode="#f59e0b" />
               <div className="bg-white/80 backdrop-blur-xl rounded-[18px] p-2 border border-white/90 shadow-[0_8px_32px_rgba(15,23,42,0.04),inset_0_1px_0_rgba(255,255,255,1)] relative">
                 <div className="flex flex-col gap-0.5">
+                  {/* Screening Logistics Fields */}
                   <div className="grid grid-cols-2 gap-1">
-                    <FormFieldRow label="Staff Name" value={getValue('staffname', patient?.staff_name)} icon={User} editable fieldKey="staffname" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#3b82f6" />
-                    <FormFieldRow label="Submitted On" value={getValue('submittedon', patient?.submitted_on)} icon={Calendar} editable fieldKey="submittedon" fieldType="date" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#3b82f6" />
+                    <FormFieldRow label="Staff Name" value={getValue('staff_name', patient?.staff_name)} icon={User} editable fieldKey="staff_name" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
+                    <FormFieldRow label="Submitted On" value={getValue('submitted_on', patient?.submitted_on)} icon={Calendar} editable fieldKey="submitted_on" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
                   </div>
                   
                   <div className="grid grid-cols-2 gap-1">
-                    <FormFieldRow label="Screening State" value={getValue('screeningstate', patient?.screening_state)} icon={MapPin} editable fieldKey="screeningstate" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#3b82f6" />
-                    <FormFieldRow label="Screening District" value={getValue('screeningdistrict', patient?.screening_district)} icon={MapPin} editable fieldKey="screeningdistrict" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#3b82f6" />
+                    <FormFieldRow label="Screening State" value={getValue('screening_state', patient?.screening_state)} icon={MapPin} editable fieldKey="screening_state" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
+                    <FormFieldRow label="Screening District" value={getValue('screening_district', patient?.screening_district)} icon={MapPin} editable fieldKey="screening_district" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
                   </div>
 
                   <div className="grid grid-cols-2 gap-1">
-                    <FormFieldRow label="Facility Name" value={getValue('facilitycode', patient?.facility_name)} icon={Building2} editable fieldKey="facilitycode" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#3b82f6" />
-                    <FormFieldRow label="Facility Type" value={getValue('facilitytype', patient?.facility_type)} icon={Building2} editable fieldKey="facilitytype" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#3b82f6" />
+                    <FormFieldRow label="Facility Name" value={getValue('facility_name', patient?.facility_name)} icon={Building2} editable fieldKey="facility_name" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
+                    <FormFieldRow label="Facility Type" value={getValue('facility_type', patient?.facility_type)} icon={Building2} editable fieldKey="facility_type" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
                   </div>
 
                   <div className="grid grid-cols-2 gap-1">
-                    <FormFieldRow label="Screening Date" value={getValue('screeningdate', patient?.screening_date)} icon={Calendar} editable fieldKey="screeningdate" fieldType="date" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#3b82f6" />
-                    <FormFieldRow label="Unique ID" value={getValue('uniqueid', patient?.unique_id)} icon={Hash} editable fieldKey="uniqueid" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#3b82f6" />
+                    <FormFieldRow label="Screening Date" value={getValue('screening_date', patient?.screening_date)} icon={Calendar} editable fieldKey="screening_date" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
+                    <FormFieldRow label="Unique ID" value={getValue('unique_id', patient?.unique_id)} icon={Hash} editable={false} fieldKey="unique_id" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
+                  </div>
+                  
+                  {/* Visual Divider */}
+                  <div className="h-px bg-gradient-to-r from-transparent via-slate-200/60 to-transparent my-1" />
+                  
+                  {/* TB Screening Fields */}
+                  <FormFieldRow label="X-Ray Result" value={getValue('xray_result', patient?.xray_result)} icon={Activity} editable fieldKey="xray_result" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
+                  <div className="grid grid-cols-2 gap-1">
+                    <FormFieldRow label="Symptoms (10S)" value={formatSymptoms(patient?.symptoms_10s)} icon={Activity} editable={false} fieldKey="symptoms_10s" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
+                    <FormFieldRow label="TB History" value={getValue('tb_past_history', patient?.tb_past_history)} icon={Activity} editable fieldKey="tb_past_history" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    <FormFieldRow label="AI Confidence" value={getValue('ai_confidence_score', patient?.ai_confidence_score)} icon={Activity} editable={false} fieldKey="ai_confidence_score" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
+                    <FormFieldRow label="Sputum Collected" value={getValue('sputum_collected', patient?.sputum_collected)} icon={Activity} editable fieldKey="sputum_collected_select" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* TB Screening */}
+            {/* Referral & Diagnosis */}
             <div className="relative">
-              <FormSectionTitle icon={Activity} title="TB Screening" colorCode="#f59e0b" />
+              <FormSectionTitle icon={FileText} title="Referral & Diagnosis" colorCode="#ef4444" />
               <div className="bg-white/80 backdrop-blur-xl rounded-[18px] p-2 border border-white/90 shadow-[0_8px_32px_rgba(15,23,42,0.04),inset_0_1px_0_rgba(255,255,255,1)] relative">
                 <div className="flex flex-col gap-0.5">
-                  <FormFieldRow label="X-Ray Result" value={getValue('xrayresult', patient?.xray_result)} options={['Normal', 'Suspected TB Case', 'Other Abnormality']} icon={Activity} editable fieldKey="xrayresult" fieldType="select" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
                   <div className="grid grid-cols-2 gap-1">
-                    <FormFieldRow label="Symptoms (10S)" value={formatSymptoms(patient?.symptoms_10s)} icon={Activity} editable={false} fieldKey="symptoms10s" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
-                    <FormFieldRow label="TB History" value={getValue('tbpasthistory', patient?.tb_past_history)} options={['Yes', 'No']} icon={Activity} editable fieldKey="tbpasthistory" fieldType="select" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
+                    <FormFieldRow label="Referral Date" value={getValue('referral_date', patient?.referral_date)} icon={Calendar} editable fieldKey="referral_date" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#ef4444" />
+                    <FormFieldRow label="Referred To" value={getValue('referred_to_facility', patient?.referred_to_facility)} icon={Building2} editable fieldKey="referred_to_facility" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#ef4444" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    <FormFieldRow label="TB Diagnosed" value={getValue('tb_diagnosed', patient?.tb_diagnosed)} icon={Activity} editable fieldKey="tb_diagnosed_select" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#ef4444" />
+                    <FormFieldRow label="Diagnosis Date" value={getValue('diagnosis_date', patient?.diagnosis_date)} icon={Calendar} editable fieldKey="diagnosis_date" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#ef4444" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* HIV / ART */}
+            <div className="relative">
+              <FormSectionTitle icon={Shield} title="HIV / ART" colorCode="#ec4899" />
+              <div className="bg-white/80 backdrop-blur-xl rounded-[18px] p-2 border border-white/90 shadow-[0_8px_32px_rgba(15,23,42,0.04),inset_0_1px_0_rgba(255,255,255,1)] relative">
+                <div className="flex flex-col gap-0.5">
+                  <div className="grid grid-cols-2 gap-1">
+                    <FormFieldRow label="HIV Status" value={getValue('hiv_status', patient?.hiv_status)} icon={Shield} editable fieldKey="hiv_status" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#ec4899" />
+                    <FormFieldRow label="ART Started" value={getValue('art_started', patient?.art_started)} icon={Calendar} editable fieldKey="art_started" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#ec4899" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    <FormFieldRow label="ART Center" value={getValue('art_center', patient?.art_center)} icon={Building2} editable fieldKey="art_center" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#ec4899" />
+                    <FormFieldRow label="CPT Given" value={getValue('cpt_given', patient?.cpt_given)} icon={Activity} editable fieldKey="cpt_given" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#ec4899" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Nikshay / Registration */}
+            <div className="relative">
+              <FormSectionTitle icon={ClipboardList} title="Nikshay / Registration" colorCode="#06b6d4" />
+              <div className="bg-white/80 backdrop-blur-xl rounded-[18px] p-2 border border-white/90 shadow-[0_8px_32px_rgba(15,23,42,0.04),inset_0_1px_0_rgba(255,255,255,1)] relative">
+                <div className="flex flex-col gap-0.5">
+                  <div className="grid grid-cols-2 gap-1">
+                    <FormFieldRow label="Nikshay ID" value={getValue('nikshay_id', patient?.nikshay_id)} icon={Hash} editable fieldKey="nikshay_id" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#06b6d4" />
+                    <FormFieldRow label="ABHA ID" value={getValue('abha_id', patient?.abha_id)} icon={Hash} editable fieldKey="abha_id" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#06b6d4" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    <FormFieldRow label="ATT Start Date" value={getValue('att_start_date', patient?.att_start_date)} icon={Calendar} editable fieldKey="att_start_date" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#06b6d4" />
+                    <FormFieldRow label="Treatment Regimen" value={getValue('treatment_regimen', patient?.treatment_regimen)} icon={Activity} editable fieldKey="treatment_regimen" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#06b6d4" />
                   </div>
                 </div>
               </div>
@@ -408,8 +479,10 @@ export function DemographicsCarousel({
               <FormSectionTitle icon={Settings2} title="System Metadata" colorCode="#64748b" />
               <div className="bg-white/80 backdrop-blur-xl rounded-[18px] p-2 border border-white/90 shadow-[0_8px_32px_rgba(15,23,42,0.04),inset_0_1px_0_rgba(255,255,255,1)] relative">
                 <div className="flex flex-col gap-0.5">
-                  <FormFieldRow label="Kobo UUID" value={getValue('kobo_uuid', patient?.kobo_uuid)} icon={Hash} editable={false} colorCode="#64748b" />
-                  <FormFieldRow label="Serial Number" value={getValue('unique_id', patient?.unique_id)} icon={Hash} editable={false} colorCode="#64748b" />
+                  <div className="grid grid-cols-2 gap-1">
+                    <FormFieldRow label="Kobo UUID" value={patient?.kobo_uuid ?? 'Not recorded'} icon={Hash} editable={false} fieldKey="kobo_uuid" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#64748b" />
+                    <FormFieldRow label="Serial Number" value={patient?.unique_id ?? patient?.serial_number ?? 'Not recorded'} icon={Hash} editable={false} fieldKey="unique_id" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#64748b" />
+                  </div>
                 </div>
               </div>
             </div>
