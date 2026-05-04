@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from './ui/button';
 import { Filter, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatedToggle } from './ui/AnimatedToggle';
 
 interface FilterBarProps {
   onFilterChange: (filters: FilterState) => void;
@@ -231,15 +232,15 @@ export function FilterBar({ onFilterChange, states, districts, facilityTypes }: 
 
               {/* Overdue Toggle */}
               <div className="pt-4 border-t border-gray-200">
-                <label className="flex items-center gap-3 px-3 py-2 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <input
-                    type="checkbox"
+                <div className="flex items-center gap-3 px-3 py-2 bg-white border border-gray-200 rounded-lg">
+                  <AnimatedToggle
                     checked={filters.overdueOnly}
-                    onChange={(e) => updateFilter('overdueOnly', e.target.checked)}
-                    className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                    onChange={(checked) => updateFilter('overdueOnly', checked)}
+                    label="Show overdue cases only (30+ days without referral)"
+                    size="md"
+                    variant="neon"
                   />
-                  <span className="text-sm text-gray-900 font-medium">Show overdue cases only (30+ days without referral)</span>
-                </label>
+                </div>
               </div>
             </div>
           </motion.div>
