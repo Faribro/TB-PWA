@@ -4,6 +4,53 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Calendar, User, MapPin, Activity, CheckCircle2, XCircle, Building2, Phone, Hash, Settings2, Lock, Unlock } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+// Field configuration for smart rendering
+const FIELD_CONFIG: Record<string, {
+  type: 'text' | 'checkbox' | 'select' | 'date' | 'number';
+  options?: string[];
+  placeholder?: string;
+}> = {
+  // Checkbox (Yes/No) fields
+  sputum_collected: { type: 'checkbox' },
+  tb_diagnosed: { type: 'checkbox' },
+  art_started: { type: 'checkbox' },
+  cpt_given: { type: 'checkbox' },
+
+  // Select fields
+  sex: {
+    type: 'select',
+    options: ['Male', 'Female', 'Transgender']
+  },
+  hiv_status: {
+    type: 'select',
+    options: ['Positive', 'Negative', 'Unknown', 'Not tested']
+  },
+  xrayresult: {
+    type: 'select',
+    options: ['Normal', 'Suspected TB Case', 'Other Abnormality']
+  },
+  tbpasthistory: {
+    type: 'select',
+    options: ['Yes', 'No']
+  },
+  treatment_regimen: {
+    type: 'select',
+    options: ['Category I', 'Category II', 'DRTB', 'Preventive Therapy']
+  },
+
+  // Date fields
+  screeningdate: { type: 'date' },
+  submittedon: { type: 'date' },
+  dateofbirth: { type: 'date' },
+  referral_date: { type: 'date' },
+  diagnosis_date: { type: 'date' },
+  att_start_date: { type: 'date' },
+
+  // Number fields
+  age: { type: 'number', placeholder: 'Age in years' },
+  ai_confidence_score: { type: 'number', placeholder: '0-100' },
+};
+
 interface DemographicsCarouselProps {
   patient: any;
   editedDemographics: Record<string, any>;
@@ -34,7 +81,7 @@ const FormFieldRow = ({
   icon: Icon,
   editable = false,
   fieldKey,
-  fieldType = 'text',
+  fieldType,
   options,
   isEditing,
   onChange,
@@ -45,14 +92,82 @@ const FormFieldRow = ({
   icon?: any;
   editable?: boolean;
   fieldKey?: string;
-  fieldType?: 'text' | 'date' | 'select';
+  fieldType?: 'text' | 'date' | 'select' | 'checkbox' | 'number';
   options?: string[];
   isEditing?: boolean;
-  onChange?: (key: string, value: string) => void;
+  onChange?: (key: string, value: any) => void;
   colorCode?: string;
 }) => {
-  const displayValue = value || '';
+  // Auto-detect field type from config if not explicitly provided
+  const config = fieldKey ? FIELD_CONFIG[fieldKey] : null;
+  const detectedType = config?.type ?? fieldType ?? 'text';
+  const detectedOptions = options ?? config?.options;
+  
+  // Helper to check if value is boolean-like
+  const isBoolean = (v: any) =>
+    v === true || v === false ||
+    v === 'true' || v === 'false' ||
+    v === 'yes' || v === 'no' ||
+    v === 'Yes' || v === 'No' ||
+    v === 1 || v === 0;
+
+  const toBool = (v: any): boolean => {
+    if (v === true || v === 1 || 
+        v === 'true' || v === 'yes' || v === 'Yes') return true;
+    return false;
+  };
+
+  const displayValue = value ?? '';
   const showInput = editable && isEditing && fieldKey && onChange;
+
+  // Render checkbox toggle switch
+  const renderCheckbox = () => {
+    const isChecked = toBool(value);
+    
+    if (!showInput) {
+      // View mode: show badge
+      return (
+        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+          isChecked
+            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            : 'bg-slate-100 text-slate-500 border border-slate-200'
+        }`}>
+          <span className={`w-2 h-2 rounded-full ${
+            isChecked ? 'bg-emerald-500' : 'bg-slate-400'
+          }`} />
+          {isChecked ? 'Yes' : 'No'}
+        </span>
+      );
+    }
+
+    // Edit mode: show toggle switch
+    return (
+      <button
+        type="button"
+        onClick={() => onChange(fieldKey, !isChecked)}
+        className={`relative inline-flex h-5 w-9 flex-shrink-0 
+                    cursor-pointer rounded-full border-2 
+                    transition-colors duration-200 ease-in-out
+                    focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+          isChecked
+            ? 'bg-emerald-500 border-emerald-500 focus:ring-emerald-400'
+            : 'bg-slate-200 border-slate-300 focus:ring-slate-400'
+        }`}
+        role="switch"
+        aria-checked={isChecked}
+        aria-label={label}
+        style={{
+          boxShadow: isChecked ? `0 0 0 2px ${colorCode}15` : undefined
+        }}
+      >
+        <span className={`inline-block h-4 w-4 transform 
+                         rounded-full bg-white shadow-sm
+                         transition duration-200 ease-in-out ${
+          isChecked ? 'translate-x-4' : 'translate-x-0'
+        }`} />
+      </button>
+    );
+  };
 
   return (
     <div className="group relative flex flex-col gap-0.5 px-2 py-1.5 rounded-lg transition-all duration-300 hover:bg-white/60 border border-transparent hover:border-slate-200/50 hover:shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
@@ -64,11 +179,15 @@ const FormFieldRow = ({
 
       {/* Value / Input Row */}
       <div className="relative mt-0.5">
-        {showInput ? (
-          fieldType === 'select' && options ? (
+        {detectedType === 'checkbox' ? (
+          <div className="w-full min-h-[26px] flex items-center px-2 py-1">
+            {renderCheckbox()}
+          </div>
+        ) : showInput ? (
+          detectedType === 'select' && detectedOptions ? (
             <div className="relative">
               <select
-                value={value || ''}
+                value={displayValue}
                 onChange={(e) => onChange(fieldKey, e.target.value)}
                 className="w-full appearance-none text-[11px] font-semibold text-slate-800 bg-white/90 border border-slate-200/80 rounded-md px-2 py-1 outline-none transition-all duration-300 focus:bg-white focus:shadow-[0_2px_10px_rgb(0,0,0,0.04)] cursor-pointer"
                 style={{
@@ -84,7 +203,7 @@ const FormFieldRow = ({
                 }}
               >
                 <option value="" disabled className="text-slate-400">Select...</option>
-                {options.map(opt => (
+                {detectedOptions.map(opt => (
                   <option key={opt} value={opt} className="text-slate-900 font-medium">{opt}</option>
                 ))}
               </select>
@@ -96,9 +215,10 @@ const FormFieldRow = ({
             </div>
           ) : (
             <input
-              type={fieldType}
-              value={value || ''}
-              onChange={(e) => onChange(fieldKey, e.target.value)}
+              type={detectedType === 'number' ? 'number' : detectedType === 'date' ? 'date' : 'text'}
+              value={displayValue}
+              onChange={(e) => onChange(fieldKey, detectedType === 'number' ? Number(e.target.value) : e.target.value)}
+              placeholder={config?.placeholder ?? (detectedType === 'date' ? 'YYYY-MM-DD' : `Enter ${label.toLowerCase()}`)}
               className="w-full text-[11px] font-semibold text-slate-800 bg-white/90 border border-slate-200/80 rounded-md px-2 py-1 outline-none transition-all duration-300 focus:bg-white"
               style={{
                 boxShadow: `inset 0 1px 2px rgba(0,0,0,0.02)`
@@ -111,18 +231,17 @@ const FormFieldRow = ({
                 e.target.style.borderColor = '#e2e8f0';
                 e.target.style.boxShadow = `inset 0 1px 2px rgba(0,0,0,0.02)`;
               }}
-              placeholder={fieldType === 'date' ? 'YYYY-MM-DD' : `Enter ${label.toLowerCase()}`}
             />
           )
         ) : (
           <div className="w-full min-h-[26px] flex items-center px-2 py-1 rounded-md bg-white/80 shadow-[0_1px_0_rgba(148,163,184,0.12),inset_0_-1px_0_rgba(148,163,184,0.08)] border border-slate-100/50">
-            {displayValue ? (
+            {displayValue !== '' && displayValue !== null ? (
               <span className="text-[11px] font-medium text-slate-800 tracking-tight leading-snug truncate">
                 {displayValue}
               </span>
             ) : (
               <span className="text-[11px] font-medium text-slate-400/70 italic">
-                —
+                Not recorded
               </span>
             )}
           </div>
@@ -148,7 +267,15 @@ export function DemographicsCarousel({
     };
   }, []);
 
-  const handleFieldChange = useCallback((key: string, value: string) => {
+  const handleFieldChange = useCallback((key: string, value: any) => {
+    // For boolean fields, update immediately without debounce
+    const config = FIELD_CONFIG[key];
+    if (config?.type === 'checkbox') {
+      setEditedDemographics(prev => ({ ...prev, [key]: value }));
+      return;
+    }
+    
+    // For other fields, use debounced update
     setLocalValues(prev => ({ ...prev, [key]: value }));
     
     if (debounceTimers.current[key]) {
@@ -163,6 +290,17 @@ export function DemographicsCarousel({
   const getValue = useCallback((key: string, fallback: any) => {
     return localValues[key] ?? editedDemographics[key] ?? fallback;
   }, [localValues, editedDemographics]);
+
+  // Format symptoms_10s for display (converts comma-separated Kobo multi-select to readable format)
+  const formatSymptoms = (raw: string | null | undefined): string => {
+    if (!raw || raw === 'N/A') return 'No symptoms recorded';
+    if (raw === 'No Symptoms') return 'No Symptoms';
+    return raw
+      .split(',')
+      .map(s => s.trim().replace(/_/g, ' '))
+      .filter(Boolean)
+      .join(' • ');
+  };
 
   if (!patient) return null;
 
@@ -258,7 +396,7 @@ export function DemographicsCarousel({
                 <div className="flex flex-col gap-0.5">
                   <FormFieldRow label="X-Ray Result" value={getValue('xrayresult', patient?.xray_result)} options={['Normal', 'Suspected TB Case', 'Other Abnormality']} icon={Activity} editable fieldKey="xrayresult" fieldType="select" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
                   <div className="grid grid-cols-2 gap-1">
-                    <FormFieldRow label="Symptoms (10S)" value={getValue('symptoms10s', patient?.symptoms_10s)} options={['Yes', 'No']} icon={Activity} editable fieldKey="symptoms10s" fieldType="select" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
+                    <FormFieldRow label="Symptoms (10S)" value={formatSymptoms(patient?.symptoms_10s)} icon={Activity} editable={false} fieldKey="symptoms10s" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
                     <FormFieldRow label="TB History" value={getValue('tbpasthistory', patient?.tb_past_history)} options={['Yes', 'No']} icon={Activity} editable fieldKey="tbpasthistory" fieldType="select" isEditing={isEditingDemographics} onChange={handleFieldChange} colorCode="#f59e0b" />
                   </div>
                 </div>

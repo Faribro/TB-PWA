@@ -703,6 +703,8 @@ export default function Vertex({
 
   const [currentDate, setCurrentDate] = useState(() => clampToCurrentMonth(mostRecentDateWithData));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [isDateChanging, setIsDateChanging] = useState(false);
+  const [geographyKey, setGeographyKey] = useState(0);
   const [selectedFacility, setSelectedFacility] = useState<{ name: string; state: string; district: string } | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [showAttChart, setShowAttChart] = useState(true);
@@ -717,6 +719,14 @@ export default function Vertex({
   const { mutate } = useSWRConfig();
   const hasAutoJumpedRef = useRef(false);
   const currentDateRef = useRef(currentDate);
+
+  // FIX A: Clear geography on date change with transition state
+  useEffect(() => {
+    setIsDateChanging(true);
+    setGeographyKey(prev => prev + 1);
+    const timer = setTimeout(() => setIsDateChanging(false), 400);
+    return () => clearTimeout(timer);
+  }, [selectedDate]);
 
   // ── TIERED DATA ARCHITECTURE ──────────────────────────────────────────
   // Tier 1: Instant shell (already rendered above)
@@ -994,9 +1004,10 @@ export default function Vertex({
 
   // Task 1: Data Aggregation - Grouped Geography (use server summary when available)
   const groupedGeography = useMemo((): StateData[] => {
+    if (!selectedDate) return {}; // FIX A: Guard - clear on no date
     if (serverGeoSummary) return serverGeoSummary;
     
-    if (!patientsForSelectedDate.length) return [];
+    if (!patientsForSelectedDate || !patientsForSelectedDate.length) return [];
     
     const stateMap = new Map<string, Map<string, Map<string, any[]>>>();
 
@@ -1063,7 +1074,7 @@ export default function Vertex({
     });
 
     return result;
-  }, [patientsForSelectedDate]);
+  }, [patientsForSelectedDate, selectedDate, serverGeoSummary]); // FIX A: Add selectedDate and serverGeoSummary
 
   // Task 3: Filter patients for selected facility (use server data when available)
   const patientsForSelectedFacility = useMemo(() => {
@@ -1477,8 +1488,17 @@ export default function Vertex({
                           </div>
                         </div>
                         <div
-                          className="bg-white rounded-2xl p-4 border border-slate-200/60 shadow-sm"
+                          key={geographyKey}
+                          className="bg-white rounded-2xl p-4 border border-slate-200/60 shadow-sm relative"
                         >
+                          {isDateChanging && (
+                            <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] rounded-2xl z-10 flex items-center justify-center">
+                              <div className="flex items-center gap-2 text-slate-500 text-xs font-medium">
+                                <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin" />
+                                Updating locations...
+                              </div>
+                            </div>
+                          )}
                           {selectedDate ? (
                             geoSummaryData === undefined ? (
                               // GSAP Cube Loader for loading geo-summary

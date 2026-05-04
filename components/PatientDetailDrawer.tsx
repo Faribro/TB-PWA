@@ -519,6 +519,15 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         payload
       });
 
+      // CHANGE 4: Optimistic update — show changes immediately before API confirms
+      const optimisticPatient = { 
+        ...localPatient, 
+        ...Object.fromEntries(
+          Object.entries(payload).filter(([_, v]) => v !== undefined)
+        )
+      };
+      setLocalPatient(optimisticPatient);
+
       const res = await fetch('/api/patient-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -539,21 +548,27 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       console.log('[PatientDetailDrawer] ✅ Demographics save successful, response:', responseData);
 
-      // Immediately update local state with server response
+      // CHANGE 3: Update local state with server-confirmed data and set synced status
       if (responseData.patient) {
         setLocalPatient(responseData.patient);
         setEditedDemographics(mapDemographics(responseData.patient));
+        setSynced(
+          responseData.patient.sheets_synced_at || new Date().toISOString()
+        );
       }
       
-      // Force immediate SWR revalidation
-      await mutate(
+      // CHANGE 1: Non-blocking background cache refresh — do NOT await
+      // The UI already has the correct data from responseData.patient
+      mutate(
         (key: unknown) => {
           if (Array.isArray(key) &&
               ['patients', 'allPatients', 'patient'].includes(key[0] as string)) return true;
           return false;
         },
         undefined,
-        { revalidate: true }  // Force revalidation to get fresh data
+        { revalidate: true }
+      ).catch(err => 
+        console.warn('[demographics] Background SWR revalidation failed:', err)
       );
       
       setIsEditingDemographics(false);
@@ -570,17 +585,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         description: 'Changes synced successfully'
       });
       
-      // Re-fetch from DB to confirm exact persisted state
-      const { data: freshPatient, error: fetchError } = await supabaseClient
-        .from('patients')
-        .select('*')
-        .eq('id', localPatient.id)
-        .maybeSingle();
-      if (freshPatient && !fetchError) {
-        setLocalPatient(freshPatient);
-        setEditedDemographics(mapDemographics(freshPatient));
-        setSynced(freshPatient.sheets_synced_at || new Date().toISOString());
-      }
+      // CHANGE 2: Removed redundant Supabase re-fetch
+      // responseData.patient from the API already contains the confirmed persisted state
     } catch (error) {
       console.error('[handleSaveDemographics] Save failed:', error);
       setError('Failed to sync');
