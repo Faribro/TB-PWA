@@ -14,10 +14,11 @@ CREATE TABLE IF NOT EXISTS sync_queue (
   retry_count INTEGER NOT NULL DEFAULT 0,
   last_error TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  completed_at TIMESTAMPTZ,
-  INDEX idx_sync_queue_status (status, created_at),
-  INDEX idx_sync_queue_patient (patient_id)
+  completed_at TIMESTAMPTZ
 );
+
+CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue (status, created_at);
+CREATE INDEX IF NOT EXISTS idx_sync_queue_patient ON sync_queue (patient_id);
 
 -- RLS policies
 ALTER TABLE sync_queue ENABLE ROW LEVEL SECURITY;
