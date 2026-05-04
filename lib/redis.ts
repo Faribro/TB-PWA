@@ -16,31 +16,50 @@ export const upstashRedis = process.env.UPSTASH_REDIS_REST_URL && process.env.UP
   : null;
 
 // IORedis (Traditional - for BullMQ)
-export const ioredis = process.env.REDIS_URL
-  ? (() => {
-      const client = new IORedis(process.env.REDIS_URL, {
-        maxRetriesPerRequest: null, // Required for BullMQ
-        enableReadyCheck: false,
-        retryStrategy: (times) => {
-          if (times > 3) return null; // Stop retrying after 3 attempts
-          return Math.min(times * 50, 2000);
-        },
-        lazyConnect: true, // Don't connect immediately
-      });
-      
-      // Handle connection errors gracefully
-      client.on('error', (err) => {
-        console.warn('[IORedis] Connection error (non-critical):', err.message);
-      });
-      
-      // Try to connect, but don't fail if it doesn't work
-      client.connect().catch((err) => {
-        console.warn('[IORedis] Failed to connect (continuing without Redis):', err.message);
-      });
-      
-      return client;
-    })()
-  : null;
+export const ioredis = (() => {
+  // Try REDIS_URL first, then construct from Upstash credentials
+  const redisUrl = process.env.REDIS_URL || 
+    (process.env.UPSTASH_REDIS_REST_TOKEN 
+      ? `rediss://default:${process.env.UPSTASH_REDIS_REST_TOKEN}@${process.env.UPSTASH_REDIS_REST_URL?.replace('https://', '')}:6379`
+      : null);
+  
+  if (!redisUrl) {
+    console.warn('[IORedis] No Redis configuration found (REDIS_URL or UPSTASH_REDIS_REST_TOKEN)');
+    return null;
+  }
+
+  try {
+    const client = new IORedis(redisUrl, {
+      maxRetriesPerRequest: null, // Required for BullMQ
+      enableReadyCheck: false,
+      retryStrategy: (times) => {
+        if (times > 3) return null; // Stop retrying after 3 attempts
+        return Math.min(times * 50, 2000);
+      },
+      lazyConnect: true, // Don't connect immediately
+      tls: redisUrl.startsWith('rediss://') ? {} : undefined, // Enable TLS for rediss://
+    });
+    
+    // Handle connection errors gracefully
+    client.on('error', (err) => {
+      console.warn('[IORedis] Connection error (non-critical):', err.message);
+    });
+    
+    client.on('connect', () => {
+      console.log('[IORedis] ✅ Connected to Redis');
+    });
+    
+    // Try to connect, but don't fail if it doesn't work
+    client.connect().catch((err) => {
+      console.warn('[IORedis] Failed to connect (continuing without Redis):', err.message);
+    });
+    
+    return client;
+  } catch (error: any) {
+    console.error('[IORedis] Failed to initialize:', error.message);
+    return null;
+  }
+})();
 
 // Health check
 export async function checkRedisHealth(): Promise<boolean> {
