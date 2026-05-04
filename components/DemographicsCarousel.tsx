@@ -133,7 +133,7 @@ const DocSection = ({ title, accent = 'bg-slate-700', children }: { title: strin
   <div className="flex flex-col gap-5">
     <div className="flex items-center gap-2.5">
       <div className={`w-[3px] h-[20px] rounded-full shrink-0 ${accent}`} />
-      <span className="text-[10.5px] font-black uppercase tracking-[0.2em] text-slate-600">{title}</span>
+      <span className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-600">{title}</span>
       <div className="flex-1 h-px bg-slate-800/20" />
     </div>
     {children}
@@ -142,13 +142,13 @@ const DocSection = ({ title, accent = 'bg-slate-700', children }: { title: strin
 
 // â”€â”€ Symptom row: clinical checklist style for better scanning
 const SymptomRow = ({ label, selected }: { label: string; selected: boolean }) => (
-  <div className={`flex items-center gap-3 px-3 py-2 border rounded-[4px] transition-all duration-150 select-none ${
+  <div className={`flex items-center gap-2.5 px-3 py-2.5 border rounded-[4px] transition-all duration-150 select-none ${
     selected 
       ? 'bg-red-50 border-red-300 text-red-900' 
-      : 'bg-slate-50 border-slate-200 text-slate-500'
+      : 'bg-white border-slate-200 text-slate-400'
   }`}>
     <div className={`flex items-center justify-center w-4 h-4 rounded-full shrink-0 ${
-      selected ? 'bg-red-500 text-white' : 'bg-slate-300 text-slate-400'
+      selected ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-400'
     }`}>
       {selected ? <Check className="w-2.5 h-2.5" strokeWidth={3}/> : <Minus className="w-2.5 h-2.5" strokeWidth={2}/>}
     </div>
@@ -168,7 +168,7 @@ const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, 
   const showInput = editable && !cfg?.readOnly && isEditing && onChange;
   const toBool = (v: any) => v === true || v === 1 || v === 'true' || v === 'yes' || v === 'Yes';
   const missing = value === null || value === undefined || value === '';
-  const inputCls = 'w-full text-[13px] font-semibold text-slate-800 bg-white border border-slate-300 rounded px-2.5 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all shadow-sm';
+  const inputCls = 'w-full text-[13px] font-semibold text-slate-800 bg-white border border-slate-300 rounded px-2.5 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus-visible:ring-2 focus-visible:ring-indigo-300 transition-all shadow-sm';
   return (
     <div className="flex flex-col gap-1.5 min-w-0" style={span > 1 ? { gridColumn: `span ${span}` } : {}}>
       <span className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">{label}</span>
@@ -366,8 +366,8 @@ export function DemographicsCarousel({
             </div>
 
             {/* Right: clinical status box (LaTeX tcolorbox equivalent) */}
-            <div className="w-full md:w-52 shrink-0 border-l-0 md:border-l-4 border-t-4 md:border-t-0 border-slate-700 bg-slate-50 px-4 py-4 flex flex-col gap-3">
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-0.5">Clinical Status</p>
+            <div className="w-full md:w-52 shrink-0 border-l-0 md:border-l-4 border-t-4 md:border-t-0 border-slate-700 bg-slate-50 px-4 py-4 flex flex-col gap-3.5">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 mb-1">Clinical Status</p>
               {[
                 { label: 'X-Ray',       val: xray,  flag: isSusp, flagColor: 'text-amber-700 bg-amber-50 border-amber-300' },
                 { label: 'HIV',         val: hiv,   flag: isHIV,  flagColor: 'text-pink-700 bg-pink-50 border-pink-300'   },
@@ -375,12 +375,12 @@ export function DemographicsCarousel({
                 { label: 'Symptoms',    val: `${symCount} / 10`, flag: symCount >= 3, flagColor: 'text-orange-700 bg-orange-50 border-orange-300' },
               ].map(({ label, val, flag, flagColor }) => (
                 <div key={label} className="flex items-center justify-between gap-2">
-                  <span className="text-[10.5px] font-bold uppercase tracking-wide text-slate-500 shrink-0">{label}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500 shrink-0">{label}</span>
                   {val ? (
-                    <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border ${flag ? flagColor : 'text-emerald-700 bg-emerald-50 border-emerald-200'}`}>
+                    <span className={`text-[12px] font-semibold px-1.5 py-0.5 rounded border ${flag ? flagColor : 'text-emerald-700 bg-emerald-50 border-emerald-200'}`}>
                       {flag && 'âš‘ '}{String(val)}
                     </span>
-                  ) : <span className="text-[11px] italic text-slate-400 font-medium">Not recorded</span>}
+                  ) : <span className="text-[12px] italic text-slate-400 font-medium">Not recorded</span>}
                 </div>
               ))}
             </div>
@@ -426,7 +426,7 @@ export function DemographicsCarousel({
 
             {/* Â§ 10S Symptom Checklist */}
             <DocSection title="10S Symptom Checklist" accent="bg-red-500">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
                 {SYMPTOMS_MASTER.map(s => <SymptomRow key={s.id} label={s.label} selected={parsedSymptoms[s.id]} />)}
               </div>
               {symCount >= 3 && (
