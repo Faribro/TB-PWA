@@ -68,8 +68,10 @@ async function handler(request: NextRequest) {
   }
 }
 
-// Wrap with QStash signature verification
-export const POST = verifySignatureAppRouter(handler);
+// Wrap with QStash signature verification (only in production)
+export const POST = process.env.NODE_ENV === 'production' 
+  ? verifySignatureAppRouter(handler)
+  : handler;
 
 // Allow GET for health check
 export async function GET() {
