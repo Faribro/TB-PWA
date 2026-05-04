@@ -1,20 +1,13 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// SERVER INSTRUMENTATION - INITIALIZE BACKGROUND SERVICES
+// SERVER INSTRUMENTATION - QSTASH SERVERLESS QUEUE
 // ═══════════════════════════════════════════════════════════════════════════
-// This file runs once when the Next.js server starts
-// Use it to initialize queues, cron jobs, and other background services
+// QStash is HTTP-based and doesn't require server initialization
+// No background workers needed - all handled by Upstash
 // ═══════════════════════════════════════════════════════════════════════════
 
 export async function register() {
-  // Only run on server-side
+  // QStash doesn't need initialization - it's HTTP-based
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { initSheetsQueue } = await import('./lib/sheetsSyncQueue');
-    
-    try {
-      initSheetsQueue();
-      console.log('[Instrumentation] ✅ Google Sheets sync queue initialized');
-    } catch (error) {
-      console.error('[Instrumentation] ❌ Failed to initialize sheets queue:', error);
-    }
+    console.log('[Instrumentation] ✅ QStash serverless queue ready (no init required)');
   }
 }
