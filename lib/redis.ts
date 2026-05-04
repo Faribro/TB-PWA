@@ -44,7 +44,7 @@ export const ioredis = (() => {
       enableReadyCheck: false,
       lazyConnect: true,
       connectTimeout: 10000,
-      commandTimeout: 5000,
+      commandTimeout: 30000, // 30s for long-running Supabase queries
       retryStrategy: (times) => {
         if (times > 3) {
           console.warn(`[IORedis] ⚠️  Max retries (3) reached, giving up`);
