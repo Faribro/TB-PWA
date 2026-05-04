@@ -14,6 +14,7 @@
     "deploy": "vercel --prod",
     "analyze": "ANALYZE=true next build",
     "test:webhook": "node scripts/test-kobo-webhook.js",
+    "test:redis": "node scripts/test-redis.js",
     "test:supabase": "node scripts/verify-supabase-connection.js",
     "test:sync": "node scripts/test-triple-sync.js",
     "test:e2e": "node scripts/run-test.js",

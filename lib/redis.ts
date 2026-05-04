@@ -18,13 +18,19 @@ export const upstashRedis = process.env.UPSTASH_REDIS_REST_URL && process.env.UP
 // IORedis (Traditional - for BullMQ)
 export const ioredis = (() => {
   // Try REDIS_URL first, then construct from Upstash credentials
-  const redisUrl = process.env.REDIS_URL || 
-    (process.env.UPSTASH_REDIS_REST_TOKEN 
-      ? `rediss://default:${process.env.UPSTASH_REDIS_REST_TOKEN}@${process.env.UPSTASH_REDIS_REST_URL?.replace('https://', '')}:6379`
-      : null);
+  let redisUrl = process.env.REDIS_URL;
+  
+  if (!redisUrl && process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    // Extract hostname from REST URL (remove https://)
+    const hostname = process.env.UPSTASH_REDIS_REST_URL.replace('https://', '').replace('http://', '');
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+    // Construct rediss:// URL for IORedis
+    redisUrl = `rediss://default:${token}@${hostname}:6379`;
+    console.log(`[IORedis] Constructed URL from Upstash credentials: rediss://default:***@${hostname}:6379`);
+  }
   
   if (!redisUrl) {
-    console.warn('[IORedis] No Redis configuration found (REDIS_URL or UPSTASH_REDIS_REST_TOKEN)');
+    console.warn('[IORedis] ⚠️ No Redis configuration found (REDIS_URL or UPSTASH_REDIS_REST_TOKEN)');
     return null;
   }
 
@@ -33,30 +39,48 @@ export const ioredis = (() => {
       maxRetriesPerRequest: null, // Required for BullMQ
       enableReadyCheck: false,
       retryStrategy: (times) => {
-        if (times > 3) return null; // Stop retrying after 3 attempts
-        return Math.min(times * 50, 2000);
+        if (times > 3) {
+          console.warn(`[IORedis] ⚠️ Max retries (3) reached, giving up`);
+          return null; // Stop retrying after 3 attempts
+        }
+        const delay = Math.min(times * 50, 2000);
+        console.log(`[IORedis] 🔄 Retry attempt ${times}, waiting ${delay}ms`);
+        return delay;
       },
       lazyConnect: true, // Don't connect immediately
-      tls: redisUrl.startsWith('rediss://') ? {} : undefined, // Enable TLS for rediss://
+      tls: redisUrl.startsWith('rediss://') ? {
+        rejectUnauthorized: false // Accept self-signed certs from Upstash
+      } : undefined,
+      connectTimeout: 10000, // 10 second timeout
+      commandTimeout: 5000, // 5 second command timeout
     });
     
     // Handle connection errors gracefully
     client.on('error', (err) => {
-      console.warn('[IORedis] Connection error (non-critical):', err.message);
+      console.warn('[IORedis] ❌ Connection error:', err.message);
     });
     
     client.on('connect', () => {
-      console.log('[IORedis] ✅ Connected to Redis');
+      console.log('[IORedis] ✅ Connected to Redis successfully');
+    });
+    
+    client.on('ready', () => {
+      console.log('[IORedis] 🚀 Redis client ready');
+    });
+    
+    client.on('close', () => {
+      console.warn('[IORedis] ⚠️ Connection closed');
     });
     
     // Try to connect, but don't fail if it doesn't work
     client.connect().catch((err) => {
-      console.warn('[IORedis] Failed to connect (continuing without Redis):', err.message);
+      console.error('[IORedis] ❌ Failed to connect:', err.message);
+      console.warn('[IORedis] ℹ️ Continuing without Redis - will use in-memory fallback');
     });
     
     return client;
   } catch (error: any) {
-    console.error('[IORedis] Failed to initialize:', error.message);
+    console.error('[IORedis] ❌ Failed to initialize:', error.message);
     return null;
   }
 })();
