@@ -343,8 +343,17 @@ export function DemographicsCarousel({
       >
         <div className="max-w-5xl mx-auto">
           
-          {/* Single Page Document Surface */}
-          <div className="bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200/80 overflow-hidden flex flex-col mb-8">
+          {/* Single Page Document Surface with Liquid Metal Border */}
+          <div className="relative p-[2px] rounded-xl mb-8 group">
+            {/* Animated gradient border */}
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-slate-200 via-indigo-200 to-slate-200 opacity-60 group-hover:opacity-100 transition-opacity duration-500" 
+                 style={{
+                   backgroundSize: '200% 100%',
+                   animation: 'shimmer 3s linear infinite'
+                 }} />
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-indigo-500/20 via-purple-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-500" />
+            
+            <div className="relative bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden flex flex-col">
              
              {/* Document Header Zone */}
              <div className="bg-slate-900 px-6 sm:px-10 py-8 flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b-[5px] border-indigo-500 relative overflow-hidden">
@@ -463,8 +472,16 @@ export function DemographicsCarousel({
 
              </div>
           </div>
+          </div>
         </div>
       </motion.div>
+      
+      <style jsx>{`
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+      `}</style>
 
       {/* Fixed Action Bar */}
       <div className="absolute bottom-0 left-0 w-full flex items-center gap-3 px-6 py-4 bg-white/90 backdrop-blur-md border-t border-slate-200 z-30 shadow-[0_-8px_30px_rgb(0,0,0,0.06)]">
