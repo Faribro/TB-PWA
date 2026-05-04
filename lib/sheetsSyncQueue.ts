@@ -59,75 +59,85 @@ let queueEvents: QueueEvents | null = null;
  */
 export function initSheetsQueue() {
   if (!ioredis) {
-    console.warn('[SheetsQueue] Redis not configured - using in-memory fallback');
+    console.warn('[SheetsQueue] ⚠️ Redis not configured - queue will use in-memory fallback');
+    console.warn('[SheetsQueue] ℹ️ Set REDIS_URL environment variable to enable persistent queue');
     return;
   }
 
-  // Create queue
-  sheetsQueue = new Queue(QUEUE_NAME, QUEUE_CONFIG);
+  try {
+    // Create queue
+    sheetsQueue = new Queue(QUEUE_NAME, QUEUE_CONFIG);
 
-  // Create worker
-  sheetsWorker = new Worker(
-    QUEUE_NAME,
-    async (job) => {
-      const { batch } = job.data;
-      const webhookUrl = process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
+    // Create worker
+    sheetsWorker = new Worker(
+      QUEUE_NAME,
+      async (job) => {
+        const { batch } = job.data;
+        const webhookUrl = process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
 
-      if (!webhookUrl) {
-        throw new Error('GOOGLE_SCRIPT_WEBHOOK_URL not configured');
-      }
-
-      // Send batch to Google Sheets
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-      try {
-        const response = await fetch(webhookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: JSON.stringify({
-            batch,
-            batch_id: job.id,
-            count: batch.length,
-          }),
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        if (!webhookUrl) {
+          throw new Error('GOOGLE_SCRIPT_WEBHOOK_URL not configured');
         }
 
-        const result = await response.json();
-        return result;
-      } catch (error: any) {
-        clearTimeout(timeoutId);
-        throw error;
-      }
-    },
-    WORKER_CONFIG
-  );
+        // Send batch to Google Sheets
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-  // Event listeners
-  queueEvents = new QueueEvents(QUEUE_NAME, { connection: ioredis || undefined });
+        try {
+          const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+              batch,
+              batch_id: job.id,
+              count: batch.length,
+            }),
+            signal: controller.signal,
+          });
 
-  sheetsWorker.on('completed', (job) => {
-    console.log(`[SheetsQueue] ✅ Job ${job.id} completed (${job.data.batch.length} records)`);
-  });
+          clearTimeout(timeoutId);
 
-  sheetsWorker.on('failed', (job, err) => {
-    console.error(`[SheetsQueue] ❌ Job ${job?.id} failed:`, err.message);
-  });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
 
-  queueEvents.on('stalled', ({ jobId }) => {
-    console.warn(`[SheetsQueue] ⚠️ Job ${jobId} stalled`);
-  });
+          const result = await response.json();
+          return result;
+        } catch (error: any) {
+          clearTimeout(timeoutId);
+          throw error;
+        }
+      },
+      WORKER_CONFIG
+    );
 
-  console.log('[SheetsQueue] 🚀 Queue initialized with Redis backend');
+    // Event listeners
+    queueEvents = new QueueEvents(QUEUE_NAME, { connection: ioredis || undefined });
+
+    sheetsWorker.on('completed', (job) => {
+      console.log(`[SheetsQueue] ✅ Job ${job.id} completed (${job.data.batch.length} records)`);
+    });
+
+    sheetsWorker.on('failed', (job, err) => {
+      console.error(`[SheetsQueue] ❌ Job ${job?.id} failed:`, err.message);
+    });
+
+    queueEvents.on('stalled', ({ jobId }) => {
+      console.warn(`[SheetsQueue] ⚠️ Job ${jobId} stalled`);
+    });
+
+    console.log('[SheetsQueue] 🚀 Queue initialized with Redis backend');
+  } catch (error: any) {
+    console.error('[SheetsQueue] ❌ Failed to initialize Redis queue:', error.message);
+    console.warn('[SheetsQueue] ⚠️ Falling back to in-memory queue');
+    // Clean up partial initialization
+    sheetsQueue = null;
+    sheetsWorker = null;
+    queueEvents = null;
+  }
 }
 
 /**
@@ -158,8 +168,8 @@ export async function queuePatientSync(
   priority: number = 0
 ): Promise<void> {
   if (!sheetsQueue) {
-    console.warn('[SheetsQueue] Queue not initialized - skipping sync');
-    return;
+    // Queue not initialized - this will trigger fallback to in-memory queue
+    throw new Error('Queue not initialized');
   }
 
   try {
@@ -186,6 +196,7 @@ export async function queuePatientSync(
     );
   } catch (error: any) {
     console.error('[SheetsQueue] Failed to queue patient:', error.message);
+    throw error; // Re-throw to trigger fallback
   }
 }
 

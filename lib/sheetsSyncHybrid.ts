@@ -50,14 +50,21 @@ const CONFIG = {
 export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 'update'): void {
   const webhookUrl = process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
   
-  if (!webhookUrl || circuitBreakerOpen) {
+  if (!webhookUrl) {
+    console.warn('[sheetsSync] ⚠️ GOOGLE_SCRIPT_WEBHOOK_URL not configured - sync disabled');
+    return;
+  }
+  
+  if (circuitBreakerOpen) {
+    console.warn('[sheetsSync] 🔴 Circuit breaker open - sync temporarily disabled');
     return;
   }
 
   // Try Redis queue first (production)
   queuePatientSync(patient, operation === 'insert' ? 1 : 0)
-    .catch(() => {
+    .catch((error) => {
       // Fallback to in-memory queue
+      console.log(`[sheetsSync] ℹ️ Using in-memory queue fallback (Redis unavailable)`);
       syncQueue.push(patient);
 
       if (flushTimer) {
