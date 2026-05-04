@@ -76,8 +76,17 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
 
   // State/district filters for query
   const [filters, setFilters] = useState<VertexFilters>(DEFAULT_FILTERS);
+  const [searchInput, setSearchInput] = useState(''); // Local search input
   const selectedState = filters.state;
   const selectedDistrict = filters.district;
+
+  // Debounced search - only update filters after 500ms of no typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters(f => ({ ...f, search: searchInput }));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   // Fetch summary metrics (server-computed aggregates)
   const { data: summaryData, error: summaryError } = useSWR(
@@ -299,7 +308,54 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     filters.treatmentStatus !== 'all' ? '1' : '',
   ].filter(Boolean).length;
 
-  const clearFilters = () => setFilters(DEFAULT_FILTERS);
+  // Extract unique states and districts from loaded patients
+  const { uniqueStates, districtsByState } = useMemo(() => {
+    const statesSet = new Set<string>();
+    const districtsMap = new Map<string, Set<string>>();
+
+    globalPatients.forEach(p => {
+      if (p.screening_state) {
+        statesSet.add(p.screening_state);
+        if (!districtsMap.has(p.screening_state)) {
+          districtsMap.set(p.screening_state, new Set());
+        }
+        if (p.screening_district) {
+          districtsMap.get(p.screening_state)!.add(p.screening_district);
+        }
+      }
+    });
+
+    const uniqueStates = Array.from(statesSet).sort();
+    const districtsByState = new Map(
+      Array.from(districtsMap.entries()).map(([state, districts]) => [
+        state,
+        Array.from(districts).sort()
+      ])
+    );
+
+    return { uniqueStates, districtsByState };
+  }, [globalPatients]);
+
+  // Get districts for currently selected state
+  const availableDistricts = useMemo(() => {
+    if (!selectedState) return [];
+    return districtsByState.get(selectedState) || [];
+  }, [selectedState, districtsByState]);
+
+  // Clear district when state changes
+  useEffect(() => {
+    if (selectedState && selectedDistrict) {
+      const districts = districtsByState.get(selectedState) || [];
+      if (!districts.includes(selectedDistrict)) {
+        setFilters(f => ({ ...f, district: '' }));
+      }
+    }
+  }, [selectedState, selectedDistrict, districtsByState]);
+
+  const clearFilters = () => {
+    setFilters(DEFAULT_FILTERS);
+    setSearchInput('');
+  };
 
   const filteredPatients = useMemo(() => {
     console.log('[Vertex] Filtering patients:', {
@@ -483,13 +539,21 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
             <input
               type="text"
               placeholder="Search patient, serial, facility..."
-              value={filters.search}
-              onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
               className="w-full pl-7 pr-2 py-1.5 bg-white border border-black/[0.08]
                          rounded-md text-xs text-[#28251d] placeholder:text-[#bab9b4]
                          focus:outline-none focus:border-[#01696f] focus:ring-1
                          focus:ring-[#cedcd8] transition-all"
             />
+            {searchInput && (
+              <button
+                onClick={() => setSearchInput('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#bab9b4] hover:text-[#28251d]"
+              >
+                <X size={12} />
+              </button>
+            )}
           </div>
 
           {/* Date range */}
@@ -694,9 +758,47 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
             >
               <div className="px-4 pb-3 pt-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-2
                              border-t border-black/[0.04]">
+                {/* State Dropdown */}
+                <div>
+                  <label className="block text-[10px] font-medium text-[#7a7974] mb-1">
+                    State
+                  </label>
+                  <select
+                    value={filters.state}
+                    onChange={e => setFilters(f => ({ ...f, state: e.target.value, district: '' }))}
+                    className="w-full px-2 py-1.5 bg-white border border-black/[0.08]
+                               rounded-md text-xs text-[#28251d] focus:outline-none
+                               focus:border-[#01696f] transition-all"
+                  >
+                    <option value="">All States</option>
+                    {uniqueStates.map(state => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* District Dropdown - Cascading */}
+                <div>
+                  <label className="block text-[10px] font-medium text-[#7a7974] mb-1">
+                    District
+                  </label>
+                  <select
+                    value={filters.district}
+                    onChange={e => setFilters(f => ({ ...f, district: e.target.value }))}
+                    disabled={!selectedState}
+                    className="w-full px-2 py-1.5 bg-white border border-black/[0.08]
+                               rounded-md text-xs text-[#28251d] focus:outline-none
+                               focus:border-[#01696f] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">{selectedState ? 'All Districts' : 'Select State First'}</option>
+                    {availableDistricts.map(district => (
+                      <option key={district} value={district}>{district}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Other Filters */}
                 {[
-                  { label: 'State', key: 'state' as const, options: ['', 'Maharashtra', 'Madhya Pradesh', 'Rajasthan', 'Uttar Pradesh', 'Gujarat'] },
-                  { label: 'District', key: 'district' as const, options: ['', 'Mumbai', 'Dewas', 'Jaipur', 'Lucknow'] },
                   { label: 'Facility', key: 'facilityType' as const, options: ['', 'CHC', 'PHC', 'Prison', 'DH', 'DRTB Centre'] },
                   { label: 'X-Ray Result', key: 'suspected' as const, options: ['all', 'Suspected TB Case', 'Normal', 'Other Abnormality'] },
                   { label: 'TB Status', key: 'tbDiagnosed' as const, options: ['all', 'Yes', 'No', 'Pending'] },
