@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Calendar, User, MapPin, Activity, CheckCircle2, XCircle, Building2, Phone, Hash, Settings2, Lock, Unlock, FileText, Shield, ClipboardList, Check, Minus } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { AnimatedToggle } from '@/components/ui/AnimatedToggle';
 
 // Field configuration for smart rendering (using exact Supabase snake_case column names)
 const FIELD_CONFIG: Record<string, {
@@ -107,18 +106,18 @@ const FIELD_CONFIG: Record<string, {
   kobo_uuid: { type: 'text' },
 };
 
-// Explicit Master List for 10S Symptoms (per Kobo dictionary mapping)
+// Canonical Master List for 10S Symptoms (fixed order, defensive parsing)
 const SYMPTOMS_MASTER = [
-  { id: 'cough', koboKey: 'cough_of_any_duration', label: 'Cough' },
-  { id: 'haemoptysis', koboKey: 'fever', label: 'Haemoptysis' },
-  { id: 'chest_pain', koboKey: 'weight_loss', label: 'Chest Pain' },
-  { id: 'fever_symptom', koboKey: 'night_sweats', label: 'Fever' },
-  { id: 'night_sweats_symptom', koboKey: 'lymph_nodes', label: 'Night Sweats' },
-  { id: 'loss_of_appetite', koboKey: 'loss_of_appetite', label: 'Loss of Appetite' },
-  { id: 'weight_loss_actual', koboKey: 'Weight_Loss_2', label: 'Weight Loss' },
-  { id: 'dyspnea', koboKey: 'Dyspnea', label: 'Dyspnea' },
-  { id: 'fatigue', koboKey: 'Fatigue', label: 'Fatigue' },
-  { id: 'reduced_activity', koboKey: 'Reduced_Physical_Activity', label: 'Reduced Physical Activity' },
+  { id: 'cough', label: 'Cough' },
+  { id: 'fever', label: 'Fever' },
+  { id: 'weight_loss', label: 'Weight loss' },
+  { id: 'night_sweats', label: 'Night sweats' },
+  { id: 'blood_in_sputum', label: 'Blood in sputum' },
+  { id: 'shortness_of_breath', label: 'Shortness of breath' },
+  { id: 'chest_pain', label: 'Chest pain' },
+  { id: 'loss_of_appetite', label: 'Loss of appetite' },
+  { id: 'fatigue', label: 'Fatigue' },
+  { id: 'swelling_neck', label: 'Swelling in neck' },
 ];
 
 interface DemographicsCarouselProps {
@@ -134,7 +133,7 @@ const DocSection = ({ title, accent = 'bg-slate-700', children }: { title: strin
   <div className="flex flex-col gap-4">
     <div className="flex items-center gap-2.5">
       <div className={`w-[3px] h-[18px] rounded-full shrink-0 ${accent}`} />
-      <span className="text-[9.5px] font-black uppercase tracking-[0.22em] text-slate-600">{title}</span>
+      <span className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-600">{title}</span>
       <div className="flex-1 h-px bg-slate-800/20" />
     </div>
     {children}
@@ -143,7 +142,7 @@ const DocSection = ({ title, accent = 'bg-slate-700', children }: { title: strin
 
 // â”€â”€ Symptom chip: colored pill (LaTeX certstyle equivalent)
 const SymptomChip = ({ label, selected }: { label: string; selected: boolean }) => (
-  <span className={`inline-flex items-center gap-1.5 px-2.5 py-[5px] text-[9.5px] font-bold uppercase tracking-wide border rounded-[3px] transition-all duration-150 select-none ${
+  <span className={`inline-flex items-center gap-1.5 px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-wide border rounded-[3px] transition-all duration-150 select-none ${
     selected ? 'bg-red-50 border-red-400 text-red-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-400'
   }`}>
     {selected ? <Check className="w-2.5 h-2.5 shrink-0" strokeWidth={3}/> : <Minus className="w-2.5 h-2.5 shrink-0" strokeWidth={2}/>}
@@ -166,7 +165,7 @@ const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, 
   const inputCls = 'w-full text-[12px] font-semibold text-slate-800 bg-white border border-slate-300 rounded px-2 py-1.5 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-300 transition-all shadow-sm';
   return (
     <div className="flex flex-col gap-1 min-w-0" style={span > 1 ? { gridColumn: `span ${span}` } : {}}>
-      <span className="text-[8.5px] font-extrabold uppercase tracking-[0.2em] text-slate-400">{label}</span>
+      <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400">{label}</span>
       {showInput ? (
         ftype === 'checkbox' ? (
           <button type="button" onClick={() => onChange!(fieldKey, !toBool(value))}
@@ -191,7 +190,7 @@ const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, 
             className={inputCls} />
         )
       ) : (
-        <div className="text-[13px] font-semibold text-slate-900 leading-snug break-words">
+        <div className="text-[14px] font-semibold text-slate-900 leading-snug break-words">
           {missing ? (
             <span className="text-slate-400 font-medium italic text-[11px]">Not recorded</span>
           ) : ftype === 'checkbox' ? (
@@ -202,113 +201,6 @@ const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, 
               {toBool(value) ? 'Yes' : 'No'}
             </span>
           ) : value}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const Chapter = ({ title, icon: Icon, children }: { title: string, icon: any, children: React.ReactNode }) => (
-  <div className="flex flex-col">
-    <div className="flex items-center gap-2.5 mb-5 pb-3 border-b-2 border-slate-100">
-      <div className="p-1.5 bg-indigo-50 rounded text-indigo-600">
-        <Icon className="w-4 h-4" />
-      </div>
-      <h2 className="text-[14px] font-black text-slate-800 tracking-wider uppercase">{title}</h2>
-    </div>
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
-      {children}
-    </div>
-  </div>
-);
-
-const ChecklistItem = ({ label, isSelected }: { label: string, isSelected: boolean }) => (
-  <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all duration-200 ${
-    isSelected 
-      ? 'bg-red-50 border-red-200 text-red-900 shadow-sm' 
-      : 'bg-slate-50/50 border-slate-200/60 text-slate-500'
-  }`}>
-    <div className={`flex items-center justify-center w-5 h-5 rounded-full shrink-0 ${
-      isSelected ? 'bg-red-500 text-white shadow-sm' : 'bg-slate-200 text-slate-400'
-    }`}>
-      {isSelected ? <Check className="w-3 h-3" strokeWidth={3} /> : <Minus className="w-3 h-3" strokeWidth={2} />}
-    </div>
-    <span className={`text-[13px] leading-tight ${isSelected ? 'font-bold' : 'font-medium opacity-80'}`}>{label}</span>
-  </div>
-);
-
-const DataField = ({
-  label, value, fieldKey, type, options, editable = false, isEditing, onChange, icon: Icon
-}: any) => {
-  const config = fieldKey ? FIELD_CONFIG[fieldKey] : null;
-  const detectedType = config?.type ?? type ?? 'text';
-  const detectedOptions = options ?? config?.options;
-  const isReadOnly = config?.readOnly ?? false;
-  const showInput = editable && !isReadOnly && isEditing && fieldKey && onChange;
-
-  const toBool = (v: any) => v === true || v === 1 || v === 'true' || v === 'yes' || v === 'Yes';
-  const isMissing = value === null || value === undefined || value === '';
-
-  return (
-    <div className="flex flex-col gap-1.5 min-w-0">
-      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-        {Icon && <Icon className="w-3.5 h-3.5 text-slate-400" />}
-        {label}
-      </div>
-      
-      {showInput ? (
-        <div className="relative">
-           {detectedType === 'checkbox' ? (
-              <AnimatedToggle
-                checked={toBool(value)}
-                onChange={(checked) => onChange(fieldKey, checked)}
-                size="sm"
-                variant="neon"
-              />
-           ) : detectedType === 'select' && detectedOptions ? (
-              <div className="relative">
-                <select
-                  value={value ?? ''}
-                  onChange={(e) => onChange(fieldKey, e.target.value)}
-                  className="w-full appearance-none text-[13px] font-semibold text-slate-800 bg-white border border-slate-300 rounded-md px-2.5 py-1.5 outline-none transition-all duration-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-sm"
-                >
-                  <option value="" disabled className="text-slate-400">Select...</option>
-                  {detectedOptions.map(opt => (
-                    <option key={opt} value={opt} className="text-slate-900 font-medium">{opt}</option>
-                  ))}
-                </select>
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
-           ) : (
-              <input
-                type={detectedType === 'number' ? 'number' : detectedType === 'date' ? 'date' : 'text'}
-                value={value ?? ''}
-                onChange={(e) => onChange(fieldKey, detectedType === 'number' ? Number(e.target.value) : e.target.value)}
-                placeholder={config?.placeholder ?? `Enter ${label.toLowerCase()}`}
-                className="w-full text-[13px] font-semibold text-slate-800 bg-white border border-slate-300 rounded-md px-2.5 py-1.5 outline-none transition-all duration-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm"
-              />
-           )}
-        </div>
-      ) : (
-        <div className="text-[14px] font-semibold text-slate-900 leading-tight truncate whitespace-normal break-words mt-0.5">
-          {isMissing ? (
-            <span className="text-slate-400/80 font-medium italic text-[13px]">Not recorded</span>
-          ) : detectedType === 'checkbox' ? (
-            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wide ${
-              toBool(value)
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                : 'bg-slate-100 text-slate-600 border border-slate-200'
-            }`}>
-              <span className={`w-2 h-2 rounded-full ${toBool(value) ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-              {toBool(value) ? 'Yes' : 'No'}
-            </span>
-          ) : (
-            value
-          )}
         </div>
       )}
     </div>
@@ -377,7 +269,7 @@ export function DemographicsCarousel({
     return parts.length > 0 ? parts.join(', ') : null;
   }, [patient, localValues, editedDemographics]);
 
-  // Map 10S string exactly to Kobo keys and English labels safely
+  // Map 10S string to canonical symptom list with defensive parsing
   const parsedSymptoms = useMemo(() => {
     const result: Record<string, boolean> = {};
     SYMPTOMS_MASTER.forEach(sym => result[sym.id] = false);
@@ -387,14 +279,21 @@ export function DemographicsCarousel({
       return result;
     }
     
-    const rawLower = raw.toLowerCase();
+    // Normalize: lowercase, trim, replace underscores/spaces, handle comma-separated
+    const normalized = raw.toLowerCase().trim().replace(/_/g, ' ').replace(/\s+/g, ' ');
+    const symptomsArray = normalized.split(/[,;\|]/).map(s => s.trim()).filter(Boolean);
     
     SYMPTOMS_MASTER.forEach(sym => {
-      const keyLower = sym.koboKey.toLowerCase();
-      const keySpaced = keyLower.replace(/_/g, ' ');
       const labelLower = sym.label.toLowerCase();
+      const labelSpaced = labelLower.replace(/\s+/g, ' ');
       
-      if (rawLower.includes(keyLower) || rawLower.includes(keySpaced) || rawLower.includes(labelLower)) {
+      // Check if symptom is present in any format
+      const isPresent = symptomsArray.some(s => {
+        const sNormalized = s.replace(/\s+/g, ' ');
+        return sNormalized === labelSpaced || sNormalized.includes(labelSpaced) || labelSpaced.includes(sNormalized);
+      });
+      
+      if (isPresent) {
         result[sym.id] = true;
       }
     });
@@ -434,8 +333,8 @@ export function DemographicsCarousel({
         {/* â”€â”€ DOCUMENT â”€â”€ */}
         <div className="bg-white border border-slate-300/80 shadow-[0_3px_20px_rgba(0,0,0,0.09)] overflow-hidden" style={{ borderRadius: 2 }}>
 
-          {/* â•â• HEADER: name panel left + status box right â•â• */}
-          <div className="flex items-stretch">
+          {/* â•â• HEADER: name panel left + status box right (responsive) â•â• */}
+          <div className="flex flex-col md:flex-row items-stretch">
             {/* Left dark panel */}
             <div className="flex-1 px-6 py-6 flex flex-col justify-between" style={{ background: '#111827' }}>
               <div>
@@ -458,7 +357,7 @@ export function DemographicsCarousel({
             </div>
 
             {/* Right: clinical status box (LaTeX tcolorbox equivalent) */}
-            <div className="w-52 shrink-0 border-l-4 border-slate-700 bg-slate-50 px-4 py-4 flex flex-col gap-2.5">
+            <div className="w-full md:w-52 shrink-0 border-l-0 md:border-l-4 border-t-4 md:border-t-0 border-slate-700 bg-slate-50 px-4 py-4 flex flex-col gap-2.5">
               <p className="text-[8px] font-black uppercase tracking-[0.25em] text-slate-400 mb-1">Clinical Status</p>
               {[
                 { label: 'X-Ray',       val: xray,  flag: isSusp, flagColor: 'text-amber-700 bg-amber-50 border-amber-300' },
@@ -483,25 +382,23 @@ export function DemographicsCarousel({
 
             {/* Â§ Identity & Contact */}
             <DocSection title="Identity & Contact" accent="bg-violet-500">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="Father / Husband"  value={gv('father_husband_name', patient?.father_husband_name)} fieldKey="father_husband_name" editable isEditing={E} onChange={H} />
                 <Field label="Date of Birth"      value={gv('date_of_birth', patient?.date_of_birth)}            fieldKey="date_of_birth"      editable isEditing={E} onChange={H} />
                 <Field label="Age"                value={gv('age', patient?.age)}                                fieldKey="age"                 editable isEditing={E} onChange={H} />
                 <Field label="Sex"                value={gv('sex', patient?.sex)}                                fieldKey="sex"                 editable isEditing={E} onChange={H} />
                 <Field label="Inmate Type"        value={gv('inmate_type', patient?.inmate_type)}                fieldKey="inmate_type"         editable isEditing={E} onChange={H} />
                 <Field label="Contact"            value={gv('contact_number', patient?.contact_number)}          fieldKey="contact_number"      editable isEditing={E} onChange={H} />
+                <Field label="Full Address"       value={getFullAddress()} fieldKey="address" span={2} editable isEditing={E} onChange={H} />
                 {gv('inmate_type', patient?.inmate_type) === 'Other' && (
                   <Field label="Specify Type"     value={gv('inmate_type_other', patient?.inmate_type_other)}    fieldKey="inmate_type_other"   editable isEditing={E} onChange={H} />
                 )}
-              </div>
-              <div className="mt-4">
-                <Field label="Full Address" value={getFullAddress()} fieldKey="address" editable isEditing={E} onChange={H} />
               </div>
             </DocSection>
 
             {/* Â§ Screening Encounter */}
             <DocSection title="Screening Encounter" accent="bg-amber-500">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="Screening Date"     value={gv('screening_date', patient?.screening_date)}          fieldKey="screening_date"      editable isEditing={E} onChange={H} />
                 <Field label="Facility Name"      value={gv('facility_name', patient?.facility_name)}            fieldKey="facility_name"       editable isEditing={E} onChange={H} />
                 <Field label="Facility Type"      value={gv('facility_type', patient?.facility_type)}            fieldKey="facility_type"       editable isEditing={E} onChange={H} />
@@ -532,7 +429,7 @@ export function DemographicsCarousel({
 
             {/* Â§ Diagnostics & Treatment */}
             <DocSection title="Diagnostics & Treatment" accent="bg-sky-500">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="X-Ray Result"       value={gv('xray_result', patient?.xray_result)}                fieldKey="xray_result"         editable isEditing={E} onChange={H} />
                 <Field label="Sputum Collected"   value={gv('sputum_collected_select', gv('sputum_collected', patient?.sputum_collected))} fieldKey="sputum_collected_select" editable isEditing={E} onChange={H} />
                 <Field label="TB Past History"    value={gv('tb_past_history', patient?.tb_past_history)}        fieldKey="tb_past_history"     editable isEditing={E} onChange={H} />
@@ -553,7 +450,7 @@ export function DemographicsCarousel({
 
             {/* Â§ HIV / ART */}
             <DocSection title="HIV / ART Status" accent="bg-pink-500">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="HIV Status"   value={gv('hiv_status', patient?.hiv_status)}   fieldKey="hiv_status"  editable isEditing={E} onChange={H} />
                 <Field label="ART Started"  value={gv('art_started', patient?.art_started)}  fieldKey="art_started" editable isEditing={E} onChange={H} />
                 <Field label="ART Center"   value={gv('art_center', patient?.art_center)}    fieldKey="art_center"  editable isEditing={E} onChange={H} />
@@ -563,7 +460,7 @@ export function DemographicsCarousel({
 
             {/* Â§ Registration & System */}
             <DocSection title="Registration & System" accent="bg-teal-500">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="Nikshay ID"   value={gv('nikshay_id', patient?.nikshay_id)}   fieldKey="nikshay_id"  editable isEditing={E} onChange={H} />
                 <Field label="ABHA ID"      value={gv('abha_id', patient?.abha_id)}          fieldKey="abha_id"     editable isEditing={E} onChange={H} />
                 <Field label="Kobo UUID"    value={gv('kobo_uuid', patient?.kobo_uuid)}      fieldKey="kobo_uuid"   isEditing={E} onChange={H} />
