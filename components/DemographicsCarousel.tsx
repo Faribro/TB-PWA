@@ -130,24 +130,30 @@ interface DemographicsCarouselProps {
 
 // â”€â”€ Section header: bold uppercase + full-width rule (LaTeX \section style)
 const DocSection = ({ title, accent = 'bg-slate-700', children }: { title: string; accent?: string; children: React.ReactNode }) => (
-  <div className="flex flex-col gap-4">
+  <div className="flex flex-col gap-5">
     <div className="flex items-center gap-2.5">
-      <div className={`w-[3px] h-[18px] rounded-full shrink-0 ${accent}`} />
-      <span className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-600">{title}</span>
+      <div className={`w-[3px] h-[20px] rounded-full shrink-0 ${accent}`} />
+      <span className="text-[10.5px] font-black uppercase tracking-[0.2em] text-slate-600">{title}</span>
       <div className="flex-1 h-px bg-slate-800/20" />
     </div>
     {children}
   </div>
 );
 
-// â”€â”€ Symptom chip: colored pill (LaTeX certstyle equivalent)
-const SymptomChip = ({ label, selected }: { label: string; selected: boolean }) => (
-  <span className={`inline-flex items-center gap-1.5 px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-wide border rounded-[3px] transition-all duration-150 select-none ${
-    selected ? 'bg-red-50 border-red-400 text-red-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-400'
+// â”€â”€ Symptom row: clinical checklist style for better scanning
+const SymptomRow = ({ label, selected }: { label: string; selected: boolean }) => (
+  <div className={`flex items-center gap-3 px-3 py-2 border rounded-[4px] transition-all duration-150 select-none ${
+    selected 
+      ? 'bg-red-50 border-red-300 text-red-900' 
+      : 'bg-slate-50 border-slate-200 text-slate-500'
   }`}>
-    {selected ? <Check className="w-2.5 h-2.5 shrink-0" strokeWidth={3}/> : <Minus className="w-2.5 h-2.5 shrink-0" strokeWidth={2}/>}
-    {label}
-  </span>
+    <div className={`flex items-center justify-center w-4 h-4 rounded-full shrink-0 ${
+      selected ? 'bg-red-500 text-white' : 'bg-slate-300 text-slate-400'
+    }`}>
+      {selected ? <Check className="w-2.5 h-2.5" strokeWidth={3}/> : <Minus className="w-2.5 h-2.5" strokeWidth={2}/>}
+    </div>
+    <span className={`text-[11px] font-medium leading-tight ${selected ? 'font-semibold' : ''}`}>{label}</span>
+  </div>
 );
 
 // â”€â”€ Data field: label over value, view or edit
@@ -162,14 +168,17 @@ const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, 
   const showInput = editable && !cfg?.readOnly && isEditing && onChange;
   const toBool = (v: any) => v === true || v === 1 || v === 'true' || v === 'yes' || v === 'Yes';
   const missing = value === null || value === undefined || value === '';
-  const inputCls = 'w-full text-[12px] font-semibold text-slate-800 bg-white border border-slate-300 rounded px-2 py-1.5 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-300 transition-all shadow-sm';
+  const inputCls = 'w-full text-[13px] font-semibold text-slate-800 bg-white border border-slate-300 rounded px-2.5 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all shadow-sm';
   return (
-    <div className="flex flex-col gap-1 min-w-0" style={span > 1 ? { gridColumn: `span ${span}` } : {}}>
-      <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400">{label}</span>
+    <div className="flex flex-col gap-1.5 min-w-0" style={span > 1 ? { gridColumn: `span ${span}` } : {}}>
+      <span className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">{label}</span>
       {showInput ? (
         ftype === 'checkbox' ? (
-          <button type="button" onClick={() => onChange!(fieldKey, !toBool(value))}
-            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 focus:outline-none ${
+          <button 
+            type="button" 
+            onClick={() => onChange!(fieldKey, !toBool(value))}
+            aria-label={label}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-emerald-400 ${
               toBool(value) ? 'bg-emerald-500 border-emerald-500' : 'bg-slate-200 border-slate-300'
             }`}>
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition duration-200 ${toBool(value) ? 'translate-x-4' : 'translate-x-0'}`} />
@@ -190,11 +199,11 @@ const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, 
             className={inputCls} />
         )
       ) : (
-        <div className="text-[14px] font-semibold text-slate-900 leading-snug break-words">
+        <div className="text-[15px] font-semibold text-slate-900 leading-snug break-words">
           {missing ? (
-            <span className="text-slate-400 font-medium italic text-[11px]">Not recorded</span>
+            <span className="text-slate-400 font-medium italic text-[12px]">Not recorded</span>
           ) : ftype === 'checkbox' ? (
-            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${
+            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide ${
               toBool(value) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'
             }`}>
               <span className={`w-1.5 h-1.5 rounded-full ${toBool(value) ? 'bg-emerald-500' : 'bg-slate-400'}`} />
@@ -357,8 +366,8 @@ export function DemographicsCarousel({
             </div>
 
             {/* Right: clinical status box (LaTeX tcolorbox equivalent) */}
-            <div className="w-full md:w-52 shrink-0 border-l-0 md:border-l-4 border-t-4 md:border-t-0 border-slate-700 bg-slate-50 px-4 py-4 flex flex-col gap-2.5">
-              <p className="text-[8px] font-black uppercase tracking-[0.25em] text-slate-400 mb-1">Clinical Status</p>
+            <div className="w-full md:w-52 shrink-0 border-l-0 md:border-l-4 border-t-4 md:border-t-0 border-slate-700 bg-slate-50 px-4 py-4 flex flex-col gap-3">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-0.5">Clinical Status</p>
               {[
                 { label: 'X-Ray',       val: xray,  flag: isSusp, flagColor: 'text-amber-700 bg-amber-50 border-amber-300' },
                 { label: 'HIV',         val: hiv,   flag: isHIV,  flagColor: 'text-pink-700 bg-pink-50 border-pink-300'   },
@@ -366,12 +375,12 @@ export function DemographicsCarousel({
                 { label: 'Symptoms',    val: `${symCount} / 10`, flag: symCount >= 3, flagColor: 'text-orange-700 bg-orange-50 border-orange-300' },
               ].map(({ label, val, flag, flagColor }) => (
                 <div key={label} className="flex items-center justify-between gap-2">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 shrink-0">{label}</span>
+                  <span className="text-[10.5px] font-bold uppercase tracking-wide text-slate-500 shrink-0">{label}</span>
                   {val ? (
-                    <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded border ${flag ? flagColor : 'text-emerald-700 bg-emerald-50 border-emerald-200'}`}>
+                    <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border ${flag ? flagColor : 'text-emerald-700 bg-emerald-50 border-emerald-200'}`}>
                       {flag && 'âš‘ '}{String(val)}
                     </span>
-                  ) : <span className="text-[10px] italic text-slate-400">â€”</span>}
+                  ) : <span className="text-[11px] italic text-slate-400 font-medium">Not recorded</span>}
                 </div>
               ))}
             </div>
@@ -382,14 +391,14 @@ export function DemographicsCarousel({
 
             {/* Â§ Identity & Contact */}
             <DocSection title="Identity & Contact" accent="bg-violet-500">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="Father / Husband"  value={gv('father_husband_name', patient?.father_husband_name)} fieldKey="father_husband_name" editable isEditing={E} onChange={H} />
                 <Field label="Date of Birth"      value={gv('date_of_birth', patient?.date_of_birth)}            fieldKey="date_of_birth"      editable isEditing={E} onChange={H} />
                 <Field label="Age"                value={gv('age', patient?.age)}                                fieldKey="age"                 editable isEditing={E} onChange={H} />
                 <Field label="Sex"                value={gv('sex', patient?.sex)}                                fieldKey="sex"                 editable isEditing={E} onChange={H} />
                 <Field label="Inmate Type"        value={gv('inmate_type', patient?.inmate_type)}                fieldKey="inmate_type"         editable isEditing={E} onChange={H} />
                 <Field label="Contact"            value={gv('contact_number', patient?.contact_number)}          fieldKey="contact_number"      editable isEditing={E} onChange={H} />
-                <Field label="Full Address"       value={getFullAddress()} fieldKey="address" span={2} editable isEditing={E} onChange={H} />
+                <Field label="Full Address"       value={getFullAddress()} fieldKey="address" span={3} editable isEditing={E} onChange={H} />
                 {gv('inmate_type', patient?.inmate_type) === 'Other' && (
                   <Field label="Specify Type"     value={gv('inmate_type_other', patient?.inmate_type_other)}    fieldKey="inmate_type_other"   editable isEditing={E} onChange={H} />
                 )}
@@ -398,7 +407,7 @@ export function DemographicsCarousel({
 
             {/* Â§ Screening Encounter */}
             <DocSection title="Screening Encounter" accent="bg-amber-500">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="Screening Date"     value={gv('screening_date', patient?.screening_date)}          fieldKey="screening_date"      editable isEditing={E} onChange={H} />
                 <Field label="Facility Name"      value={gv('facility_name', patient?.facility_name)}            fieldKey="facility_name"       editable isEditing={E} onChange={H} />
                 <Field label="Facility Type"      value={gv('facility_type', patient?.facility_type)}            fieldKey="facility_type"       editable isEditing={E} onChange={H} />
@@ -417,19 +426,19 @@ export function DemographicsCarousel({
 
             {/* Â§ 10S Symptom Checklist */}
             <DocSection title="10S Symptom Checklist" accent="bg-red-500">
-              <div className="flex flex-wrap gap-2">
-                {SYMPTOMS_MASTER.map(s => <SymptomChip key={s.id} label={s.label} selected={parsedSymptoms[s.id]} />)}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                {SYMPTOMS_MASTER.map(s => <SymptomRow key={s.id} label={s.label} selected={parsedSymptoms[s.id]} />)}
               </div>
               {symCount >= 3 && (
-                <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-[3px]">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-red-700">âš‘ High Risk â€” {symCount} symptoms present. Prioritise immediate referral.</span>
+                <div className="mt-4 flex items-center gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-[4px]">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-red-700">âš‘ High Risk â€” {symCount} symptoms present. Prioritise immediate referral.</span>
                 </div>
               )}
             </DocSection>
 
             {/* Â§ Diagnostics & Treatment */}
             <DocSection title="Diagnostics & Treatment" accent="bg-sky-500">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="X-Ray Result"       value={gv('xray_result', patient?.xray_result)}                fieldKey="xray_result"         editable isEditing={E} onChange={H} />
                 <Field label="Sputum Collected"   value={gv('sputum_collected_select', gv('sputum_collected', patient?.sputum_collected))} fieldKey="sputum_collected_select" editable isEditing={E} onChange={H} />
                 <Field label="TB Past History"    value={gv('tb_past_history', patient?.tb_past_history)}        fieldKey="tb_past_history"     editable isEditing={E} onChange={H} />
@@ -450,7 +459,7 @@ export function DemographicsCarousel({
 
             {/* Â§ HIV / ART */}
             <DocSection title="HIV / ART Status" accent="bg-pink-500">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="HIV Status"   value={gv('hiv_status', patient?.hiv_status)}   fieldKey="hiv_status"  editable isEditing={E} onChange={H} />
                 <Field label="ART Started"  value={gv('art_started', patient?.art_started)}  fieldKey="art_started" editable isEditing={E} onChange={H} />
                 <Field label="ART Center"   value={gv('art_center', patient?.art_center)}    fieldKey="art_center"  editable isEditing={E} onChange={H} />
@@ -460,7 +469,7 @@ export function DemographicsCarousel({
 
             {/* Â§ Registration & System */}
             <DocSection title="Registration & System" accent="bg-teal-500">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="Nikshay ID"   value={gv('nikshay_id', patient?.nikshay_id)}   fieldKey="nikshay_id"  editable isEditing={E} onChange={H} />
                 <Field label="ABHA ID"      value={gv('abha_id', patient?.abha_id)}          fieldKey="abha_id"     editable isEditing={E} onChange={H} />
                 <Field label="Kobo UUID"    value={gv('kobo_uuid', patient?.kobo_uuid)}      fieldKey="kobo_uuid"   isEditing={E} onChange={H} />
