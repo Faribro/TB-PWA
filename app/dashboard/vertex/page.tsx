@@ -429,12 +429,16 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     try {
       exportPatientsToXLSX(
         filteredPatients as unknown as Record<string, unknown>[],
-        `samadhaan-vertex-${filters.state || 'all'}`
+        {
+          filename: 'samadhaan-vertex',
+          includeMetrics: true,
+          districtFilter: filters.district || undefined,
+        }
       );
     } finally {
       setIsExporting(false);
     }
-  }, [filteredPatients, filters.state, isExporting]);
+  }, [filteredPatients, filters.district, isExporting]);
 
   const handleDayClick = useCallback((date: string) => {
     if (selectedCalendarDate === date) {
