@@ -12,20 +12,67 @@ export function exportPatientsToXLSX(
 ) {
   const { filename = 'samadhaan-export', includeMetrics = true, districtFilter } = options;
 
-  // Enhanced column mapping with all critical fields
+  // Complete column mapping with ALL database fields
   const headers = [
-    'Serial No', 'Kobo UUID', 'Patient Name', 'Age', 'Sex', 'Contact Number',
-    'Screening Date', 'State', 'District', 'Facility Name', 'Facility Type',
-    'Staff Name', 'Staff Contact', 'Address',
-    'Symptoms', 'X-Ray Done', 'X-Ray Result', 'X-Ray Date',
-    'CBNAAT Done', 'CBNAAT Result', 'CBNAAT Date',
-    'TB Diagnosed', 'TB Type', 'Diagnosis Date',
-    'Drug-Resistant TB', 'HIV Status',
-    'Referral Date', 'Referral Facility',
-    'ATT Start Date', 'ATT Completion Date', 'Treatment Status',
-    'NIKSHAY ID', 'ABHA ID',
-    'SLA Status', 'Days Since Screening',
-    'Remarks'
+    // Identity & Demographics
+    'Serial No',
+    'Unique ID',
+    'Kobo UUID',
+    'Patient Name',
+    'Father/Husband Name',
+    'Date of Birth',
+    'Age',
+    'Sex',
+    'Contact Number',
+    'Address',
+    'Inmate Type',
+    
+    // Screening Details
+    'Screening Date',
+    'Submitted On',
+    'State',
+    'District',
+    'Facility Name',
+    'Facility Type',
+    'Staff Name',
+    
+    // Clinical Assessment
+    'Symptoms (10S)',
+    'TB Past History',
+    'X-Ray Result',
+    
+    // Referral
+    'Referral Date',
+    'Referred Facility',
+    
+    // Diagnosis
+    'TB Diagnosed',
+    'TB Diagnosis Date',
+    'TB Type',
+    
+    // Treatment
+    'ATT Start Date',
+    'ATT Completion Date',
+    
+    // HIV/ART
+    'HIV Status',
+    'ART Status',
+    'ART Number',
+    
+    // Registration
+    'NIKSHAY/ABHA ID',
+    'Registration Date',
+    
+    // Administrative
+    'Closure Reason',
+    'Remarks',
+    'AI Link Status',
+    'Created At',
+    'Updated At',
+    
+    // Computed Fields
+    'SLA Status',
+    'Days Since Screening'
   ];
 
   const rows = patients.map(p => {
@@ -34,45 +81,65 @@ export function exportPatientsToXLSX(
     const slaStatus = !p.referral_date && daysSince && daysSince > 7 ? 'BREACH' : 'ON TRACK';
 
     return [
-      p.serial_no ?? '',
-      p.kobo_uuid ?? p.unique_id ?? '',
-      p.inmate_name ?? p.patient_name ?? '',
+      // Identity & Demographics
+      p.serial_number ?? p.unique_id ?? '',
+      p.unique_id ?? '',
+      p.kobo_uuid ?? '',
+      p.inmate_name ?? '',
+      p.father_husband_name ?? '',
+      p.date_of_birth ? new Date(p.date_of_birth as string).toLocaleDateString('en-IN') : '',
       p.age ?? '',
       p.sex ?? '',
       p.contact_number ?? '',
+      p.address ?? '',
+      p.inmate_type ?? '',
+      
+      // Screening Details
       p.screening_date ? new Date(p.screening_date as string).toLocaleDateString('en-IN') : '',
+      p.submitted_on ? new Date(p.submitted_on as string).toLocaleDateString('en-IN') : '',
       p.screening_state ?? '',
       p.screening_district ?? '',
       p.facility_name ?? '',
       p.facility_type ?? '',
       p.staff_name ?? '',
-      p.staff_contact ?? '',
-      p.address ?? [p.address_line1, p.address_line2, p.city, p.pincode].filter(Boolean).join(', ') ?? '',
-      Object.entries(p)
-        .filter(([k, v]) => k.startsWith('symptom_') && v === true)
-        .map(([k]) => k.replace('symptom_', '').replace(/_/g, ' '))
-        .join(', ') || 'None',
-      p.xray_done ? 'Yes' : 'No',
+      
+      // Clinical Assessment
+      p.symptoms_10s ?? '',
+      p.tb_past_history ?? '',
       p.xray_result ?? '',
-      p.xray_date ? new Date(p.xray_date as string).toLocaleDateString('en-IN') : '',
-      p.cbnaat_done ? 'Yes' : 'No',
-      p.cbnaat_result ?? '',
-      p.cbnaat_date ? new Date(p.cbnaat_date as string).toLocaleDateString('en-IN') : '',
-      p.tb_diagnosed ?? '',
-      p.tb_type ?? '',
-      p.diagnosis_date ? new Date(p.diagnosis_date as string).toLocaleDateString('en-IN') : '',
-      p.dr_tb ? 'Yes' : 'No',
-      p.hiv_status ?? '',
+      
+      // Referral
       p.referral_date ? new Date(p.referral_date as string).toLocaleDateString('en-IN') : '',
-      p.referral_facility ?? '',
+      p.referred_facility ?? '',
+      
+      // Diagnosis
+      p.tb_diagnosed ?? '',
+      p.tb_diagnosis_date ? new Date(p.tb_diagnosis_date as string).toLocaleDateString('en-IN') : '',
+      p.tb_type ?? '',
+      
+      // Treatment
       p.att_start_date ? new Date(p.att_start_date as string).toLocaleDateString('en-IN') : '',
       p.att_completion_date ? new Date(p.att_completion_date as string).toLocaleDateString('en-IN') : '',
-      p.treatment_status ?? '',
-      p.nikshay_id ?? '',
-      p.abha_id ?? '',
+      
+      // HIV/ART
+      p.hiv_status ?? '',
+      p.art_status ?? '',
+      p.art_number ?? '',
+      
+      // Registration
+      p.nikshay_abha_id ?? '',
+      p.registration_date ? new Date(p.registration_date as string).toLocaleDateString('en-IN') : '',
+      
+      // Administrative
+      p.closure_reason ?? '',
+      p.remarks ?? '',
+      p.ai_link_status ?? '',
+      p.created_at ? new Date(p.created_at as string).toLocaleDateString('en-IN') : '',
+      p.updated_at ? new Date(p.updated_at as string).toLocaleDateString('en-IN') : '',
+      
+      // Computed Fields
       slaStatus,
       daysSince ?? '',
-      p.remarks ?? '',
     ];
   });
 
@@ -115,8 +182,8 @@ export function exportPatientsToXLSX(
         }
       };
 
-      // Conditional formatting for SLA Status column (index 32)
-      if (c === 32) {
+      // Conditional formatting for SLA Status column (index 38)
+      if (c === 38) {
         const value = ws[cell].v;
         if (value === 'BREACH') {
           ws[cell].s.fill = { fgColor: { rgb: 'FEE2E2' } };
@@ -129,44 +196,48 @@ export function exportPatientsToXLSX(
     }
   }
 
-  // Optimal column widths
+  // Optimal column widths for all fields
   ws['!cols'] = [
     { wch: 10 },  // Serial No
+    { wch: 25 },  // Unique ID
     { wch: 25 },  // Kobo UUID
     { wch: 20 },  // Patient Name
+    { wch: 20 },  // Father/Husband Name
+    { wch: 12 },  // Date of Birth
     { wch: 6 },   // Age
     { wch: 8 },   // Sex
-    { wch: 15 },  // Contact
+    { wch: 15 },  // Contact Number
+    { wch: 35 },  // Address
+    { wch: 15 },  // Inmate Type
     { wch: 12 },  // Screening Date
+    { wch: 12 },  // Submitted On
     { wch: 18 },  // State
     { wch: 18 },  // District
     { wch: 25 },  // Facility Name
     { wch: 15 },  // Facility Type
     { wch: 20 },  // Staff Name
-    { wch: 15 },  // Staff Contact
-    { wch: 35 },  // Address
-    { wch: 30 },  // Symptoms
-    { wch: 10 },  // X-Ray Done
+    { wch: 30 },  // Symptoms (10S)
+    { wch: 15 },  // TB Past History
     { wch: 20 },  // X-Ray Result
-    { wch: 12 },  // X-Ray Date
-    { wch: 12 },  // CBNAAT Done
-    { wch: 15 },  // CBNAAT Result
-    { wch: 12 },  // CBNAAT Date
-    { wch: 12 },  // TB Diagnosed
-    { wch: 10 },  // TB Type
-    { wch: 12 },  // Diagnosis Date
-    { wch: 15 },  // DR-TB
-    { wch: 12 },  // HIV Status
     { wch: 12 },  // Referral Date
-    { wch: 25 },  // Referral Facility
-    { wch: 12 },  // ATT Start
-    { wch: 12 },  // ATT Completion
-    { wch: 15 },  // Treatment Status
-    { wch: 15 },  // NIKSHAY ID
-    { wch: 15 },  // ABHA ID
-    { wch: 12 },  // SLA Status
-    { wch: 10 },  // Days Since
+    { wch: 25 },  // Referred Facility
+    { wch: 12 },  // TB Diagnosed
+    { wch: 12 },  // TB Diagnosis Date
+    { wch: 15 },  // TB Type
+    { wch: 12 },  // ATT Start Date
+    { wch: 12 },  // ATT Completion Date
+    { wch: 12 },  // HIV Status
+    { wch: 15 },  // ART Status
+    { wch: 15 },  // ART Number
+    { wch: 20 },  // NIKSHAY/ABHA ID
+    { wch: 15 },  // Registration Date
+    { wch: 20 },  // Closure Reason
     { wch: 30 },  // Remarks
+    { wch: 15 },  // AI Link Status
+    { wch: 12 },  // Created At
+    { wch: 12 },  // Updated At
+    { wch: 12 },  // SLA Status
+    { wch: 10 },  // Days Since Screening
   ];
 
   // Freeze header row
