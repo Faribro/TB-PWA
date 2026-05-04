@@ -12,9 +12,13 @@ const FIELD_CONFIG: Record<string, {
   readOnly?: boolean;
 }> = {
   // Checkbox (Yes/No) fields
-  sputum_collected: { type: 'checkbox' },
   tb_diagnosed: { type: 'checkbox' },
   cpt_given: { type: 'checkbox' },
+
+  // Sputum referral fields (from clinical schema)
+  'Date of referral for TB Examination (sputum) (dd/mm/yy)': { type: 'date' },
+  'Name of facility where referred to (Give code/name of all facilities)': { type: 'text' },
+  'Other Facility Name': { type: 'text' },
 
   // Select fields
   sex: {
@@ -64,10 +68,6 @@ const FIELD_CONFIG: Record<string, {
   tb_diagnosed_select: {
     type: 'select',
     options: ['Yes', 'No', 'Inconclusive', 'Pending']
-  },
-  sputum_collected_select: {
-    type: 'select',
-    options: ['Yes', 'No', 'Refused', 'Not applicable']
   },
   art_started: {
     type: 'select',
@@ -592,7 +592,8 @@ export function DemographicsCarousel({
             <DocSection title="Diagnostics & Treatment" accent="bg-blue-600">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="X-Ray Result"       value={formatXrayValue(gv('xray_result', patient?.xray_result))}                fieldKey="xray_result"         editable isEditing={E} onChange={H} />
-                <Field label="Sputum Collected"   value={gv('sputum_collected_select', gv('sputum_collected', patient?.sputum_collected))} fieldKey="sputum_collected_select" editable isEditing={E} onChange={H} />
+                <Field label="Date of referral for TB Examination (sputum)" value={gv('Date of referral for TB Examination (sputum) (dd/mm/yy)', patient?.['Date of referral for TB Examination (sputum) (dd/mm/yy)'])} fieldKey="Date of referral for TB Examination (sputum) (dd/mm/yy)" editable isEditing={E} onChange={H} />
+                <Field label="Name of facility where referred to" value={gv('Name of facility where referred to (Give code/name of all facilities)', patient?.['Name of facility where referred to (Give code/name of all facilities)'])} fieldKey="Name of facility where referred to (Give code/name of all facilities)" editable isEditing={E} onChange={H} />
                 <Field label="TB Past History"    value={gv('tb_past_history', patient?.tb_past_history)}        fieldKey="tb_past_history"     editable isEditing={E} onChange={H} />
                 <Field label="TB Diagnosed"       value={gv('tb_diagnosed_select', gv('tb_diagnosed', patient?.tb_diagnosed))} fieldKey="tb_diagnosed_select" editable isEditing={E} onChange={H} />
                 <Field label="Diagnosis Date"     value={gv('diagnosis_date', patient?.diagnosis_date)}          fieldKey="diagnosis_date"      editable isEditing={E} onChange={H} />
