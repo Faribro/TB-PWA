@@ -56,21 +56,19 @@ export async function POST(request: NextRequest) {
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
     let isServiceRoleAuth = false;
-    let scopePromise: Promise<{ state: string | null; district: string | null; role: string }> | null = null;
+    let scope = { state: null, district: null, role: 'service' };
     
     if (authHeader && serviceRoleKey && authHeader === `Bearer ${serviceRoleKey}`) {
       isServiceRoleAuth = true;
     } else {
-      scopePromise = getSessionScope();
+      try {
+        scope = await getSessionScope();
+      } catch {
+        throw new Error('UNAUTHORIZED');
+      }
     }
     
-    // Parse body in parallel with auth
-    const [body, scope] = await Promise.all([
-      request.json(),
-      scopePromise || Promise.resolve({ state: null, district: null, role: 'service' })
-    ]).catch(() => {
-      throw new Error('UNAUTHORIZED');
-    });
+    const body = await request.json();
 
     const { patientId, updates } = body;
 

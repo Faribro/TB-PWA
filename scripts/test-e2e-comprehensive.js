@@ -11,7 +11,10 @@
  * 5. Real-time update propagation
  */
 
-const BACKEND_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+// Load environment variables
+require('dotenv').config({ path: '.env.local' });
+
+const BACKEND_URL = process.env.NEXTAUTH_URL || 'http://localhost:3001';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SHEETS_WEBHOOK_URL = process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
@@ -107,7 +110,10 @@ async function testAPIUpdate() {
   try {
     const response = await fetch(`${BACKEND_URL}/api/patient-sync`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+      },
       body: JSON.stringify(payload),
     });
     

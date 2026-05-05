@@ -19,6 +19,7 @@
     "test:sync": "node scripts/test-triple-sync.js",
     "test:e2e": "node scripts/run-test.js",
     "test:e2e:comprehensive": "node scripts/test-e2e-comprehensive.js",
+    "test:date-input": "node scripts/test-date-input-diagnostic.js",
     "test:demographics": "node scripts/test-demographics-sync.js",
     "test:pipeline": "node scripts/verify-supabase-connection.js && node scripts/test-triple-sync.js",
     "test:stabilization": "node scripts/test-stabilization.js",
