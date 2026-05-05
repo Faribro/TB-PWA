@@ -419,9 +419,14 @@ export function DemographicsCarousel({
 
   // Flush all pending debounced changes immediately
   const flushPendingChanges = useCallback(() => {
+    console.log('[DemographicsCarousel] flushPendingChanges called');
+    console.log('[DemographicsCarousel] Current localValues:', localValues);
+    console.log('[DemographicsCarousel] Pending timers:', Object.keys(debounceTimers.current));
+    
     Object.entries(debounceTimers.current).forEach(([key, timer]) => {
       clearTimeout(timer);
       const value = localValues[key];
+      console.log(`[DemographicsCarousel] Flushing "${key}" = "${value}"`);
       if (value !== undefined) {
         setEditedDemographics(prev => ({ ...prev, [key]: value }));
       }
@@ -430,19 +435,25 @@ export function DemographicsCarousel({
   }, [localValues, setEditedDemographics]);
 
   const handleFieldChange = useCallback((key: string, value: any) => {
+    console.log(`[DemographicsCarousel] handleFieldChange called: key="${key}", value="${value}"`);
     const config = FIELD_CONFIG[key];
     if (config?.type === 'checkbox') {
       setEditedDemographics(prev => ({ ...prev, [key]: value }));
       return;
     }
     
-    setLocalValues(prev => ({ ...prev, [key]: value }));
+    setLocalValues(prev => {
+      const newValues = { ...prev, [key]: value };
+      console.log(`[DemographicsCarousel] localValues updated:`, newValues);
+      return newValues;
+    });
     
     if (debounceTimers.current[key]) {
       clearTimeout(debounceTimers.current[key]);
     }
     
     debounceTimers.current[key] = setTimeout(() => {
+      console.log(`[DemographicsCarousel] Debounce fired for "${key}", setting editedDemographics`);
       setEditedDemographics(prev => ({ ...prev, [key]: value }));
       delete debounceTimers.current[key];
     }, 100);
