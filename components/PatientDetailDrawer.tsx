@@ -114,6 +114,11 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const { mutate } = useSWRConfig();
   const { status, setSaving, setSyncing, setSynced, setError, reset: resetSyncStatus } = useSyncStatus(patient?.id ?? null);
 
+  // Force refresh session scope when drawer opens to prevent stale access control data
+  useEffect(() => {
+    mutate('/api/me');
+  }, [mutate]);
+
   useEffect(() => {
     if (patient && Object.keys(patient).length > 0) {
       setLocalPatient(patient);

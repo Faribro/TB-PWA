@@ -35,8 +35,8 @@ const fetcher = async (url: string) => {
 export function useSessionScope(): SessionScope | null {
   const { data, error } = useSWR<SessionScope>('/api/me', fetcher, {
     revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    dedupingInterval: 60 * 60 * 1000,
+    revalidateOnReconnect: true,
+    dedupingInterval: 5 * 60 * 1000, // Reduced from 1 hour to 5 minutes
     shouldRetryOnError: false,
     onError: (err) => {
       if (err?.message !== 'Failed to fetch session scope') {
