@@ -1,12 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 const WEBHOOK_SECRET = 'alliance_kobo_secure_2026';
+
+/**
+ * Get Supabase client at request time (not build time)
+ */
+function getSupabaseClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 // Explicit blacklist of columns that should NEVER be sent to Supabase
 const BLACKLISTED_COLUMNS = new Set(['alcohol', 'smoking']);
@@ -18,11 +23,14 @@ let validColumnsCache: Set<string> | null = null;
  * Fetch valid column names from Supabase patients table
  */
 async function getValidColumns(): Promise<Set<string>> {
+  const supabase = getSupabaseClient();
+  
   if (validColumnsCache) {
     return validColumnsCache;
   }
 
   try {
+    const supabase = getSupabaseClient();
     // Fetch table schema from information_schema
     const { data, error } = await supabase
       .rpc('get_table_columns', { table_name: 'patients' })
@@ -32,6 +40,7 @@ async function getValidColumns(): Promise<Set<string>> {
       console.warn('[Schema Fetch] RPC failed, using direct query:', error.message);
       
       // Fallback: Try to fetch a single record
+      const supabase = getSupabaseClient();
       const { data: sampleData, error: sampleError } = await supabase
         .from('patients')
         .select('*')
@@ -188,6 +197,8 @@ function mapSheetRowToSupabase(row: Record<string, any>): Record<string, any> {
 }
 
 export async function POST(req: NextRequest) {
+  const supabase = getSupabaseClient();
+  
   try {
     // Security: Verify webhook secret
     const secret = req.headers.get('x-kobo-webhook-secret');
@@ -317,6 +328,8 @@ export async function POST(req: NextRequest) {
 
 // Health check endpoint
 export async function GET(req: NextRequest) {
+  const supabase = getSupabaseClient();
+  
   try {
     // Test Supabase connection
     const { data, error } = await supabase

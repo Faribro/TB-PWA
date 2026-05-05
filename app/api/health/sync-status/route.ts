@@ -10,7 +10,9 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+function getSupabaseClient() {
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+}
 
 interface HealthStatus {
   status: 'healthy' | 'degraded' | 'critical';
@@ -35,6 +37,8 @@ interface HealthStatus {
 }
 
 export async function GET(req: NextRequest) {
+  const supabase = getSupabaseClient();
+  
   try {
     // Security: Require service role key in header
     const authHeader = req.headers.get('x-health-check-secret');

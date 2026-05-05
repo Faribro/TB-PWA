@@ -8,15 +8,19 @@ import { appendPatientToSheets, updatePatientInSheets, PatientRecord } from '@/l
 // Triggered by Supabase Database Webhook on INSERT/UPDATE to patients table
 // ═══════════════════════════════════════════════════════════════════════════
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const WEBHOOK_SECRET = process.env.SUPABASE_WEBHOOK_SECRET || '';
 
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 1000;
 
-// Initialize Supabase client with service role key
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+/**
+ * Get Supabase client at request time (not build time)
+ */
+function getSupabaseClient() {
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+}
 
 /**
  * Sleep utility for retry delays
@@ -29,6 +33,9 @@ function sleep(ms: number): Promise<void> {
  * Health check endpoint
  */
 export async function GET() {
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  
   return NextResponse.json({
     status: 'ok',
     service: 'SAMADHAAN Sheets Sync Webhook',
@@ -112,6 +119,7 @@ export async function POST(req: NextRequest) {
  */
 async function processSheetSync(payload: any): Promise<void> {
   const startTime = Date.now();
+  const supabase = getSupabaseClient();
   
   try {
     // Extract patient record
@@ -219,6 +227,8 @@ async function processSheetSync(payload: any): Promise<void> {
  * Body: { patientId: string }
  */
 export async function PUT(req: NextRequest) {
+  const supabase = getSupabaseClient();
+  
   try {
     const { patientId } = await req.json();
     

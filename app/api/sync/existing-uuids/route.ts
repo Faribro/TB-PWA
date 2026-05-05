@@ -1,14 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 const WEBHOOK_SECRET = 'alliance_kobo_secure_2026';
 
+/**
+ * Get Supabase client at request time (not build time)
+ */
+function getSupabaseClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
+
 export async function GET(req: NextRequest) {
+  const supabase = getSupabaseClient();
+  
   try {
     // Security: Verify webhook secret
     const secret = req.headers.get('x-kobo-webhook-secret');
@@ -84,6 +91,8 @@ export async function GET(req: NextRequest) {
 
 // POST endpoint for batch UUID checking (optional - for large datasets)
 export async function POST(req: NextRequest) {
+  const supabase = getSupabaseClient();
+  
   try {
     // Security: Verify webhook secret
     const secret = req.headers.get('x-kobo-webhook-secret');

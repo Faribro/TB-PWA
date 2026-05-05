@@ -3,15 +3,20 @@ import { createClient } from '@supabase/supabase-js';
 import { auth } from '@/auth';
 import { getSessionScope } from '@/lib/session-scope';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
-
 const KOBO_BASE_URL = process.env.KOBO_API_URL!; // e.g. https://kf.kobotoolbox.org/api/v2/assets/<uid>/data/
 const KOBO_API_TOKEN = process.env.KOBO_API_TOKEN!;
 const PAGE_SIZE = 500;   // rows per Kobo page = one serverless invocation
+
+/**
+ * Get Supabase client at request time (not build time)
+ */
+function getSupabaseClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  );
+}
 
 // ─── Mappings ────────────────────────────────────────────────────────────────
 const MAPPINGS = {
@@ -154,6 +159,7 @@ async function fetchKoboPage(pageUrl: string): Promise<{ results: any[]; next: s
 
 // ─── Upsert one batch into Supabase ──────────────────────────────────────────
 async function upsertBatch(records: any[]): Promise<{ upserted: number; batchError: string | null }> {
+  const supabase = getSupabaseClient();
   const { error } = await supabase
     .from('patients')
     .upsert(records, { onConflict: 'kobo_uuid', ignoreDuplicates: false });

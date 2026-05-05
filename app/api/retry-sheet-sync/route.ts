@@ -4,14 +4,21 @@ import { getSessionScope } from '@/lib/session-scope';
 
 export const maxDuration = 60;
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
-
 const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_WEBHOOK_URL || '';
 
+/**
+ * Get Supabase client at request time (not build time)
+ */
+function getSupabaseClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  );
+}
+
 export async function POST(request: NextRequest) {
+  const supabase = getSupabaseClient();
+  
   try {
     let scope;
     let isServiceRoleAuth = false;
