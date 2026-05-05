@@ -175,7 +175,17 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   // ── Demographics State — Kobo-canonical keys with legacy fallbacks ──
   // Key names match the Kobo XLSX field names exactly. Supabase column mapping
   // happens in mapDemographics (read) and handleSaveDemographics (write).
-  const mapDemographics = (p: any) => ({
+  const mapDemographics = (p: any) => {
+  console.log('[PatientDetailDrawer] mapDemographics - raw patient data:', {
+    screening_date: p?.screening_date,
+    screening_date_type: typeof p?.screening_date,
+    submitted_on: p?.submitted_on,
+    date_of_birth: p?.date_of_birth,
+    facility_name: p?.facility_name,
+    screening_state: p?.screening_state
+  });
+
+  const mapped = ({
     // §1 Screening Details
     staffname:         p?.staff_name         || '',
     submittedon:       formatDateForInput(p?.submitted_on),
@@ -200,6 +210,15 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     symptoms10s:       p?.symptoms_10s        || p?.symptoms_present          || '',
     tbpasthistory:     p?.tb_past_history     || '',
   });
+
+  console.log('[PatientDetailDrawer] mapDemographics - mapped result:', {
+    screeningdate: mapped.screeningdate,
+    submittedon: mapped.submittedon,
+    dateofbirth: mapped.dateofbirth
+  });
+
+  return mapped;
+};
 
   const [editedDemographics, setEditedDemographics] = useState(mapDemographics(localPatient));
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
