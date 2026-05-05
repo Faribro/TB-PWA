@@ -95,8 +95,8 @@ async function testAPIUpdate() {
   logSection('TEST 1: Update Patient via API');
   
   const payload = {
-    id: TEST_PATIENT_ID,
-    ...TEST_UPDATES,
+    patientId: TEST_PATIENT_ID,
+    updates: TEST_UPDATES,
   };
   
   log('📤 Sending update to /api/patient-sync...', 'cyan');
