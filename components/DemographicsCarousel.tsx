@@ -4,6 +4,32 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Calendar, User, MapPin, Activity, CheckCircle2, XCircle, Building2, Phone, Hash, Settings2, Lock, Unlock, FileText, Shield, ClipboardList, Check, Minus, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+// Helper to format dates for HTML5 date inputs (yyyy-MM-dd)
+const formatDateForInput = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '';
+  try {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return '';
+      const parts = dateStr.split('-');
+      if (date.getFullYear() !== parseInt(parts[0]) || 
+          (date.getMonth() + 1) !== parseInt(parts[1]) || 
+          date.getDate() !== parseInt(parts[2])) {
+        return '';
+      }
+      return dateStr;
+    }
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  } catch {
+    return '';
+  }
+};
+
 // Field configuration for smart rendering (using exact Supabase snake_case column names)
 const FIELD_CONFIG: Record<string, {
   type: 'text' | 'checkbox' | 'select' | 'date' | 'number';
@@ -338,7 +364,7 @@ const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, 
           </div>
         ) : (
           <input type={ftype === 'number' ? 'number' : ftype === 'date' ? 'date' : 'text'}
-            value={value ?? ''}
+            value={ftype === 'date' ? formatDateForInput(value) : (value ?? '')}
             onChange={e => onChange!(fieldKey, ftype === 'number' ? Number(e.target.value) : e.target.value)}
             placeholder={cfg?.placeholder ?? `Enter ${label.toLowerCase()}`}
             className={inputCls} />
@@ -456,7 +482,7 @@ export function DemographicsCarousel({
   const xray    = formatXrayValue(xrayRaw);
   const hiv     = gv('hiv_status', patient?.hiv_status);
   const tbDx    = gv('tb_diagnosed_select', gv('tb_diagnosed', patient?.tb_diagnosed));
-  const sDate   = gv('screening_date', patient?.screening_date);
+  const sDate   = formatDateForInput(gv('screening_date', patient?.screening_date));
   const isTBDx  = toBool(tbDx) || tbDx === 'Yes';
   const isHIV   = hiv === 'Positive';
   const isSusp  = xray === 'Suspected TB' || xrayRaw === 'Suspected_TB_Case';
