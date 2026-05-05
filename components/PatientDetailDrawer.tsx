@@ -271,12 +271,11 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     const handleSaveDemographicsEvent = (e: CustomEvent) => {
       console.log('[PatientDetailDrawer] saveDemographicsEvent received from carousel');
       console.log('[PatientDetailDrawer] Event detail (flushed changes):', JSON.stringify(e.detail, null, 2));
-      // Convert event detail keys from snake_case to camelCase to match editedDemographics format
+      // Convert event detail keys from snake_case (localValues) to camelCase (editedDemographics)
       const convertedDetail: Record<string, any> = {};
       for (const [key, value] of Object.entries(e.detail || {})) {
         // Convert snake_case to camelCase (e.g., screening_date -> screeningdate)
-        // Remove underscore and lowercase the following letter
-        const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter);
+        const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toLowerCase());
         convertedDetail[camelKey] = value;
         console.log(`[PatientDetailDrawer] Converting "${key}" -> "${camelKey}" = "${value}"`);
       }
