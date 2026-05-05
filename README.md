@@ -3329,6 +3329,10 @@ All `/api/patients` responses include metadata:
 
 ## Change Log
 
+[2026-05-06] components/PatientDetailDrawer.tsx - Fixed demographics save persistence for all 35 editable fields; replaced hardcoded partial payload mapping with canonical DEMOGRAPHICS_EDITABLE_FIELDS object; removed snake_case to camelCase conversion to prevent field loss; added development safeguard to warn about unmapped fields; ensures every editable UI field is saved to database [AQ]
+[2026-05-06] components/PatientDetailDrawer.tsx - Fixed facility_name field mapping mismatch; now correctly maps to facility_name DB column instead of facilitycode; resolved issue where facility changes were not persisting [AQ]
+[2026-05-06] components/PatientDetailDrawer.tsx - Added 24 previously missing field mappings including inmate_name, hiv_status, art_started, nikshay_id, abha_id, diagnosis_date, att_start_date, referral_date, referred_to_facility, treatment_regimen, and all "Other" specification fields; all editable demographics now persist correctly [AQ]
+
 [2026-04-11] app/dashboard/vertex/page.tsx - Fixed calendar to fetch all months in year (not just current month); fetches 1-12 months in parallel when calendar view active [AQ]
 [2026-04-11] app/api/vertex/metrics/route.ts - Created server-side aggregation API for Vertex calendar to avoid loading 19K records into memory; queries screening_date with month boundaries and returns daily breakdown + monthly totals [AQ]
 [2026-04-11] app/dashboard/vertex/page.tsx - Replaced client-side calendar data aggregation with server-side API call; removed old metrics polling; added useSWR for /api/vertex/metrics with 60s refresh [AQ]

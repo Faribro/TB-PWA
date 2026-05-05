@@ -271,19 +271,14 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     const handleSaveDemographicsEvent = (e: CustomEvent) => {
       console.log('[PatientDetailDrawer] saveDemographicsEvent received from carousel');
       console.log('[PatientDetailDrawer] Event detail (flushed changes):', JSON.stringify(e.detail, null, 2));
-      // Convert event detail keys from snake_case (localValues) to camelCase (editedDemographics)
-      const convertedDetail: Record<string, any> = {};
-      for (const [key, value] of Object.entries(e.detail || {})) {
-        // Convert snake_case to camelCase (e.g., screening_date -> screeningdate)
-        const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toLowerCase());
-        convertedDetail[camelKey] = value;
-        console.log(`[PatientDetailDrawer] Converting "${key}" -> "${camelKey}" = "${value}"`);
-      }
+      // No conversion needed - event detail uses snake_case keys directly from localValues
+      // These match our canonical field mapping
+      const flushedChanges = e.detail || {};
+      console.log('[PatientDetailDrawer] Using flushed changes directly (snake_case):', JSON.stringify(flushedChanges, null, 2));
       
       // Merge flushed changes with editedDemographics
-      const mergedDemographics = { ...editedDemographics, ...convertedDetail };
+      const mergedDemographics = { ...editedDemographics, ...flushedChanges };
       console.log('[PatientDetailDrawer] Merged demographics for save:', JSON.stringify(mergedDemographics, null, 2));
-      console.log('[PatientDetailDrawer] Converted event detail:', JSON.stringify(convertedDetail, null, 2));
       handleSaveDemographics(mergedDemographics);
     };
 
@@ -538,34 +533,76 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     console.log('[PatientDetailDrawer] Using demographics for save:', demographicsToSave);
 
     try {
-      // Map Kobo-canonical state keys → Supabase column names
-      const payload = {
-        id: localPatient.id,
-        // §1 Screening Details
-        staff_name:          demographicsToSave.staffname,
-        submitted_on:        demographicsToSave.submittedon,
-        screening_state:     demographicsToSave.screeningstate,
-        screening_district:  demographicsToSave.screeningdistrict,
-        facility_name:       demographicsToSave.facilitycode,
-        facility_type:       demographicsToSave.facilitytype,
-        screening_date:      demographicsToSave.screeningdate,
-        unique_id:           demographicsToSave.uniqueid,
-        // §2 Identity
-        inmate_name:         demographicsToSave.inmatename,
-        inmate_type:         demographicsToSave.inmatetype,
-        father_husband_name: demographicsToSave.fatherhusbandname,
-        date_of_birth:       demographicsToSave.dateofbirth,
-        age:                 demographicsToSave.age,
-        sex:                 demographicsToSave.sex,
-        contact_number:      demographicsToSave.contactnumber,
-        // §3 Location
-        address:             demographicsToSave.address,
-        // §4 TB Screening
-        xray_result:         demographicsToSave.xrayresult,
-        symptoms_10s:        demographicsToSave.symptoms10s,
-        tb_past_history:     demographicsToSave.tbpasthistory,
-        updated_at:          new Date().toISOString()
+      // Canonical mapping of all editable fields from UI (snake_case) to DB columns
+      const DEMOGRAPHICS_EDITABLE_FIELDS: Record<string, string> = {
+        // Identity & Contact
+        father_husband_name: 'father_husband_name',
+        date_of_birth: 'date_of_birth',
+        age: 'age',
+        sex: 'sex',
+        inmate_type: 'inmate_type',
+        contact_number: 'contact_number',
+        address: 'address',
+        inmate_type_other: 'inmate_type_other',
+        inmate_name: 'inmate_name',
+        
+        // Screening Encounter
+        screening_date: 'screening_date',
+        facility_name: 'facility_name',
+        facility_type: 'facility_type',
+        screening_state: 'screening_state',
+        screening_district: 'screening_district',
+        staff_name: 'staff_name',
+        submitted_on: 'submitted_on',
+        screening_state_other: 'screening_state_other',
+        screening_district_other: 'screening_district_other',
+        
+        // Diagnostics & Treatment
+        xray_result: 'xray_result',
+        'Date of referral for TB Examination (sputum) (dd/mm/yy)': 'Date of referral for TB Examination (sputum) (dd/mm/yy)',
+        'Name of facility where referred to (Give code/name of all facilities)': 'Name of facility where referred to (Give code/name of all facilities)',
+        tb_past_history: 'tb_past_history',
+        tb_diagnosed_select: 'tb_diagnosed',
+        diagnosis_date: 'diagnosis_date',
+        att_start_date: 'att_start_date',
+        referral_date: 'referral_date',
+        referred_to_facility: 'referred_to_facility',
+        referred_to_facility_other: 'referred_to_facility_other',
+        treatment_regimen: 'treatment_regimen',
+        
+        // HIV / ART Status
+        hiv_status: 'hiv_status',
+        art_started: 'art_started',
+        art_center: 'art_center',
+        cpt_given: 'cpt_given',
+        
+        // Registration & System
+        unique_id: 'unique_id',
+        nikshay_id: 'nikshay_id',
+        abha_id: 'abha_id'
       };
+
+      // Build payload programmatically from demographicsToSave
+      const payload: Record<string, any> = {
+        id: localPatient.id,
+        updated_at: new Date().toISOString()
+      };
+
+      // Include all fields that have values in demographicsToSave
+      for (const [uiKey, dbColumn] of Object.entries(DEMOGRAPHICS_EDITABLE_FIELDS)) {
+        if (demographicsToSave[uiKey] !== undefined) {
+          payload[dbColumn] = demographicsToSave[uiKey];
+        }
+      }
+
+      // Development safeguard: warn if any field in demographicsToSave is not mapped
+      if (process.env.NODE_ENV === 'development') {
+        for (const key of Object.keys(demographicsToSave)) {
+          if (!DEMOGRAPHICS_EDITABLE_FIELDS[key] && key !== 'symptoms10s') {
+            console.warn(`[PatientDetailDrawer] ⚠️ Unmapped field in demographicsToSave: "${key}"`);
+          }
+        }
+      }
 
       console.log('[PatientDetailDrawer] 🔍 BEFORE SAVE - editedDemographics.screeningdate:', editedDemographics.screeningdate, '(type:', typeof editedDemographics.screeningdate, ')');
       console.log('[patient-sync] 🔍 PAYLOAD screening_date:', payload.screening_date, '(type:', typeof payload.screening_date, ')');
