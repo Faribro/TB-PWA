@@ -31,10 +31,14 @@ const formatDateForInput = (dateStr: string | null | undefined): string => {
   try {
     // If it's already in yyyy-MM-dd format, return as-is
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-    // Otherwise parse and format
+    // Handle ISO timestamps with timezone (e.g., "2026-05-01T00:00:00+00:00")
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return '';
-    return date.toISOString().split('T')[0];
+    // Use local date parts to avoid timezone offset issues
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   } catch {
     return '';
   }
