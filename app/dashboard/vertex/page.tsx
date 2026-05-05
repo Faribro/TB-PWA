@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import useSWR, { mutate } from 'swr';
+import useSWR, { mutate, useSWRConfig } from 'swr';
 import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope, isSuperuser } from '@/hooks/useSessionScope';
 import { useEntityStore } from '@/stores/useEntityStore';
