@@ -529,7 +529,9 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       console.log('[PatientDetailDrawer] 📤 Sending demographics update to /api/patient-sync:', {
         patientId: localPatient.id,
-        payload
+        payload,
+        screeningDateValue: payload.screening_date,
+        screeningDateType: typeof payload.screening_date
       });
 
       // CHANGE 4: Optimistic update — show changes immediately before API confirms
