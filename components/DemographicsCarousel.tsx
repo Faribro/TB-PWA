@@ -274,12 +274,11 @@ interface DemographicsCarouselProps {
 }
 
 // â”€â”€ Section header: bold uppercase + full-width rule (LaTeX \section style)
-const DocSection = ({ title, accent = 'bg-slate-700', children }: { title: string; accent?: string; children: React.ReactNode }) => (
+const DocSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="flex flex-col gap-5">
-    <div className="flex items-center gap-2.5">
-      <div className={`w-[3px] h-[20px] rounded-full shrink-0 ${accent}`} />
-      <span className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-600">{title}</span>
-      <div className="flex-1 h-px bg-slate-800/20" />
+    <div className="flex items-center gap-3 py-3">
+      <span className="text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase whitespace-nowrap">{title}</span>
+      <div className="flex-1 h-px bg-slate-200" />
     </div>
     {children}
   </div>
@@ -520,7 +519,7 @@ export function DemographicsCarousel({
           <div className="px-6 py-7 flex flex-col gap-8">
 
             {/* Â§ Identity & Contact */}
-            <DocSection title="Identity & Contact" accent="bg-slate-900">
+            <DocSection title="Identity & Contact">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="Father / Husband"  value={gv('father_husband_name', patient?.father_husband_name)} fieldKey="father_husband_name" editable isEditing={E} onChange={H} />
                 <Field label="Date of Birth"      value={gv('date_of_birth', patient?.date_of_birth)}            fieldKey="date_of_birth"      editable isEditing={E} onChange={H} />
@@ -536,7 +535,7 @@ export function DemographicsCarousel({
             </DocSection>
 
             {/* Â§ Screening Encounter */}
-            <DocSection title="Screening Encounter" accent="bg-amber-500">
+            <DocSection title="Screening Encounter">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="Screening Date"     value={gv('screening_date', patient?.screening_date)}          fieldKey="screening_date"      editable isEditing={E} onChange={H} />
                 <Field label="Facility Name"      value={gv('facility_name', patient?.facility_name)}            fieldKey="facility_name"       editable isEditing={E} onChange={H} />
@@ -555,7 +554,7 @@ export function DemographicsCarousel({
             </DocSection>
 
             {/* Â§ 10S Symptom Checklist */}
-            <DocSection title="10S Symptom Checklist" accent="bg-red-500">
+            <DocSection title="10S Symptom Checklist">
               <div className="flex items-center gap-3 mb-3">
                 <span className={`text-[11px] font-semibold ${
                   symCount >= 3 ? 'text-red-600' : symCount >= 1 ? 'text-amber-600' : 'text-slate-400'
@@ -589,7 +588,7 @@ export function DemographicsCarousel({
             </DocSection>
 
             {/* Â§ Diagnostics & Treatment */}
-            <DocSection title="Diagnostics & Treatment" accent="bg-blue-600">
+            <DocSection title="Diagnostics & Treatment">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="X-Ray Result"       value={formatXrayValue(gv('xray_result', patient?.xray_result))}                fieldKey="xray_result"         editable isEditing={E} onChange={H} />
                 <Field label="Date of referral for TB Examination (sputum)" value={gv('Date of referral for TB Examination (sputum) (dd/mm/yy)', patient?.['Date of referral for TB Examination (sputum) (dd/mm/yy)'])} fieldKey="Date of referral for TB Examination (sputum) (dd/mm/yy)" editable isEditing={E} onChange={H} />
@@ -611,7 +610,7 @@ export function DemographicsCarousel({
             </DocSection>
 
             {/* Â§ HIV / ART */}
-            <DocSection title="HIV / ART Status" accent="bg-pink-500">
+            <DocSection title="HIV / ART Status">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="HIV Status"   value={gv('hiv_status', patient?.hiv_status)}   fieldKey="hiv_status"  editable isEditing={E} onChange={H} />
                 <Field label="ART Started"  value={gv('art_started', patient?.art_started)}  fieldKey="art_started" editable isEditing={E} onChange={H} />
@@ -621,7 +620,7 @@ export function DemographicsCarousel({
             </DocSection>
 
             {/* Â§ Registration & System */}
-            <DocSection title="Registration & System" accent="bg-slate-400">
+            <DocSection title="Registration & System">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="Nikshay ID"   value={gv('nikshay_id', patient?.nikshay_id)}   fieldKey="nikshay_id"  editable isEditing={E} onChange={H} hint="Assign after TB confirmation" />
                 <Field label="ABHA ID"      value={gv('abha_id', patient?.abha_id)}          fieldKey="abha_id"     editable isEditing={E} onChange={H} hint="Link via ABHA portal" />
