@@ -8,13 +8,9 @@ import { appendPatientToSheets, PatientRecord } from '@/lib/sheetsSync';
 // Uses the same webhook as PATH 3 (patient-sync) which already has permissions
 // ═══════════════════════════════════════════════════════════════════════════
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const MAX_RETRY_ATTEMPTS = 1; // Single attempt only (no retries)
 const RETRY_DELAY_MS = 500;
 const BATCH_SIZE = 3; // Process 3 records in parallel (faster)
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 /**
  * Sleep utility
@@ -136,6 +132,11 @@ export async function POST(req: NextRequest) {
   const startTime = Date.now();
   
   try {
+    // Initialize Supabase client at request time (not build time)
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    
     // ═══════════════════════════════════════════════════════════════════════
     // STEP 1: Validate admin secret
     // ═══════════════════════════════════════════════════════════════════════
