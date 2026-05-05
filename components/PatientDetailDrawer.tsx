@@ -467,7 +467,13 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
           filter: `id=eq.${patient.id}`
         },
         (payload) => {
-          console.log('[PatientDetailDrawer] Realtime update received:', payload.new);
+          console.log('[PatientDetailDrawer] ⚠️ Realtime update received - this could overwrite local changes!');
+          console.log('[PatientDetailDrawer] ⚠️ Realtime screening_date:', payload.new?.screening_date);
+          console.log('[PatientDetailDrawer] ⚠️ Realtime ALL fields:');
+          for (const [k, v] of Object.entries(payload.new || {})) {
+            console.log(`[PatientDetailDrawer]   "${k}": "${v}"`);
+          }
+          console.log('[PatientDetailDrawer] ⚠️ Current localPatient screening_date:', localPatient?.screening_date);
           
           // Update local state with new data
           setLocalPatient(payload.new);
@@ -531,6 +537,9 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         updated_at:          new Date().toISOString()
       };
 
+      console.log('[PatientDetailDrawer] 🔍 BEFORE SAVE - editedDemographics.screeningdate:', editedDemographics.screeningdate, '(type:', typeof editedDemographics.screeningdate, ')');
+      console.log('[patient-sync] 🔍 PAYLOAD screening_date:', payload.screening_date, '(type:', typeof payload.screening_date, ')');
+      console.log('[PatientDetailDrawer] 🔍 FULL PAYLOAD being sent:', JSON.stringify(payload));
       
       // CHANGE 4: Optimistic update — show changes immediately before API confirms
       const optimisticPatient = { 
@@ -560,6 +569,13 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       setSyncing(); // Set sync status to syncing
 
       console.log('[PatientDetailDrawer] ✅ Demographics save successful, response:', responseData);
+      console.log('[PatientDetailDrawer] 🔍 RESPONSE patient screening_date:', responseData.patient?.screening_date, '(type:', typeof responseData.patient?.screening_date, ')');
+      console.log('[PatientDetailDrawer] 🔍 RESPONSE patient ALL fields:');
+      if (responseData.patient) {
+        for (const [k, v] of Object.entries(responseData.patient)) {
+          console.log(`[PatientDetailDrawer]   "${k}": "${v}" (type: ${typeof v})`);
+        }
+      }
 
       // CHANGE 3: Update local state with server-confirmed data and set synced status
       if (responseData.patient) {
