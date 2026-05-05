@@ -74,6 +74,12 @@ export async function POST(request: NextRequest) {
 
     const { patientId, updates } = body;
 
+    console.log('[patient-sync] DEBUG - Received:', {
+      patientId,
+      updates,
+      rawBody: body
+    });
+
     // ═══════════════════════════════════════════════════════════════════════
     // OPTIMIZATION 2: Fast-fail validation (saves ~10ms on errors)
     // ═══════════════════════════════════════════════════════════════════════
@@ -88,6 +94,8 @@ export async function POST(request: NextRequest) {
     // OPTIMIZATION 3: Optimized field mapping (saves ~5-10ms)
     // ═══════════════════════════════════════════════════════════════════════
     const sanitized = sanitizePatientUpdate(updates);
+    console.log('[patient-sync] DEBUG - Sanitized:', sanitized);
+    
     const dbUpdates: Record<string, unknown> = {};
     
     // Pre-filter to avoid unnecessary iterations
@@ -97,10 +105,13 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < len; i++) {
       const [key, value] = entries[i];
       const col = FIELD_MAPPING[key];
+      console.log('[patient-sync] DEBUG - Mapping:', { key, value, col, mappedTo: col });
       if (col && value !== undefined && value !== null && value !== '') {
         dbUpdates[col] = value;
       }
     }
+    
+    console.log('[patient-sync] DEBUG - Final dbUpdates:', dbUpdates);
 
     const supabase = getSupabaseClient();
 
