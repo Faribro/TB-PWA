@@ -314,6 +314,14 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     
     // CRITICAL: Admin and PM have unrestricted access
     const superuserCheck = isSuperuser(scope);
+    
+    // DEFENSIVE: If scope.role is 'admin' but scope.state is not null, this is a bug
+    // Admin should always have null state. Force access anyway.
+    if (scope.role === 'admin' || scope.role === 'Program Manager' || scope.role === 'PM') {
+      console.log('[PatientDetailDrawer] Admin/PM detected, forcing access despite scope state:', scope);
+      return true;
+    }
+    
     console.log('[PatientDetailDrawer] SUPERUSER CHECK:', {
       scope,
       isSuperuser: superuserCheck,

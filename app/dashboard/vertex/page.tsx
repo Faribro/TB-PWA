@@ -32,6 +32,12 @@ const NeuralDashboard = dynamic(() => import('@/app/dashboard/neural-dashboard-v
 
 export default function VertexPage() {
   const scope = useSessionScope();
+  const { mutate } = useSWRConfig();
+
+  // Force refresh session scope on page load to prevent stale access control data
+  useEffect(() => {
+    mutate('/api/me');
+  }, [mutate]);
 
   // Task 3: Hard block — never render or query until scope is resolved.
   // This prevents a PM from briefly seeing 0 patients before filters apply.
