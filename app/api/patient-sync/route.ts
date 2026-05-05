@@ -74,13 +74,16 @@ export async function POST(request: NextRequest) {
 
     const { patientId, updates } = body;
 
-    console.log('[patient-sync] DEBUG - Received:', {
-      patientId,
-      updates,
-      rawBody: body,
-      screeningDateReceived: updates.screening_date,
-      screeningDateType: typeof updates.screening_date
-    });
+    console.log('[patient-sync] ══════════════════════════════════════════════════');
+    console.log('[patient-sync] STEP 1 - RAW REQUEST RECEIVED:');
+    console.log('[patient-sync]   patientId:', patientId);
+    console.log('[patient-sync]   updates keys:', Object.keys(updates || {}));
+    console.log('[patient-sync]   ALL updates field-by-field:');
+    for (const [k, v] of Object.entries(updates || {})) {
+      console.log(`[patient-sync]     "${k}": "${v}" (type: ${typeof v})`);
+    }
+    console.log('[patient-sync]   screening_date received:', updates?.screening_date, '(type:', typeof updates?.screening_date, ')');
+    console.log('[patient-sync] ══════════════════════════════════════════════════');
 
     // ═══════════════════════════════════════════════════════════════════════
     // OPTIMIZATION 2: Fast-fail validation (saves ~10ms on errors)
@@ -96,7 +99,12 @@ export async function POST(request: NextRequest) {
     // OPTIMIZATION 3: Optimized field mapping (saves ~5-10ms)
     // ═══════════════════════════════════════════════════════════════════════
     const sanitized = sanitizePatientUpdate(updates);
-    console.log('[patient-sync] DEBUG - Sanitized:', sanitized);
+    console.log('[patient-sync] STEP 2 - AFTER SANITIZE:');
+    console.log('[patient-sync]   sanitized keys:', Object.keys(sanitized));
+    for (const [k, v] of Object.entries(sanitized)) {
+      console.log(`[patient-sync]     "${k}": "${v}" (type: ${typeof v})`);
+    }
+    console.log('[patient-sync]   screening_date after sanitize:', sanitized.screening_date);
     
     const dbUpdates: Record<string, unknown> = {};
     
@@ -104,16 +112,25 @@ export async function POST(request: NextRequest) {
     const entries = Object.entries(sanitized);
     const len = entries.length;
     
+    console.log('[patient-sync] STEP 3 - FIELD MAPPING:');
     for (let i = 0; i < len; i++) {
       const [key, value] = entries[i];
       const col = FIELD_MAPPING[key];
-      console.log('[patient-sync] DEBUG - Mapping:', { key, value, col, mappedTo: col });
-      if (col && value !== undefined && value !== null && value !== '') {
+      const included = col && value !== undefined && value !== null && value !== '';
+      console.log(`[patient-sync]   "${key}" = "${value}" → column "${col}" → ${included ? '✅ INCLUDED' : '❌ SKIPPED'}` +
+        (!included && col ? ` (reason: ${value === '' ? 'empty string' : value === undefined ? 'undefined' : value === null ? 'null' : 'unknown'})` : '') +
+        (!col ? ` (reason: no column mapping)` : ''));
+      if (included) {
         dbUpdates[col] = value;
       }
     }
     
-    console.log('[patient-sync] DEBUG - Final dbUpdates:', dbUpdates);
+    console.log('[patient-sync] STEP 4 - FINAL DB UPDATES:');
+    console.log('[patient-sync]   dbUpdates keys:', Object.keys(dbUpdates));
+    for (const [k, v] of Object.entries(dbUpdates)) {
+      console.log(`[patient-sync]     "${k}": "${v}"`);
+    }
+    console.log('[patient-sync]   screening_date in dbUpdates:', dbUpdates.screening_date);
 
     const supabase = getSupabaseClient();
 
@@ -146,13 +163,16 @@ export async function POST(request: NextRequest) {
       .select('id, kobo_uuid, unique_id, inmate_name, age, contact_number, screening_state, screening_date, date_of_birth, submitted_on, facility_name, facility_type, screening_district')
       .single();
 
-    console.log('[patient-sync] DEBUG - Database write result:', {
-      dbError,
-      updatedPatient,
-      screeningDateInDb: updatedPatient?.screening_date,
-      screeningDateInDbType: typeof updatedPatient?.screening_date,
-      dbUpdatesScreeningDate: dbUpdates.screening_date
-    });
+    console.log('[patient-sync] STEP 5 - SUPABASE WRITE RESULT:');
+    console.log('[patient-sync]   dbError:', dbError);
+    console.log('[patient-sync]   updatedPatient fields:');
+    if (updatedPatient) {
+      for (const [k, v] of Object.entries(updatedPatient)) {
+        console.log(`[patient-sync]     "${k}": "${v}"`);
+      }
+    }
+    console.log('[patient-sync]   screening_date in DB response:', updatedPatient?.screening_date, '(type:', typeof updatedPatient?.screening_date, ')');
+    console.log('[patient-sync]   screening_date we sent:', dbUpdates.screening_date);
 
     if (dbError || !updatedPatient) {
       console.error('[patient-sync] DB write failed:', dbError);
@@ -167,6 +187,12 @@ export async function POST(request: NextRequest) {
     // ═══════════════════════════════════════════════════════════════════════
     // Fire-and-forget: never blocks response
     invalidatePatientCaches().catch(err => console.error('[patient-sync] Cache invalidation error:', err));
+    console.log('[patient-sync] STEP 6 - GOOGLE SHEETS SYNC PAYLOAD:');
+    console.log('[patient-sync]   Sending updatedPatient to sheets sync:');
+    for (const [k, v] of Object.entries(updatedPatient || {})) {
+      console.log(`[patient-sync]     "${k}": "${v}"`);
+    }
+    console.log('[patient-sync]   screening_date in sheets payload:', updatedPatient?.screening_date);
     syncToSheetsAsync(updatedPatient, 'update');
 
     const duration = Date.now() - startTime;
