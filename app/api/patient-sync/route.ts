@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
       .from('patients')
       .update(dbUpdates)
       .eq('id', patientId)
-      .select('id, kobo_uuid, unique_id, inmate_name, age, contact_number, screening_state')
+      .select('id, kobo_uuid, unique_id, inmate_name, age, contact_number, screening_state, screening_date, date_of_birth, submitted_on, facility_name, facility_type, screening_district')
       .single();
 
     if (dbError || !updatedPatient) {
