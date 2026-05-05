@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/auth"
 import { normalizeRole, hasRoutePermission, getDefaultRoute, Role } from "@/lib/constants/roles"
+import { updateSession } from "@/utils/supabase/middleware"
 
 // Security headers applied to every response
 const SECURITY_HEADERS: Record<string, string> = {
@@ -11,7 +12,10 @@ const SECURITY_HEADERS: Record<string, string> = {
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
 };
 
-export default auth((req) => {
+export default auth(async (req) => {
+  // Update Supabase session (refresh tokens if needed)
+  await updateSession(req);
+
   const { pathname } = req.nextUrl;
 
   // Allow public routes before any auth check
