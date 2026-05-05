@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { appendPatientToSheets, updatePatientInSheets } from '@/lib/sheetsSync';
 
-const adminSupabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function POST(request: NextRequest) {
+  // Initialize Supabase client at request time (not build time)
+  const adminSupabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
   // Auth check
   const secret = request.headers.get('x-admin-secret');
   if (secret !== process.env.SUPABASE_SERVICE_ROLE_KEY) {
