@@ -158,19 +158,19 @@ export async function POST(request: NextRequest) {
     // Fire-and-forget: never blocks response
     invalidatePatientCaches().catch(err => console.error('[patient-sync] Cache invalidation error:', err));
     syncToSheetsAsync(updatedPatient, 'update');
-    
-    console.log(`[patient-sync] ✅ Save succeeded, sync queued`);
 
     const duration = Date.now() - startTime;
+
+    // Log success AFTER confirming Supabase write succeeded
+    console.log(`[patient-sync] ✅ Save succeeded, sync queued (duration: ${duration}ms)`);
 
     // ═══════════════════════════════════════════════════════════════════════
     // OPTIMIZATION 7: Return minimal response (saves ~5-10ms on serialization)
     // ═══════════════════════════════════════════════════════════════════════
-    return NextResponse.json({ 
-      success: true, 
-      patient: updatedPatient,
-      _perf: { duration }
-    });
+    return NextResponse.json(
+      { success: true, patient: updatedPatient, _perf: { duration } },
+      { status: 200 }
+    );
   } catch (error: unknown) {
     const duration = Date.now() - startTime;
     console.error(`[patient-sync] Error after ${duration}ms:`, error);
