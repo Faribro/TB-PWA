@@ -3423,6 +3423,8 @@ All `/api/patients` responses include metadata:
 
 [2026-05-05] app/api/patient-sync/route.ts - Fixed blank HTTP status code causing silent failures. Some POST requests were showing "---" status in logs while logging "Save succeeded, sync queued" but not actually saving data to Supabase. Root cause: success return statement (line 169-173) was missing explicit status code. Added explicit { status: 200 } to success return. Moved success log after all operations to ensure it only logs when write is confirmed. All other return paths already had explicit status codes (400, 403, 404, 500, 401). [AQ]
 
+[2026-05-05] PatientDetailDrawer.tsx, app/api/patient-sync/route.ts - Fixed screening date not persisting despite success response. Root cause 1: formatDateForInput was using toISOString().split('T')[0] which can have timezone offset issues with ISO timestamps. Fixed by using local date parts (getFullYear, getMonth, getDate) to avoid timezone problems. Root cause 2: patient-sync API was not returning screening_date (and other date fields) in the response select statement, so updated values were never sent back to frontend. Added screening_date, date_of_birth, submitted_on, facility_name, facility_type, screening_district to the select clause. [AQ]
+
 
 ## 🔧 Vercel Environment Variables Setup
 
