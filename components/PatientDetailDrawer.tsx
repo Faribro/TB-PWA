@@ -268,14 +268,18 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
   // Listen for save event from DemographicsCarousel
   useEffect(() => {
-    const handleSaveDemographicsEvent = () => {
+    const handleSaveDemographicsEvent = (e: CustomEvent) => {
       console.log('[PatientDetailDrawer] saveDemographicsEvent received from carousel');
-      handleSaveDemographics();
+      console.log('[PatientDetailDrawer] Event detail (flushed changes):', e.detail);
+      // Merge flushed changes with editedDemographics
+      const mergedDemographics = { ...editedDemographics, ...e.detail };
+      console.log('[PatientDetailDrawer] Merged demographics for save:', mergedDemographics);
+      handleSaveDemographics(mergedDemographics);
     };
 
-    document.addEventListener('saveDemographicsEvent', handleSaveDemographicsEvent);
+    document.addEventListener('saveDemographicsEvent', handleSaveDemographicsEvent as EventListener);
     return () => {
-      document.removeEventListener('saveDemographicsEvent', handleSaveDemographicsEvent);
+      document.removeEventListener('saveDemographicsEvent', handleSaveDemographicsEvent as EventListener);
     };
   }, [editedDemographics, localPatient]);
 
@@ -515,37 +519,41 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     };
   }, [patient?.id, status.state, setSynced, mutate]);
 
-  const handleSaveDemographics = async () => {
+  const handleSaveDemographics = async (demographicsOverride?: Record<string, any>) => {
     setIsSavingDemographics(true);
     setSaving(); // Set sync status to saving
+
+    // Use merged demographics if provided, otherwise use editedDemographics
+    const demographicsToSave = demographicsOverride || editedDemographics;
+    console.log('[PatientDetailDrawer] Using demographics for save:', demographicsToSave);
 
     try {
       // Map Kobo-canonical state keys → Supabase column names
       const payload = {
         id: localPatient.id,
         // §1 Screening Details
-        staff_name:          editedDemographics.staffname,
-        submitted_on:        editedDemographics.submittedon,
-        screening_state:     editedDemographics.screeningstate,
-        screening_district:  editedDemographics.screeningdistrict,
-        facility_name:       editedDemographics.facilitycode,
-        facility_type:       editedDemographics.facilitytype,
-        screening_date:      editedDemographics.screeningdate,
-        unique_id:           editedDemographics.uniqueid,
+        staff_name:          demographicsToSave.staffname,
+        submitted_on:        demographicsToSave.submittedon,
+        screening_state:     demographicsToSave.screeningstate,
+        screening_district:  demographicsToSave.screeningdistrict,
+        facility_name:       demographicsToSave.facilitycode,
+        facility_type:       demographicsToSave.facilitytype,
+        screening_date:      demographicsToSave.screeningdate,
+        unique_id:           demographicsToSave.uniqueid,
         // §2 Identity
-        inmate_name:         editedDemographics.inmatename,
-        inmate_type:         editedDemographics.inmatetype,
-        father_husband_name: editedDemographics.fatherhusbandname,
-        date_of_birth:       editedDemographics.dateofbirth,
-        age:                 editedDemographics.age,
-        sex:                 editedDemographics.sex,
-        contact_number:      editedDemographics.contactnumber,
+        inmate_name:         demographicsToSave.inmatename,
+        inmate_type:         demographicsToSave.inmatetype,
+        father_husband_name: demographicsToSave.fatherhusbandname,
+        date_of_birth:       demographicsToSave.dateofbirth,
+        age:                 demographicsToSave.age,
+        sex:                 demographicsToSave.sex,
+        contact_number:      demographicsToSave.contactnumber,
         // §3 Location
-        address:             editedDemographics.address,
+        address:             demographicsToSave.address,
         // §4 TB Screening
-        xray_result:         editedDemographics.xrayresult,
-        symptoms_10s:        editedDemographics.symptoms10s,
-        tb_past_history:     editedDemographics.tbpasthistory,
+        xray_result:         demographicsToSave.xrayresult,
+        symptoms_10s:        demographicsToSave.symptoms10s,
+        tb_past_history:     demographicsToSave.tbpasthistory,
         updated_at:          new Date().toISOString()
       };
 
