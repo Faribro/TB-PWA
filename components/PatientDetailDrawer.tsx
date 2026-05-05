@@ -271,9 +271,18 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     const handleSaveDemographicsEvent = (e: CustomEvent) => {
       console.log('[PatientDetailDrawer] saveDemographicsEvent received from carousel');
       console.log('[PatientDetailDrawer] Event detail (flushed changes):', e.detail);
+      // Convert event detail keys from snake_case to camelCase to match editedDemographics format
+      const convertedDetail: Record<string, any> = {};
+      for (const [key, value] of Object.entries(e.detail || {})) {
+        // Convert snake_case to camelCase (e.g., screening_date -> screeningdate)
+        const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+        convertedDetail[camelKey] = value;
+      }
+      
       // Merge flushed changes with editedDemographics
-      const mergedDemographics = { ...editedDemographics, ...e.detail };
+      const mergedDemographics = { ...editedDemographics, ...convertedDetail };
       console.log('[PatientDetailDrawer] Merged demographics for save:', mergedDemographics);
+      console.log('[PatientDetailDrawer] Converted event detail:', convertedDetail);
       handleSaveDemographics(mergedDemographics);
     };
 
