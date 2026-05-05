@@ -444,7 +444,11 @@ export function DemographicsCarousel({
   }, [setEditedDemographics]);
 
   const getValue = useCallback((key: string, fallback: any) => {
-    const value = localValues[key] ?? editedDemographics[key] ?? fallback;
+    // Priority: localValues (user typing) > editedDemographics (saved edits) > fallback (patient data)
+    const value = localValues[key] !== undefined ? localValues[key] : 
+                  editedDemographics[key] !== undefined ? editedDemographics[key] : 
+                  fallback;
+    
     // Format date fields for HTML5 date inputs
     const config = FIELD_CONFIG[key];
     if (config?.type === 'date' && value) {
