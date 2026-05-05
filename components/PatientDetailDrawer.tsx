@@ -533,7 +533,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       console.log('[PatientDetailDrawer] 📤 Sending demographics update to /api/patient-sync:', {
         patientId: localPatient.id,
-        payload,
+        payloadKeys: Object.keys(payload),
+        payload: JSON.stringify(payload, null, 2),
         screeningDateValue: payload.screening_date,
         screeningDateType: typeof payload.screening_date
       });
