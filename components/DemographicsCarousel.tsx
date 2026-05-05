@@ -423,15 +423,22 @@ export function DemographicsCarousel({
     console.log('[DemographicsCarousel] Current localValues:', localValues);
     console.log('[DemographicsCarousel] Pending timers:', Object.keys(debounceTimers.current));
     
-    Object.entries(debounceTimers.current).forEach(([key, timer]) => {
-      clearTimeout(timer);
-      const value = localValues[key];
-      console.log(`[DemographicsCarousel] Flushing "${key}" = "${value}"`);
+    // Clear all pending timers
+    Object.values(debounceTimers.current).forEach(timer => clearTimeout(timer));
+    Object.keys(debounceTimers.current).forEach(key => delete debounceTimers.current[key]);
+    
+    // Merge ALL localValues into editedDemographics
+    const updates: Record<string, any> = {};
+    Object.entries(localValues).forEach(([key, value]) => {
       if (value !== undefined) {
-        setEditedDemographics(prev => ({ ...prev, [key]: value }));
+        updates[key] = value;
+        console.log(`[DemographicsCarousel] Flushing "${key}" = "${value}"`);
       }
-      delete debounceTimers.current[key];
     });
+    
+    if (Object.keys(updates).length > 0) {
+      setEditedDemographics(prev => ({ ...prev, ...updates }));
+    }
   }, [localValues, setEditedDemographics]);
 
   const handleFieldChange = useCallback((key: string, value: any) => {
