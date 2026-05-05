@@ -29,8 +29,20 @@ const supabaseClient = getSupabaseBrowserClient();
 const formatDateForInput = (dateStr: string | null | undefined): string => {
   if (!dateStr) return '';
   try {
-    // If it's already in yyyy-MM-dd format, return as-is
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    // If it's already in yyyy-MM-dd format, validate and return as-is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      // Validate the date is actually valid
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return '';
+      // Check if the date was auto-corrected by checking year/month/day
+      const parts = dateStr.split('-');
+      if (date.getFullYear() !== parseInt(parts[0]) || 
+          (date.getMonth() + 1) !== parseInt(parts[1]) || 
+          date.getDate() !== parseInt(parts[2])) {
+        return ''; // Invalid date like 2026-13-01 or 2026-05-32
+      }
+      return dateStr;
+    }
     // Handle ISO timestamps with timezone (e.g., "2026-05-01T00:00:00+00:00")
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return '';
