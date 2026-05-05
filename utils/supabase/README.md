@@ -4,20 +4,16 @@ This project uses `@supabase/ssr` for server-side rendering with automatic sessi
 
 ## Setup
 
-### 1. Environment Variables
+### Environment Variables
 
-Add to `.env.local`:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://fgtrkxadiszoyhslwesu.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_h3ZAJH2NvnhbAOJIlTMyag_eHBOym20
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_h3ZAJH2NvnhbAOJIlTMyag_eHBOym20
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-```
+Required environment variables:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (server-side only)
 
 Note: Both `ANON_KEY` and `PUBLISHABLE_KEY` are supported for backward compatibility.
 
-### 2. Client Helpers
+### Client Helpers
 
 #### Browser Client (`utils/supabase/client.ts`)
 
