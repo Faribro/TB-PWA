@@ -364,7 +364,7 @@ const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, 
           </div>
         ) : (
           <input type={ftype === 'number' ? 'number' : ftype === 'date' ? 'date' : 'text'}
-            value={ftype === 'date' ? formatDateForInput(value) : (value ?? '')}
+            value={value ?? ''}
             onChange={e => onChange!(fieldKey, ftype === 'number' ? Number(e.target.value) : e.target.value)}
             placeholder={cfg?.placeholder ?? `Enter ${label.toLowerCase()}`}
             className={inputCls} />
@@ -431,7 +431,13 @@ export function DemographicsCarousel({
   }, [setEditedDemographics]);
 
   const getValue = useCallback((key: string, fallback: any) => {
-    return localValues[key] ?? editedDemographics[key] ?? fallback;
+    const value = localValues[key] ?? editedDemographics[key] ?? fallback;
+    // Format date fields for HTML5 date inputs
+    const config = FIELD_CONFIG[key];
+    if (config?.type === 'date' && value) {
+      return formatDateForInput(value);
+    }
+    return value;
   }, [localValues, editedDemographics]);
 
   // Robust parsing of address parts from Kobo structure
