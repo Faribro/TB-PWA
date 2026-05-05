@@ -3421,6 +3421,8 @@ All `/api/patients` responses include metadata:
 
 [2026-05-05] DemographicsCarousel.tsx - Refactored section headers from thick colored left borders to minimal editorial style (OPTION A). Removed 3px thick accent bars (slate-900, amber-500, red-500, blue-600, pink-500, slate-400) from all 6 section headers. Replaced with clean label + horizontal rule pattern: text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase whitespace-nowrap label followed by flex-1 h-px bg-slate-200 divider. Reduced vertical padding from gap-5 to py-3 on header wrapper for tighter, more document-like spacing. Removed accent prop from DocSection component and all usages. Result: cleaner clinical-resume aesthetic with consistent neutral treatment across all sections (Identity & Contact, Screening Encounter, 10S Symptom Checklist, Diagnostics & Treatment, HIV / ART Status, Registration & System). [AQ]
 
+[2026-05-05] app/api/patient-sync/route.ts - Fixed blank HTTP status code causing silent failures. Some POST requests were showing "---" status in logs while logging "Save succeeded, sync queued" but not actually saving data to Supabase. Root cause: success return statement (line 169-173) was missing explicit status code. Added explicit { status: 200 } to success return. Moved success log after all operations to ensure it only logs when write is confirmed. All other return paths already had explicit status codes (400, 403, 404, 500, 401). [AQ]
+
 
 ## 🔧 Vercel Environment Variables Setup
 
