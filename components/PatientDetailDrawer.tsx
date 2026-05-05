@@ -270,19 +270,21 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   useEffect(() => {
     const handleSaveDemographicsEvent = (e: CustomEvent) => {
       console.log('[PatientDetailDrawer] saveDemographicsEvent received from carousel');
-      console.log('[PatientDetailDrawer] Event detail (flushed changes):', e.detail);
+      console.log('[PatientDetailDrawer] Event detail (flushed changes):', JSON.stringify(e.detail, null, 2));
       // Convert event detail keys from snake_case to camelCase to match editedDemographics format
       const convertedDetail: Record<string, any> = {};
       for (const [key, value] of Object.entries(e.detail || {})) {
         // Convert snake_case to camelCase (e.g., screening_date -> screeningdate)
-        const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+        // Remove underscore and lowercase the following letter
+        const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter);
         convertedDetail[camelKey] = value;
+        console.log(`[PatientDetailDrawer] Converting "${key}" -> "${camelKey}" = "${value}"`);
       }
       
       // Merge flushed changes with editedDemographics
       const mergedDemographics = { ...editedDemographics, ...convertedDetail };
-      console.log('[PatientDetailDrawer] Merged demographics for save:', mergedDemographics);
-      console.log('[PatientDetailDrawer] Converted event detail:', convertedDetail);
+      console.log('[PatientDetailDrawer] Merged demographics for save:', JSON.stringify(mergedDemographics, null, 2));
+      console.log('[PatientDetailDrawer] Converted event detail:', JSON.stringify(convertedDetail, null, 2));
       handleSaveDemographics(mergedDemographics);
     };
 
