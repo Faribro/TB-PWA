@@ -388,7 +388,12 @@ const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, 
                 <span className={`w-1.5 h-1.5 rounded-full ${toBool(value) ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                 {toBool(value) ? 'Yes' : 'No'}
               </span>
-            ) : value}
+            ) : (
+              // Format display value: capitalize and replace underscores
+              typeof value === 'string' && value.length > 0
+                ? value.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+                : value
+            )}
           </div>
         </>
       )}
