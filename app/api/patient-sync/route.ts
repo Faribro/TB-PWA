@@ -77,7 +77,9 @@ export async function POST(request: NextRequest) {
     console.log('[patient-sync] DEBUG - Received:', {
       patientId,
       updates,
-      rawBody: body
+      rawBody: body,
+      screeningDateReceived: updates.screening_date,
+      screeningDateType: typeof updates.screening_date
     });
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -143,6 +145,14 @@ export async function POST(request: NextRequest) {
       .eq('id', patientId)
       .select('id, kobo_uuid, unique_id, inmate_name, age, contact_number, screening_state, screening_date, date_of_birth, submitted_on, facility_name, facility_type, screening_district')
       .single();
+
+    console.log('[patient-sync] DEBUG - Database write result:', {
+      dbError,
+      updatedPatient,
+      screeningDateInDb: updatedPatient?.screening_date,
+      screeningDateInDbType: typeof updatedPatient?.screening_date,
+      dbUpdatesScreeningDate: dbUpdates.screening_date
+    });
 
     if (dbError || !updatedPatient) {
       console.error('[patient-sync] DB write failed:', dbError);
