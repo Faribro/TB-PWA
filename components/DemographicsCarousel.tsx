@@ -412,6 +412,18 @@ export function DemographicsCarousel({
     };
   }, []);
 
+  // Flush all pending debounced changes immediately
+  const flushPendingChanges = useCallback(() => {
+    Object.entries(debounceTimers.current).forEach(([key, timer]) => {
+      clearTimeout(timer);
+      const value = localValues[key];
+      if (value !== undefined) {
+        setEditedDemographics(prev => ({ ...prev, [key]: value }));
+      }
+      delete debounceTimers.current[key];
+    });
+  }, [localValues, setEditedDemographics]);
+
   const handleFieldChange = useCallback((key: string, value: any) => {
     const config = FIELD_CONFIG[key];
     if (config?.type === 'checkbox') {
@@ -427,7 +439,8 @@ export function DemographicsCarousel({
     
     debounceTimers.current[key] = setTimeout(() => {
       setEditedDemographics(prev => ({ ...prev, [key]: value }));
-    }, 300);
+      delete debounceTimers.current[key];
+    }, 100);
   }, [setEditedDemographics]);
 
   const getValue = useCallback((key: string, fallback: any) => {
@@ -683,7 +696,7 @@ export function DemographicsCarousel({
         <button
           className="flex-[2] relative flex items-center justify-center gap-2 h-10 rounded font-bold text-[10px] uppercase tracking-[0.12em] text-white overflow-hidden group transition-all duration-200 shadow-[0_2px_10px_rgba(15,23,42,0.2)] hover:-translate-y-px"
           style={{ background: 'linear-gradient(135deg,#0f172a,#1e293b)' }}
-          onClick={() => { if (E) { document.dispatchEvent(new CustomEvent('saveDemographicsEvent')); setIsEditingDemographics(false); } else { document.dispatchEvent(new CustomEvent('submitClinicalUpdateEvent')); } }}
+          onClick={() => { if (E) { flushPendingChanges(); document.dispatchEvent(new CustomEvent('saveDemographicsEvent')); setIsEditingDemographics(false); } else { document.dispatchEvent(new CustomEvent('submitClinicalUpdateEvent')); } }}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
           <CheckCircle2 className="w-3.5 h-3.5 text-white/80"/>
