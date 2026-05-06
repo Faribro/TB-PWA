@@ -1,333 +1,260 @@
 /**
  * lib/ocr/hybridExtractor.ts
- *
- * Hybrid Routing OCR Architecture for cost optimization.
  * 
- * ROUTING STRATEGY:
- * 1. Fast Lane: Tesseract.js (free, local OCR)
- *    - Attempts structured data extraction via regex
- *    - Validates for parsable patient rows (mobile, age, name patterns)
- * 
- * 2. Fallback: Gemini 2.0 Flash VLM (paid, high accuracy)
- *    - Triggered when Tesseract fails validation
- *    - Handles handwritten, cursive, multilingual text
- * 
- * COST SAVINGS: ~70-80% reduction in API costs for typed/printed registers
+ * Hybrid extraction engine: LlamaParse for PDFs, OpenRouter GPT-4o vision for images
  */
 
-import { createWorker, Worker } from 'tesseract.js';
-import {
-  extractRegisterImage as geminiExtract,
-  sanitizeExtractedRows,
-  type ExtractedRow,
-  type ExtractionResult,
-} from './geminiExtractor';
-import { extractRegisterImageOpenRouter } from './openrouterExtractor';
+import type { ExtractedRow } from './geminiExtractor';
+import { callOpenRouter } from '../openrouter';
 
-// ═══════════════════════════════════════════════════════
-// Types
-// ═══════════════════════════════════════════════════════
+const LLAMA_CLOUD_API_KEY = process.env.LLAMA_CLOUD_API_KEY;
 
-export interface HybridExtractionResult extends ExtractionResult {
-  engine: 'tesseract' | 'gemini' | 'openrouter';
-  fallbackReason?: string;
-  cost: number;
+const EXTRACTION_PROMPT = `You are extracting patient records from a scanned TB screening register in India.
+Extract ALL patient rows. Each row represents one inmate/patient.
+Return a JSON object with key 'rows' containing an array. Each item must have:
+- sno: row number (integer, sequential if not visible)
+- name: patient full name (string or null)
+- father_name: father's or husband's name (string or null)
+- age: age in years (integer or null)
+- ward: ward or facility name (string or null)
+- address: home address (string or null)
+- mobile: mobile or contact number as string (string or null)
+
+Rules:
+- Use ALL CAPS for names
+- Mobile must be exactly 10 digits starting with 6-9, or null
+- Age must be 1-120 or null
+- Skip header rows
+- If field is unreadable: use null
+- Return only the JSON object. No explanation.`;
+
+interface LlamaParseUploadResponse {
+  id: string;
+  status: string;
 }
 
-interface TesseractValidationResult {
-  isValid: boolean;
-  rows: ExtractedRow[];
-  confidence: number;
-  reason?: string;
+interface LlamaParseJobResponse {
+  id: string;
+  status: 'PENDING' | 'SUCCESS' | 'ERROR' | 'PARTIAL_SUCCESS';
 }
 
-// ═══════════════════════════════════════════════════════
-// Tesseract Fast Lane
-// ═══════════════════════════════════════════════════════
+interface LlamaParseMarkdownResponse {
+  markdown: string;
+}
 
-/**
- * Extracts text using Tesseract.js OCR engine.
- * Optimized for printed/typed registers with clear text.
- */
-async function tesseractExtract(
-  imageBuffer: Buffer,
-  mime: string
-): Promise<{ text: string; confidence: number; latencyMs: number }> {
+async function extractFromPDF(buffer: Buffer): Promise<{ rows: ExtractedRow[]; engine: string; latencyMs: number }> {
   const startTime = Date.now();
-  
-  let worker: Worker | null = null;
-  
-  try {
-    // Initialize Tesseract worker
-    worker = await createWorker('eng', 1, {
-      logger: () => {}, // Suppress logs
+
+  if (!LLAMA_CLOUD_API_KEY) {
+    throw new Error('LLAMA_CLOUD_API_KEY not configured');
+  }
+
+  // Step 1: Upload to LlamaParse
+  const formData = new FormData();
+  formData.append('file', new Blob([new Uint8Array(buffer)], { type: 'application/pdf' }));
+
+  const uploadRes = await fetch('https://api.cloud.llamaindex.ai/api/parsing/upload', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`,
+    },
+    body: formData,
+  });
+
+  if (!uploadRes.ok) {
+    throw new Error(`LlamaParse upload failed: ${uploadRes.status}`);
+  }
+
+  const uploadData: LlamaParseUploadResponse = await uploadRes.json();
+  const jobId = uploadData.id;
+
+  // Step 2: Poll for completion
+  const delays = [3000, 5000, 8000, 10000];
+  let attempt = 0;
+  const maxAttempts = 20;
+
+  while (attempt < maxAttempts) {
+    const statusRes = await fetch(`https://api.cloud.llamaindex.ai/api/parsing/job/${jobId}`, {
+      headers: {
+        'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`,
+      },
     });
 
-    // Convert buffer to base64 data URL
-    const base64 = imageBuffer.toString('base64');
-    const dataUrl = `data:${mime};base64,${base64}`;
-
-    // Run OCR
-    const { data } = await worker.recognize(dataUrl);
-    
-    return {
-      text: data.text,
-      confidence: data.confidence / 100, // Convert 0-100 to 0-1
-      latencyMs: Date.now() - startTime,
-    };
-  } finally {
-    if (worker) {
-      await worker.terminate();
+    if (!statusRes.ok) {
+      throw new Error(`LlamaParse status check failed: ${statusRes.status}`);
     }
+
+    const statusData: LlamaParseJobResponse = await statusRes.json();
+
+    if (statusData.status === 'SUCCESS' || statusData.status === 'PARTIAL_SUCCESS') {
+      break;
+    }
+
+    if (statusData.status === 'ERROR') {
+      throw new Error('LlamaParse job failed with ERROR status');
+    }
+
+    const delay = delays[Math.min(attempt, delays.length - 1)];
+    await new Promise(r => setTimeout(r, delay));
+    attempt++;
   }
+
+  if (attempt >= maxAttempts) {
+    throw new Error('LlamaParse timeout: job did not complete in 90s');
+  }
+
+  // Step 3: Retrieve markdown
+  const markdownRes = await fetch(`https://api.cloud.llamaindex.ai/api/parsing/job/${jobId}/result/markdown`, {
+    headers: {
+      'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`,
+    },
+  });
+
+  if (!markdownRes.ok) {
+    throw new Error(`LlamaParse markdown retrieval failed: ${markdownRes.status}`);
+  }
+
+  const markdownData: LlamaParseMarkdownResponse = await markdownRes.json();
+  const markdown = markdownData.markdown;
+
+  // Step 4: Send to OpenRouter GPT-4o for structured extraction
+  const rows = await extractWithOpenRouter(markdown, 'text');
+  const latencyMs = Date.now() - startTime;
+
+  return { rows, engine: 'llamaparse+openrouter-gpt4o', latencyMs };
 }
 
-/**
- * Parses Tesseract OCR text into structured patient rows using regex.
- * 
- * VALIDATION CRITERIA:
- * - Must find at least 1 row with S.No
- * - Must have at least 50% of rows with valid mobile (10 digits) OR age (1-120)
- * - Names must be present and non-empty
- */
-function parseTesseractText(text: string): TesseractValidationResult {
-  const lines = text.split('\n').filter(line => line.trim().length > 0);
-  
-  if (lines.length < 3) {
-    return {
-      isValid: false,
-      rows: [],
-      confidence: 0,
-      reason: 'Insufficient text lines (< 3)',
-    };
+async function extractFromImage(buffer: Buffer, mime: string): Promise<{ rows: ExtractedRow[]; engine: string; latencyMs: number }> {
+  const startTime = Date.now();
+  const base64 = buffer.toString('base64');
+  const rows = await extractWithOpenRouter(`data:${mime};base64,${base64}`, 'image');
+  const latencyMs = Date.now() - startTime;
+
+  return { rows, engine: 'openrouter-gpt4o-vision', latencyMs };
+}
+
+async function extractWithOpenRouter(content: string, type: 'text' | 'image'): Promise<ExtractedRow[]> {
+  const messages = type === 'text'
+    ? [
+        {
+          role: 'user' as const,
+          content: `${EXTRACTION_PROMPT}\n\nRegister content (markdown):\n${content}`,
+        },
+      ]
+    : [
+        {
+          role: 'user' as const,
+          content: [
+            {
+              type: 'text' as const,
+              text: `You are looking at a photo/scan of a TB screening register page from India.\n${EXTRACTION_PROMPT}`,
+            },
+            {
+              type: 'image_url' as const,
+              image_url: {
+                url: content,
+              },
+            },
+          ],
+        },
+      ];
+
+  const rawContent = await callOpenRouter({
+    model: 'openai/gpt-4o',
+    messages,
+    response_format: { type: 'json_object' },
+    temperature: 0.1,
+  });
+
+  let parsed: { rows?: any[] };
+  try {
+    parsed = JSON.parse(rawContent);
+  } catch {
+    throw new Error('OpenRouter returned invalid JSON');
   }
 
-  const rows: ExtractedRow[] = [];
-  let validRowCount = 0;
+  if (!parsed.rows || !Array.isArray(parsed.rows)) {
+    throw new Error('OpenRouter response missing rows array');
+  }
 
-  // Regex patterns
-  const snoPattern = /^\s*(\d+)\s+/; // S.No at start of line
-  const mobilePattern = /\b([6-9]\d{9})\b/; // Indian mobile: starts with 6-9, 10 digits
-  const agePattern = /\b(\d{1,3})\b/; // Age: 1-3 digits
-  const namePattern = /[A-Za-z]{2,}/; // Name: at least 2 letters
+  return parsed.rows.map((r: any, i: number) => ({
+    sno: r.sno ?? i + 1,
+    name: r.name?.toString().trim().toUpperCase() || null,
+    father_name: r.father_name?.toString().trim().toUpperCase() || null,
+    age: typeof r.age === 'number' && r.age > 0 && r.age <= 120 ? r.age : null,
+    ward: r.ward?.toString().trim().toUpperCase() || null,
+    address: r.address?.toString().trim().toUpperCase() || null,
+    mobile: typeof r.mobile === 'string' && /^[6-9]\d{9}$/.test(r.mobile) ? r.mobile : null,
+    confidence_score: 0.9, // Default confidence score for Gemini extraction
+  }));
+}
 
-  for (const line of lines) {
-    const snoMatch = line.match(snoPattern);
-    if (!snoMatch) continue; // Skip lines without S.No
+export async function extractRegisterImageHybrid(
+  buffer: Buffer,
+  mime: string
+): Promise<{
+  rows: ExtractedRow[];
+  summary: {
+    totalRowsParsed: number;
+    validRows: number;
+    invalidRows: number;
+    duplicatesInFile: number;
+  };
+  warnings: string[];
+  engine: string;
+  latencyMs: number;
+}> {
+  const warnings: string[] = [];
 
-    const sno = parseInt(snoMatch[1], 10);
-    const remainingText = line.substring(snoMatch[0].length);
+  let result: { rows: ExtractedRow[]; engine: string; latencyMs: number };
 
-    // Extract mobile
-    const mobileMatch = remainingText.match(mobilePattern);
-    const mobile = mobileMatch ? mobileMatch[1] : null;
+  if (mime === 'application/pdf') {
+    result = await extractFromPDF(buffer);
+  } else if (mime.startsWith('image/')) {
+    result = await extractFromImage(buffer, mime);
+  } else {
+    throw new Error(`Unsupported MIME type: ${mime}`);
+  }
 
-    // Extract age (prefer numbers between 1-120)
-    const ageMatches = remainingText.match(/\b(\d{1,3})\b/g);
-    let age: number | null = null;
-    if (ageMatches) {
-      for (const ageStr of ageMatches) {
-        const ageNum = parseInt(ageStr, 10);
-        if (ageNum >= 1 && ageNum <= 120) {
-          age = ageNum;
-          break;
-        }
-      }
+  const totalRowsParsed = result.rows.length;
+
+  // Deduplicate by name + father_name
+  const seen = new Set<string>();
+  const deduped: ExtractedRow[] = [];
+  let duplicatesInFile = 0;
+
+  for (const row of result.rows) {
+    const key = `${row.name || ''}-${row.father_name || ''}`;
+    if (seen.has(key)) {
+      duplicatesInFile++;
+      continue;
     }
-
-    // Extract name (first sequence of 2+ letters)
-    const nameMatch = remainingText.match(namePattern);
-    const name = nameMatch ? nameMatch[0] : null;
-
-    // Validation: row must have name AND (mobile OR age)
-    const isValidRow = name && (mobile || age !== null);
-    if (isValidRow) validRowCount++;
-
-    rows.push({
-      sno,
-      name,
-      father_name: null, // Tesseract can't reliably split name/father
-      age,
-      ward: null,
-      address: null,
-      mobile,
-      confidence_score: isValidRow ? 0.7 : 0.3, // Heuristic confidence
-    });
+    seen.add(key);
+    deduped.push(row);
   }
 
-  // Validation gate: at least 50% of rows must be valid
-  const validRatio = rows.length > 0 ? validRowCount / rows.length : 0;
-  const isValid = rows.length >= 1 && validRatio >= 0.5;
+  // Assign sequential sno
+  deduped.forEach((row, i) => {
+    if (!row.sno) row.sno = i + 1;
+  });
+
+  const validRows = deduped.filter(r => r.name).length;
+  const invalidRows = deduped.filter(r => !r.name).length;
+
+  if (deduped.length === 0) {
+    warnings.push('No rows extracted from file');
+  }
 
   return {
-    isValid,
-    rows,
-    confidence: validRatio,
-    reason: isValid
-      ? undefined
-      : `Low valid row ratio: ${validRowCount}/${rows.length} (${(validRatio * 100).toFixed(0)}%)`,
+    rows: deduped,
+    summary: {
+      totalRowsParsed,
+      validRows,
+      invalidRows,
+      duplicatesInFile,
+    },
+    warnings,
+    engine: result.engine,
+    latencyMs: result.latencyMs,
   };
 }
-
-// ═══════════════════════════════════════════════════════
-// Hybrid Routing Logic
-// ═══════════════════════════════════════════════════════
-
-/**
- * Main hybrid extraction function.
- * 
- * FLOW:
- * 1. Try Tesseract (fast, free)
- * 2. Validate structured data
- * 3. If validation fails → fallback to Gemini
- * 4. Return result with engine metadata
- */
-export async function extractRegisterImageHybrid(
-  imageBuffer: Buffer,
-  mime: string
-): Promise<HybridExtractionResult> {
-  console.log('[HybridExtractor] Starting extraction...');
-
-  // PDF GUARD: Tesseract cannot parse PDFs natively
-  // Route directly to Gemini for all PDF inputs
-  if (mime === 'application/pdf') {
-    console.log('[hybridExtractor] PDF detected — bypassing Tesseract, routing to Gemini');
-    try {
-      const geminiResult = await geminiExtract(imageBuffer, mime);
-      const sanitizedRows = sanitizeExtractedRows(geminiResult.rows);
-      return {
-        ...geminiResult,
-        rows: sanitizedRows,
-        engine: 'gemini',
-        cost: 1,
-      };
-    } catch (geminiError) {
-      console.warn('[HybridExtractor] Gemini failed for PDF, falling back to OpenRouter:', geminiError);
-      const orResult = await extractRegisterImageOpenRouter(imageBuffer, mime);
-      const sanitizedRows = sanitizeExtractedRows(orResult.rows);
-      return {
-         ...orResult,
-         rows: sanitizedRows,
-         engine: 'openrouter',
-         fallbackReason: 'Gemini API failed on PDF',
-         cost: 1, // Normalized cost
-      };
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════
-  // FAST LANE: Tesseract.js
-  // ═══════════════════════════════════════════════════════
-  try {
-    console.log('[HybridExtractor] Attempting Tesseract fast lane...');
-    const tesseractResult = await tesseractExtract(imageBuffer, mime);
-    
-    console.log('[HybridExtractor] Tesseract OCR complete:', {
-      textLength: tesseractResult.text.length,
-      confidence: tesseractResult.confidence,
-      latencyMs: tesseractResult.latencyMs,
-    });
-
-    // Parse and validate
-    const validation = parseTesseractText(tesseractResult.text);
-    
-    console.log('[HybridExtractor] Tesseract validation:', {
-      isValid: validation.isValid,
-      rowCount: validation.rows.length,
-      confidence: validation.confidence,
-      reason: validation.reason,
-    });
-
-    if (validation.isValid) {
-      // ✅ SUCCESS: Tesseract extracted valid structured data
-      console.log('[HybridExtractor] ✅ Tesseract success - using fast lane');
-      
-      const sanitizedRows = sanitizeExtractedRows(validation.rows);
-      
-      return {
-        rows: sanitizedRows,
-        modelVersion: 'tesseract.js-v5',
-        latencyMs: tesseractResult.latencyMs,
-        keyIndex: -1, // N/A for Tesseract
-        engine: 'tesseract',
-        cost: 0, // Free!
-      };
-    }
-
-    // ❌ VALIDATION FAILED: Fall through to Gemini
-    console.log('[HybridExtractor] ⚠️ Tesseract validation failed, falling back to Gemini...');
-    console.log('[HybridExtractor] Fallback reason:', validation.reason);
-
-    // ═══════════════════════════════════════════════════════
-    // FALLBACK 1: Gemini VLM
-    // ═══════════════════════════════════════════════════════
-    try {
-      const geminiResult = await geminiExtract(imageBuffer, mime);
-      const sanitizedRows = sanitizeExtractedRows(geminiResult.rows);
-
-      console.log('[HybridExtractor] ✅ Gemini fallback success');
-
-      return {
-        ...geminiResult,
-        rows: sanitizedRows,
-        engine: 'gemini',
-        fallbackReason: validation.reason || 'Tesseract parsing failed',
-        cost: 1,
-      };
-    } catch (geminiError) {
-      console.warn('[HybridExtractor] ⚠️ Gemini also failed, triggering Deep Fallback to OpenRouter', geminiError);
-      
-      const orResult = await extractRegisterImageOpenRouter(imageBuffer, mime);
-      const sanitizedRows = sanitizeExtractedRows(orResult.rows);
-      return {
-        ...orResult,
-        rows: sanitizedRows,
-        engine: 'openrouter',
-        fallbackReason: 'Tesseract and Gemini both failed',
-        cost: 1,
-      };
-    }
-  } catch (tesseractError) {
-    // ❌ TESSERACT CRASHED: Fall back
-    console.error('[HybridExtractor] Tesseract error:', tesseractError);
-    console.log('[HybridExtractor] Falling back initially to Gemini...');
-
-    try {
-      const geminiResult = await geminiExtract(imageBuffer, mime);
-      const sanitizedRows = sanitizeExtractedRows(geminiResult.rows);
-      return {
-        ...geminiResult,
-        rows: sanitizedRows,
-        engine: 'gemini',
-        fallbackReason: 'Tesseract crashed',
-        cost: 1,
-      };
-    } catch (geminiError) {
-      console.warn('[HybridExtractor] Gemini failed after Tesseract crash. Falling to OpenRouter');
-      const orResult = await extractRegisterImageOpenRouter(imageBuffer, mime);
-      const sanitizedRows = sanitizeExtractedRows(orResult.rows);
-      return {
-        ...orResult,
-        rows: sanitizedRows,
-        engine: 'openrouter',
-        fallbackReason: 'Tesseract crashed, and Gemini failed',
-        cost: 1,
-      };
-    }
-  }
-}
-
-// ═══════════════════════════════════════════════════════
-// Export for backward compatibility
-// ═══════════════════════════════════════════════════════
-
-/**
- * Alias for hybrid extraction (default export).
- * Use this in API routes to enable hybrid routing.
- */
-export const extractRegisterImage = extractRegisterImageHybrid;
-
-/**
- * Re-export sanitizeExtractedRows for backward compatibility.
- */
-export { sanitizeExtractedRows } from './geminiExtractor';

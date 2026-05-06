@@ -12,12 +12,13 @@
 'use client';
 
 import { useState, useCallback, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Upload, FileSpreadsheet, CheckCircle2, AlertCircle,
   Calendar, Building2, MapPin, ChevronRight, Shield,
   AlertTriangle, FileWarning, RotateCcw, ArrowRight, Info,
-  Sparkles,
+  Sparkles, FileImage, ScanLine,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -66,9 +67,13 @@ const ACCEPTED_TYPES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.ms-excel',
   'text/csv',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/pdf',
 ];
 
-const ACCEPTED_EXTENSIONS = ['.xlsx', '.xls', '.csv'];
+const ACCEPTED_EXTENSIONS = ['.xlsx', '.xls', '.csv', '.pdf', '.jpg', '.jpeg', '.png', '.webp'];
 
 // ═══════════════════════════════════════════════════════
 // Main Component
@@ -97,6 +102,20 @@ export function RegisterUploadModal({
 
   const hasDate = !!screeningDate;
   const scopeMode = facilityName ? 'date_facility' : 'date_only';
+
+  // Helper to determine if file is image/PDF
+  const isImageOrPDF = useCallback((file: File | null): boolean => {
+    if (!file) return false;
+    return file.type.startsWith('image/') || file.type === 'application/pdf';
+  }, []);
+
+  // Helper to get appropriate icon
+  const getFileIcon = useCallback((file: File | null) => {
+    if (!file) return Upload;
+    if (file.type === 'application/pdf') return ScanLine;
+    if (file.type.startsWith('image/')) return FileImage;
+    return FileSpreadsheet;
+  }, []);
 
   // Reset state when modal closes
   const handleClose = useCallback(() => {
@@ -205,7 +224,7 @@ export function RegisterUploadModal({
       facilityName: facilityName ?? null,
       screeningDistrict: screeningDistrict ?? null,
       screeningState: screeningState ?? null,
-      scopeMode: scopeMode as any,
+      scopeMode: scopeMode as 'date_only' | 'date_facility',
     });
 
     // Set file for reference
@@ -237,13 +256,13 @@ export function RegisterUploadModal({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+        className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
         onClick={handleClose}
       >
         <motion.div
@@ -482,7 +501,7 @@ export function RegisterUploadModal({
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".xlsx,.xls,.csv"
+                      accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.webp"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
@@ -493,7 +512,10 @@ export function RegisterUploadModal({
                     {selectedFile ? (
                       <div className="space-y-2">
                         <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center mx-auto">
-                          <FileSpreadsheet className="w-6 h-6 text-emerald-600" />
+                          {(() => {
+                            const Icon = getFileIcon(selectedFile);
+                            return <Icon className="w-6 h-6 text-emerald-600" />;
+                          })()}
                         </div>
                         <p className="text-sm font-bold text-slate-800">{selectedFile.name}</p>
                         <p className="text-xs text-slate-500">
@@ -520,7 +542,7 @@ export function RegisterUploadModal({
                           Drop your register file here
                         </p>
                         <p className="text-xs text-slate-400">
-                          Accepts .xlsx and .csv · Max 20 MB
+                          Accepts .xlsx, .csv, .pdf, .jpg, .png · Max 20 MB
                         </p>
                       </div>
                     )}
@@ -715,6 +737,7 @@ export function RegisterUploadModal({
           </div>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

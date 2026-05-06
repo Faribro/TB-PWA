@@ -10,6 +10,8 @@
  * - Confidence scoring for ambiguous cases
  */
 
+import { callOpenRouter } from '../openrouter';
+
 export interface AIMatchRequest {
   extractedName: string;
   extractedFatherName?: string | null;
@@ -88,15 +90,247 @@ interface AIUsageLog {
 }
 
 /**
- * Get OpenRouter API key with rotation
- * Rotates through OPENROUTER_API_KEY_1 to _10
+ * Call OpenRouter AI for batch matching decisions
+ * More efficient than individual calls for multiple rows
  */
-function getOpenRouterApiKey(): string {
-  for (let i = 1; i <= 10; i++) {
-    const key = process.env[`OPENROUTER_API_KEY_${i}`];
-    if (key) return key;
+export async function callOpenRouterBatchMatch(
+  request: BatchAIMatchRequest,
+  context?: {
+    sessionId?: string;
+    userEmail?: string;
+    screeningDate?: string;
+    screeningState?: string;
+    screeningDistrict?: string;
+    facilityName?: string;
+  },
+): Promise<BatchAIMatchResponse> {
+  const startTime = Date.now();
+  const matchDescriptions = request.matches.map((m, i) => `
+Match ${i + 1}:
+Extracted: ${m.extractedName} (Father: ${m.extractedFatherName || 'N/A'}, Age: ${m.extractedAge || 'N/A'}, Mobile: ${m.extractedMobile || 'N/A'}, Facility: ${m.extractedFacility || 'N/A'})
+Candidate: ${m.candidateName} (Father: ${m.candidateFatherName || 'N/A'}, Age: ${m.candidateAge || 'N/A'}, Mobile: ${m.candidateMobile || 'N/A'}, Facility: ${m.candidateFacility || 'N/A'})
+`).join('\n');
+
+  const prompt = `You are a patient record matching expert. Determine if each pair of patient records represent the same person.
+
+${matchDescriptions}
+
+Respond with JSON array:
+[
+  {
+    "isMatch": boolean,
+    "confidence": number (0-1),
+    "reasons": ["reason1", "reason2"]
   }
-  throw new Error('No OPENROUTER_API_KEY configured (OPENROUTER_API_KEY_1 through _10)');
+]
+
+Consider:
+- Name spelling variations and transliterations
+- Age proximity (±5 years acceptable)
+- Mobile number matching (exact or last 10 digits)
+- Father's name matching
+- Facility matching
+- Cultural naming conventions (Indian context)`;
+
+  try {
+    const content = await callOpenRouter({
+      model: 'openai/gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a patient record matching expert. Always respond with valid JSON array.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 1000,
+    });
+
+    const duration = Date.now() - startTime;
+
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      throw new Error('No JSON array found in OpenRouter response');
+    }
+
+    const results = JSON.parse(jsonMatch[0]);
+    
+    // Log usage asynchronously
+    logAIUsage({
+      endpoint: 'batch_match',
+      modelUsed: 'gpt-4o-mini',
+      requestDurationMs: duration,
+      success: true,
+      batchSize: request.matches.length,
+      itemsProcessed: results.length,
+      context,
+    }).catch(err => console.error('[AI Usage] Failed to log:', err));
+    
+    return {
+      results: results.map((r: any) => ({
+        isMatch: r.isMatch || false,
+        confidence: r.confidence || 0,
+        reasons: r.reasons || [],
+      })),
+    };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    
+    // Log failed usage
+    logAIUsage({
+      endpoint: 'batch_match',
+      modelUsed: 'gpt-4o-mini',
+      requestDurationMs: duration,
+      success: false,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      batchSize: request.matches.length,
+      itemsProcessed: 0,
+      context,
+    }).catch(err => console.error('[AI Usage] Failed to log:', err));
+    
+    console.error('[OpenRouterMatcher] Batch error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Call OpenRouter AI for matching decision
+ */
+export async function callOpenRouterMatch(
+  request: AIMatchRequest,
+): Promise<AIMatchResponse> {
+  const prompt = `You are a patient record matching expert. Determine if two patient records represent the same person.
+
+Extracted Record:
+- Name: ${request.extractedName}
+- Father's Name: ${request.extractedFatherName || 'N/A'}
+- Age: ${request.extractedAge || 'N/A'}
+- Mobile: ${request.extractedMobile || 'N/A'}
+- Facility: ${request.extractedFacility || 'N/A'}
+
+Candidate Record:
+- Name: ${request.candidateName}
+- Father's Name: ${request.candidateFatherName || 'N/A'}
+- Age: ${request.candidateAge || 'N/A'}
+- Mobile: ${request.candidateMobile || 'N/A'}
+- Facility: ${request.candidateFacility || 'N/A'}
+
+Respond with JSON:
+{
+  "isMatch": boolean,
+  "confidence": number (0-1),
+  "reasons": ["reason1", "reason2"],
+  "normalizedExtractedName": "normalized name",
+  "normalizedCandidateName": "normalized name"
+}
+
+Consider:
+- Name spelling variations and transliterations
+- Age proximity (±5 years acceptable)
+- Mobile number matching (exact or last 10 digits)
+- Father's name matching
+- Facility matching
+- Cultural naming conventions (Indian context)`;
+
+  try {
+    const content = await callOpenRouter({
+      model: 'openai/gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a patient record matching expert. Always respond with valid JSON.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 500,
+    });
+
+    // Parse JSON from response
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in OpenRouter response');
+    }
+
+    const result = JSON.parse(jsonMatch[0]);
+    
+    return {
+      isMatch: result.isMatch || false,
+      confidence: result.confidence || 0,
+      reasons: result.reasons || [],
+      normalizedExtractedName: result.normalizedExtractedName,
+      normalizedCandidateName: result.normalizedCandidateName,
+    };
+  } catch (error) {
+    console.error('[OpenRouterMatcher] Error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Call OpenRouter AI for name normalization
+ */
+export async function callOpenRouterNormalize(
+  request: AINormalizeRequest,
+): Promise<AINormalizeResponse> {
+  const prompt = `Normalize this Indian name for patient matching.
+
+Name: ${request.name}
+Father's Name: ${request.fatherName || 'N/A'}
+
+Respond with JSON:
+{
+  "normalizedName": "normalized name (uppercase, no extra spaces)",
+  "normalizedFatherName": "normalized father name (if provided)",
+  "variations": ["variation1", "variation2"]
+}
+
+Consider:
+- Common spelling variations
+- Transliteration patterns
+- Remove honorifics (Shri, Smt, etc.)
+- Standardize to uppercase
+- Remove extra spaces`;
+
+  try {
+    const content = await callOpenRouter({
+      model: 'openai/gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a name normalization expert for Indian patient records. Always respond with valid JSON.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 300,
+    });
+
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in OpenRouter response');
+    }
+
+    const result = JSON.parse(jsonMatch[0]);
+    
+    return {
+      normalizedName: result.normalizedName || request.name.toUpperCase(),
+      normalizedFatherName: result.normalizedFatherName,
+      variations: result.variations || [],
+    };
+  } catch (error) {
+    console.error('[OpenRouterMatcher] Error:', error);
+    throw error;
+  }
 }
 
 /**
@@ -149,326 +383,4 @@ function calculateCost(model: string, inputTokens: number, outputTokens: number)
   }
   
   return 0;
-}
-
-/**
- * Call OpenRouter AI for batch matching decisions
- * More efficient than individual calls for multiple rows
- */
-export async function callOpenRouterBatchMatch(
-  request: BatchAIMatchRequest,
-  context?: {
-    sessionId?: string;
-    userEmail?: string;
-    screeningDate?: string;
-    screeningState?: string;
-    screeningDistrict?: string;
-    facilityName?: string;
-  },
-): Promise<BatchAIMatchResponse> {
-  const apiKey = getOpenRouterApiKey();
-  if (!apiKey) {
-    throw new Error('OPENROUTER_API_KEY not configured');
-  }
-
-  const startTime = Date.now();
-  const matchDescriptions = request.matches.map((m, i) => `
-Match ${i + 1}:
-Extracted: ${m.extractedName} (Father: ${m.extractedFatherName || 'N/A'}, Age: ${m.extractedAge || 'N/A'}, Mobile: ${m.extractedMobile || 'N/A'}, Facility: ${m.extractedFacility || 'N/A'})
-Candidate: ${m.candidateName} (Father: ${m.candidateFatherName || 'N/A'}, Age: ${m.candidateAge || 'N/A'}, Mobile: ${m.candidateMobile || 'N/A'}, Facility: ${m.candidateFacility || 'N/A'})
-`).join('\n');
-
-  const prompt = `You are a patient record matching expert. Determine if each pair of patient records represent the same person.
-
-${matchDescriptions}
-
-Respond with JSON array:
-[
-  {
-    "isMatch": boolean,
-    "confidence": number (0-1),
-    "reasons": ["reason1", "reason2"]
-  }
-]
-
-Consider:
-- Name spelling variations and transliterations
-- Age proximity (±5 years acceptable)
-- Mobile number matching (exact or last 10 digits)
-- Father's name matching
-- Facility matching
-- Cultural naming conventions (Indian context)`;
-
-  try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-      },
-      body: JSON.stringify({
-        model: 'openai/gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a patient record matching expert. Always respond with valid JSON array.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.1,
-        max_tokens: 1000,
-      }),
-    });
-
-    const duration = Date.now() - startTime;
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`OpenRouter API error: ${response.status} - ${error}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('No content in OpenRouter response');
-    }
-
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      throw new Error('No JSON array found in OpenRouter response');
-    }
-
-    const results = JSON.parse(jsonMatch[0]);
-    
-    // Log usage asynchronously
-    logAIUsage({
-      endpoint: 'batch_match',
-      modelUsed: 'gpt-4o-mini',
-      inputTokens: data.usage?.prompt_tokens || 0,
-      outputTokens: data.usage?.completion_tokens || 0,
-      totalTokens: data.usage?.total_tokens || 0,
-      requestDurationMs: duration,
-      success: true,
-      batchSize: request.matches.length,
-      itemsProcessed: results.length,
-      context,
-    }).catch(err => console.error('[AI Usage] Failed to log:', err));
-    
-    return {
-      results: results.map((r: any) => ({
-        isMatch: r.isMatch || false,
-        confidence: r.confidence || 0,
-        reasons: r.reasons || [],
-      })),
-    };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    
-    // Log failed usage
-    logAIUsage({
-      endpoint: 'batch_match',
-      modelUsed: 'gpt-4o-mini',
-      requestDurationMs: duration,
-      success: false,
-      errorMessage: error instanceof Error ? error.message : 'Unknown error',
-      batchSize: request.matches.length,
-      itemsProcessed: 0,
-      context,
-    }).catch(err => console.error('[AI Usage] Failed to log:', err));
-    
-    console.error('[OpenRouterMatcher] Batch error:', error);
-    throw error;
-  }
-}
-
-/**
- * Call OpenRouter AI for matching decision
- */
-export async function callOpenRouterMatch(
-  request: AIMatchRequest,
-): Promise<AIMatchResponse> {
-  const apiKey = getOpenRouterApiKey();
-  if (!apiKey) {
-    throw new Error('OPENROUTER_API_KEY not configured');
-  }
-
-  const prompt = `You are a patient record matching expert. Determine if two patient records represent the same person.
-
-Extracted Record:
-- Name: ${request.extractedName}
-- Father's Name: ${request.extractedFatherName || 'N/A'}
-- Age: ${request.extractedAge || 'N/A'}
-- Mobile: ${request.extractedMobile || 'N/A'}
-- Facility: ${request.extractedFacility || 'N/A'}
-
-Candidate Record:
-- Name: ${request.candidateName}
-- Father's Name: ${request.candidateFatherName || 'N/A'}
-- Age: ${request.candidateAge || 'N/A'}
-- Mobile: ${request.candidateMobile || 'N/A'}
-- Facility: ${request.candidateFacility || 'N/A'}
-
-Respond with JSON:
-{
-  "isMatch": boolean,
-  "confidence": number (0-1),
-  "reasons": ["reason1", "reason2"],
-  "normalizedExtractedName": "normalized name",
-  "normalizedCandidateName": "normalized name"
-}
-
-Consider:
-- Name spelling variations and transliterations
-- Age proximity (±5 years acceptable)
-- Mobile number matching (exact or last 10 digits)
-- Father's name matching
-- Facility matching
-- Cultural naming conventions (Indian context)`;
-
-  try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-      },
-      body: JSON.stringify({
-        model: 'openai/gpt-4o-mini', // Cost-effective model
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a patient record matching expert. Always respond with valid JSON.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.1, // Low temperature for consistent results
-        max_tokens: 500,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`OpenRouter API error: ${response.status} - ${error}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('No content in OpenRouter response');
-    }
-
-    // Parse JSON from response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in OpenRouter response');
-    }
-
-    const result = JSON.parse(jsonMatch[0]);
-    
-    return {
-      isMatch: result.isMatch || false,
-      confidence: result.confidence || 0,
-      reasons: result.reasons || [],
-      normalizedExtractedName: result.normalizedExtractedName,
-      normalizedCandidateName: result.normalizedCandidateName,
-    };
-  } catch (error) {
-    console.error('[OpenRouterMatcher] Error:', error);
-    throw error;
-  }
-}
-
-/**
- * Call OpenRouter AI for name normalization
- */
-export async function callOpenRouterNormalize(
-  request: AINormalizeRequest,
-): Promise<AINormalizeResponse> {
-  const apiKey = getOpenRouterApiKey();
-  if (!apiKey) {
-    throw new Error('OPENROUTER_API_KEY not configured');
-  }
-
-  const prompt = `Normalize this Indian name for patient matching.
-
-Name: ${request.name}
-Father's Name: ${request.fatherName || 'N/A'}
-
-Respond with JSON:
-{
-  "normalizedName": "normalized name (uppercase, no extra spaces)",
-  "normalizedFatherName": "normalized father name (if provided)",
-  "variations": ["variation1", "variation2"]
-}
-
-Consider:
-- Common spelling variations
-- Transliteration patterns
-- Remove honorifics (Shri, Smt, etc.)
-- Standardize to uppercase
-- Remove extra spaces`;
-
-  try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-      },
-      body: JSON.stringify({
-        model: 'openai/gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a name normalization expert for Indian patient records. Always respond with valid JSON.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.1,
-        max_tokens: 300,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`OpenRouter API error: ${response.status} - ${error}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('No content in OpenRouter response');
-    }
-
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in OpenRouter response');
-    }
-
-    const result = JSON.parse(jsonMatch[0]);
-    
-    return {
-      normalizedName: result.normalizedName || request.name.toUpperCase(),
-      normalizedFatherName: result.normalizedFatherName,
-      variations: result.variations || [],
-    };
-  } catch (error) {
-    console.error('[OpenRouterMatcher] Error:', error);
-    throw error;
-  }
 }

@@ -143,6 +143,9 @@ export async function POST(request: NextRequest) {
       rowCount: body.decisions.length,
     });
 
+    // ═══════════════════════════════════════════════════════════
+    // DUAL-WRITE: Supabase + Google Sheets
+    // ═══════════════════════════════════════════════════════════
     const supabase = getSupabaseClient();
     const results = {
       accepted: 0,
@@ -150,7 +153,15 @@ export async function POST(request: NextRequest) {
       rejected: 0,
       duplicatesSkipped: 0,
       errors: [] as { sno: number; error: string }[],
+      sheetsAppended: 0,
+      sheetsErrors: [] as { sno: number; error: string }[],
     };
+
+    // Import sheets sync function
+    const { syncToSheetsAsync } = await import('@/lib/sheetsSync');
+
+    // Consolidated webhook URL - use canonical variable
+    const WEBHOOK_URL = process.env.GOOGLE_APPSCRIPT_URL || process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
 
     for (const decision of body.decisions) {
       try {
@@ -268,10 +279,6 @@ export async function POST(request: NextRequest) {
             .single();
 
           if (error) {
-            console.error(
-              `[RegisterReconcile] Insert failed for row ${decision.sno}:`,
-              { error: error.message, code: error.code, payload: newPatient },
-            );
             results.errors.push({
               sno: decision.sno,
               error: `Insert failed: ${error.message}${error.hint ? ` (Hint: ${error.hint})` : ''}`,
@@ -283,6 +290,50 @@ export async function POST(request: NextRequest) {
                 `[RegisterReconcile] ✅ Created patient ${insertedPatient.id} ` +
                 `with screening_date=${resolvedDate}`,
               );
+              
+              // ═══ DUAL-WRITE: Append to Google Sheets ═══
+              // Use the consolidated webhook URL and follow redirects
+              try {
+                const sheetsPayload = {
+                  id: insertedPatient.id,
+                  ...newPatient,
+                  operation: 'insert',
+                  source: 'register-reconcile'
+                };
+
+                if (WEBHOOK_URL) {
+                  const sheetsResponse = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 
+                      'Content-Type': 'application/json',
+                      'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(sheetsPayload),
+                    // Follow redirects for Google Apps Script
+                    redirect: 'follow'
+                  });
+
+                  if (sheetsResponse.ok) {
+                    results.sheetsAppended++;
+                    console.log(`[RegisterReconcile] ✅ Sheets sync: ${insertedPatient.id}`);
+                  } else {
+                    results.sheetsErrors.push({
+                      sno: decision.sno,
+                      error: `Sheets sync HTTP ${sheetsResponse.status}: ${sheetsResponse.statusText}`,
+                    });
+                  }
+                } else {
+                  results.sheetsErrors.push({
+                    sno: decision.sno,
+                    error: 'Google Apps Script webhook URL not configured',
+                  });
+                }
+              } catch (sheetsErr) {
+                results.sheetsErrors.push({
+                  sno: decision.sno,
+                  error: sheetsErr instanceof Error ? sheetsErr.message : 'Sheets sync failed',
+                });
+              }
             }
           }
         } else if (decision.action === 'reject') {
@@ -374,40 +425,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // ── Google Sheets Sync (after DB success, outcome surfaced) ──
-    let sheetsTriggered = false;
-    let sheetsError: string | null = null;
-
-    try {
-      if (
-        process.env.GOOGLE_APPSCRIPT_URL &&
-        (results.created > 0 || results.accepted > 0)
-      ) {
-        const gasResponse = await fetch(process.env.GOOGLE_APPSCRIPT_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'TRIGGER_SYNC' }),
-        });
-
-        if (gasResponse.ok) {
-          sheetsTriggered = true;
-          console.log(
-            `[RegisterReconcile] ✅ Sheets sync triggered: ` +
-            `${results.created} new, ${results.accepted} updated`,
-          );
-        } else {
-          sheetsTriggered = true;
-          sheetsError = `Sheets sync returned HTTP ${gasResponse.status}: ${gasResponse.statusText}`;
-          console.error(`[RegisterReconcile] ⚠️ ${sheetsError}`);
-        }
-      }
-    } catch (syncError) {
-      sheetsTriggered = true;
-      sheetsError = syncError instanceof Error
-        ? syncError.message
-        : 'Sheets sync failed unexpectedly';
-      console.error('[RegisterReconcile] Sheets sync error:', syncError);
-    }
+    // ═══════════════════════════════════════════════════════════
+    // DUAL-WRITE SUMMARY: Calculate partial failure status
+    // ═══════════════════════════════════════════════════════════
+    const partialFailure = results.errors.length > 0 || results.sheetsErrors.length > 0;
 
     // ── Structured audit log for reconcile result ──
     logReconciliationAudit('register_reconcile_complete', {
@@ -431,8 +452,18 @@ export async function POST(request: NextRequest) {
 
     // ── Response ──
     return NextResponse.json({
-      success: results.errors.length === 0,
-      ...results,
+      success: results.errors.length === 0 && !partialFailure,
+      
+      // Structured result as requested
+      supabaseInsertedCount: results.created,
+      sheetsSyncedCount: results.sheetsAppended,
+      duplicateSkippedCount: results.duplicatesSkipped,
+      failedRows: results.errors,
+      partialFailure,
+
+      // Additional counts for completeness
+      accepted: results.accepted,
+      rejected: results.rejected,
       total: body.decisions.length,
 
       // DB commit status
@@ -448,9 +479,9 @@ export async function POST(request: NextRequest) {
         isEmptyScope,
       },
 
-      // Google Sheets sync status (surfaced to client)
-      sheetsTriggered,
-      sheetsError,
+      // Detailed sheets sync status
+      sheetsErrors: results.sheetsErrors,
+      sheetsSynced: results.sheetsAppended > 0,
     });
   } catch (error) {
     console.error('[RegisterReconcile] Error:', error);

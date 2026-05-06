@@ -66,7 +66,7 @@ export function isATTInitiated(p: Patient): boolean {
 }
 
 export function isATTCompleted(p: Patient): boolean {
-  return !!p.att_completion_date || !!p.att_completed;
+  return !!(p as any).att_completion_date || !!(p as any).att_completed;
 }
 
 function filterPatients(patients: Patient[], mode: FilterMode): Patient[] {

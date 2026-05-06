@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     const ALLOWED_ROLES = ['PM', 'admin', 'SPM', 'MandE'];
-    const userRole = (session.user as any).role ?? '';
+    const userRole = (session.user as { role?: string }).role ?? '';
     if (!ALLOWED_ROLES.includes(userRole)) {
       return NextResponse.json(
         { error: 'Forbidden — Only PM, admin, SPM, and M&E roles can extract registers' },
@@ -109,6 +109,7 @@ export async function POST(request: NextRequest) {
     const filename = file.name.toLowerCase();
     const isExcel = declaredMime.includes('spreadsheetml') || filename.endsWith('.xlsx');
     const isCSV = declaredMime === 'text/csv' || filename.endsWith('.csv');
+    const mime = declaredMime.startsWith('image/') ? declaredMime : 'application/pdf';
 
     let extractionResult: any;
 
@@ -117,7 +118,6 @@ export async function POST(request: NextRequest) {
       extractionResult = await extractFromSpreadsheet(buffer, filename);
     } else {
       const { extractRegisterImageHybrid } = await import('@/lib/ocr/hybridExtractor');
-      const mime = declaredMime.startsWith('image/') ? declaredMime : 'application/pdf';
       extractionResult = await extractRegisterImageHybrid(buffer, mime);
     }
 
@@ -234,7 +234,7 @@ export async function POST(request: NextRequest) {
       screeningState,
       scopeMode: scopeMode as any,
       sourceFileName: file.name,
-      sourceType: 'spreadsheet',
+      sourceType: (isExcel || isCSV ? 'spreadsheet' : mime.startsWith('image/') ? 'image' : 'pdf') as any,
       uploadedBy: session.user.email || session.user.name || 'Unknown',
       uploadedAt: new Date().toISOString(),
     };
@@ -255,7 +255,7 @@ export async function POST(request: NextRequest) {
           duplicatesInFile: extractionResult.summary.duplicatesInFile,
           fileName: file.name,
           fileSize: file.size,
-          sourceType: 'spreadsheet',
+          sourceType: isExcel || isCSV ? 'spreadsheet' : mime.startsWith('image/') ? 'image' : 'pdf',
           latencyMs: extractionResult.latencyMs,
           sessionContext,
           warnings: extractionResult.warnings,
@@ -314,7 +314,7 @@ export async function POST(request: NextRequest) {
       warnings: extractionResult.warnings,
 
       // Metadata
-      source: 'spreadsheet',
+      source: isExcel || isCSV ? 'spreadsheet' : mime.startsWith('image/') ? 'image' : 'pdf',
       latencyMs: extractionResult.latencyMs,
       rowCount: matchResults.length,
     });

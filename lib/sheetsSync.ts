@@ -47,7 +47,8 @@ const CONFIG = {
  * PERFORMANCE: 50x faster than individual syncs
  */
 export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 'update'): void {
-  const webhookUrl = process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
+  // Use consolidated webhook URL - prioritize GOOGLE_APPSCRIPT_URL
+  const webhookUrl = process.env.GOOGLE_APPSCRIPT_URL || process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
   
   if (!webhookUrl || circuitBreakerOpen) {
     return; // Skip if not configured or circuit breaker open
@@ -119,6 +120,8 @@ async function flushQueue(webhookUrl: string): Promise<void> {
           },
           body: JSON.stringify(payload),
           signal: controller.signal,
+          // Follow redirects for Google Apps Script
+          redirect: 'follow',
           // @ts-ignore - HTTP/2 keep-alive
           keepalive: true
         });

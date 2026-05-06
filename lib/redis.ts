@@ -8,12 +8,22 @@
 import { Redis } from '@upstash/redis';
 
 // Upstash Redis (Serverless - HTTP-based)
-export const upstashRedis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
-  ? new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    })
-  : null;
+// Gracefully handle missing or invalid credentials
+export const upstashRedis = (() => {
+  try {
+    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+      return new Redis({
+        url: process.env.UPSTASH_REDIS_REST_URL,
+        token: process.env.UPSTASH_REDIS_REST_TOKEN,
+      });
+    }
+    console.warn('[Redis] Credentials not configured - caching disabled');
+    return null;
+  } catch (error) {
+    console.error('[Redis] Initialization failed:', error);
+    return null;
+  }
+})();
 
 // Health check
 export async function checkRedisHealth(): Promise<boolean> {
