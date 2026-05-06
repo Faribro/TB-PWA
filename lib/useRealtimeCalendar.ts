@@ -63,7 +63,7 @@ export function useRealtimeCalendar({
     apiUrl,
     fetcher,
     {
-      dedupingInterval: 5000,
+      dedupingInterval: 0, // No deduping - allow instant revalidation on realtime events
       revalidateOnFocus: false,
       revalidateOnReconnect: true
     }
@@ -134,8 +134,8 @@ export function useRealtimeCalendar({
           // Notify parent for visual feedback (sound, animation)
           if (date) onUpdateRef.current?.(date);
 
-          // Revalidate SWR cache — server is truth, not local accumulation
-          mutate();
+          // Force immediate revalidation - skip deduping for instant updates
+          mutate(undefined, { revalidate: true, dedupe: false });
         }
       )
       .subscribe((s) => {

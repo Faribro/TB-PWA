@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Calendar, User, MapPin, Activity, CheckCircle2, XCircle, Building2, Phone, Hash, Settings2, Lock, Unlock, FileText, Shield, ClipboardList, Check, Minus, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { usePatientRealtimeUpdates } from '@/hooks/usePatientRealtimeUpdates';
 
 // Helper to format dates for HTML5 date inputs (yyyy-MM-dd)
 const formatDateForInput = (dateStr: string | null | undefined): string => {
@@ -533,6 +534,18 @@ export function DemographicsCarousel({
   const isHIV   = hiv === 'Positive';
   const isSusp  = xray === 'Suspected TB' || xrayRaw === 'Suspected_TB_Case';
   const symCount= Object.values(parsedSymptoms).filter(Boolean).length;
+
+  // Real-time updates using centralized hook
+  usePatientRealtimeUpdates({
+    patientId: patient?.id || '',
+    isEditing: isEditingDemographics,
+    onUpdate: (data) => {
+      console.log('[DemographicsCarousel] Realtime update received:', data);
+      // Update local state with new data - use patient data directly
+      // The editedDemographics expects the same format as patient data
+      setEditedDemographics(prev => ({ ...prev, ...data }));
+    }
+  });
 
   return (
     <div className="flex flex-col w-full h-full relative overflow-hidden" style={{ background: '#edecea' }}>

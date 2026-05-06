@@ -10,6 +10,11 @@ export const createClient = (userEmail?: string) => {
       global: {
         headers: userEmail ? { 'x-user-email': userEmail } : {},
       },
+      realtime: {
+        params: {
+          eventsPerSecond: 10,
+        },
+      },
     }
   );
   

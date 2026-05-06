@@ -22,6 +22,7 @@ import { SyncStatusBadge } from './ui/SyncStatusBadge';
 import { useSyncStatus } from '@/lib/useSyncStatus';
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { DemographicsCarousel } from './DemographicsCarousel';
+import { usePatientRealtimeUpdates } from '@/hooks/usePatientRealtimeUpdates';
 
 const supabaseClient = getSupabaseBrowserClient();
 
@@ -473,56 +474,21 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     }
   };
 
-  // Realtime listener for sync confirmation
-  useEffect(() => {
-    if (!patient?.id) return;
-
-    const channel = supabaseClient
-      .channel(`patient-updates-${patient.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'patients',
-          filter: `id=eq.${patient.id}`
-        },
-        (payload) => {
-          console.log('[PatientDetailDrawer] ⚠️ Realtime update received - this could overwrite local changes!');
-          console.log('[PatientDetailDrawer] ⚠️ Realtime screening_date:', payload.new?.screening_date);
-          console.log('[PatientDetailDrawer] ⚠️ Realtime ALL fields:');
-          for (const [k, v] of Object.entries(payload.new || {})) {
-            console.log(`[PatientDetailDrawer]   "${k}": "${v}"`);
-          }
-          console.log('[PatientDetailDrawer] ⚠️ Current localPatient screening_date:', localPatient?.screening_date);
-          
-          // Update local state with new data
-          setLocalPatient(payload.new);
-          setEditedDemographics(mapDemographics(payload.new));
-          
-          // Update SWR cache
-          mutate(
-            (key: unknown) => {
-              if (Array.isArray(key) &&
-                  ['patients', 'allPatients', 'patient'].includes(key[0] as string)) return true;
-              return false;
-            },
-            undefined,
-            { revalidate: false }
-          );
-          
-          // Check if sheets sync completed
-          if (payload.new.synced_to_sheets === true && status.state === 'syncing') {
-            setSynced(payload.new.sheets_synced_at || new Date().toISOString());
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabaseClient.removeChannel(channel);
-    };
-  }, [patient?.id, status.state, setSynced, mutate]);
+  // Real-time updates using centralized hook
+  usePatientRealtimeUpdates({
+    patientId: patient?.id || '',
+    isEditing: isEditingDemographics,
+    onUpdate: (data) => {
+      console.log('[PatientDetailDrawer] Realtime update received:', data);
+      setLocalPatient(data);
+      setEditedDemographics(mapDemographics(data));
+      
+      // Check if sheets sync completed
+      if (data.synced_to_sheets === true && status.state === 'syncing') {
+        setSynced(data.sheets_synced_at || new Date().toISOString());
+      }
+    }
+  });
 
   const handleSaveDemographics = async (demographicsOverride?: Record<string, any>) => {
     setIsSavingDemographics(true);

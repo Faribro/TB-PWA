@@ -127,11 +127,11 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     mutate: mutatePatients,
     setTotalCount
   } = useSWRAllPatients(scope, {
-    limit: 500, // Fixed safe page size
-    progressive: true, // Enable progressive loading
-    maxPages: 100, // Safety: max 100 pages
-    maxRecords: 500000, // Safety: max 500k records
-    timeout: 120000, // Safety: 120s timeout
+    limit: 500, // Smaller initial batch for faster load
+    progressive: false, // Disable progressive - load only first batch
+    maxPages: 1, // Only load first page
+    maxRecords: 500, // Cap at 500 for initial load
+    timeout: 30000, // 30s timeout
     filters: stableFilters
   });
   
@@ -367,8 +367,15 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     console.log('[Vertex] Filtering patients:', {
       totalPatients: globalPatients.length,
       filters,
-      selectedCalendarDate
+      selectedCalendarDate,
+      isLoadingPatients,
+      patientsError
     });
+    
+    // Don't filter if still loading or no data
+    if (isLoadingPatients || globalPatients.length === 0) {
+      return [];
+    }
     
     return globalPatients.filter(p => {
       // Search filter
