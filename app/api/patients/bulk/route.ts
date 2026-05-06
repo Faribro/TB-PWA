@@ -29,9 +29,30 @@ const MAX_BULK_SIZE = 50000;
 const CHUNK_SIZE = 10000; // Process in chunks to avoid memory issues
 
 const BULK_COLUMNS = [
-  'id', 'unique_id', 'inmate_name', 'screening_date', 'submitted_on',
-  'screening_state', 'screening_district', 'facility_name', 'facility_type',
-  'xray_result', 'tb_diagnosed', 'att_start_date', 'sex', 'age'
+  // Identity & Demographics
+  'id', 'unique_id', 'kobo_uuid', 'inmate_name', 'father_husband_name', 
+  'date_of_birth', 'age', 'sex', 'contact_number', 'address', 'inmate_type',
+  
+  // Screening Details
+  'screening_date', 'submitted_on', 'screening_state', 'screening_district', 
+  'facility_name', 'facility_type', 'staff_name',
+  
+  // Clinical Assessment
+  'symptoms_10s', 'tb_past_history', 'xray_result',
+  
+  // Referral
+  'referral_date', 'referred_facility',
+  
+  // Diagnosis & Treatment
+  'tb_diagnosed', 'tb_diagnosis_date', 'tb_type', 
+  'att_start_date', 'att_completion_date',
+  
+  // HIV/ART
+  'hiv_status', 'art_status', 'art_number',
+  
+  // Registration & Administrative
+  'nikshay_abha_id', 'registration_date', 'closure_reason', 'remarks',
+  'ai_link_status', 'created_at', 'updated_at'
 ].join(',');
 
 interface BulkResponse {
