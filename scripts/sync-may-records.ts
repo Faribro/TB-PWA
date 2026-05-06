@@ -103,7 +103,7 @@ async function syncMayRecords() {
         }
       } catch (error) {
         failCount += batch.length;
-        console.log(`   ❌ Error: ${error.message}`);
+        console.log(`   ❌ Error: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
@@ -125,7 +125,7 @@ async function syncMayRecords() {
     }
 
   } catch (error) {
-    console.error('❌ Unexpected error:', error.message);
+    console.error('❌ Unexpected error:', error instanceof Error ? error.message : String(error));
   }
 }
 

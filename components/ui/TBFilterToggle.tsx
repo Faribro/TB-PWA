@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Users, AlertTriangle, ShieldCheck, Clock } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────
-export type FilterMode = 'all' | 'suspected' | 'normal';
+export type FilterMode = 'all' | 'suspected' | 'normal' | 'tbDiagnosed' | 'notDiagnosed' | 'attInitiated' | 'attCompleted';
 
 interface Patient {
   id: number;
@@ -42,6 +42,10 @@ const SEGMENTS: Segment[] = [
   { id: 'all', label: 'All Patients' },
   { id: 'suspected', label: 'Suspected TB' },
   { id: 'normal', label: 'Normal' },
+  { id: 'tbDiagnosed', label: 'TB Diagnosed' },
+  { id: 'notDiagnosed', label: 'Not Diagnosed' },
+  { id: 'attInitiated', label: 'ATT Initiated' },
+  { id: 'attCompleted', label: 'ATT Completed' },
 ];
 
 // ─── Filter Logic ────────────────────────────────────────────────────
@@ -53,12 +57,32 @@ export function isSuspectedTB(p: Patient): boolean {
   );
 }
 
+export function isTBDiagnosed(p: Patient): boolean {
+  return p.tb_diagnosed === 'Yes' || p.tb_diagnosed === 'Y';
+}
+
+export function isATTInitiated(p: Patient): boolean {
+  return !!p.att_start_date;
+}
+
+export function isATTCompleted(p: Patient): boolean {
+  return !!p.att_completion_date || !!p.att_completed;
+}
+
 function filterPatients(patients: Patient[], mode: FilterMode): Patient[] {
   switch (mode) {
     case 'suspected':
       return patients.filter(isSuspectedTB);
     case 'normal':
       return patients.filter((p) => !isSuspectedTB(p));
+    case 'tbDiagnosed':
+      return patients.filter(isTBDiagnosed);
+    case 'notDiagnosed':
+      return patients.filter((p) => isSuspectedTB(p) && !isTBDiagnosed(p));
+    case 'attInitiated':
+      return patients.filter(isATTInitiated);
+    case 'attCompleted':
+      return patients.filter(isATTCompleted);
     case 'all':
     default:
       return patients;
@@ -82,6 +106,22 @@ const pillStyles: Record<FilterMode, {
     background: 'linear-gradient(135deg, #10B981, #059669)',
     boxShadow: '0 3px 10px rgba(16,185,129,0.38)',
   },
+  tbDiagnosed: {
+    background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)',
+    boxShadow: '0 3px 10px rgba(139,92,246,0.40)',
+  },
+  notDiagnosed: {
+    background: 'linear-gradient(135deg, #F97316, #EA580C)',
+    boxShadow: '0 3px 10px rgba(249,115,22,0.40)',
+  },
+  attInitiated: {
+    background: 'linear-gradient(135deg, #06B6D4, #0891B2)',
+    boxShadow: '0 3px 10px rgba(6,182,212,0.40)',
+  },
+  attCompleted: {
+    background: 'linear-gradient(135deg, #84CC16, #65A30D)',
+    boxShadow: '0 3px 10px rgba(132,204,22,0.40)',
+  },
 };
 
 // ─── Component ───────────────────────────────────────────────────────
@@ -92,10 +132,18 @@ export function TBFilterToggle({ patients, onFilterChange, className = '' }: TBF
   // Compute counts
   const counts = useMemo(() => {
     const suspected = patients.filter(isSuspectedTB).length;
+    const tbDiagnosed = patients.filter(isTBDiagnosed).length;
+    const notDiagnosed = patients.filter((p) => isSuspectedTB(p) && !isTBDiagnosed(p)).length;
+    const attInitiated = patients.filter(isATTInitiated).length;
+    const attCompleted = patients.filter(isATTCompleted).length;
     return {
       all: patients.length,
       suspected,
       normal: patients.length - suspected,
+      tbDiagnosed,
+      notDiagnosed,
+      attInitiated,
+      attCompleted,
     };
   }, [patients]);
 
@@ -272,6 +320,96 @@ export function TBFilterToggle({ patients, onFilterChange, className = '' }: TBF
                     }}
                   >
                     <ShieldCheck size={12} strokeWidth={2.5} color="#ffffff" />
+                  </motion.span>
+                )}
+              </AnimatePresence>
+
+              {/* Stethoscope icon — TB Diagnosed active only */}
+              <AnimatePresence>
+                {isActive && seg.id === 'tbDiagnosed' && (
+                  <motion.span
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" color="#ffffff">
+                      <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/>
+                      <path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-1"/>
+                      <circle cx="20" cy="10" r="2"/>
+                    </svg>
+                  </motion.span>
+                )}
+              </AnimatePresence>
+
+              {/* HelpCircle icon — Not Diagnosed active only */}
+              <AnimatePresence>
+                {isActive && seg.id === 'notDiagnosed' && (
+                  <motion.span
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" color="#ffffff">
+                      <circle cx="12" cy="12" r="10"/>
+                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                      <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                  </motion.span>
+                )}
+              </AnimatePresence>
+
+              {/* Pill icon — ATT Initiated active only */}
+              <AnimatePresence>
+                {isActive && seg.id === 'attInitiated' && (
+                  <motion.span
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" color="#ffffff">
+                      <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/>
+                      <path d="m8.5 8.5 7 7"/>
+                    </svg>
+                  </motion.span>
+                )}
+              </AnimatePresence>
+
+              {/* CheckCircle icon — ATT Completed active only */}
+              <AnimatePresence>
+                {isActive && seg.id === 'attCompleted' && (
+                  <motion.span
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" color="#ffffff">
+                      <circle cx="12" cy="12" r="10"/>
+                      <path d="m9 12 2 2 4-4"/>
+                    </svg>
                   </motion.span>
                 )}
               </AnimatePresence>

@@ -1687,7 +1687,7 @@ export default function Vertex({
             // Prevent Facility List from closing if the Detail Drawer is open
             if (selectedPatient) e.preventDefault();
           }}
-          className="!w-[90vw] sm:!max-w-[500px] md:!max-w-[600px] !z-[300] bg-slate-50/70 backdrop-blur-2xl border-l border-white/60 shadow-[-10px_0_40px_rgba(0,0,0,0.08)] p-0 flex flex-col data-[state=open]:duration-700 data-[state=closed]:duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] overflow-hidden"
+          className="!w-[95vw] sm:!max-w-[720px] md:!max-w-[920px] lg:!max-w-[1150px] !z-[300] bg-slate-50/70 backdrop-blur-2xl border-l border-white/60 shadow-[-10px_0_40px_rgba(0,0,0,0.08)] p-0 flex flex-col data-[state=open]:duration-700 data-[state=closed]:duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] overflow-hidden"
         >
           {/* THE PARALLAX WRAPPER - Apple-Style Push-Back */}
           <div className={cn(
@@ -1729,11 +1729,15 @@ export default function Vertex({
             {/* INTERNAL LAYOUT SAFETY - Prevent horizontal overflow */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 bg-white/10">
               <FollowUpPipeline 
-                patients={sortedFacilityPatients}
+                patients={patientsForSelectedFacility}
                 isLoading={false}
                 onPatientClick={handleOpenPatientDrawer}
                 onUploadRegister={canEdit ? () => setIsUploadModalOpen(true) : undefined}
               />
+              {/* DEBUG: Show patient count */}
+              <div className="text-xs text-white/60 mt-2">
+                Debug: {patientsForSelectedFacility.length} patients for selected facility
+              </div>
             </div>
           </div>
         </SheetContent>

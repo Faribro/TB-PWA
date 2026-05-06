@@ -81,26 +81,42 @@ export function usePatientRealtimeUpdates({
       channelRef.current = null;
     }
     
-    // Create new subscription
+    // Determine if patientId is numeric ID or UUID
+    const isNumericId = /^\d+$/.test(patientId);
+    const filterField = isNumericId ? 'id' : 'kobo_uuid';
+    const filterValue = isNumericId ? patientId : patientId;
+    
+    console.log(`[usePatientRealtimeUpdates] 📡 Using filter: ${filterField}=eq.${filterValue}`);
+    
+    // Create new subscription with proper error handling
     const channel = supabase
-      .channel(`patient-updates-${patientId}`)
+      .channel(`patient-updates-${patientId}`, {
+        config: {
+          broadcast: { self: false },
+          presence: { key: '' },
+        },
+      })
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'patients',
-          filter: `id=eq.${patientId}`
+          filter: `${filterField}=eq.${filterValue}`
         },
         handleRealtimeUpdate
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         if (status === 'SUBSCRIBED') {
           console.log(`[usePatientRealtimeUpdates] ✅ Subscribed to patient ${patientId}`);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`[usePatientRealtimeUpdates] ❌ Subscription error for patient ${patientId}`);
+          console.warn(`[usePatientRealtimeUpdates] ⚠️ Subscription error for patient ${patientId}:`, err);
+          // Don't throw error, just log warning - realtime is optional
         } else if (status === 'TIMED_OUT') {
-          console.error(`[usePatientRealtimeUpdates] ⏱️ Subscription timed out for patient ${patientId}`);
+          console.warn(`[usePatientRealtimeUpdates] ⏱️ Subscription timed out for patient ${patientId}`);
+          // Don't throw error, just log warning - realtime is optional
+        } else if (status === 'CLOSED') {
+          console.log(`[usePatientRealtimeUpdates] 🔒 Channel closed for patient ${patientId}`);
         }
       });
     

@@ -105,7 +105,7 @@ async function checkRecentSubmissions() {
     }
 
   } catch (error) {
-    console.error('❌ Unexpected error:', error.message);
+    console.error('❌ Unexpected error:', error instanceof Error ? error.message : String(error));
   }
 }
 

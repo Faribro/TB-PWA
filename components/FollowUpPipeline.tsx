@@ -16,13 +16,13 @@ import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { Z_INDEX } from '@/lib/zIndex';
 import { sounds } from '@/lib/sound';
 import { useRealtimePatients } from '@/lib/useRealtimePatients';
-import { InmateVerticalLoop } from './InmateVerticalLoop';
 
 const supabase = getSupabaseBrowserClient();
 
 interface Patient {
   id: number;
   unique_id: string;
+  inmate_id?: string;
   inmate_name: string;
   screening_date: string;
   submitted_on?: string;
@@ -31,9 +31,11 @@ interface Patient {
   date_of_tb_diagnosed?: string | null;
   att_start_date: string | null;
   att_completion_date?: string | null;
+  att_completed?: string | null;
   nikshay_id?: string | null;
   facility_name: string;
   screening_district: string;
+  district?: string;
   screening_state?: string;
   chest_x_ray_result?: string;
   xray_result?: string;
@@ -100,54 +102,26 @@ const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelec
   const progressPercent = (completedCount / totalCount) * 100;
 
   return (
-    <motion.div
+    <div
       data-tour-id="patient-card"
-      layout
-      variants={{
-        hidden: { opacity: 0, scale: 0.8, y: 30 },
-        show: { 
-          opacity: 1, 
-          scale: 1, 
-          y: 0,
-          transition: { type: "spring", stiffness: 280, damping: 22 }
-        }
-      }}
-      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
       onClick={onClick}
-      className={`relative rounded-[20px] p-5 cursor-pointer group overflow-hidden ${
+      className={`relative rounded-2xl p-5 cursor-pointer group overflow-hidden transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl min-h-[160px] flex flex-col justify-between ${
         suspectedTB 
-          ? 'bg-white border-2 border-rose-400/60 shadow-[0_0_20px_rgba(244,63,94,0.15),0_4px_20px_-4px_rgba(244,63,94,0.3)] hover:shadow-[0_0_30px_rgba(244,63,94,0.25),0_8px_30px_-4px_rgba(244,63,94,0.4)]' 
+          ? 'bg-gradient-to-br from-rose-50/80 to-pink-50/60 border border-rose-300/60 hover:border-rose-400/80 hover:shadow-rose-200/50' 
           : normalTB
-            ? 'bg-white border-2 border-emerald-400/40 shadow-[0_0_15px_rgba(16,185,129,0.1),0_4px_15px_-4px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.2),0_8px_25px_-4px_rgba(16,185,129,0.3)]'
-            : 'bg-white border border-slate-200/60 shadow-sm hover:shadow-md'
-      } transition-all duration-300 min-h-[160px] flex flex-col justify-between`}
+            ? 'bg-gradient-to-br from-emerald-50/80 to-green-50/60 border border-emerald-300/60 hover:border-emerald-400/80 hover:shadow-emerald-200/50'
+            : 'bg-gradient-to-br from-white/90 to-gray-50/80 border border-gray-300/60 hover:border-gray-400/80 hover:shadow-gray-200/50'
+      } backdrop-blur-sm`}
     >
-      {/* Animated gradient border glow for suspected TB */}
-      {suspectedTB && (
-        <motion.div
-          className="absolute inset-0 rounded-[20px] pointer-events-none"
-          animate={{ 
-            boxShadow: ['inset 0 0 0 2px rgba(244,63,94,0.3)', 'inset 0 0 0 3px rgba(244,63,94,0.5)', 'inset 0 0 0 2px rgba(244,63,94,0.3)'] 
-          }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      )}
-      {normalTB && !suspectedTB && (
-        <motion.div
-          className="absolute inset-0 rounded-[20px] pointer-events-none"
-          animate={{ 
-            boxShadow: ['inset 0 0 0 2px rgba(16,185,129,0.2)', 'inset 0 0 0 3px rgba(16,185,129,0.35)', 'inset 0 0 0 2px rgba(16,185,129,0.2)'] 
-          }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      )}
+      {/* Subtle gradient overlay */}
+      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/30 to-transparent pointer-events-none" />
       
       {/* Left accent bar — dynamic by status */}
       <div 
-        className={`absolute left-0 top-4 bottom-4 w-[5px] rounded-r-full ${
-          suspectedTB ? 'bg-gradient-to-b from-rose-500 to-rose-600' : 
-          normalTB ? 'bg-gradient-to-b from-emerald-500 to-emerald-600' : 
-          isStalled ? 'bg-amber-500' : 'bg-slate-300'
+        className={`absolute left-0 top-4 bottom-4 w-[6px] rounded-r-full shadow-lg ${
+          suspectedTB ? 'bg-gradient-to-b from-rose-500 to-rose-600 shadow-rose-500/50' : 
+          normalTB ? 'bg-gradient-to-b from-emerald-500 to-emerald-600 shadow-emerald-500/50' : 
+          isStalled ? 'bg-gradient-to-b from-amber-500 to-amber-600 shadow-amber-500/50' : 'bg-gradient-to-b from-gray-400 to-gray-500 shadow-gray-400/50'
         }`}
       />
 
@@ -226,7 +200,7 @@ const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelec
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
@@ -236,10 +210,23 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
   const [triageIds, setTriageIds] = useState<number[]>([]);
   const [isTriaging, setIsTriaging] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
-  const [viewMode, setViewMode] = useState<'list' | 'grid' | 'loop'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
-  const [tbFilteredPatients, setTbFilteredPatients] = useState<Patient[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+    const [advancedFilters, setAdvancedFilters] = useState({
+    name: '',
+    facility: '',
+    dateFrom: '',
+    dateTo: '',
+    status: '',
+    district: '',
+    gender: '',
+    ageMin: '',
+    ageMax: ''
+  });
+  const [tbFilteredPatients, setTbFilteredPatients] = useState<Patient[]>([]);
   const ITEMS_PER_PAGE = 50;
   
   // Local state for patients (updated via realtime)
@@ -247,6 +234,11 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
     globalPatients ?? initialPatients ?? []
   );
 
+  // DEBUG: Log patient data flow
+  console.log('FollowUpPipeline DEBUG - initialPatients:', initialPatients?.length);
+  console.log('FollowUpPipeline DEBUG - patients state:', patients.length);
+
+  
   // Realtime subscription — live patient list updates
   const realtimeStatus = useRealtimePatients({
     showToasts: true,
@@ -268,6 +260,9 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
   });
   
   const patientData = patients;
+
+  // DEBUG: Log patientData
+  console.log('FollowUpPipeline DEBUG - patientData length:', patientData.length);
 
   const filteredPatients = useMemo(() => {
     let filtered = patientData;
@@ -334,6 +329,69 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
       filtered = filtered.filter(p => calculatePatientPhase(p).phase === activeFilters.phase);
     }
 
+    // Apply search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(p => 
+        (p.inmate_name?.toLowerCase().includes(query)) ||
+        (p.facility_name?.toLowerCase().includes(query)) ||
+        (p.kobo_uuid?.toLowerCase().includes(query)) ||
+        (p.inmate_id?.toString().includes(query))
+      );
+    }
+
+    if (advancedFilters.name) {
+      const nameQuery = advancedFilters.name.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.inmate_name?.toLowerCase().includes(nameQuery)
+      );
+    }
+
+    if (advancedFilters.facility) {
+      const facilityQuery = advancedFilters.facility.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.facility_name?.toLowerCase().includes(facilityQuery)
+      );
+    }
+
+    if (advancedFilters.district) {
+      const districtQuery = advancedFilters.district.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.district?.toLowerCase().includes(districtQuery)
+      );
+    }
+
+    if (advancedFilters.dateFrom) {
+      filtered = filtered.filter(p => {
+        const dateValue = p.screening_date || p.submitted_on;
+        if (!dateValue) return false;
+        return new Date(dateValue) >= new Date(advancedFilters.dateFrom);
+      });
+    }
+
+    if (advancedFilters.dateTo) {
+      filtered = filtered.filter(p => {
+        const dateValue = p.screening_date || p.submitted_on;
+        if (!dateValue) return false;
+        return new Date(dateValue) <= new Date(advancedFilters.dateTo);
+      });
+    }
+
+    if (advancedFilters.status) {
+      filtered = filtered.filter(p => {
+        switch (advancedFilters.status) {
+          case 'suspected':
+            return isSuspectedTB(p);
+          case 'normal':
+            return !isSuspectedTB(p);
+          case 'completed':
+            return p.att_completed === 'Y';
+          default:
+            return true;
+        }
+      });
+    }
+
     if (activeFilters?.status === 'High Alert') {
       filtered = filtered.filter(p => {
         const isAbnormal = p.xray_result?.toLowerCase().includes('abnormal');
@@ -352,8 +410,11 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
       }));
     }
 
+    // DEBUG: Log final filtered result
+    console.log('FollowUpPipeline DEBUG - final filtered patients:', filtered.length);
+    
     return filtered;
-  }, [patientData, treeFilter, activeFilters]);
+  }, [patientData, treeFilter, activeFilters, searchQuery, advancedFilters]);
 
   // Sync TB filter when upstream filteredPatients change
   useEffect(() => {
@@ -367,19 +428,11 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
       ? tbFilteredPatients
       : filteredPatients;
     
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      patients = patients.filter(p => 
-        p.inmate_name?.toLowerCase().includes(query) ||
-        p.unique_id?.toLowerCase().includes(query) ||
-        p.kobo_uuid?.toLowerCase().includes(query) ||
-        p.facility_name?.toLowerCase().includes(query)
-      );
-    }
+    // DEBUG: Log displayPatients
+    console.log('FollowUpPipeline DEBUG - displayPatients length:', patients.length);
     
     return patients;
-  }, [tbFilteredPatients, filteredPatients, filterMode, searchQuery]);
+  }, [tbFilteredPatients, filteredPatients, filterMode]);
 
   // Task 2: Paginate filtered results
   const paginatedPatients = useMemo(() => {
@@ -514,17 +567,38 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
           <h2 className="text-xl font-black bg-gradient-to-r from-slate-900 to-blue-900 bg-clip-text text-transparent">
             Inmate List
           </h2>
-          <div className="flex items-center gap-1.5">
-            {/* Search Bar */}
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <div className="flex items-center gap-2">
+            {/* Enhanced Search Bar */}
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors w-4 h-4" />
               <input
                 type="text"
+                placeholder="Search patients by name, facility, or ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search inmates..."
-                className="h-8 pl-8 pr-3 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all w-48"
+                className="w-64 pl-10 pr-10 py-2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-300 shadow-sm hover:shadow-md text-sm"
               />
+              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center">
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  className={`p-1.5 rounded-lg transition-all duration-300 ${
+                    showAdvancedFilters 
+                      ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                  title="Advanced Filters"
+                >
+                  <Filter className="w-3 h-3" />
+                </button>
+              </div>
             </div>
             {onUploadRegister && (
               <motion.button
@@ -555,17 +629,127 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
               >
                 <Grid3x3 className="w-3.5 h-3.5" />
               </button>
-              <button
-                onClick={() => { sounds.toggle(); setViewMode('loop'); }}
-                className={`w-6 h-6 flex items-center justify-center rounded transition-all duration-200 ${viewMode === 'loop' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                aria-label="Vertical loop view"
-                title="Vertical loop view"
-              >
-                <Activity className="w-3.5 h-3.5" />
-              </button>
             </div>
           </div>
         </div>
+
+        {/* Advanced Filters Modal */}
+        <AnimatePresence>
+          {showAdvancedFilters && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute top-full left-0 right-0 z-50 mt-2 bg-white/95 backdrop-blur-xl rounded-2xl border border-gray-200/60 shadow-2xl p-6"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900">Advanced Filters</h3>
+                <button
+                  onClick={() => setShowAdvancedFilters(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Patient Name</label>
+                  <input
+                    type="text"
+                    value={advancedFilters.name}
+                    onChange={(e) => setAdvancedFilters({...advancedFilters, name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                    placeholder="Search name..."
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Facility</label>
+                  <input
+                    type="text"
+                    value={advancedFilters.facility}
+                    onChange={(e) => setAdvancedFilters({...advancedFilters, facility: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                    placeholder="Search facility..."
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">District</label>
+                  <input
+                    type="text"
+                    value={advancedFilters.district}
+                    onChange={(e) => setAdvancedFilters({...advancedFilters, district: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                    placeholder="Search district..."
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+                  <input
+                    type="date"
+                    value={advancedFilters.dateFrom}
+                    onChange={(e) => setAdvancedFilters({...advancedFilters, dateFrom: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+                  <input
+                    type="date"
+                    value={advancedFilters.dateTo}
+                    onChange={(e) => setAdvancedFilters({...advancedFilters, dateTo: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    value={advancedFilters.status}
+                    onChange={(e) => setAdvancedFilters({...advancedFilters, status: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                  >
+                    <option value="">All Status</option>
+                    <option value="suspected">Suspected TB</option>
+                    <option value="normal">Normal</option>
+                    <option value="completed">ATT Completed</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setAdvancedFilters({
+                      name: '',
+                      facility: '',
+                      dateFrom: '',
+                      dateTo: '',
+                      status: '',
+                      district: '',
+                      gender: '',
+                      ageMin: '',
+                      ageMax: ''
+                    });
+                  }}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Reset
+                </button>
+                <button
+                  onClick={() => setShowAdvancedFilters(false)}
+                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-lg shadow-blue-500/30"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {hasActiveFilter && (
           <motion.div
@@ -614,6 +798,42 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
           </motion.div>
         )}
         
+        {/* Applied Filters Display */}
+        {(searchQuery || Object.values(advancedFilters).some(v => v)) && (
+          <div className="flex flex-wrap items-center gap-2 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200/60">
+            <span className="text-sm font-semibold text-blue-900">Active Filters:</span>
+            {searchQuery && (
+              <div className="bg-white border border-blue-300 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1">
+                <Search className="w-3 h-3" />
+                {searchQuery}
+                <button onClick={() => setSearchQuery('')} className="ml-1 hover:text-blue-900">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setAdvancedFilters({
+                  name: '',
+                  facility: '',
+                  dateFrom: '',
+                  dateTo: '',
+                  status: '',
+                  district: '',
+                  gender: '',
+                  ageMin: '',
+                  ageMax: ''
+                });
+              }}
+              className="text-xs font-medium text-blue-600 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors ml-auto flex items-center gap-1"
+            >
+              <X className="w-3 h-3" />
+              Clear All
+            </button>
+          </div>
+        )}
+        
         {/* Filter Toggle + Checkbox Row — Compact */}
         <div className="flex items-center gap-3">
           <input
@@ -641,206 +861,44 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
         </AnimatePresence>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 cyan-scrollbar scroll-smooth">
-        {paginatedPatients.length > 0 ? (
-          viewMode === 'loop' ? (
-            <InmateVerticalLoop
-              patients={paginatedPatients.map(p => ({
-                ...p,
-                id: String(p.id),
-                referral_date: p.referral_date || undefined,
-                att_start_date: p.att_start_date || undefined,
-                screening_district: p.screening_district || ''
-              }))}
-              onPatientClick={(patient) => {
-                const originalPatient = paginatedPatients.find(p => String(p.id) === patient.id);
-                if (originalPatient) onPatientClick?.(originalPatient);
-              }}
-            />
-          ) : viewMode === 'list' ? (
-            <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
-            {virtualizer.getVirtualItems().map((virtualRow) => {
-              const patient = paginatedPatients[virtualRow.index];
-              const phase = calculatePatientPhase(patient);
-              const canSelect = canSelectForTriage(patient);
-
-              // Phase Aging Validation
-              const calculateDaysElapsed = (screeningDateStr: string | undefined) => {
-                if (!screeningDateStr) return 0;
-                const screeningDate = new Date(screeningDateStr);
-                const now = new Date();
-                const diffTime = Math.abs(now.getTime() - screeningDate.getTime());
-                return Math.floor(diffTime / (1000 * 60 * 60 * 24));
-              };
-              const daysElapsed = calculateDaysElapsed(patient.screening_date);
-              const isStalled = phase.phase !== 'Closed' && daysElapsed > 5;
-              const suspectedTB = isSuspectedTB(patient);
-              const normalTB = !suspectedTB;
-
-              return (
-                <div
-                  key={`${patient?.id || 'no-id'}-${virtualRow.index}`}
-                  style={{
-                    position: 'absolute',
-                    top: virtualRow.start,
-                    left: 0,
-                    right: 0,
-                    padding: '4px 0',
-                  }}
-                >
-                  <motion.div 
-                    initial={{ opacity: 0, x: -20, scale: 0.95 }}
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                    transition={{ 
-                      delay: virtualRow.index * 0.02,
-                      type: "spring",
-                      stiffness: 300,
-                      damping: 25
-                    }}
-                    whileHover={{ 
-                      scale: 1.01,
-                      x: 4,
-                      transition: { duration: 0.2 }
-                    }}
-                    className={`relative rounded-xl p-4 cursor-pointer group overflow-hidden ${
-                      suspectedTB 
-                        ? 'bg-white border-2 border-rose-400/60 shadow-[0_0_20px_rgba(244,63,94,0.15),0_4px_20px_-4px_rgba(244,63,94,0.3)] hover:shadow-[0_0_30px_rgba(244,63,94,0.25),0_8px_30px_-4px_rgba(244,63,94,0.4)]' 
-                        : normalTB
-                          ? 'bg-white border-2 border-emerald-400/40 shadow-[0_0_15px_rgba(16,185,129,0.1),0_4px_15px_-4px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.2),0_8px_25px_-4px_rgba(16,185,129,0.3)]'
-                          : 'bg-white border border-slate-200/60 shadow-sm hover:shadow-md'
-                    } transition-all duration-300`}
-                  >
-                    {/* Animated gradient border glow for suspected TB */}
-                    {suspectedTB && (
-                      <motion.div
-                        className="absolute inset-0 rounded-xl pointer-events-none"
-                        animate={{ 
-                          boxShadow: ['inset 0 0 0 2px rgba(244,63,94,0.3)', 'inset 0 0 0 3px rgba(244,63,94,0.5)', 'inset 0 0 0 2px rgba(244,63,94,0.3)'] 
-                        }}
-                        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                      />
-                    )}
-                    {normalTB && !suspectedTB && (
-                      <motion.div
-                        className="absolute inset-0 rounded-xl pointer-events-none"
-                        animate={{ 
-                          boxShadow: ['inset 0 0 0 2px rgba(16,185,129,0.2)', 'inset 0 0 0 3px rgba(16,185,129,0.35)', 'inset 0 0 0 2px rgba(16,185,129,0.2)'] 
-                        }}
-                        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                      />
-                    )}
-                    
-                    {/* Left accent bar — dynamic by status */}
-                    <div 
-                      className={`absolute left-0 top-3 bottom-3 w-[4px] rounded-r-full ${
-                        suspectedTB ? 'bg-gradient-to-b from-rose-500 to-rose-600' : 
-                        normalTB ? 'bg-gradient-to-b from-emerald-500 to-emerald-600' : 
-                        isStalled ? 'bg-amber-500' : 'bg-slate-300'
-                      }`}
-                    />
-                    <div className="grid grid-cols-[20px_1fr_auto] gap-3 pl-3">
-                      {/* Checkbox */}
-                      <div className="flex items-center" title={!canSelect ? 'Requires manual follow-up: Abnormal X-Ray or Symptoms Present' : 'Select for bulk triage'}>
-                        <input
-                          type="checkbox"
-                          checked={triageIds.includes(patient.id)}
-                          onChange={(e) => { e.stopPropagation(); toggleTriageSelect(patient.id); }}
-                          disabled={!canSelect}
-                          aria-label={canSelect ? `Select ${patient.inmate_name} for triage` : 'Patient requires manual follow-up'}
-                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                      
-                      {/* Main content */}
-                      <div
-                        data-tour-id="patient-card"
-                        onClick={() => onPatientClick?.(patient)}
-                      >
-                        {/* Row 1: Name + Stale badge */}
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-[15px] font-bold text-gray-900 tracking-tight group-hover:text-blue-700 transition-colors">
-                            {patient.inmate_name}
-                          </h3>
-                          {isStalled && (
-                            <div className="flex items-center gap-1 h-5 px-[7px] bg-amber-50 text-amber-700 border border-amber-200/40 rounded-full">
-                              <Clock className="w-3 h-3" />
-                              <span className="text-[10px] font-bold tracking-wide">STALE ({daysElapsed}d)</span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Row 2: ID badge */}
-                        <div className="inline-flex items-center mb-1.5">
-                          <span className="bg-gray-100 text-gray-700 rounded-[5px] px-[7px] py-[2px] text-[11px] font-semibold font-mono tracking-wide">
-                            {patient.unique_id}
-                          </span>
-                        </div>
-                        
-                        {/* Row 3: Facility • District */}
-                        <div className="flex items-center gap-1 text-xs text-gray-400 font-medium">
-                          <span>{patient.facility_name}</span>
-                          <span className="w-1 h-1 rounded-full bg-gray-300" />
-                          <span>{patient.screening_district}</span>
-                        </div>
-                      </div>
-                      
-                      {/* Right column: Action badge + Date */}
-                      <div className="flex flex-col items-end gap-1.5">
-                        <span className={`h-[26px] px-2.5 flex items-center rounded-md text-[11px] font-bold tracking-wide uppercase ${
-                          phase.phase === 'Sputum Test' ? 'bg-blue-50 text-blue-700 border border-blue-200/30' :
-                          phase.phase === 'Diagnosis' ? 'bg-blue-50 text-blue-700 border border-blue-200/30' :
-                          phase.phase === 'ATT Initiation' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/30' :
-                          phase.phase === 'Closed' ? 'bg-slate-50 text-slate-600 border border-slate-200/30' :
-                          'bg-slate-50 text-slate-600 border border-slate-200/30'
-                        }`}>
-                          {phase.phase}
-                        </span>
-                        <span className="h-[22px] px-2 flex items-center bg-gray-50 text-gray-500 border border-gray-200/50 rounded-[5px] text-[11px] font-semibold">
-                          {(() => {
-                            const dateValue = patient.screening_date || patient.submitted_on;
-                            if (!dateValue) return 'N/A';
-                            const date = new Date(dateValue);
-                            if (isNaN(date.getTime())) return 'Invalid';
-                            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                          })()}
-                        </span>
-                      </div>
-                    </div>
-                  </motion.div>
-                </div>
-              );
-            })}
-          </div>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 bg-gradient-to-br from-slate-50/40 via-white to-blue-50/30 relative min-h-[500px]">
+        {/* Background decoration */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl" />
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-rose-400/10 to-orange-400/10 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-indigo-400/5 to-cyan-400/5 rounded-full blur-3xl" />
+        </div>
+        {displayPatients.length > 0 ? (
+          viewMode === 'list' ? (
+            <div className="h-full">
+              <FiveColumnListView
+                patients={displayPatients}
+                onPatientClick={onPatientClick}
+                isSuspectedTB={isSuspectedTB}
+                calculatePatientPhase={calculatePatientPhase}
+              />
+            </div>
           ) : (
-            <motion.div 
-              layout 
-              initial="hidden"
-              animate="show"
-              variants={{
-                hidden: { opacity: 0 },
-                show: {
-                  opacity: 1,
-                  transition: { staggerChildren: 0.08, delayChildren: 0.1 }
-                }
-              }}
-              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pt-4"
-            >
-              <AnimatePresence mode="popLayout">
-                {paginatedPatients.map((patient) => (
-                  <PatientCard
-                    key={patient.id || patient.kobo_uuid}
-                    patient={patient}
-                    onClick={() => onPatientClick?.(patient)}
-                    canSelect={canSelectForTriage(patient)}
-                    triageIds={triageIds}
-                    toggleTriageSelect={toggleTriageSelect}
-                  />
-                ))}
-              </AnimatePresence>
-            </motion.div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pt-2">
+              {displayPatients.map((patient) => (
+                <PatientCard
+                  key={patient.id || patient.kobo_uuid}
+                  patient={patient}
+                  onClick={() => onPatientClick?.(patient)}
+                  canSelect={canSelectForTriage(patient)}
+                  triageIds={triageIds}
+                  toggleTriageSelect={toggleTriageSelect}
+                />
+              ))}
+            </div>
           )
-        ) : null}
+        ) : (
+          !isLoading && (
+            <div className="flex flex-col items-center justify-center h-full">
+              <p className="text-gray-500">No patients found</p>
+            </div>
+          )
+        )}
 
         {/* Empty state for filter mode */}
         {!isLoading && tbFilteredPatients.length === 0 && filterMode !== 'all' && patientData.length > 0 && (
@@ -966,6 +1024,124 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// ─── Two Column List View Component ──────────────────────────────────────
+interface TwoColumnListViewProps {
+  patients: Patient[];
+  onPatientClick?: (patient: Patient) => void;
+  isSuspectedTB: (p: Patient) => boolean;
+  calculatePatientPhase: (p: Patient) => { phase: string };
+}
+
+function FiveColumnListView({ patients, onPatientClick, isSuspectedTB }: TwoColumnListViewProps) {
+  // Split into 5 columns
+  const fifth = Math.ceil(patients.length / 5);
+  const col1 = patients.slice(0, fifth);
+  const col2 = patients.slice(fifth, fifth * 2);
+  const col3 = patients.slice(fifth * 2, fifth * 3);
+  const col4 = patients.slice(fifth * 3, fifth * 4);
+  const col5 = patients.slice(fifth * 4);
+
+  // Column refs for potential future scroll features
+  const col1Ref = useRef<HTMLDivElement>(null);
+  const col2Ref = useRef<HTMLDivElement>(null);
+  const col3Ref = useRef<HTMLDivElement>(null);
+  const col4Ref = useRef<HTMLDivElement>(null);
+  const col5Ref = useRef<HTMLDivElement>(null);
+
+  // Removed auto-scroll to prevent rendering issues
+
+  const MiniCard = ({ patient }: { patient: Patient }) => {
+    const suspected = isSuspectedTB(patient);
+    
+    return (
+      <div
+        onClick={() => onPatientClick?.(patient)}
+        className={`group relative rounded-xl p-3 cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
+          suspected
+            ? 'bg-gradient-to-br from-rose-50 to-pink-50 border border-rose-200 hover:border-rose-300 hover:shadow-lg'
+            : 'bg-white border border-gray-200 hover:border-gray-300 hover:shadow-lg'
+        }`}
+      >
+        {/* Status indicator line */}
+        <div 
+          className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${
+            suspected 
+              ? 'bg-gradient-to-b from-rose-400 to-rose-600' 
+              : 'bg-gradient-to-b from-emerald-400 to-emerald-600'
+          }`}
+        />
+        
+        <div className="flex items-center justify-between gap-2 pl-2">
+          <div className="flex-1 min-w-0">
+            <h4 className="text-xs font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+              {patient.inmate_name || 'No Name'}
+            </h4>
+            <p className="text-[10px] text-gray-600 truncate">
+              {patient.facility_name || 'No Facility'}
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            {suspected && (
+              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                TB
+              </span>
+            )}
+            <span className="text-[8px] text-gray-500 font-medium bg-gray-50 px-1.5 py-0.5 rounded">
+              {patient.screening_date ? 
+                new Date(patient.screening_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 
+                'No Date'
+              }
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const Column = ({ title, patients, count, scrollRef }: { 
+    title: string; 
+    patients: Patient[]; 
+    count: number; 
+    scrollRef: React.RefObject<HTMLDivElement>;
+  }) => {
+    return (
+      <div className="flex flex-col min-w-0 h-full">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3 px-2 py-2 bg-white rounded-lg border border-gray-200 shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-blue-500" />
+            <span className="text-xs font-bold text-gray-700 uppercase">{title}</span>
+          </div>
+          <span className="text-xs font-bold text-gray-900 bg-gray-50 px-2 py-1 rounded border border-gray-200">
+            {count}
+          </span>
+        </div>
+        
+        {/* Scroll container */}
+        <div 
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto overflow-x-hidden px-1.5 space-y-2"
+          style={{ maxHeight: 'calc(100vh - 300px)' }}
+        >
+          {patients.map((patient, index) => (
+            <MiniCard key={`${title}-${patient.id}-${index}`} patient={patient} />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="h-full w-full grid grid-cols-5 gap-3 p-4 bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl">
+      <Column title="C1" patients={col1} count={col1.length} scrollRef={col1Ref} />
+      <Column title="C2" patients={col2} count={col2.length} scrollRef={col2Ref} />
+      <Column title="C3" patients={col3} count={col3.length} scrollRef={col3Ref} />
+      <Column title="C4" patients={col4} count={col4.length} scrollRef={col4Ref} />
+      <Column title="C5" patients={col5} count={col5.length} scrollRef={col5Ref} />
     </div>
   );
 }

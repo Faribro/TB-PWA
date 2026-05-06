@@ -135,7 +135,7 @@ export function useRealtimeCalendar({
           if (date) onUpdateRef.current?.(date);
 
           // Force immediate revalidation - skip deduping for instant updates
-          mutate(undefined, { revalidate: true, dedupe: false });
+          mutate(undefined, { revalidate: true });
         }
       )
       .subscribe((s) => {
