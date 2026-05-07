@@ -562,18 +562,26 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
   return (
     <div className="h-full flex flex-col glass-light relative">
       <div className="p-3 border-b border-white/20 bg-white/10 backdrop-blur-md">
-        {/* Inmate List Header — Compact */}
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-xl font-black bg-gradient-to-r from-slate-900 to-blue-900 bg-clip-text text-transparent">
-            Inmate List
-          </h2>
-          <div className="flex items-center gap-2">
+        {/* Animated Statistics Sentence and Controls in Same Row */}
+        <div className="flex items-center justify-between gap-4">
+          {/* Left: Statistics Sentence */}
+          <div className="text-holder-stats flex-1 min-w-0">
+            <h1 className="stats-typer text-sm">
+              On <span className="date-highlight">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>, in <span className="location-highlight">MP, Vidisha</span>, 
+              <span className="count-highlight">{displayPatients.length}</span> screened, 
+              <span className="diagnosed-highlight">{displayPatients.filter(p => p.tb_diagnosed === 'Y' || p.tb_diagnosed === 'Yes').length}</span> TB+, 
+              <span className="pending-highlight">{displayPatients.filter(p => !p.referral_date && (p.xray_result === 'Suspected TB Case' || p.chest_x_ray_result === 'Suspected TB Case')).length}</span> pending
+            </h1>
+          </div>
+          
+          {/* Right: Search Bar and Upload Button */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             {/* Enhanced Search Bar */}
             <div className="relative group">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors w-4 h-4" />
               <input
                 type="text"
-                placeholder="Search patients by name, facility, or ID..."
+                placeholder="Search patients..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-64 pl-10 pr-10 py-2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-300 shadow-sm hover:shadow-md text-sm"
@@ -605,17 +613,17 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={onUploadRegister}
-                className="h-8 flex items-center gap-1.5 px-3 bg-gradient-to-br from-cyan-500 via-cyan-600 to-cyan-700 text-white rounded-md font-bold text-xs shadow-sm hover:shadow-md transition-all"
+                className="h-10 flex items-center gap-1.5 px-3 bg-gradient-to-br from-cyan-500 via-cyan-600 to-cyan-700 text-white rounded-xl font-bold text-xs shadow-sm hover:shadow-md transition-all"
                 title="Upload handwritten register for OCR extraction"
               >
                 <Upload className="w-3.5 h-3.5" />
                 Upload
               </motion.button>
             )}
-            <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-md p-0.5 h-8">
+            <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-md p-0.5 h-10">
               <button
                 onClick={() => { sounds.toggle(); setViewMode('list'); }}
-                className={`w-6 h-6 flex items-center justify-center rounded transition-all duration-200 ${viewMode === 'list' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`w-8 h-8 flex items-center justify-center rounded transition-all duration-200 ${viewMode === 'list' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 aria-label="List view"
                 title="List view"
               >
@@ -623,7 +631,7 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
               </button>
               <button
                 onClick={() => { sounds.toggle(); setViewMode('grid'); }}
-                className={`w-6 h-6 flex items-center justify-center rounded transition-all duration-200 ${viewMode === 'grid' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`w-8 h-8 flex items-center justify-center rounded transition-all duration-200 ${viewMode === 'grid' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 aria-label="Grid view"
                 title="Grid view"
               >
@@ -1110,16 +1118,6 @@ function FiveColumnListView({ patients, onPatientClick, isSuspectedTB }: TwoColu
   }) => {
     return (
       <div className="flex flex-col min-w-0 h-full">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-3 px-2 py-2 bg-white rounded-lg border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-blue-500" />
-            <span className="text-xs font-bold text-gray-700 uppercase">{title}</span>
-          </div>
-          <span className="text-xs font-bold text-gray-900 bg-gray-50 px-2 py-1 rounded border border-gray-200">
-            {count}
-          </span>
-        </div>
         
         {/* Scroll container */}
         <div 

@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import * as SheetPrimitive from "@radix-ui/react-dialog"
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden"
 import { X } from "lucide-react"
 
 const Sheet = SheetPrimitive.Root
@@ -41,14 +42,17 @@ const SheetContent = React.forwardRef<
     )}
     <SheetPrimitive.Content
       ref={ref}
-      aria-describedby={undefined}
       className={`fixed gap-4 bg-white p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500 inset-y-0 right-0 h-full w-3/4 border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm z-50 ${className || ''}`}
       {...props}
     >
+      <VisuallyHidden.Root>
+        <SheetPrimitive.Title>Patient List</SheetPrimitive.Title>
+        <SheetPrimitive.Description>View and manage patient records</SheetPrimitive.Description>
+      </VisuallyHidden.Root>
       {children}
       {!hideCloseButton && (
-        <SheetPrimitive.Close className="absolute right-4 top-4 rounded-full w-8 h-8 flex items-center justify-center opacity-60 hover:opacity-100 hover:bg-slate-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2">
-          <X className="h-4 w-4 text-slate-500" />
+        <SheetPrimitive.Close className="absolute right-4 top-4 rounded-xl w-9 h-9 flex items-center justify-center bg-white/10 backdrop-blur-md border border-white/20 hover:bg-red-500/90 hover:border-red-400 text-slate-700 hover:text-white shadow-lg hover:shadow-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 z-50 group">
+          <X className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90 group-hover:scale-110" strokeWidth={2.5} />
           <span className="sr-only">Close</span>
         </SheetPrimitive.Close>
       )}

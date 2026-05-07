@@ -19,17 +19,32 @@ export function isSuperuser(scope: SessionScope | null): boolean {
 }
 
 const fetcher = async (url: string) => {
-  const res = await fetch(url);
-  if (!res.ok) {
-    if (res.status === 401) {
+  try {
+    const res = await fetch(url);
+    
+    // Check if response is HTML (redirect to login page)
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('text/html')) {
+      console.error('[fetcher] Received HTML response - likely redirected to login');
       return null;
     }
-    const error = new Error('Failed to fetch session scope');
-    console.error('[fetcher] HTTP error:', res.status, res.statusText);
-    throw error;
+    
+    if (!res.ok) {
+      if (res.status === 401) {
+        return null;
+      }
+      const error = new Error('Failed to fetch session scope');
+      console.error('[fetcher] HTTP error:', res.status, res.statusText);
+      throw error;
+    }
+    
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    // Handle network errors or JSON parsing errors
+    console.error('[fetcher] Network or parsing error:', error);
+    return null;
   }
-  const data = await res.json();
-  return data;
 };
 
 export function useSessionScope(): SessionScope | null {
@@ -38,10 +53,11 @@ export function useSessionScope(): SessionScope | null {
     revalidateOnReconnect: true,
     dedupingInterval: 5 * 60 * 1000, // Reduced from 1 hour to 5 minutes
     shouldRetryOnError: false,
+    errorRetryCount: 0,
+    errorRetryInterval: 0,
     onError: (err) => {
-      if (err?.message !== 'Failed to fetch session scope') {
-        console.error('[useSessionScope] SWR error:', err);
-      }
+      // Suppress all errors to prevent ClientFetchError
+      console.error('[useSessionScope] SWR error (suppressed):', err?.message || 'Unknown error');
     },
   });
   

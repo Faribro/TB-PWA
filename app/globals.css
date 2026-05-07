@@ -707,3 +707,173 @@ html {
   padding: 0;
   border: none;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   ANIMATED STATISTICS SENTENCE
+═══════════════════════════════════════════════════════════════ */
+.text-holder-stats {
+  position: relative;
+  width: 100%;
+}
+
+.stats-typer {
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.6;
+  position: relative;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.stats-typer span {
+  display: inline-block;
+  position: relative;
+  font-weight: 800;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Date highlight - Blue */
+.date-highlight {
+  color: #3b82f6;
+  padding: 0 0.25rem;
+}
+
+.date-highlight::before {
+  position: absolute;
+  content: '';
+  display: block;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(96, 165, 250, 0.1));
+  left: -0.25rem;
+  top: -10%;
+  height: 120%;
+  width: 0;
+  z-index: -1;
+  border-radius: 0.375rem;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.stats-typer:hover .date-highlight::before {
+  width: calc(100% + 0.5rem);
+}
+
+/* Location highlight - Indigo */
+.location-highlight {
+  color: #6366f1;
+  padding: 0 0.25rem;
+}
+
+.location-highlight::before {
+  position: absolute;
+  content: '';
+  display: block;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(129, 140, 248, 0.1));
+  left: -0.25rem;
+  top: -10%;
+  height: 120%;
+  width: 0;
+  z-index: -1;
+  border-radius: 0.375rem;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: 0.1s;
+}
+
+.stats-typer:hover .location-highlight::before {
+  width: calc(100% + 0.5rem);
+}
+
+/* Count highlight - Emerald */
+.count-highlight {
+  color: #10b981;
+  padding: 0 0.25rem;
+  font-size: 1.125rem;
+}
+
+.count-highlight::before {
+  position: absolute;
+  content: '';
+  display: block;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(52, 211, 153, 0.1));
+  left: -0.25rem;
+  top: -10%;
+  height: 120%;
+  width: 0;
+  z-index: -1;
+  border-radius: 0.375rem;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: 0.2s;
+}
+
+.stats-typer:hover .count-highlight::before {
+  width: calc(100% + 0.5rem);
+}
+
+/* Diagnosed highlight - Rose */
+.diagnosed-highlight {
+  color: #f43f5e;
+  padding: 0 0.25rem;
+  font-size: 1.125rem;
+}
+
+.diagnosed-highlight::before {
+  position: absolute;
+  content: '';
+  display: block;
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.15), rgba(251, 113, 133, 0.1));
+  left: -0.25rem;
+  top: -10%;
+  height: 120%;
+  width: 0;
+  z-index: -1;
+  border-radius: 0.375rem;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: 0.3s;
+}
+
+.stats-typer:hover .diagnosed-highlight::before {
+  width: calc(100% + 0.5rem);
+}
+
+/* Pending highlight - Amber */
+.pending-highlight {
+  color: #f59e0b;
+  padding: 0 0.25rem;
+  font-size: 1.125rem;
+}
+
+.pending-highlight::before {
+  position: absolute;
+  content: '';
+  display: block;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(251, 191, 36, 0.1));
+  left: -0.25rem;
+  top: -10%;
+  height: 120%;
+  width: 0;
+  z-index: -1;
+  border-radius: 0.375rem;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: 0.4s;
+}
+
+.stats-typer:hover .pending-highlight::before {
+  width: calc(100% + 0.5rem);
+}
+
+/* Pulse animation for numbers */
+@keyframes stats-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.count-highlight,
+.diagnosed-highlight,
+.pending-highlight {
+  animation: stats-pulse 2s ease-in-out infinite;
+}

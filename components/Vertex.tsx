@@ -720,6 +720,55 @@ export default function Vertex({
   const hasAutoJumpedRef = useRef(false);
   const currentDateRef = useRef(currentDate);
 
+  // Reusable filtered patients to ensure consistency across all metrics
+  const filteredGlobalPatients = useMemo(() => {
+    // Sample first patient to check field names
+    const samplePatient = globalPatients[0];
+    console.log('📋 Sample patient data structure:', {
+      availableFields: samplePatient ? Object.keys(samplePatient) : 'No patients',
+      sampleState: samplePatient?.screening_state || samplePatient?.state,
+      sampleDistrict: samplePatient?.screening_district || samplePatient?.district,
+      filterState,
+      filterDistrict
+    });
+    
+    const filtered = globalPatients.filter((p: any) => {
+      // Apply state filter - check multiple possible field names
+      const patientState = p.screening_state || p.state;
+      const patientDistrict = p.screening_district || p.district;
+      
+      if (filterState !== 'All' && patientState !== filterState) {
+        return false;
+      }
+      
+      // Apply district filter - check multiple possible field names
+      if (filterDistrict !== 'All' && patientDistrict !== filterDistrict) {
+        return false;
+      }
+      
+      return true;
+    });
+    
+    // Debug logging
+    console.log('🔍 Filter Debug:', {
+      totalPatients: globalPatients.length,
+      filteredPatients: filtered.length,
+      filterState,
+      filterDistrict,
+      hasStateFilter: filterState !== 'All',
+      hasDistrictFilter: filterDistrict !== 'All',
+      filterReducedCount: globalPatients.length - filtered.length
+    });
+    
+    // Show sample of filtered vs unfiltered states
+    if (filterState !== 'All') {
+      const uniqueStates = [...new Set(globalPatients.map(p => p.screening_state || p.state).filter(Boolean))];
+      console.log('🗺️ Available states in data:', uniqueStates);
+    }
+    
+    return filtered;
+  }, [globalPatients, filterState, filterDistrict]);
+
   // FIX A: Clear geography on date change with transition state
   useEffect(() => {
     setIsDateChanging(true);
@@ -1293,7 +1342,7 @@ export default function Vertex({
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-indigo-500 transition-colors">Total</div>
                   <div className="flex items-center gap-1">
                     <span className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 tracking-tighter whitespace-nowrap leading-none">
-                      {(summaryData?.total ?? globalPatients.length).toLocaleString()}
+                      {filteredGlobalPatients.length.toLocaleString()}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0 leading-none pt-0.5">Screened</span>
                   </div>
@@ -1302,14 +1351,16 @@ export default function Vertex({
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-rose-500 transition-colors">Pending</div>
                   <div className="flex items-center gap-1">
                     <span className="text-lg sm:text-xl lg:text-2xl font-black text-rose-600 tracking-tighter whitespace-nowrap leading-none">
-                      {(summaryData?.pending ?? globalPatients.filter((p: any) => {
-                        const isAbnormal = (() => {
-                          const xrayResult = (p.xray_result || '').toLowerCase();
-                          return xrayResult === 'suspected tb case' || xrayResult.includes('abnormal') || xrayResult.includes('suspected');
-                        })();
-                        const noTreatment = !p.att_start_date && !p.referral_date;
-                        return isAbnormal && noTreatment;
-                      }).length).toLocaleString()}
+                      {(() => {
+                        return filteredGlobalPatients.filter((p: any) => {
+                          const isAbnormal = (() => {
+                            const xrayResult = (p.xray_result || '').toLowerCase();
+                            return xrayResult === 'suspected tb case' || xrayResult.includes('abnormal') || xrayResult.includes('suspected');
+                          })();
+                          const noTreatment = !p.att_start_date && !p.referral_date;
+                          return isAbnormal && noTreatment;
+                        }).length;
+                      })().toLocaleString()}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0 leading-none pt-0.5">Alerts</span>
                   </div>
@@ -1318,12 +1369,14 @@ export default function Vertex({
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-emerald-500 transition-colors">This Month</div>
                   <div className="flex items-center gap-1">
                     <span className="text-lg sm:text-xl lg:text-2xl font-black text-emerald-600 tracking-tighter whitespace-nowrap leading-none">
-                      {(summaryData?.screenedThisMonth ?? globalPatients.filter((p: any) => {
-                        const dateValue = p.screening_date || p.submitted_on;
-                        if (!dateValue) return false;
-                        const date = new Date(dateValue);
-                        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-                      }).length).toLocaleString()}
+                      {(() => {
+                        return filteredGlobalPatients.filter((p: any) => {
+                          const dateValue = p.screening_date || p.submitted_on;
+                          if (!dateValue) return false;
+                          const date = new Date(dateValue);
+                          return date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
+                        }).length;
+                      })().toLocaleString()}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0 leading-none pt-0.5">Screened</span>
                   </div>
@@ -1578,15 +1631,7 @@ export default function Vertex({
                 >
                   {(() => {
                     // Apply state and district filters to ALL patients for the year (for bar chart)
-                    const filteredYearPatients = globalPatients.filter((p: any) => {
-                      // Apply state filter
-                      if (filterState !== 'All' && p.screening_state !== filterState) return false;
-                      
-                      // Apply district filter
-                      if (filterDistrict !== 'All' && p.screening_district !== filterDistrict) return false;
-                      
-                      return true;
-                    });
+                    const filteredYearPatients = filteredGlobalPatients;
 
                     // Apply state and district filters to month patients (for pie chart)
                     const filteredMonthPatients = filteredYearPatients.filter((p: any) => {
@@ -1694,37 +1739,7 @@ export default function Vertex({
             "flex flex-col h-full w-full origin-right transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
             selectedPatient && "scale-[0.94] opacity-50 blur-[2px] pointer-events-none bg-slate-100/50"
           )}>
-            <SheetHeader className="px-4 py-3 border-b border-white/30 bg-white/20 backdrop-blur-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <SheetTitle className="text-lg font-black text-slate-900 leading-tight">
-                    {selectedFacility?.name}
-                  </SheetTitle>
-                  <p className="text-xs font-medium text-slate-500 mt-0.5">
-                    {selectedDate && selectedFacility?.state && selectedFacility?.district ? (
-                      <>
-                        On <span className="text-blue-600 font-semibold">
-                          {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
-                        </span>, in <span className="text-slate-700 font-semibold">{selectedFacility.state}</span>, <span className="text-slate-700 font-semibold">{selectedFacility.district}</span>, <span className="text-blue-700 font-black">{patientsForSelectedFacility.length}</span> patients were screened
-                      </>
-                    ) : selectedDate ? (
-                      <>
-                        On <span className="text-blue-600 font-semibold">
-                          {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
-                        </span>, <span className="text-blue-700 font-black">{patientsForSelectedFacility.length}</span> patients were screened
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-blue-700 font-black">{patientsForSelectedFacility.length}</span> patients screened
-                      </>
-                    )}
-                  </p>
-                </div>
-                <Badge variant="outline" className="text-slate-600 bg-slate-50 border-slate-200 text-xs font-bold px-2.5 py-1">
-                  {patientsForSelectedFacility.length} total
-                </Badge>
-              </div>
-            </SheetHeader>
+
             
             {/* INTERNAL LAYOUT SAFETY - Prevent horizontal overflow */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 bg-white/10">

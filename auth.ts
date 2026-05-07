@@ -14,9 +14,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   session: {
     strategy: "jwt",
-    maxAge: 28800,
-    updateAge: 3600,
+    maxAge: 28800, // 8 hours
+    updateAge: 3600, // 1 hour
   },
+  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
   callbacks: {
     async signIn({ user }) {
       if (!user?.email) return false;
@@ -78,6 +79,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
   },
-  pages: { signIn: "/login" },
+  pages: { 
+    signIn: "/login",
+    error: "/login" // Redirect to login on auth errors
+  },
   debug: process.env.NODE_ENV === 'development',
+  // Add error handling for session issues
+  events: {
+    async signOut(message) {
+      console.log('[auth] User signed out');
+    },
+    async signIn(message) {
+      console.log('[auth] User signed in:', message.user?.email);
+    },
+  },
 })
