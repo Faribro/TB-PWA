@@ -58,53 +58,7 @@ export async function POST(request: NextRequest) {
     console.log('[patient-sync]   SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'MISSING');
     console.log('[patient-sync]   SUPABASE_SERVICE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'MISSING');
     
-    // Test basic connectivity to Supabase
-    const supabase = getSupabaseClient();
-    console.log('[patient-sync] 🌐 Testing Supabase connectivity...');
     
-    try {
-      const { error: connectivityTest } = await supabase
-        .from('patients')
-        .select('id')
-        .limit(1)
-        .maybeSingle();
-      
-      if (connectivityTest) {
-        console.error('[patient-sync] ❌ Supabase connectivity test failed:', connectivityTest);
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: 'SUPABASE_CONNECTIVITY_FAILED', 
-            detail: connectivityTest.message,
-            code: connectivityTest.code,
-            diagnostic: {
-              environment: process.env.NODE_ENV,
-              timestamp: new Date().toISOString(),
-              phase: 'connectivity_test'
-            }
-          },
-          { status: 503 }
-        );
-      }
-      console.log('[patient-sync] ✅ Supabase connectivity OK');
-    } catch (connectError: any) {
-      console.error('[patient-sync] ❌ Supabase connection error:', connectError);
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'SUPABASE_CONNECTION_ERROR', 
-          detail: connectError.message,
-          diagnostic: {
-            environment: process.env.NODE_ENV,
-            timestamp: new Date().toISOString(),
-            phase: 'connection_attempt',
-            error_type: connectError.constructor.name
-          }
-        },
-        { status: 503 }
-      );
-    }
-
     // ═══════════════════════════════════════════════════════════════════════
     // OPTIMIZATION 1: Parallel Auth + Body Parsing (saves ~50-100ms)
     // ═══════════════════════════════════════════════════════════════════════
