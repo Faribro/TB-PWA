@@ -103,7 +103,7 @@ export function HorizontalHoverAccordion({
       <motion.div
         className="absolute inset-0"
         style={{
-          background: c.shimmer,
+          backgroundImage: c.shimmer,
           backgroundSize: '200% 100%',
         }}
         animate={{

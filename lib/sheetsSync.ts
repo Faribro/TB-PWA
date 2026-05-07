@@ -4,11 +4,13 @@
 // Industry Best Practices:
 // ✅ Queue-based batching (reduces API calls by 90%)
 // ✅ Debounced flush (prevents rate limiting)
-// ✅ Connection pooling with HTTP/2 keep-alive
+// ✅ Vercel waitUntil for serverless persistence
 // ✅ Circuit breaker pattern (auto-disable on failures)
 // ✅ Exponential backoff with jitter
 // ✅ Zero blocking (fire-and-forget)
 // ═══════════════════════════════════════════════════════════════════════════
+
+import { waitUntil } from '@vercel/functions';
 
 export interface PatientRecord {
   id?: string;
@@ -34,111 +36,123 @@ let failureCount = 0;
 let lastFlushTime = 0;
 
 const CONFIG = {
-  BATCH_SIZE: 50,              // Send 50 records at once
-  DEBOUNCE_MS: 2000,           // Wait 2s before flushing
-  TIMEOUT_MS: 8000,            // Aggressive 8s timeout
-  CIRCUIT_BREAKER_THRESHOLD: 3, // Open circuit after 3 failures
-  CIRCUIT_BREAKER_RESET_MS: 60000, // Reset after 1 minute
-  MIN_FLUSH_INTERVAL_MS: 1000  // Minimum 1s between flushes
+  BATCH_SIZE: 20,              // Smaller batches for reliability
+  DEBOUNCE_MS: 3000,           // Wait 3s before flushing
+  TIMEOUT_MS: 8000,            // 8s timeout - GAS responds fast or not at all
+  MAX_RETRIES: 3,              // Retry failed batches
+  RETRY_DELAY_MS: 1500,        // Initial retry delay
+  CIRCUIT_BREAKER_THRESHOLD: 5, // Open circuit after 5 failures
+  CIRCUIT_BREAKER_RESET_MS: 120000, // Reset after 2 minutes
+  MIN_FLUSH_INTERVAL_MS: 2000  // Minimum 2s between flushes
 };
 
 /**
  * Queue-based sync with automatic batching
+ * Uses Vercel waitUntil to keep function alive after response
  * PERFORMANCE: 50x faster than individual syncs
  */
-export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 'update'): void {
-  // Use consolidated webhook URL - prioritize GOOGLE_APPSCRIPT_URL
+export function syncToSheetsAsync(patient: PatientRecord, _operation: 'insert' | 'update'): void {
   const webhookUrl = process.env.GOOGLE_APPSCRIPT_URL || process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
   
   if (!webhookUrl || circuitBreakerOpen) {
-    return; // Skip if not configured or circuit breaker open
+    return;
   }
 
-  // Add to queue
   syncQueue.push(patient);
 
-  // Clear existing timer
   if (flushTimer) {
     clearTimeout(flushTimer);
   }
 
   // Immediate flush if batch is full
   if (syncQueue.length >= CONFIG.BATCH_SIZE) {
-    flushQueue(webhookUrl);
+    const batch = syncQueue.splice(0, CONFIG.BATCH_SIZE);
+    const batchId = Date.now();
+    
+    // waitUntil keeps Vercel function alive until promise resolves
+    waitUntil(sendBatchWithRetry(webhookUrl, batch, batchId));
   } else {
     // Debounced flush for smaller batches
-    flushTimer = setTimeout(() => flushQueue(webhookUrl), CONFIG.DEBOUNCE_MS);
+    flushTimer = setTimeout(() => {
+      const batch = syncQueue.splice(0, syncQueue.length);
+      if (batch.length > 0) {
+        const batchId = Date.now();
+        waitUntil(sendBatchWithRetry(webhookUrl, batch, batchId));
+      }
+    }, CONFIG.DEBOUNCE_MS);
   }
 }
 
 /**
- * Flush queue with rate limiting and circuit breaker
+ * Send batch with exponential backoff retry
  */
-async function flushQueue(webhookUrl: string): Promise<void> {
-  if (syncQueue.length === 0 || circuitBreakerOpen) return;
+async function sendBatchWithRetry(
+  webhookUrl: string,
+  batch: PatientRecord[],
+  batchId: number,
+  attempt: number = 1
+): Promise<void> {
+  try {
+    // Minimal payload (only essential fields)
+    const payload = {
+      batch: batch.map(p => ({
+        id: p.id,
+        kobo_uuid: p.kobo_uuid,
+        unique_id: p.unique_id,
+        inmate_name: p.inmate_name,
+        age: p.age,
+        sex: p.sex,
+        contact_number: p.contact_number,
+        screening_state: p.screening_state,
+        screening_district: p.screening_district,
+        facility_name: p.facility_name,
+        xray_result: p.xray_result,
+        tb_diagnosed: p.tb_diagnosed,
+      })),
+      batch_id: `batch-${batchId}`,
+      count: batch.length,
+      attempt
+    };
 
-  // Rate limiting: enforce minimum interval between flushes
-  const now = Date.now();
-  const timeSinceLastFlush = now - lastFlushTime;
-  if (timeSinceLastFlush < CONFIG.MIN_FLUSH_INTERVAL_MS) {
-    // Reschedule flush
-    flushTimer = setTimeout(() => flushQueue(webhookUrl), CONFIG.MIN_FLUSH_INTERVAL_MS - timeSinceLastFlush);
-    return;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), CONFIG.TIMEOUT_MS);
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'SAMADHAAN-Sheets-Sync/2.0'
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+      redirect: 'follow',
+    });
+
+    clearTimeout(timeoutId);
+
+    if (response.ok) {
+      failureCount = 0; // Reset on success
+      console.log(`[sheetsSync] ✅ Batch synced: ${batch.length} records (attempt ${attempt})`);
+    } else {
+      const errorText = await response.text().catch(() => 'No response body');
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+  } catch (error: any) {
+    const reason = error.name === 'AbortError' ? 'Timeout' : error.message;
+    
+    // Retry with exponential backoff
+    if (attempt < CONFIG.MAX_RETRIES) {
+      const delay = CONFIG.RETRY_DELAY_MS * Math.pow(2, attempt - 1) + Math.random() * 1000; // Add jitter
+      console.warn(`[sheetsSync] ⚠️ ${reason} - retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${CONFIG.MAX_RETRIES})`);
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return sendBatchWithRetry(webhookUrl, batch, batchId, attempt + 1);
+    }
+    
+    // Max retries exceeded
+    handleFailure(reason);
   }
-
-  // Extract batch and clear queue
-  const batch = syncQueue.splice(0, CONFIG.BATCH_SIZE);
-  lastFlushTime = now;
-
-  // Fire async without blocking
-  setImmediate(() => {
-    (async () => {
-      try {
-        // Minimal payload (only essential fields)
-        const payload = {
-          batch: batch.map(p => ({
-            id: p.id,
-            kobo_uuid: p.kobo_uuid,
-            unique_id: p.unique_id,
-            inmate_name: p.inmate_name,
-            age: p.age,
-            contact_number: p.contact_number,
-            screening_state: p.screening_state,
-          })),
-          batch_id: `batch-${now}`,
-          count: batch.length
-        };
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), CONFIG.TIMEOUT_MS);
-
-        const response = await fetch(webhookUrl, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify(payload),
-          signal: controller.signal,
-          // Follow redirects for Google Apps Script
-          redirect: 'follow',
-          // @ts-ignore - HTTP/2 keep-alive
-          keepalive: true
-        });
-
-        clearTimeout(timeoutId);
-
-        if (response.ok) {
-          failureCount = 0; // Reset on success
-          console.log(`[sheetsSync] ✅ Batch synced: ${batch.length} records`);
-        } else {
-          handleFailure(`HTTP ${response.status}`);
-        }
-      } catch (error: any) {
-        handleFailure(error.name === 'AbortError' ? 'Timeout' : error.message);
-      }
-    })();
-  });
 }
 
 /**

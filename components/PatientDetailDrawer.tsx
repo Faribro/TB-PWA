@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useFailedUpdateRetry } from '@/hooks/useFailedUpdateRetry';
 import { useForm } from 'react-hook-form';
 import { User, FileText, Activity, Pill, Shield, ChevronDown, AlertCircle, CheckCircle2, Calendar, Sparkles, Lock, Unlock, Save, ClipboardList, X, MapPin, XCircle, Search, ArrowRightCircle, Settings2, AlertTriangle, Zap, TrendingUp, Award, Crown } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -130,6 +131,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const [localPatient, setLocalPatient] = useState(patient);
   const { mutate } = useSWRConfig();
   const { status, setSaving, setSyncing, setSynced, setError, reset: resetSyncStatus } = useSyncStatus(patient?.id ?? null);
+  const { getFailedUpdatesCount } = useFailedUpdateRetry();
 
   // Force refresh session scope when drawer opens to prevent stale access control data
   useEffect(() => {
@@ -423,7 +425,50 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       if (!res.ok) {
         const errorData = await res.json();
-        setError(errorData.error || 'Sync failed');
+        console.error('[PatientDetailDrawer] ❌ API Error Response:', {
+          status: res.status,
+          statusText: res.statusText,
+          errorData: JSON.stringify(errorData, null, 2),
+          error: errorData.error,
+          detail: errorData.detail,
+          hint: errorData.hint,
+          code: errorData.code,
+          updates: errorData.updates,
+          diagnostic: errorData.diagnostic
+        });
+
+        // Enhanced error messaging for better UX
+        let userMessage = 'Save failed';
+        if (errorData.error === 'DB_WRITE_FAILED') {
+          userMessage = 'Database connection issue - please try again in a few minutes';
+        } else if (errorData.error === 'SUPABASE_CONNECTIVITY_FAILED') {
+          userMessage = 'Service temporarily unavailable - please try again later';
+        } else if (errorData.error === 'SUPABASE_CONNECTION_ERROR') {
+          userMessage = 'Network connection issue - please check your connection';
+        } else if (errorData.detail) {
+          userMessage = `Save failed: ${errorData.detail}`;
+        }
+
+        setError(userMessage);
+        
+        // Store failed update locally for retry when service is restored
+        const failedUpdate = {
+          patientId: localPatient.id,
+          updates: payload,
+          timestamp: new Date().toISOString(),
+          error: errorData.error,
+          detail: errorData.detail
+        };
+        
+        try {
+          const existingFailed = JSON.parse(localStorage.getItem('failedPatientUpdates') || '[]');
+          existingFailed.push(failedUpdate);
+          localStorage.setItem('failedPatientUpdates', JSON.stringify(existingFailed));
+          console.log('[PatientDetailDrawer] 💾 Failed update stored locally for retry:', failedUpdate);
+        } catch (storageError) {
+          console.warn('[PatientDetailDrawer] ⚠️ Could not store failed update locally:', storageError);
+        }
+        
         throw new Error(errorData.error || 'Sync failed');
       }
 

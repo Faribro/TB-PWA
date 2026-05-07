@@ -89,6 +89,7 @@
     "@vapi-ai/web": "^2.5.2",
     "@vercel/analytics": "^2.0.1",
     "@vercel/edge-config": "^1.4.3",
+    "@vercel/functions": "^3.5.0",
     "@vitalets/google-translate-api": "^9.2.1",
     "ai": "^6.0.116",
     "canvas": "^3.2.3",

@@ -75,7 +75,7 @@ export function usePatientRealtimeUpdates({
     if (onUpdate) {
       onUpdate(payload.new);
     }
-  }, [onUpdate]);
+  }, []); // Remove onUpdate dependency to prevent re-subscriptions when handler changes
 
   useEffect(() => {
     if (!patientId) return;
@@ -137,5 +137,5 @@ export function usePatientRealtimeUpdates({
         channelRef.current = null;
       }
     };
-  }, [patientId, handleRealtimeUpdate]);
+  }, [patientId]); // Only re-subscribe when patientId changes
 }

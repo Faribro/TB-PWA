@@ -50,6 +50,62 @@ export async function POST(request: NextRequest) {
   
   try {
     // ═══════════════════════════════════════════════════════════════════════
+    // DIAGNOSTIC: Check environment and connectivity first
+    // ═══════════════════════════════════════════════════════════════════════
+    console.log('[patient-sync] 🔍 ENVIRONMENT CHECK:');
+    console.log('[patient-sync]   NODE_ENV:', process.env.NODE_ENV);
+    console.log('[patient-sync]   VERCEL_URL:', process.env.VERCEL_URL);
+    console.log('[patient-sync]   SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'MISSING');
+    console.log('[patient-sync]   SUPABASE_SERVICE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'MISSING');
+    
+    // Test basic connectivity to Supabase
+    const supabase = getSupabaseClient();
+    console.log('[patient-sync] 🌐 Testing Supabase connectivity...');
+    
+    try {
+      const { error: connectivityTest } = await supabase
+        .from('patients')
+        .select('id')
+        .limit(1)
+        .maybeSingle();
+      
+      if (connectivityTest) {
+        console.error('[patient-sync] ❌ Supabase connectivity test failed:', connectivityTest);
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'SUPABASE_CONNECTIVITY_FAILED', 
+            detail: connectivityTest.message,
+            code: connectivityTest.code,
+            diagnostic: {
+              environment: process.env.NODE_ENV,
+              timestamp: new Date().toISOString(),
+              phase: 'connectivity_test'
+            }
+          },
+          { status: 503 }
+        );
+      }
+      console.log('[patient-sync] ✅ Supabase connectivity OK');
+    } catch (connectError: any) {
+      console.error('[patient-sync] ❌ Supabase connection error:', connectError);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'SUPABASE_CONNECTION_ERROR', 
+          detail: connectError.message,
+          diagnostic: {
+            environment: process.env.NODE_ENV,
+            timestamp: new Date().toISOString(),
+            phase: 'connection_attempt',
+            error_type: connectError.constructor.name
+          }
+        },
+        { status: 503 }
+      );
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // OPTIMIZATION 1: Parallel Auth + Body Parsing (saves ~50-100ms)
     // ═══════════════════════════════════════════════════════════════════════
     const authHeader = request.headers.get('authorization');
@@ -133,22 +189,30 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseClient();
 
     // ═══════════════════════════════════════════════════════════════════════
-    // OPTIMIZATION 4: Conditional ownership check (saves ~100-200ms for service role)
+    // VALIDATION: Check if patient exists and user has access
     // ═══════════════════════════════════════════════════════════════════════
-    if (!isServiceRoleAuth && scope.state) {
-      const { data: existing, error: fetchError } = await supabase
-        .from('patients')
-        .select('screening_state')
-        .eq('id', patientId)
-        .single();
+    
+    // Determine if patientId is a UUID (kobo_uuid) or database id
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(patientId);
+    const idField = isUUID ? 'kobo_uuid' : 'id';
+    
+    console.log(`[patient-sync] 🔍 Patient identifier analysis:`);
+    console.log(`[patient-sync]   patientId: ${patientId}`);
+    console.log(`[patient-sync]   isUUID: ${isUUID}`);
+    console.log(`[patient-sync]   using field: ${idField}`);
+    
+    const { data: existing, error: fetchError } = await supabase
+      .from('patients')
+      .select('id, kobo_uuid, unique_id, inmate_name, screening_state')
+      .eq(idField, patientId)
+      .single();
 
-      if (fetchError || !existing) {
-        return NextResponse.json({ success: false, error: 'PATIENT_NOT_FOUND' }, { status: 404 });
-      }
+    if (fetchError || !existing) {
+      return NextResponse.json({ success: false, error: 'PATIENT_NOT_FOUND' }, { status: 404 });
+    }
 
-      if (existing.screening_state !== scope.state) {
-        return NextResponse.json({ success: false, error: 'UNAUTHORIZED_STATE_ACCESS' }, { status: 403 });
-      }
+    if (!isServiceRoleAuth && existing.screening_state !== scope.state) {
+      return NextResponse.json({ success: false, error: 'UNAUTHORIZED_STATE_ACCESS' }, { status: 403 });
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -157,7 +221,7 @@ export async function POST(request: NextRequest) {
     const { data: updatedPatient, error: dbError } = await supabase
       .from('patients')
       .update(dbUpdates)
-      .eq('id', patientId)
+      .eq(idField, patientId)
       .select('id, kobo_uuid, unique_id, inmate_name, age, contact_number, screening_state, screening_date, date_of_birth, submitted_on, facility_name, facility_type, screening_district')
       .single();
 
@@ -173,9 +237,39 @@ export async function POST(request: NextRequest) {
     console.log('[patient-sync]   screening_date we sent:', dbUpdates.screening_date);
 
     if (dbError || !updatedPatient) {
-      console.error('[patient-sync] DB write failed:', dbError);
+      console.error('[patient-sync] ❌ DB WRITE FAILED');
+      console.error('[patient-sync]   Error object:', JSON.stringify(dbError, null, 2));
+      console.error('[patient-sync]   Error message:', dbError?.message);
+      console.error('[patient-sync]   Error code:', dbError?.code);
+      console.error('[patient-sync]   Error details:', dbError?.details);
+      console.error('[patient-sync]   Error hint:', dbError?.hint);
+      console.error('[patient-sync]   dbUpdates that were sent:', JSON.stringify(dbUpdates, null, 2));
+      console.error('[patient-sync]   patientId:', patientId);
+      console.error('[patient-sync]   dbUpdates count:', Object.keys(dbUpdates).length);
+      
+      // Additional diagnostic info
+      const diagnostic = {
+        environment: process.env.NODE_ENV,
+        timestamp: new Date().toISOString(),
+        phase: 'database_write',
+        patientId: patientId,
+        updateFields: Object.keys(dbUpdates),
+        updateCount: Object.keys(dbUpdates).length,
+        errorType: dbError?.code || 'UNKNOWN',
+        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/\/.*@/, '//***:***@'), // Hide credentials
+        hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+      };
+      
       return NextResponse.json(
-        { success: false, error: 'DB_WRITE_FAILED', detail: dbError?.message },
+        { 
+          success: false, 
+          error: 'DB_WRITE_FAILED', 
+          detail: dbError?.message || 'No patient returned',
+          hint: dbError?.hint,
+          code: dbError?.code,
+          updates: Object.keys(dbUpdates),
+          diagnostic: diagnostic
+        },
         { status: 500 }
       );
     }
