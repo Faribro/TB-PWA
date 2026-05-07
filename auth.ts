@@ -18,6 +18,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     updateAge: 3600, // 1 hour
   },
   secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
+  // Add base URL configuration to prevent ClientFetchError
+  baseUrl: process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
   callbacks: {
     async signIn({ user }) {
       if (!user?.email) return false;

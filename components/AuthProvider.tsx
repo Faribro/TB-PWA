@@ -10,7 +10,7 @@ interface AuthProviderProps {
 export default function AuthProvider({ children }: AuthProviderProps) {
   return (
     <SessionProvider 
-      refetchInterval={5 * 60} // Refetch every 5 minutes
+      refetchInterval={0} // Disable automatic refetching to prevent ClientFetchError
       refetchOnWindowFocus={false} // Don't refetch on window focus to prevent errors
     >
       {children}

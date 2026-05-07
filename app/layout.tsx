@@ -12,6 +12,7 @@ import QueueInitializer from "@/components/QueueInitializer";
 import TourProvider from "@/components/TourProvider";
 import { Analytics } from "@vercel/analytics/next";
 import { PostHogProvider } from "@/components/PostHogProvider";
+import { AuthErrorHandler } from "@/components/AuthErrorHandler";
 
 const outfit = Outfit({ subsets: ["latin"], weight: ['400', '700'], variable: '--font-outfit' });
 const shareTechMono = Share_Tech_Mono({ subsets: ["latin"], weight: ['400'], variable: '--font-share-tech-mono' });
@@ -56,6 +57,7 @@ export default function RootLayout({
       >
         <Providers>
           <PostHogProvider>
+            <AuthErrorHandler />
             <QueueInitializer />
             <ScopeInitializer />
             <ServiceWorkerRegistration />

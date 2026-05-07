@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Calendar, User, MapPin, Activity, CheckCircle2, XCircle, Building2, Phone, Hash, Settings2, Lock, Unlock, FileText, Shield, ClipboardList, Check, Minus, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { SearchableDistrictSelect } from './SearchableDistrictSelect';
 
 // Helper to format dates for HTML5 date inputs (yyyy-MM-dd)
 const formatDateForInput = (dateStr: string | null | undefined): string => {
@@ -327,11 +328,11 @@ const SymptomRow = ({ label, selected }: { label: string; selected: boolean }) =
 );
 
 // â”€â”€ Data field: label over value, view or edit
-const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, span = 1, hint }: {
+const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, span = 1, hint, customComponent }: {
   label: string; value: any; fieldKey: string;
   editable?: boolean; isEditing?: boolean;
   onChange?: (k: string, v: any) => void; span?: number;
-  hint?: string;
+  hint?: string; customComponent?: React.ReactNode;
 }) => {
   const cfg = FIELD_CONFIG[fieldKey];
   const ftype = cfg?.type ?? 'text';
@@ -344,7 +345,9 @@ const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, 
     <div className="flex flex-col gap-1.5 min-w-0" style={span > 1 ? { gridColumn: `span ${span}` } : {}}>
       <span className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">{label}</span>
       {showInput ? (
-        ftype === 'checkbox' ? (
+        customComponent ? (
+          customComponent
+        ) : ftype === 'checkbox' ? (
           <button 
             type="button" 
             onClick={() => onChange!(fieldKey, !toBool(value))}
@@ -505,7 +508,24 @@ export function DemographicsCarousel({
   }, [patient, localValues, editedDemographics]);
 
   // Use exported parseKoboSymptoms function for robust parsing
-  const parsedSymptomsResult = useMemo(() => parseKoboSymptoms(patient?.symptoms_10s), [patient?.symptoms_10s]);
+  const parsedSymptomsResult = useMemo(() => {
+    // Check both possible symptom fields and other potential symptom fields
+    const symptomsData = patient?.symptoms_10s || 
+                         patient?.symptoms_present || 
+                         patient?.tb_symptoms ||
+                         patient?.symptoms;
+    
+    console.log('DemographicsCarousel - checking symptoms fields:');
+    console.log('  symptoms_10s:', patient?.symptoms_10s);
+    console.log('  symptoms_present:', patient?.symptoms_present);
+    console.log('  tb_symptoms:', patient?.tb_symptoms);
+    console.log('  symptoms:', patient?.symptoms);
+    console.log('  using data:', symptomsData);
+    
+    const result = parseKoboSymptoms(symptomsData);
+    console.log('DemographicsCarousel - parsed symptoms result:', result);
+    return result;
+  }, [patient?.symptoms_10s, patient?.symptoms_present, patient?.tb_symptoms, patient?.symptoms]);
   const parsedSymptoms = parsedSymptomsResult.symptoms;
   const unrecognizedSymptoms = parsedSymptomsResult.unrecognized;
   const symptomsRawValue = parsedSymptomsResult.rawValue;
@@ -513,6 +533,15 @@ export function DemographicsCarousel({
   const toBool = (v: any) => v === true || v === 'yes' || v === 'Yes';
 
   if (!patient) return null;
+  
+  // Debug: Check for symptom-related fields
+  const symptomFields = Object.keys(patient || {}).filter(key => 
+    key.toLowerCase().includes('symptom') || 
+    key.toLowerCase().includes('10s')
+  );
+  if (symptomFields.length > 0) {
+    console.log('DemographicsCarousel - found symptom fields:', symptomFields);
+  }
 
   const gv = getValue;
   const E = isEditingDemographics;
@@ -533,6 +562,7 @@ export function DemographicsCarousel({
   const isHIV   = hiv === 'Positive';
   const isSusp  = xray === 'Suspected TB' || xrayRaw === 'Suspected_TB_Case';
   const symCount= Object.values(parsedSymptoms).filter(Boolean).length;
+  console.log('DemographicsCarousel - symptom count:', symCount, 'parsedSymptoms:', parsedSymptoms);
 
   // Real-time updates are handled by PatientDetailDrawer parent component
 
@@ -615,7 +645,21 @@ export function DemographicsCarousel({
                 <Field label="Facility Name"      value={gv('facility_name', patient?.facility_name)}            fieldKey="facility_name"       editable isEditing={E} onChange={H} />
                 <Field label="Facility Type"      value={gv('facility_type', patient?.facility_type)}            fieldKey="facility_type"       editable isEditing={E} onChange={H} />
                 <Field label="Screening State"    value={gv('screening_state', patient?.screening_state)}        fieldKey="screening_state"     editable isEditing={E} onChange={H} />
-                <Field label="Screening District" value={gv('screening_district', patient?.screening_district)}  fieldKey="screening_district"  editable isEditing={E} onChange={H} />
+                <Field 
+                  label="Screening District" 
+                  value={gv('screening_district', patient?.screening_district)}  
+                  fieldKey="screening_district"  
+                  editable isEditing={E} onChange={H} 
+                  customComponent={
+                    E && (
+                      <SearchableDistrictSelect
+                        value={gv('screening_district', patient?.screening_district) || ''}
+                        onChange={(value) => H('screening_district', value)}
+                        state={gv('screening_state', patient?.screening_state) || ''}
+                      />
+                    )
+                  }
+                />
                 <Field label="Staff Name"         value={gv('staff_name', patient?.staff_name)}                  fieldKey="staff_name"          editable isEditing={E} onChange={H} />
                 <Field label="Submitted On"       value={gv('submitted_on', patient?.submitted_on)}              fieldKey="submitted_on"        editable isEditing={E} onChange={H} />
                 {gv('screening_state', patient?.screening_state) === 'Other' && (
