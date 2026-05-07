@@ -409,7 +409,15 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         updated_at: new Date().toISOString()
       };
 
-      console.log('[PatientDetailDrawer] 📤 Sending clinical update:', {
+      console.log('[PatientDetailDrawer] � Patient data structure:', {
+        id: localPatient.id,
+        kobo_uuid: localPatient.kobo_uuid,
+        unique_id: localPatient.unique_id,
+        hasKoboUuid: !!localPatient.kobo_uuid,
+        finalPatientId: localPatient.kobo_uuid || localPatient.id
+      });
+
+      console.log('[PatientDetailDrawer] � Sending clinical update:', {
         patientId: localPatient.kobo_uuid || localPatient.id,
         payload
       });
@@ -617,6 +625,13 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       console.log('[PatientDetailDrawer] 🔍 BEFORE SAVE - editedDemographics.screeningdate:', editedDemographics.screeningdate, '(type:', typeof editedDemographics.screeningdate, ')');
       console.log('[patient-sync] 🔍 PAYLOAD screening_date:', payload.screening_date, '(type:', typeof payload.screening_date, ')');
+      console.log('[PatientDetailDrawer] 🔍 DEMOGRAPHICS Patient data structure:', {
+        id: localPatient.id,
+        kobo_uuid: localPatient.kobo_uuid,
+        unique_id: localPatient.unique_id,
+        hasKoboUuid: !!localPatient.kobo_uuid,
+        finalPatientId: localPatient.kobo_uuid || localPatient.id
+      });
       console.log('[PatientDetailDrawer] 🔍 FULL PAYLOAD being sent:', JSON.stringify(payload));
       
       // CHANGE 4: Optimistic update — show changes immediately before API confirms
