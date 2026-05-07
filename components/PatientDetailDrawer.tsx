@@ -392,7 +392,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
     try {
       const payload = {
-        id: localPatient.id,
+        id: localPatient.kobo_uuid || localPatient.id, // Use kobo_uuid as primary identifier, fallback to id
         referral_date: formData['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
         referred_facility: formData['Name of facility where referred to (Give code/name of all facilities)'],
         tb_diagnosed: formData['TB diagnosed (Y/N)'],
@@ -410,7 +410,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       };
 
       console.log('[PatientDetailDrawer] 📤 Sending clinical update:', {
-        patientId: localPatient.id,
+        patientId: localPatient.kobo_uuid || localPatient.id,
         payload
       });
 
@@ -418,7 +418,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patientId: localPatient.id,
+          patientId: localPatient.kobo_uuid || localPatient.id, // Use kobo_uuid as primary identifier, fallback to id
           updates: payload
         })
       });
@@ -595,7 +595,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       // Build payload programmatically from demographicsToSave
       const payload: Record<string, any> = {
-        id: localPatient.id,
+        id: localPatient.kobo_uuid || localPatient.id, // Use kobo_uuid as primary identifier, fallback to id
         updated_at: new Date().toISOString()
       };
 
@@ -632,7 +632,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patientId: localPatient.id,
+          patientId: localPatient.kobo_uuid || localPatient.id, // Use kobo_uuid as primary identifier, fallback to id
           updates: payload
         })
       });
