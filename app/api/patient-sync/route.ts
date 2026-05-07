@@ -148,36 +148,92 @@ export async function POST(request: NextRequest) {
     
     // Determine if patientId is a UUID (kobo_uuid) or database id
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(patientId);
-    const idField = isUUID ? 'kobo_uuid' : 'id';
     
     console.log(`[patient-sync] 🔍 Patient identifier analysis:`);
     console.log(`[patient-sync]   patientId: ${patientId}`);
     console.log(`[patient-sync]   isUUID: ${isUUID}`);
-    console.log(`[patient-sync]   using field: ${idField}`);
     
-    const { data: existing, error: fetchError } = await supabase
-      .from('patients')
-      .select('id, kobo_uuid, unique_id, inmate_name, screening_state')
-      .eq(idField, patientId)
-      .single();
+    // Try kobo_uuid first if it's a UUID, otherwise use id
+    let existing = null;
+    let fetchError = null;
+    let idField = 'id'; // Default to id field
+    
+    if (isUUID) {
+      console.log(`[patient-sync]   Trying kobo_uuid field first...`);
+      const result = await supabase
+        .from('patients')
+        .select('id, kobo_uuid, unique_id, inmate_name, screening_state')
+        .eq('kobo_uuid', patientId)
+        .single();
+      
+      if (result.data && !result.error) {
+        existing = result.data;
+        idField = 'kobo_uuid';
+        console.log(`[patient-sync]   ✅ Found patient by kobo_uuid`);
+      } else {
+        console.log(`[patient-sync]   ❌ Not found by kobo_uuid, trying id field...`);
+      }
+    }
+    
+    // If not found by kobo_uuid or not a UUID, try by id field
+    if (!existing) {
+      console.log(`[patient-sync]   Trying id field...`);
+      const result = await supabase
+        .from('patients')
+        .select('id, kobo_uuid, unique_id, inmate_name, screening_state')
+        .eq('id', patientId)
+        .single();
+      
+      if (result.data && !result.error) {
+        existing = result.data;
+        idField = 'id';
+        console.log(`[patient-sync]   ✅ Found patient by id`);
+      } else {
+        fetchError = result.error;
+        console.log(`[patient-sync]   ❌ Not found by id either`);
+      }
+    }
+    
+    console.log(`[patient-sync]   using field: ${idField}`);
 
     if (fetchError || !existing) {
+      console.log(`[patient-sync]   Final error:`, fetchError);
       return NextResponse.json({ success: false, error: 'PATIENT_NOT_FOUND' }, { status: 404 });
     }
 
-    if (!isServiceRoleAuth && existing.screening_state !== scope.state) {
+    console.log(`[patient-sync] 🔍 Authorization check:`);
+    console.log(`[patient-sync]   isServiceRoleAuth: ${isServiceRoleAuth}`);
+    console.log(`[patient-sync]   existing.screening_state: "${existing.screening_state}"`);
+    console.log(`[patient-sync]   scope.state: "${scope.state}"`);
+    console.log(`[patient-sync]   scope.role: "${scope.role}"`);
+    
+    // Bypass state authorization for admin/PM users
+    const isAdminOrPM = scope.role === 'admin' || scope.role === 'Program Manager' || scope.role === 'PM';
+    
+    if (!isServiceRoleAuth && !isAdminOrPM && existing.screening_state !== scope.state) {
+      console.log(`[patient-sync]   ❌ Authorization failed - state mismatch and not admin`);
       return NextResponse.json({ success: false, error: 'UNAUTHORIZED_STATE_ACCESS' }, { status: 403 });
     }
+    
+    console.log(`[patient-sync]   ✅ Authorization passed`);
 
     // ═══════════════════════════════════════════════════════════════════════
     // OPTIMIZATION 5: Single DB write with minimal select (saves ~50-100ms)
     // ═══════════════════════════════════════════════════════════════════════
-    const { data: updatedPatient, error: dbError } = await supabase
+    console.log('[patient-sync] 📝 Executing update with field:', idField, 'and patientId:', patientId);
+    console.log('[patient-sync] 📝 dbUpdates:', Object.keys(dbUpdates));
+    
+    const { error: dbError } = await supabase
       .from('patients')
       .update(dbUpdates)
+      .eq(idField, patientId);
+    
+    // Fetch the updated patient separately
+    const { data: updatedPatient } = await supabase
+      .from('patients')
+      .select('id, inmate_name, screening_state, updated_at')
       .eq(idField, patientId)
-      .select('id, kobo_uuid, unique_id, inmate_name, age, contact_number, screening_state, screening_date, date_of_birth, submitted_on, facility_name, facility_type, screening_district')
-      .single();
+      .maybeSingle();
 
     console.log('[patient-sync] STEP 5 - SUPABASE WRITE RESULT:');
     console.log('[patient-sync]   dbError:', dbError);

@@ -409,15 +409,16 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         updated_at: new Date().toISOString()
       };
 
-      console.log('[PatientDetailDrawer] � Patient data structure:', {
+      const patientKeys = Object.keys(localPatient || {});
+      console.log('[PatientDetailDrawer] 🔍 Patient keys:', patientKeys);
+      console.log('[PatientDetailDrawer] 🔍 Available identifiers:', {
         id: localPatient.id,
         kobo_uuid: localPatient.kobo_uuid,
         unique_id: localPatient.unique_id,
-        hasKoboUuid: !!localPatient.kobo_uuid,
-        finalPatientId: localPatient.kobo_uuid || localPatient.id
+        serial_number: localPatient.serial_number
       });
 
-      console.log('[PatientDetailDrawer] � Sending clinical update:', {
+      console.log('[PatientDetailDrawer] 📝 Sending clinical update:', {
         patientId: localPatient.kobo_uuid || localPatient.id,
         payload
       });
