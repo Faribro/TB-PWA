@@ -168,24 +168,82 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     setInternalOpen(isOpen);
   }, [isOpen]);
 
+  // REMOVED: This useEffect was clearing form data with null values from localPatient
+// The smart useEffect below (lines 210+) handles form reset properly with fallback logic
+
+  // Debug: Check if localPatient has HIV/ART data
   useEffect(() => {
     if (localPatient) {
-      reset({
-        'Date of referral for TB Examination (sputum) (dd/mm/yy)': formatDateForInput(localPatient.referral_date),
-        'Name of facility where referred to (Give code/name of all facilities)': localPatient.referred_facility || '',
-        'TB diagnosed (Y/N)': localPatient.tb_diagnosed || '',
-        'Date of TB Diagnosed (dd/mm/yy)': formatDateForInput(localPatient.tb_diagnosis_date),
-        'Type of TB Diagnosed (P/EP)': localPatient.tb_type || '',
-        'Date of starting ATT (dd/mm/yyyy)': formatDateForInput(localPatient.att_start_date),
-        'Date of Treatment Completion (dd/mm/yyyy)': formatDateForInput(localPatient.att_completion_date),
-        'HIV Status (Positive/Negative/Unknown)': localPatient.hiv_status || '',
-        'Status at the time of referral (Pre ART/On ART)': localPatient.art_status || '',
-        'ART Number (if on ART at the time of referral)': localPatient.art_number || '',
-        'NIKSHAY/ABHA ID': localPatient.nikshay_abha_id || '',
-        'Remarks': localPatient.remarks || ''
+      console.log('[PatientDetailDrawer] 🔍 HIV/ART Debug - localPatient data:');
+      console.log('  hiv_status:', localPatient.hiv_status);
+      console.log('  art_status:', localPatient.art_status);
+      console.log('  art_number:', localPatient.art_number);
+      console.log('  All clinical fields:', {
+        referral_date: localPatient.referral_date,
+        referred_facility: localPatient.referred_facility,
+        tb_diagnosed: localPatient.tb_diagnosed,
+        tb_diagnosis_date: localPatient.tb_diagnosis_date,
+        att_start_date: localPatient.att_start_date,
+        hiv_status: localPatient.hiv_status,
+        art_status: localPatient.art_status,
+        art_number: localPatient.art_number,
+        nikshay_abha_id: localPatient.nikshay_abha_id
       });
+      
+      // Check if form needs reset, but be more careful to avoid clearing data
+      const currentFormValues = getValues();
+      const hasFormData = 
+        currentFormValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'] ||
+        currentFormValues['Name of facility where referred to (Give code/name of all facilities)'] ||
+        currentFormValues['HIV Status (Positive/Negative/Unknown)'];
+      
+      const hasPatientData = 
+        localPatient.referral_date ||
+        localPatient.referred_facility ||
+        localPatient.hiv_status;
+      
+      // Only reset if we have patient data but no form data (initial load)
+      // Don't reset if form already has data (preserves user input)
+      if (hasPatientData && !hasFormData) {
+        console.log('[PatientDetailDrawer] 🔄 Initial load - resetting form with patient data');
+        const resetValues = {
+          'Date of referral for TB Examination (sputum) (dd/mm/yy)': formatDateForInput(localPatient.referral_date),
+          'Name of facility where referred to (Give code/name of all facilities)': localPatient.referred_facility || '',
+          'TB diagnosed (Y/N)': localPatient.tb_diagnosed || '',
+          'Date of TB Diagnosed (dd/mm/yy)': formatDateForInput(localPatient.tb_diagnosis_date),
+          'Type of TB Diagnosed (P/EP)': localPatient.tb_type || '',
+          'Date of starting ATT (dd/mm/yyyy)': formatDateForInput(localPatient.att_start_date),
+          'Date of Treatment Completion (dd/mm/yyyy)': formatDateForInput(localPatient.att_completion_date),
+          'HIV Status (Positive/Negative/Unknown)': localPatient.hiv_status || '',
+          'Status at the time of referral (Pre ART/On ART)': localPatient.art_status || '',
+          'ART Number (if on ART at the time of referral)': localPatient.art_number || '',
+          'NIKSHAY/ABHA ID': localPatient.nikshay_abha_id || '',
+          'Date of registration (dd/mm/yyyy)': formatDateForInput(localPatient.registration_date),
+          'Remarks': localPatient.remarks || ''
+        };
+        
+        console.log('[PatientDetailDrawer] 🔄 USEFFECT: About to reset form with patient data:', {
+          referral_date: resetValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
+          facility: resetValues['Name of facility where referred to (Give code/name of all facilities)'],
+          localPatient_referral_date: localPatient.referral_date,
+          localPatient_referred_facility: localPatient.referred_facility
+        });
+        
+        reset(resetValues, { keepDefaultValues: false });
+      } else if (hasFormData) {
+        console.log('[PatientDetailDrawer] 📋 Form already has data, skipping reset to preserve user input');
+        console.log('[PatientDetailDrawer] 🔍 Form data check:', {
+          hasReferralDate: !!currentFormValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
+          hasFacility: !!currentFormValues['Name of facility where referred to (Give code/name of all facilities)'],
+          hasHivStatus: !!currentFormValues['HIV Status (Positive/Negative/Unknown)'],
+          referralDate: currentFormValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
+          facility: currentFormValues['Name of facility where referred to (Give code/name of all facilities)']
+        });
+      } else {
+        console.log('[PatientDetailDrawer] ❓ No form data and no patient data - nothing to reset');
+      }
     }
-  }, [localPatient, reset]);
+  }, [localPatient, reset, getValues]);
 
   // ── Demographics State — Kobo-canonical keys with legacy fallbacks ──
   // Key names match the Kobo XLSX field names exactly. Supabase column mapping
@@ -488,7 +546,88 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       
       // Immediately update local state with server response
       if (responseData.patient) {
+        console.log('[PatientDetailDrawer] 🔍 API Response Analysis:');
+        console.log('  Response has clinical fields:', {
+          referral_date: responseData.patient.referral_date,
+          referred_facility: responseData.patient.referred_facility,
+          hiv_status: responseData.patient.hiv_status,
+          tb_diagnosed: responseData.patient.tb_diagnosed
+        });
+        
+        // Get current form values before reset
+        const currentFormValues = getValues();
+        console.log('[PatientDetailDrawer] 📝 Current form values before reset:', {
+          referral_date: currentFormValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
+          referred_facility: currentFormValues['Name of facility where referred to (Give code/name of all facilities)'],
+          hiv_status: currentFormValues['HIV Status (Positive/Negative/Unknown)']
+        });
+        
         setLocalPatient(responseData.patient);
+        
+        // CRITICAL FIX: Reset form with saved values, prioritize form values when API response is null
+        const resetValues = {
+          'Date of referral for TB Examination (sputum) (dd/mm/yy)': 
+            (responseData.patient.referral_date && responseData.patient.referral_date !== null) ? 
+              formatDateForInput(responseData.patient.referral_date) : 
+              currentFormValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
+          'Name of facility where referred to (Give code/name of all facilities)': 
+            (responseData.patient.referred_facility && responseData.patient.referred_facility !== null) ? 
+              responseData.patient.referred_facility : 
+              currentFormValues['Name of facility where referred to (Give code/name of all facilities)'] || '',
+          'TB diagnosed (Y/N)': 
+            (responseData.patient.tb_diagnosed && responseData.patient.tb_diagnosed !== null) ? 
+              responseData.patient.tb_diagnosed : 
+              currentFormValues['TB diagnosed (Y/N)'] || '',
+          'Date of TB Diagnosed (dd/mm/yy)': 
+            (responseData.patient.tb_diagnosis_date && responseData.patient.tb_diagnosis_date !== null) ? 
+              formatDateForInput(responseData.patient.tb_diagnosis_date) : 
+              currentFormValues['Date of TB Diagnosed (dd/mm/yy)'],
+          'Type of TB Diagnosed (P/EP)': 
+            (responseData.patient.tb_type && responseData.patient.tb_type !== null) ? 
+              responseData.patient.tb_type : 
+              currentFormValues['Type of TB Diagnosed (P/EP)'] || '',
+          'Date of starting ATT (dd/mm/yyyy)': 
+            (responseData.patient.att_start_date && responseData.patient.att_start_date !== null) ? 
+              formatDateForInput(responseData.patient.att_start_date) : 
+              currentFormValues['Date of starting ATT (dd/mm/yyyy)'],
+          'Date of Treatment Completion (dd/mm/yyyy)': 
+            (responseData.patient.att_completion_date && responseData.patient.att_completion_date !== null) ? 
+              formatDateForInput(responseData.patient.att_completion_date) : 
+              currentFormValues['Date of Treatment Completion (dd/mm/yyyy)'],
+          'HIV Status (Positive/Negative/Unknown)': 
+            (responseData.patient.hiv_status && responseData.patient.hiv_status !== null) ? 
+              responseData.patient.hiv_status : 
+              currentFormValues['HIV Status (Positive/Negative/Unknown)'] || '',
+          'Status at the time of referral (Pre ART/On ART)': 
+            (responseData.patient.art_status && responseData.patient.art_status !== null) ? 
+              responseData.patient.art_status : 
+              currentFormValues['Status at the time of referral (Pre ART/On ART)'] || '',
+          'ART Number (if on ART at the time of referral)': 
+            (responseData.patient.art_number && responseData.patient.art_number !== null) ? 
+              responseData.patient.art_number : 
+              currentFormValues['ART Number (if on ART at the time of referral)'] || '',
+          'NIKSHAY/ABHA ID': 
+            (responseData.patient.nikshay_abha_id && responseData.patient.nikshay_abha_id !== null) ? 
+              responseData.patient.nikshay_abha_id : 
+              currentFormValues['NIKSHAY/ABHA ID'] || '',
+          'Date of registration (dd/mm/yyyy)': 
+            (responseData.patient.registration_date && responseData.patient.registration_date !== null) ? 
+              formatDateForInput(responseData.patient.registration_date) : 
+              currentFormValues['Date of registration (dd/mm/yyyy)'],
+          'Remarks': 
+            (responseData.patient.remarks && responseData.patient.remarks !== null) ? 
+              responseData.patient.remarks : 
+              currentFormValues['Remarks'] || ''
+        };
+        
+        console.log('[PatientDetailDrawer] 🔄 SAVE: About to reset form with values:', {
+          referral_date: resetValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
+          facility: resetValues['Name of facility where referred to (Give code/name of all facilities)']
+        });
+        
+        reset(resetValues, { keepDefaultValues: false });
+        
+        console.log('[PatientDetailDrawer] ✅ Form reset completed with fallback logic');
       }
       
       // Force immediate SWR revalidation
@@ -503,8 +642,6 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       );
       onUpdate();
       
-      // Clear isDirty after successful save
-      reset(getValues(), { keepValues: true });
       setHasUnsavedChanges(false);
       
       // Show success toast
@@ -534,7 +671,26 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     isEditing: isEditingDemographics,
     onUpdate: (data) => {
       console.log('[PatientDetailDrawer] Realtime update received:', data);
-      setLocalPatient(data);
+      
+      // Check if the update has meaningful clinical data
+      const hasClinicalData = 
+        data.referral_date || 
+        data.referred_facility || 
+        data.hiv_status || 
+        data.tb_diagnosed ||
+        data.att_start_date;
+      
+      console.log('[PatientDetailDrawer] 🔄 Realtime update - hasClinicalData:', hasClinicalData);
+      
+      // Only update localPatient if there's meaningful data or if it's demographics data
+      // This prevents clearing form data with null values from server
+      if (hasClinicalData || data.inmate_name || data.screening_date) {
+        console.log('[PatientDetailDrawer] 📝 Updating localPatient with meaningful data');
+        setLocalPatient(data);
+      } else {
+        console.log('[PatientDetailDrawer] ⚠️ Skipping localPatient update - would clear form data');
+      }
+      
       setEditedDemographics(mapDemographics(data));
       
       // Check if sheets sync completed
@@ -903,6 +1059,39 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                       const watchedHivStatus = watch('HIV Status (Positive/Negative/Unknown)');
                       const watchedNikshay = watch('NIKSHAY/ABHA ID');
 
+                      // Debug: Log step indicator logic
+                      console.log('[PatientDetailDrawer] 🚦 Step Indicator Debug:');
+                      console.log('  watchedReferralDate:', watchedReferralDate);
+                      console.log('  watchedFacility:', watchedFacility);
+                      console.log('  watchedTbDiagnosed:', watchedTbDiagnosed);
+                      console.log('  watchedDiagnosisDate:', watchedDiagnosisDate);
+                      console.log('  watchedAttStart:', watchedAttStart);
+                      console.log('  watchedHivStatus:', watchedHivStatus);
+                      console.log('  watchedNikshay:', watchedNikshay);
+                      console.log('  localPatient data:', {
+                        referral_date: localPatient.referral_date,
+                        referred_facility: localPatient.referred_facility,
+                        tb_diagnosed: localPatient.tb_diagnosed,
+                        tb_diagnosis_date: localPatient.tb_diagnosis_date,
+                        att_start_date: localPatient.att_start_date,
+                        hiv_status: localPatient.hiv_status,
+                        nikshay_abha_id: localPatient.nikshay_abha_id
+                      });
+                      
+                      // Calculate step completion status
+                      const sputumComplete = Boolean((watchedReferralDate || localPatient.referral_date) && (watchedFacility || localPatient.referred_facility));
+                      const diagnosisComplete = Boolean((watchedTbDiagnosed || localPatient.tb_diagnosed) && (watchedDiagnosisDate || localPatient.tb_diagnosis_date));
+                      const treatmentComplete = Boolean(watchedAttStart || localPatient.att_start_date);
+                      const hivComplete = Boolean(watchedHivStatus || localPatient.hiv_status);
+                      const nikshayComplete = Boolean(watchedNikshay || localPatient.nikshay_abha_id);
+                      
+                      console.log('  Step completion status:');
+                      console.log('    Sputum & Referral:', sputumComplete);
+                      console.log('    Diagnosis:', diagnosisComplete);
+                      console.log('    Treatment:', treatmentComplete);
+                      console.log('    HIV & ART:', hivComplete);
+                      console.log('    Nikshay:', nikshayComplete);
+
                       const isStale = phase !== 'Closed' && (() => {
                         const sd = localPatient?.screening_date;
                         if (!sd) return false;
@@ -916,8 +1105,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                           id: 'sputum',
                           title: 'Sputum & Referral',
                           icon: <FileText className="w-4 h-4" />,
-                          isComplete: Boolean(watchedReferralDate && watchedFacility),
-                          isCurrent: !Boolean(watchedReferralDate && watchedFacility) && phase === 'Sputum Test',
+                          isComplete: sputumComplete,
+                          isCurrent: !sputumComplete && phase === 'Sputum Test',
                           completionLabel: 'Submitted',
                           pendingLabel: 'Pending',
                           currentLabel: 'In Progress',
@@ -927,8 +1116,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                           id: 'diagnosis',
                           title: 'Diagnosis',
                           icon: <Activity className="w-4 h-4" />,
-                          isComplete: Boolean(watchedTbDiagnosed && watchedDiagnosisDate),
-                          isCurrent: !Boolean(watchedTbDiagnosed && watchedDiagnosisDate) && Boolean(watchedReferralDate && watchedFacility) && phase === 'Diagnosis',
+                          isComplete: diagnosisComplete,
+                          isCurrent: !diagnosisComplete && sputumComplete && phase === 'Diagnosis',
                           completionLabel: 'Submitted',
                           pendingLabel: 'Pending',
                           currentLabel: 'In Progress',
@@ -938,8 +1127,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                           id: 'treatment',
                           title: 'Treatment',
                           icon: <Pill className="w-4 h-4" />,
-                          isComplete: Boolean(watchedAttStart),
-                          isCurrent: !Boolean(watchedAttStart) && Boolean(watchedTbDiagnosed && watchedDiagnosisDate) && phase === 'ATT Initiation',
+                          isComplete: treatmentComplete,
+                          isCurrent: !treatmentComplete && diagnosisComplete && phase === 'ATT Initiation',
                           completionLabel: 'Submitted',
                           pendingLabel: 'Pending',
                           currentLabel: 'In Progress',
@@ -949,17 +1138,18 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                           id: 'hiv',
                           title: 'HIV & ART Status',
                           icon: <Shield className="w-4 h-4" />,
-                          isComplete: Boolean(watchedHivStatus),
-                          isCurrent: false,
+                          isComplete: hivComplete,
+                          isCurrent: !hivComplete && treatmentComplete && phase === 'HIV Status',
                           completionLabel: 'Submitted',
                           pendingLabel: 'Pending',
                           currentLabel: 'In Progress',
+                          isAttentionRequired: isStale && phase === 'HIV Status',
                         },
                         {
                           id: 'nikshay',
                           title: 'Nikshay & Registration',
                           icon: <ClipboardList className="w-4 h-4" />,
-                          isComplete: Boolean(watchedNikshay),
+                          isComplete: nikshayComplete,
                           isCurrent: false,
                           completionLabel: 'Submitted',
                           pendingLabel: 'Pending',

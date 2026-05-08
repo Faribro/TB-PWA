@@ -1744,14 +1744,14 @@ export default function Vertex({
             {/* INTERNAL LAYOUT SAFETY - Prevent horizontal overflow */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 bg-white/10">
               <FollowUpPipeline 
-                patients={patientsForSelectedFacility}
+                patients={patientsForSelectedDate}
                 isLoading={false}
                 onPatientClick={handleOpenPatientDrawer}
                 onUploadRegister={canEdit ? () => setIsUploadModalOpen(true) : undefined}
               />
               {/* DEBUG: Show patient count */}
               <div className="text-xs text-white/60 mt-2">
-                Debug: {patientsForSelectedFacility.length} patients for selected facility
+                Debug: {patientsForSelectedDate.length} patients for selected date
               </div>
             </div>
           </div>

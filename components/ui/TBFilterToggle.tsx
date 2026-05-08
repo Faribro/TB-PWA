@@ -50,15 +50,21 @@ const SEGMENTS: Segment[] = [
 
 // ─── Filter Logic ────────────────────────────────────────────────────
 export function isSuspectedTB(p: Patient): boolean {
+  const xrayResult = p.xray_result || p.chest_x_ray_result || (p as unknown as Record<string, unknown>)['Chest X-ray Result'];
+  if (!xrayResult) return false;
+  
+  const resultStr = xrayResult.toString().toLowerCase();
   return (
-    p.xray_result === 'Suspected TB Case' ||
-    p.chest_x_ray_result === 'Suspected TB Case' ||
-    (p as unknown as Record<string, unknown>)['Chest X-ray Result'] === 'Suspected TB Case'
+    resultStr === 'suspected tb case' ||
+    resultStr.includes('abnormal') ||
+    resultStr.includes('suspected')
   );
 }
 
 export function isTBDiagnosed(p: Patient): boolean {
-  return p.tb_diagnosed === 'Yes' || p.tb_diagnosed === 'Y';
+  if (!p.tb_diagnosed) return false;
+  const diagnosed = p.tb_diagnosed.toString().toLowerCase();
+  return diagnosed === 'yes' || diagnosed === 'y';
 }
 
 export function isATTInitiated(p: Patient): boolean {

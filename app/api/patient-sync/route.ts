@@ -221,17 +221,33 @@ export async function POST(request: NextRequest) {
     // OPTIMIZATION 5: Single DB write with minimal select (saves ~50-100ms)
     // ═══════════════════════════════════════════════════════════════════════
     console.log('[patient-sync] 📝 Executing update with field:', idField, 'and patientId:', patientId);
-    console.log('[patient-sync] 📝 dbUpdates:', Object.keys(dbUpdates));
+    console.log('[patient-sync] 📝 dbUpdates keys:', Object.keys(dbUpdates));
+    console.log('[patient-sync] 📝 dbUpdates values:', dbUpdates);
     
+    // First, check what fields currently exist in the patient record
+    console.log('[patient-sync] 🔍 Checking current patient fields before update...');
+    const { data: currentPatient } = await supabase
+      .from('patients')
+      .select('*')
+      .eq(idField, patientId)
+      .maybeSingle();
+    
+    if (currentPatient) {
+      console.log('[patient-sync] 📋 Current patient fields count:', Object.keys(currentPatient).length);
+      for (const [k, v] of Object.entries(currentPatient)) {
+        console.log(`[patient-sync]   "${k}": "${v}"`);
+      }
+    }
+
     const { error: dbError } = await supabase
       .from('patients')
       .update(dbUpdates)
       .eq(idField, patientId);
     
-    // Fetch the updated patient separately
+    // Fetch the updated patient separately with all fields to ensure we get clinical data
     const { data: updatedPatient } = await supabase
       .from('patients')
-      .select('id, inmate_name, screening_state, updated_at')
+      .select('*')
       .eq(idField, patientId)
       .maybeSingle();
 
@@ -239,6 +255,17 @@ export async function POST(request: NextRequest) {
     console.log('[patient-sync]   dbError:', dbError);
     console.log('[patient-sync]   updatedPatient fields:');
     if (updatedPatient) {
+      console.log('[patient-sync]   Total fields:', Object.keys(updatedPatient).length);
+      
+      // Log clinical fields specifically
+      const clinicalFields = ['referral_date', 'referred_facility', 'tb_diagnosed', 'tb_diagnosis_date', 'tb_type', 'att_start_date', 'att_completion_date', 'hiv_status', 'art_status', 'art_number', 'nikshay_abha_id', 'registration_date', 'remarks'];
+      
+      console.log('[patient-sync]   Clinical fields in response:');
+      clinicalFields.forEach(field => {
+        const value = updatedPatient[field];
+        console.log(`[patient-sync]     "${field}": "${value}" (${typeof value})`);
+      });
+      
       for (const [k, v] of Object.entries(updatedPatient)) {
         console.log(`[patient-sync]     "${k}": "${v}"`);
       }
