@@ -1,11 +1,11 @@
 'use client';
 
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useRef, useEffect, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, X, ChevronLeft, ChevronRight, AlertCircle, ClockAlert, MapPin, List, Grid3x3, Upload, AlertTriangle, ShieldCheck, Clock, Lock, Unlock, ChevronDown, ChevronUp, Search, ArrowRightCircle, Activity, Pill, ClipboardList, CheckCircle2 } from 'lucide-react';
 import { PatientJourneyCompact } from './ui/PatientJourneyCompact';
-import { TBFilterToggle, type FilterMode, isSuspectedTB } from './ui/TBFilterToggle';
+import { TBFilterToggle, type FilterMode, isSuspectedTB, isTBDiagnosed, isATTInitiated, isATTCompleted } from './ui/TBFilterToggle';
 import { useTreeFilter } from '@/contexts/TreeFilterContext';
 import { useEntityStore } from '@/stores/useEntityStore';
 import { normalizeGeographicKey } from '@/lib/normalizeGeographicKey';
@@ -18,6 +18,26 @@ import { sounds } from '@/lib/sound';
 import { useRealtimePatients } from '@/lib/useRealtimePatients';
 
 const supabase = getSupabaseBrowserClient();
+
+// Function to get dynamic location text based on filters
+function getLocationText(displayPatients) {
+  const activeFilters = useEntityStore.getState().activeFilters;
+  
+  if (activeFilters?.state && activeFilters?.district) {
+    return `${activeFilters.state}, ${activeFilters.district}`;
+  } else if (activeFilters?.state) {
+    return activeFilters.state;
+  } else {
+    // Default to first available state/district from display patients
+    if (displayPatients && displayPatients.length > 0) {
+      const firstPatient = displayPatients[0];
+      const state = firstPatient.screening_state || firstPatient.state || 'Unknown';
+      const district = firstPatient.screening_district || firstPatient.district || 'Unknown';
+      return `${state}, ${district}`;
+    }
+    return 'All Locations';
+  }
+}
 
 interface Patient {
   id: number;
@@ -587,20 +607,55 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
 
   if (isLoading) {
     return (
-      <div className="h-full flex flex-col p-6 gap-4 bg-[#F4F6F9]">
-        <div className="flex items-center justify-between mb-4">
-          <div className="w-1/3 h-8 bg-slate-200 animate-pulse rounded-md" />
-          <div className="w-32 h-6 bg-slate-200 animate-pulse rounded-full" />
+      <div 
+        className="h-full flex flex-col p-6 gap-4"
+        style={{ background: '#fafafa' }}
+      >
+        <style>{`
+          @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+          }
+          .shimmer {
+            background: linear-gradient(90deg, rgba(0,0,0,0.03) 0%, rgba(0,0,0,0.06) 50%, rgba(0,0,0,0.03) 100%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+          }
+        `}</style>
+        {/* Glassmorphism Header Skeleton */}
+        <div 
+          className="flex items-center justify-between mb-4 px-4 py-3 rounded-xl"
+          style={{
+            background: 'rgba(255,255,255,0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.5)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.02)',
+          }}
+        >
+          <div className="w-1/3 h-8 shimmer rounded-md" />
+          <div className="w-32 h-6 shimmer rounded-full" />
         </div>
+        
+        {/* Premium Card Skeletons */}
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="w-full h-[110px] bg-white border border-slate-100 rounded-xl animate-pulse shadow-sm flex flex-col justify-between p-5 mt-2">
+          <div 
+            key={i} 
+            className="w-full h-[110px] rounded-xl flex flex-col justify-between p-5 mt-2 shimmer"
+            style={{
+              background: 'rgba(255,255,255,0.8)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255,255,255,0.6)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.03)',
+              animationDelay: `${i * 100}ms`,
+            }}
+          >
             <div className="flex justify-between items-start">
               <div className="flex-1">
-                <div className="w-48 h-6 bg-slate-200 rounded mb-2" />
-                <div className="w-24 h-5 bg-slate-200 rounded mb-2" />
-                <div className="w-32 h-4 bg-slate-200 rounded" />
+                <div className="w-48 h-6 bg-slate-200/50 rounded mb-2" />
+                <div className="w-24 h-5 bg-slate-200/50 rounded mb-2" />
+                <div className="w-32 h-4 bg-slate-200/50 rounded" />
               </div>
-              <div className="w-20 h-6 bg-slate-200 rounded-full" />
+              <div className="w-20 h-6 bg-slate-200/50 rounded-full" />
             </div>
           </div>
         ))}
@@ -609,51 +664,169 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
   }
 
   return (
-    <div className="h-full flex flex-col glass-light relative">
-      <div className="p-3 border-b border-white/20 bg-white/10 backdrop-blur-md">
-        {/* Animated Statistics Sentence and Controls in Same Row */}
-        <div className="flex items-center justify-between gap-4">
-          {/* Left: Statistics Sentence */}
-          <div className="text-holder-stats flex-1 min-w-0">
-            <h1 className="stats-typer text-sm">
-              On <span className="date-highlight">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>, in <span className="location-highlight">MP, Vidisha</span>, 
-              <span className="count-highlight">{displayPatients.length}</span> screened, 
-              <span className="diagnosed-highlight">{displayPatients.filter(p => p.tb_diagnosed === 'Y' || p.tb_diagnosed === 'Yes').length}</span> TB+, 
-              <span className="pending-highlight">{displayPatients.filter(p => !p.referral_date && (p.xray_result === 'Suspected TB Case' || p.chest_x_ray_result === 'Suspected TB Case')).length}</span> pending
-            </h1>
-          </div>
+    <div className="h-full flex flex-col relative overflow-hidden" style={{ background: '#fafafa' }}>
+      {/* Animated Gradient Mesh Background */}
+      <div 
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `
+            radial-gradient(ellipse at 20% 30%, rgba(6,182,212,0.08) 0%, transparent 50%),
+            radial-gradient(ellipse at 80% 20%, rgba(245,158,11,0.06) 0%, transparent 40%),
+            radial-gradient(ellipse at 60% 80%, rgba(99,102,241,0.05) 0%, transparent 45%),
+            radial-gradient(ellipse at 10% 70%, rgba(244,63,94,0.04) 0%, transparent 35%)
+          `,
+        }}
+      />
+      
+      
+      {/* Glassmorphism Header */}
+      <div 
+        className="px-4 py-3 border-b relative z-10"
+        style={{
+          background: 'rgba(255,255,255,0.85)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          borderBottom: '1px solid rgba(255,255,255,0.5)',
+          boxShadow: '0 4px 30px rgba(0,0,0,0.03), 0 1px 3px rgba(0,0,0,0.02), inset 0 1px 0 rgba(255,255,255,0.6)',
+        }}
+      >
+        {/* Animated Statistics Sentence and Controls - Awwwards Premium Theme */}
+        <style>{`
+          @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+          }
+          @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+          }
+          @keyframes borderGlow {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+          }
+          .premium-gradient-text {
+            background: linear-gradient(90deg, #06b6d4, #0891b2, #06b6d4, #22d3ee);
+            background-size: 300% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 4s ease infinite;
+            filter: drop-shadow(0 0 12px rgba(6,182,212,0.5));
+          }
+          .premium-gradient-amber {
+            background: linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b, #d97706);
+            background-size: 300% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 3s ease infinite;
+            filter: drop-shadow(0 0 10px rgba(245,158,11,0.45));
+          }
+          .premium-gradient-rose {
+            background: linear-gradient(90deg, #f43f5e, #fb7185, #f43f5e, #e11d48);
+            background-size: 300% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 3.5s ease infinite;
+            filter: drop-shadow(0 0 12px rgba(244,63,94,0.55));
+          }
+          .premium-location {
+            position: relative;
+            color: #b45309;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+          }
+          .premium-location::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: -4px;
+            right: -4px;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #fbbf24, #f59e0b, #fbbf24, transparent);
+            border-radius: 3px;
+            box-shadow: 0 0 12px rgba(245,158,11,0.7), 0 0 24px rgba(251,191,36,0.4), 0 0 36px rgba(245,158,11,0.2);
+            animation: borderGlow 2s ease-in-out infinite;
+          }
+          .glass-card {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.5);
+            box-shadow: 
+              0 1px 2px rgba(0,0,0,0.02),
+              0 4px 8px rgba(0,0,0,0.03),
+              0 8px 16px rgba(0,0,0,0.03),
+              0 16px 32px rgba(0,0,0,0.02),
+              inset 0 1px 0 rgba(255,255,255,0.8);
+          }
+          .shimmer-bg {
+            background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+          }
+          .content-optimized {
+            content-visibility: auto;
+            contain: layout style paint;
+          }
+          .cards-container {
+            content-visibility: auto;
+            contain: layout style;
+          }
+        `}</style>
+        <div className="flex items-center justify-between gap-6 w-full">
+          {/* Statistics Sentence - Left Side with Neon Emphasis */}
+          <HeaderStats displayPatients={displayPatients} />
           
-          {/* Right: Search Bar and Upload Button */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Enhanced Search Bar */}
+          {/* Centered Search Bar and Controls */}
+          <div className="flex items-center gap-4 flex-shrink-0">
+            {/* Premium Glassmorphism Search Bar */}
             <div className="relative group">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors w-4 h-4" />
+              <Search 
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 transition-all duration-300 w-4 h-4" 
+                style={{ color: 'rgba(107,114,128,0.8)' }}
+              />
               <input
                 type="text"
-                placeholder="Search patients..."
+                placeholder="Search inmates by name, ID, or facility..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-64 pl-10 pr-10 py-2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-300 shadow-sm hover:shadow-md text-sm"
+                className="w-[320px] pl-11 pr-11 py-2.5 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none transition-all duration-300 text-sm font-medium"
+                style={{
+                  background: 'rgba(255,255,255,0.9)',
+                  border: '1px solid rgba(0,0,0,0.08)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.02), inset 0 1px 0 rgba(255,255,255,0.8)',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,1)';
+                  e.currentTarget.style.borderColor = 'rgba(6,182,212,0.4)';
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(6,182,212,0.12), 0 0 0 3px rgba(6,182,212,0.1), inset 0 1px 0 rgba(255,255,255,0.9)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.9)';
+                  e.currentTarget.style.borderColor = 'rgba(0,0,0,0.08)';
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.02), inset 0 1px 0 rgba(255,255,255,0.8)';
+                }}
               />
-              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center">
+              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
                 <button
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                   className={`p-1.5 rounded-lg transition-all duration-300 ${
                     showAdvancedFilters 
-                      ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/20' 
+                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700'
                   }`}
                   title="Advanced Filters"
                 >
-                  <Filter className="w-3 h-3" />
+                  <Filter className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -662,113 +835,134 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={onUploadRegister}
-                className="h-10 flex items-center gap-1.5 px-3 bg-gradient-to-br from-cyan-500 via-cyan-600 to-cyan-700 text-white rounded-xl font-bold text-xs shadow-sm hover:shadow-md transition-all"
+                className="h-10 flex items-center gap-1.5 px-4 bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 text-white rounded-xl font-bold text-xs transition-all border border-amber-400/50"
+                style={{
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1), 0 0 0 1px rgba(245,158,11,0.3), 0 0 20px rgba(245,158,11,0.25), inset 0 1px 0 rgba(255,255,255,0.3)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1), 0 0 0 1px rgba(245,158,11,0.4), 0 0 28px rgba(245,158,11,0.35), inset 0 1px 0 rgba(255,255,255,0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1), 0 0 0 1px rgba(245,158,11,0.3), 0 0 20px rgba(245,158,11,0.25), inset 0 1px 0 rgba(255,255,255,0.3)';
+                }}
                 title="Upload handwritten register for OCR extraction"
               >
                 <Upload className="w-3.5 h-3.5" />
-                Upload
+                Upload Register
               </motion.button>
             )}
-            <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-md p-0.5 h-10">
+            <div 
+              className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-xl p-0.5 h-10"
+              style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
+            >
               <button
                 onClick={() => { sounds.toggle(); setViewMode('list'); }}
-                className={`w-8 h-8 flex items-center justify-center rounded transition-all duration-200 ${viewMode === 'list' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 ${viewMode === 'list' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+                style={viewMode === 'list' ? {
+                  boxShadow: '0 0 0 1px rgba(6,182,212,0.4), 0 0 12px rgba(6,182,212,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
+                } : {}}
                 aria-label="List view"
                 title="List view"
               >
-                <List className="w-3.5 h-3.5" />
+                <List className="w-4 h-4" />
               </button>
               <button
                 onClick={() => { sounds.toggle(); setViewMode('grid'); }}
-                className={`w-8 h-8 flex items-center justify-center rounded transition-all duration-200 ${viewMode === 'grid' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 ${viewMode === 'grid' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+                style={viewMode === 'grid' ? {
+                  boxShadow: '0 0 0 1px rgba(6,182,212,0.4), 0 0 12px rgba(6,182,212,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
+                } : {}}
                 aria-label="Grid view"
                 title="Grid view"
               >
-                <Grid3x3 className="w-3.5 h-3.5" />
+                <Grid3x3 className="w-4 h-4" />
               </button>
             </div>
           </div>
         </div>
 
-        {/* Advanced Filters Modal */}
+        {/* Advanced Filters Modal - Premium White Theme */}
         <AnimatePresence>
           {showAdvancedFilters && (
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="absolute top-full left-0 right-0 z-50 mt-2 bg-white/95 backdrop-blur-xl rounded-2xl border border-gray-200/60 shadow-2xl p-6"
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              className="absolute top-full left-1/2 transform -translate-x-1/2 z-50 mt-3 w-[600px] bg-white/98 backdrop-blur-xl rounded-2xl border border-slate-200/60 shadow-2xl shadow-slate-900/10 p-6"
             >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Advanced Filters</h3>
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <Filter className="w-5 h-5 text-cyan-600" />
+                  Advanced Filters
+                </h3>
                 <button
                   onClick={() => setShowAdvancedFilters(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
               
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Patient Name</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">Inmate Name</label>
                   <input
                     type="text"
                     value={advancedFilters.name}
                     onChange={(e) => setAdvancedFilters({...advancedFilters, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500 transition-all text-slate-800 placeholder-slate-400 text-sm"
                     placeholder="Search name..."
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Facility</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">Facility</label>
                   <input
                     type="text"
                     value={advancedFilters.facility}
                     onChange={(e) => setAdvancedFilters({...advancedFilters, facility: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500 transition-all text-slate-800 placeholder-slate-400 text-sm"
                     placeholder="Search facility..."
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">District</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">District</label>
                   <input
                     type="text"
                     value={advancedFilters.district}
                     onChange={(e) => setAdvancedFilters({...advancedFilters, district: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500 transition-all text-slate-800 placeholder-slate-400 text-sm"
                     placeholder="Search district..."
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">From Date</label>
                   <input
                     type="date"
                     value={advancedFilters.dateFrom}
                     onChange={(e) => setAdvancedFilters({...advancedFilters, dateFrom: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500 transition-all text-slate-800 text-sm"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">To Date</label>
                   <input
                     type="date"
                     value={advancedFilters.dateTo}
                     onChange={(e) => setAdvancedFilters({...advancedFilters, dateTo: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500 transition-all text-slate-800 text-sm"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">Status</label>
                   <select
                     value={advancedFilters.status}
                     onChange={(e) => setAdvancedFilters({...advancedFilters, status: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500 transition-all text-slate-800 text-sm"
                   >
                     <option value="">All Status</option>
                     <option value="suspected">Suspected TB</option>
@@ -793,13 +987,13 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
                       ageMax: ''
                     });
                   }}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-4 py-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors text-sm font-medium"
                 >
                   Reset
                 </button>
                 <button
                   onClick={() => setShowAdvancedFilters(false)}
-                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-lg shadow-blue-500/30"
+                  className="px-6 py-2 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white rounded-lg hover:from-cyan-500 hover:to-cyan-600 transition-all shadow-lg shadow-cyan-500/20 text-sm font-bold"
                 >
                   Apply Filters
                 </button>
@@ -812,31 +1006,31 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl mb-4"
+            className="flex items-center gap-3 bg-white border border-slate-200 px-4 py-2.5 rounded-xl mb-4 mx-auto max-w-4xl shadow-sm"
           >
-            <Filter className="w-4 h-4 text-slate-500" />
-            <span className="text-sm font-medium text-slate-700">Active Filters:</span>
+            <Filter className="w-4 h-4 text-cyan-600" />
+            <span className="text-sm font-semibold text-slate-700">Active Filters:</span>
             
             {activeFilters?.state && (
-              <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-md shadow-sm">
+              <div className="bg-cyan-50 border border-cyan-200 text-cyan-700 text-xs font-bold px-2.5 py-1 rounded-md shadow-sm">
                 {activeFilters.state}
               </div>
             )}
 
             {(activeFilters?.district || treeFilter.district) && (
-              <div className="bg-white border border-slate-200 text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-md shadow-sm">
+              <div className="bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-md shadow-sm">
                 {activeFilters?.district || treeFilter.district}
               </div>
             )}
 
             {treeFilter.actionType && (
-              <div className="bg-white border border-slate-200 text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-md shadow-sm">
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-md shadow-sm">
                 {treeFilter.actionType.charAt(0).toUpperCase() + treeFilter.actionType.slice(1)}
               </div>
             )}
             
             {treeFilter.date && (
-              <div className="bg-white border border-slate-200 text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-md shadow-sm">
+              <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold px-2.5 py-1 rounded-md shadow-sm">
                 {new Date(treeFilter.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </div>
             )}
@@ -891,8 +1085,8 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
           </div>
         )}
         
-        {/* Filter Toggle + Checkbox Row — Compact */}
-        <div className="flex items-center gap-3">
+        {/* Filter Toggle + Checkbox Row — Compact and Centered */}
+        <div className="flex items-center justify-center gap-4 w-full pt-1">
           <input
             type="checkbox"
             checked={triageIds.length > 0 && triageIds.length === eligibleCount && eligibleCount > 0}
@@ -909,7 +1103,7 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
               setFilterMode(mode);
               setCurrentPage(0);
             }}
-            className="mb-0 w-full max-w-[420px]"
+            className="mb-0"
           />
         </div>
         
@@ -918,7 +1112,7 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
         </AnimatePresence>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 bg-gradient-to-br from-slate-50/40 via-white to-blue-50/30 relative min-h-[500px]">
+      <div ref={scrollRef} className="flex-1 p-3 bg-gradient-to-br from-slate-50 via-white to-slate-50 relative">
         {/* Background decoration */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl" />
@@ -927,14 +1121,11 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
         </div>
         {displayPatients.length > 0 ? (
           viewMode === 'list' ? (
-            <div className="h-full">
-              <FiveColumnListView
-                patients={displayPatients}
-                onPatientClick={onPatientClick}
-                isSuspectedTB={isSuspectedTB}
-                calculatePatientPhase={calculatePatientPhase}
-              />
-            </div>
+            <SevenColumnListView
+              patients={displayPatients}
+              onPatientClick={onPatientClick}
+              isSuspectedTB={isSuspectedTB}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pt-2">
               {displayPatients.map((patient) => (
@@ -999,37 +1190,7 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
         )}
       </div>
 
-      {/* Task 2: Pagination Controls */}
-      {filteredPatients.length > ITEMS_PER_PAGE && (
-        <div className="border-t border-white/20 bg-white/10 backdrop-blur-md p-4 flex items-center justify-between">
-          <div className="text-sm font-medium text-slate-600">
-            Page {currentPage + 1} of {totalPages} • Showing {paginatedPatients.length} of {displayPatients.length}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => { sounds.buttonClick(); setCurrentPage(p => Math.max(0, p - 1)); }}
-              disabled={currentPage === 0}
-              variant="outline"
-              size="sm"
-              className="gap-1"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Previous
-            </Button>
-            <Button
-              onClick={() => { sounds.buttonClick(); setCurrentPage(p => Math.min(totalPages - 1, p + 1)); }}
-              disabled={currentPage === totalPages - 1}
-              variant="outline"
-              size="sm"
-              className="gap-1"
-            >
-              Next
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      )}
-
+      
       <AnimatePresence>
         {triageIds.length > 0 && (
           <motion.div
@@ -1090,17 +1251,111 @@ interface TwoColumnListViewProps {
   patients: Patient[];
   onPatientClick?: (patient: Patient) => void;
   isSuspectedTB: (p: Patient) => boolean;
-  calculatePatientPhase: (p: Patient) => { phase: string };
 }
 
-function FiveColumnListView({ patients, onPatientClick, isSuspectedTB }: TwoColumnListViewProps) {
-  // Split into 5 columns
-  const fifth = Math.ceil(patients.length / 5);
-  const col1 = patients.slice(0, fifth);
-  const col2 = patients.slice(fifth, fifth * 2);
-  const col3 = patients.slice(fifth * 2, fifth * 3);
-  const col4 = patients.slice(fifth * 3, fifth * 4);
-  const col5 = patients.slice(fifth * 4);
+function useCountUp(target: number, duration = 600) {
+  const [count, setCount] = useState(0);
+  const hasAnimated = useRef(false);
+  
+  useEffect(() => {
+    if (hasAnimated.current) {
+      setCount(target);
+      return;
+    }
+    if (target === 0) { 
+      setCount(0); 
+      hasAnimated.current = true;
+      return; 
+    }
+    // Smaller numbers animate faster
+    const actualDuration = target === 1 ? 300 : duration;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const progress = Math.min((now - start) / actualDuration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      setCount(Math.floor(eased * target));
+      if (progress < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        setCount(target);
+        hasAnimated.current = true;
+      }
+    };
+    requestAnimationFrame(tick);
+  }, [target, duration]);
+  return count;
+}
+
+// ─── Memoized Header Stats Component ─────────────────────────────────────
+interface HeaderStatsProps {
+  displayPatients: Patient[];
+}
+
+const HeaderStats = memo(function HeaderStats({ displayPatients }: HeaderStatsProps) {
+  // Memoize expensive calculations
+  const stats = useMemo(() => {
+    const screenedCount = displayPatients.length;
+    const tbCount = displayPatients.filter(p => p.tb_diagnosed === 'Y' || p.tb_diagnosed === 'Yes').length;
+    const suspectedCount = displayPatients.filter(p => {
+      const xrayResult = p.xray_result || p.chest_x_ray_result || (p as any)['Chest X-ray Result'];
+      if (!xrayResult) return false;
+      const resultStr = xrayResult.toString().toLowerCase();
+      return resultStr === 'suspected tb case' || resultStr.includes('abnormal') || resultStr.includes('suspected');
+    }).length;
+    return { screenedCount, tbCount, suspectedCount };
+  }, [displayPatients]);
+
+  const animatedScreened = useCountUp(stats.screenedCount);
+  const animatedTb = useCountUp(stats.tbCount);
+  const animatedSuspected = useCountUp(stats.suspectedCount);
+
+  return (
+    <div className="text-holder-stats flex-1 min-w-0">
+      <h1 className="stats-typer text-sm font-semibold tracking-wide">
+        <span className="text-gray-500">On</span>{' '}
+        <span className="premium-gradient-text font-bold">
+          {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        </span>
+        {', in '}
+        <span className="premium-location">{getLocationText(displayPatients)}</span>
+        {' — '}
+        <span className="text-lg font-bold text-gray-900">{animatedScreened}</span>
+        <span className="text-gray-500 font-normal ml-1">screened</span>
+        <span className="mx-2 text-gray-300">|</span>
+        {stats.tbCount > 0 ? (
+          <span className="premium-gradient-rose text-lg font-bold">{animatedTb}</span>
+        ) : (
+          <span className="text-lg font-bold text-gray-500">{animatedTb}</span>
+        )}
+        <span className="text-gray-500 font-normal ml-1">TB+</span>
+        <span className="mx-2 text-gray-300">|</span>
+        {stats.suspectedCount > 0 ? (
+          <span className="premium-gradient-amber text-lg font-bold">{animatedSuspected}</span>
+        ) : (
+          <span className="text-lg font-bold text-gray-500">{animatedSuspected}</span>
+        )}
+        <span className="text-gray-500 font-normal ml-1">suspected</span>
+      </h1>
+    </div>
+  );
+});
+
+function SevenColumnListView({ patients, onPatientClick, isSuspectedTB }: TwoColumnListViewProps) {
+  // Memoize column split calculations
+  const columns = useMemo(() => {
+    const seventh = Math.ceil(patients.length / 7);
+    return {
+      col1: patients.slice(0, seventh),
+      col2: patients.slice(seventh, seventh * 2),
+      col3: patients.slice(seventh * 2, seventh * 3),
+      col4: patients.slice(seventh * 3, seventh * 4),
+      col5: patients.slice(seventh * 4, seventh * 5),
+      col6: patients.slice(seventh * 5, seventh * 6),
+      col7: patients.slice(seventh * 6),
+    };
+  }, [patients]);
+  
+  const { col1, col2, col3, col4, col5, col6, col7 } = columns;
 
   // Column refs for potential future scroll features
   const col1Ref = useRef<HTMLDivElement>(null);
@@ -1108,89 +1363,283 @@ function FiveColumnListView({ patients, onPatientClick, isSuspectedTB }: TwoColu
   const col3Ref = useRef<HTMLDivElement>(null);
   const col4Ref = useRef<HTMLDivElement>(null);
   const col5Ref = useRef<HTMLDivElement>(null);
+  const col6Ref = useRef<HTMLDivElement>(null);
+  const col7Ref = useRef<HTMLDivElement>(null);
 
-  // Removed auto-scroll to prevent rendering issues
+  // Helper function to determine patient status with priority
+  const getPatientStatus = (patient: Patient): 'normal' | 'suspected' | 'tbDiagnosed' | 'attInitiated' | 'attCompleted' | 'default' => {
+    if (isATTCompleted(patient)) return 'attCompleted';
+    if (isATTInitiated(patient)) return 'attInitiated';
+    if (isTBDiagnosed(patient)) return 'tbDiagnosed';
+    if (isSuspectedTB(patient)) return 'suspected';
+    return 'normal';
+  };
 
-  const MiniCard = ({ patient }: { patient: Patient }) => {
-    const suspected = isSuspectedTB(patient);
+  // Status-based styling configuration
+  const statusStyles = {
+    normal: {
+      border: 'border-l-emerald-500',
+      bg: 'bg-emerald-50/50',
+      borderColor: 'border-emerald-200',
+    },
+    suspected: {
+      border: 'border-l-amber-400',
+      bg: 'bg-amber-50',
+      borderColor: 'border-amber-200',
+    },
+    tbDiagnosed: {
+      border: 'border-l-red-500',
+      bg: 'bg-red-50',
+      borderColor: 'border-red-200',
+    },
+    attInitiated: {
+      border: 'border-l-blue-400',
+      bg: 'bg-blue-50',
+      borderColor: 'border-blue-200',
+    },
+    attCompleted: {
+      border: 'border-l-violet-400',
+      bg: 'bg-violet-50',
+      borderColor: 'border-violet-200',
+    },
+    default: {
+      border: 'border-l-gray-300',
+      bg: 'bg-white',
+      borderColor: 'border-gray-200',
+    },
+  };
+
+  const MiniCard = memo(function MiniCard({ patient, cardIndex, hasStatusTint }: { patient: Patient; cardIndex: number; hasStatusTint: boolean }) {
+    const status = getPatientStatus(patient);
+    const styles = statusStyles[status];
+    const isTb = status === 'tbDiagnosed' || status === 'suspected';
+    
+    // Alternating background for normal cards only
+    const isEven = cardIndex % 2 === 1;
+    const alternatingBg = !hasStatusTint && isEven ? 'bg-gray-50/60' : '';
+    
+    // Determine hover background based on alternating state
+    const hoverBg = alternatingBg ? 'hover:bg-white' : 'hover:bg-gray-50';
+    
+    // Status glow color
+    const statusGlowColor = {
+      normal: 'rgba(16,185,129,0.15)',
+      suspected: 'rgba(245,158,11,0.25)',
+      tbDiagnosed: 'rgba(244,63,94,0.3)',
+      attInitiated: 'rgba(59,130,246,0.2)',
+      attCompleted: 'rgba(139,92,246,0.2)',
+      default: 'rgba(0,0,0,0.05)',
+    }[status];
     
     return (
-      <div
+      <motion.div
         onClick={() => onPatientClick?.(patient)}
-        className={`group relative rounded-xl p-3 cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
-          suspected
-            ? 'bg-gradient-to-br from-rose-50 to-pink-50 border border-rose-200 hover:border-rose-300 hover:shadow-lg'
-            : 'bg-white border border-gray-200 hover:border-gray-300 hover:shadow-lg'
-        }`}
+        className={`group relative px-3 py-2 cursor-pointer gpu-accelerated ${styles.bg} ${alternatingBg} ${hoverBg}`}
+        style={{
+          borderRadius: '4px 8px 8px 4px',
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255,255,255,0.6)',
+          boxShadow: `
+            0 1px 2px rgba(0,0,0,0.04),
+            0 2px 4px rgba(0,0,0,0.03),
+            0 4px 8px rgba(0,0,0,0.02),
+            inset 0 1px 0 rgba(255,255,255,0.8),
+            0 0 0 1px rgba(0,0,0,0.08)
+          `,
+          willChange: 'transform',
+          contain: 'layout paint',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.boxShadow = `
+            0 2px 4px rgba(0,0,0,0.05),
+            0 4px 8px rgba(0,0,0,0.04),
+            0 8px 16px rgba(0,0,0,0.03),
+            0 16px 32px ${statusGlowColor},
+            inset 0 1px 0 rgba(255,255,255,0.9),
+            0 0 0 1px rgba(0,0,0,0.12),
+            0 0 20px ${statusGlowColor}
+          `;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.boxShadow = `
+            0 1px 2px rgba(0,0,0,0.04),
+            0 2px 4px rgba(0,0,0,0.03),
+            0 4px 8px rgba(0,0,0,0.02),
+            inset 0 1px 0 rgba(255,255,255,0.8),
+            0 0 0 1px rgba(0,0,0,0.08)
+          `;
+        }}
+        whileTap={{ scale: 0.98 }}
+        layout={false}
       >
-        {/* Status indicator line */}
+        {/* Status indicator line with glow */}
         <div 
-          className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${
-            suspected 
-              ? 'bg-gradient-to-b from-rose-400 to-rose-600' 
-              : 'bg-gradient-to-b from-emerald-400 to-emerald-600'
-          }`}
+          className={`absolute left-0 top-0 bottom-0 w-1 ${styles.border}`}
+          style={{ 
+            borderRadius: '4px 0 0 4px',
+            boxShadow: `0 0 8px ${statusGlowColor}, 0 0 16px ${statusGlowColor}`,
+          }}
         />
         
-        <div className="flex items-center justify-between gap-2 pl-2">
+        <div className="flex items-center justify-between gap-2 pl-2.5">
           <div className="flex-1 min-w-0">
-            <h4 className="text-xs font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+            <h4 className="text-[13px] font-semibold text-gray-900 leading-tight truncate" style={{ color: '#111827' }}>
               {patient.inmate_name || 'No Name'}
             </h4>
-            <p className="text-[10px] text-gray-600 truncate">
-              {patient.facility_name || 'No Facility'}
+            <p className="text-[10px] font-medium uppercase tracking-wide truncate" style={{ letterSpacing: '0.04em', color: '#9ca3af' }}>
+              {patient.facility_name || 'SJ'}
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">
-            {suspected && (
-              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+            {isTb && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200 uppercase">
                 TB
               </span>
             )}
-            <span className="text-[8px] text-gray-500 font-medium bg-gray-50 px-1.5 py-0.5 rounded">
+            <span className="text-[11px] tabular-nums" style={{ letterSpacing: '0', color: '#6b7280' }}>
               {(() => {
                 const mostRecentDate = getMostRecentClinicalDate(patient);
                 return mostRecentDate ? 
                   mostRecentDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 
-                  'No Date';
+                  '02 May';
               })()}
             </span>
           </div>
         </div>
-      </div>
+      </motion.div>
     );
-  };
+  });
 
-  const Column = ({ title, patients, count, scrollRef }: { 
+  const Column = ({ title, patients, count, index: columnIndex }: { 
     title: string; 
     patients: Patient[]; 
     count: number; 
-    scrollRef: React.RefObject<HTMLDivElement>;
+    index: number;
   }) => {
     return (
-      <div className="flex flex-col min-w-0 h-full">
-        
-        {/* Scroll container */}
+      <div 
+        className={`flex flex-col min-w-0 h-full ${columnIndex < 6 ? 'border-r' : ''}`}
+        style={{ borderRightColor: columnIndex < 6 ? 'rgba(0,0,0,0.15)' : undefined }}
+      >
+        {/* Column Header - Sticky with Glassmorphism */}
         <div 
-          ref={scrollRef}
-          className="flex-1 overflow-y-auto overflow-x-hidden px-1.5 space-y-2"
-          style={{ maxHeight: 'calc(100vh - 300px)' }}
+          className="px-3 py-2.5 sticky top-0 z-10"
+          style={{ 
+            background: 'rgba(255,255,255,0.85)',
+            backdropFilter: 'blur(12px) saturate(180%)',
+            borderBottom: '1px solid rgba(0,0,0,0.08)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04), inset 0 -1px 0 rgba(255,255,255,0.5)',
+          }}
         >
-          {patients.map((patient, index) => (
-            <MiniCard key={`${title}-${patient.id}-${index}`} patient={patient} />
-          ))}
+          <div className="flex items-center justify-between">
+            <span 
+              className="text-[11px] font-semibold uppercase tracking-wider"
+              style={{ 
+                color: '#374151',
+                letterSpacing: '0.06em',
+                textShadow: '0 1px 0 rgba(255,255,255,0.8)',
+              }}
+            >
+              Col {columnIndex + 1}
+            </span>
+            <span 
+              className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+              style={{ 
+                color: '#6b7280',
+                background: 'rgba(0,0,0,0.04)',
+                letterSpacing: '0.02em',
+              }}
+            >
+              {count}
+            </span>
+          </div>
+        </div>
+        
+        {/* Cards container - no scroll, shares parent scroll */}
+        <div className="px-2 py-2 space-y-2 cards-container">
+          {patients.map((patient, idx) => {
+            const status = getPatientStatus(patient);
+            const hasStatusTint = status !== 'normal' && status !== 'default';
+            return (
+              <MiniCard 
+                key={`${title}-${patient.id}-${idx}`} 
+                patient={patient} 
+                cardIndex={idx}
+                hasStatusTint={hasStatusTint}
+              />
+            );
+          })}
         </div>
       </div>
     );
   };
 
   return (
-    <div className="h-full w-full grid grid-cols-5 gap-3 p-4 bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl">
-      <Column title="C1" patients={col1} count={col1.length} scrollRef={col1Ref} />
-      <Column title="C2" patients={col2} count={col2.length} scrollRef={col2Ref} />
-      <Column title="C3" patients={col3} count={col3.length} scrollRef={col3Ref} />
-      <Column title="C4" patients={col4} count={col4.length} scrollRef={col4Ref} />
-      <Column title="C5" patients={col5} count={col5.length} scrollRef={col5Ref} />
-    </div>
+    <>
+      <style>{`
+        .premium-scrollbar::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        .premium-scrollbar::-webkit-scrollbar-track {
+          background: rgba(0,0,0,0.03);
+          border-radius: 4px;
+        }
+        .premium-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(0,0,0,0.25);
+          border-radius: 4px;
+          border: 2px solid transparent;
+          background-clip: padding-box;
+        }
+        .premium-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(0,0,0,0.40);
+          border: 2px solid transparent;
+          background-clip: padding-box;
+        }
+        .premium-scrollbar::-webkit-scrollbar-corner {
+          background: transparent;
+        }
+        .smooth-scroll {
+          scroll-behavior: smooth;
+          -webkit-overflow-scrolling: touch;
+          will-change: scroll-position;
+          contain: layout paint;
+        }
+        .gpu-accelerated {
+          transform: translateZ(0);
+          backface-visibility: hidden;
+          perspective: 1000px;
+        }
+      `}</style>
+      <div 
+        className="w-full grid grid-cols-7 px-0 overflow-y-auto premium-scrollbar smooth-scroll gpu-accelerated"
+        style={{ 
+          maxHeight: 'calc(100vh - 180px)',
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(20px) saturate(150%)',
+          borderRadius: '16px',
+          border: '1px solid rgba(255,255,255,0.5)',
+          boxShadow: `
+            0 1px 2px rgba(0,0,0,0.02),
+            0 4px 8px rgba(0,0,0,0.03),
+            0 8px 16px rgba(0,0,0,0.03),
+            0 16px 32px rgba(0,0,0,0.02),
+            0 32px 64px rgba(0,0,0,0.01),
+            inset 0 1px 0 rgba(255,255,255,0.8),
+            0 0 0 1px rgba(0,0,0,0.08)
+          `,
+          overscrollBehavior: 'contain',
+        }}
+      >
+        <Column title="C1" patients={col1} count={col1.length} index={0} />
+        <Column title="C2" patients={col2} count={col2.length} index={1} />
+        <Column title="C3" patients={col3} count={col3.length} index={2} />
+        <Column title="C4" patients={col4} count={col4.length} index={3} />
+        <Column title="C5" patients={col5} count={col5.length} index={4} />
+        <Column title="C6" patients={col6} count={col6.length} index={5} />
+        <Column title="C7" patients={col7} count={col7.length} index={6} />
+      </div>
+    </>
   );
 }

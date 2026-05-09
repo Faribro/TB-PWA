@@ -99,34 +99,42 @@ function filterPatients(patients: Patient[], mode: FilterMode): Patient[] {
 const pillStyles: Record<FilterMode, {
   background: string;
   boxShadow: string;
+  border: string;
 }> = {
   all: {
     background: '#ffffff',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+    border: '1px solid rgba(0,0,0,0.08)',
   },
   suspected: {
-    background: 'linear-gradient(135deg, #F59E0B, #EF4444)',
-    boxShadow: '0 3px 10px rgba(245,158,11,0.40)',
+    background: '#ffffff',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+    border: '1px solid rgba(0,0,0,0.08)',
   },
   normal: {
-    background: 'linear-gradient(135deg, #10B981, #059669)',
-    boxShadow: '0 3px 10px rgba(16,185,129,0.38)',
+    background: '#ffffff',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+    border: '1px solid rgba(0,0,0,0.08)',
   },
   tbDiagnosed: {
-    background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)',
-    boxShadow: '0 3px 10px rgba(139,92,246,0.40)',
+    background: '#ffffff',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+    border: '1px solid rgba(0,0,0,0.08)',
   },
   notDiagnosed: {
-    background: 'linear-gradient(135deg, #F97316, #EA580C)',
-    boxShadow: '0 3px 10px rgba(249,115,22,0.40)',
+    background: '#ffffff',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+    border: '1px solid rgba(0,0,0,0.08)',
   },
   attInitiated: {
-    background: 'linear-gradient(135deg, #06B6D4, #0891B2)',
-    boxShadow: '0 3px 10px rgba(6,182,212,0.40)',
+    background: '#ffffff',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+    border: '1px solid rgba(0,0,0,0.08)',
   },
   attCompleted: {
-    background: 'linear-gradient(135deg, #84CC16, #65A30D)',
-    boxShadow: '0 3px 10px rgba(132,204,22,0.40)',
+    background: '#ffffff',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+    border: '1px solid rgba(0,0,0,0.08)',
   },
 };
 
@@ -179,8 +187,31 @@ export function TBFilterToggle({ patients, onFilterChange, className = '' }: TBF
   }, [active, counts]);
 
   return (
-    <div className={className}>
-      {/* Container pill */}
+    <div className={className} style={{ borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+      <style>{`
+        .neon-tab-active {
+          box-shadow: 
+            0 1px 2px rgba(0,0,0,0.06),
+            0 0 0 1px rgba(6,182,212,0.15),
+            0 0 12px rgba(6,182,212,0.15),
+            inset 0 0 0 1px rgba(255,255,255,0.8) !important;
+        }
+        .neon-tab-suspected {
+          box-shadow: 
+            0 1px 2px rgba(0,0,0,0.06),
+            0 0 0 1px rgba(245,158,11,0.2),
+            0 0 12px rgba(245,158,11,0.15),
+            inset 0 0 0 1px rgba(255,255,255,0.8) !important;
+        }
+        .neon-tab-tb {
+          box-shadow: 
+            0 1px 2px rgba(0,0,0,0.06),
+            0 0 0 1px rgba(244,63,94,0.2),
+            0 0 12px rgba(244,63,94,0.15),
+            inset 0 0 0 1px rgba(255,255,255,0.8) !important;
+        }
+      `}</style>
+      {/* Container - Linear style with neon accent */}
       <div
         role="group"
         aria-label="Filter patients by TB screening result"
@@ -188,10 +219,7 @@ export function TBFilterToggle({ patients, onFilterChange, className = '' }: TBF
           display: 'inline-flex',
           alignItems: 'center',
           gap: 2,
-          padding: 3,
-          background: '#F0EFEB',
-          border: '1px solid rgba(0,0,0,0.07)',
-          borderRadius: 999,
+          padding: '4px 0',
           position: 'relative',
           height: 36,
         }}
@@ -213,53 +241,51 @@ export function TBFilterToggle({ patients, onFilterChange, className = '' }: TBF
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                borderRadius: 999,
-                height: 30,
-                padding: '0 14px',
+                borderRadius: 6,
+                height: 28,
+                padding: '0 12px',
                 fontSize: 11,
-                fontWeight: 800,
+                fontWeight: isActive ? 600 : 400,
                 textTransform: 'uppercase' as const,
-                letterSpacing: '0.07em',
+                letterSpacing: '0.04em',
                 cursor: 'pointer',
                 userSelect: 'none' as const,
                 whiteSpace: 'nowrap' as const,
-                border: 'none',
-                background: 'transparent',
+                border: isActive 
+                  ? (seg.id === 'suspected' ? '1px solid rgba(245,158,11,0.4)' : 
+                     seg.id === 'tbDiagnosed' ? '1px solid rgba(244,63,94,0.4)' : 
+                     '1px solid rgba(6,182,212,0.4)')
+                  : '1px solid transparent',
+                background: isActive ? '#ffffff' : 'transparent',
+                boxShadow: isActive 
+                  ? (seg.id === 'suspected' 
+                      ? '0 1px 2px rgba(0,0,0,0.06), 0 0 0 1px rgba(245,158,11,0.15), 0 0 12px rgba(245,158,11,0.12)'
+                      : seg.id === 'tbDiagnosed'
+                      ? '0 1px 2px rgba(0,0,0,0.06), 0 0 0 1px rgba(244,63,94,0.15), 0 0 12px rgba(244,63,94,0.12)'
+                      : '0 1px 2px rgba(0,0,0,0.06), 0 0 0 1px rgba(6,182,212,0.15), 0 0 12px rgba(6,182,212,0.12)')
+                  : 'none',
                 color: isActive
-                  ? seg.id === 'all'
-                    ? '#374151'
-                    : '#ffffff'
-                  : '#9CA3AF',
-                transition: 'color 150ms ease',
+                  ? (seg.id === 'suspected' ? '#b45309' : 
+                     seg.id === 'tbDiagnosed' ? '#be123c' : 
+                     '#0e7490')
+                  : '#6b7280',
+                transition: 'all 140ms ease',
                 outline: 'none',
               }}
               onMouseEnter={(e) => {
-                if (!isActive) (e.currentTarget.style.color = '#4B5563');
+                if (!isActive) {
+                  e.currentTarget.style.color = '#374151';
+                  e.currentTarget.style.background = 'rgba(0,0,0,0.02)';
+                }
               }}
               onMouseLeave={(e) => {
-                if (!isActive) (e.currentTarget.style.color = '#9CA3AF');
+                if (!isActive) {
+                  e.currentTarget.style.color = '#6b7280';
+                  e.currentTarget.style.background = 'transparent';
+                }
               }}
               className="tb-filter-btn"
             >
-              {/* Animated Pill — only on the active segment */}
-              {isActive && (
-                <motion.span
-                  layoutId="tb-pill"
-                  transition={{ type: 'spring', stiffness: 550, damping: 38, mass: 0.7 }}
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    borderRadius: 999,
-                    background: pillStyles[seg.id].background,
-                    boxShadow: pillStyles[seg.id].boxShadow,
-                    zIndex: -1,
-                  }}
-                  {...(seg.id === 'suspected' && {
-                    initial: { scale: 0.97 },
-                    animate: { scale: 1 },
-                  })}
-                />
-              )}
 
               {/* Icon — All Patients active only */}
               <AnimatePresence>
@@ -428,26 +454,22 @@ export function TBFilterToggle({ patients, onFilterChange, className = '' }: TBF
                 style={{
                   position: 'relative',
                   zIndex: 1,
-                  height: 18,
-                  minWidth: 18,
-                  padding: '0 5px',
+                  height: 16,
+                  minWidth: 16,
+                  padding: '0 4px',
                   borderRadius: 999,
                   fontSize: 10,
-                  fontWeight: 700,
+                  fontWeight: isActive ? 500 : 400,
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   lineHeight: 1,
                   background: isActive
-                    ? seg.id === 'all'
-                      ? 'rgba(0,0,0,0.08)'
-                      : 'rgba(255,255,255,0.28)'
-                    : 'rgba(0,0,0,0.08)',
+                    ? '#f3f4f6'
+                    : 'transparent',
                   color: isActive
-                    ? seg.id === 'all'
-                      ? '#374151'
-                      : '#ffffff'
-                    : '#6B7280',
+                    ? '#374151'
+                    : '#9ca3af',
                   transition: 'background 150ms ease, color 150ms ease',
                 }}
               >
