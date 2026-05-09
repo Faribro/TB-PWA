@@ -23,15 +23,7 @@ export async function queuePatientSyncDB(
       .from('sync_queue')
       .insert({
         patient_id: patient.id,
-        payload: {
-          id: patient.id,
-          kobo_uuid: patient.kobo_uuid,
-          unique_id: patient.unique_id,
-          inmate_name: patient.inmate_name,
-          age: patient.age,
-          contact_number: patient.contact_number,
-          screening_state: patient.screening_state,
-        },
+        payload: patient, // CRITICAL FIX: Send complete patient object
         operation,
         status: 'pending',
         retry_count: 0,
