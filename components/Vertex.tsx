@@ -148,7 +148,6 @@ const CalendarHeader = ({
   // Memoize formatted date to prevent hydration mismatch
   const formattedMonth = useMemo(() => {
     if (!mounted) return 'Loading...';
-    console.log('[CalendarHeader] Formatting date:', currentDate.toISOString());
     return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   }, [currentDate, mounted]);
 
@@ -246,32 +245,34 @@ const CalendarGrid = ({
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   
-  console.log('[CalendarGrid] Render - year:', year, 'month:', month, 'heatmapData length:', heatmapData.length);
-  
   const firstDay = useMemo(() => {
     const day = new Date(year, month, 1).getDay();
-    console.log('[CalendarGrid] firstDay:', day);
     return day;
   }, [year, month]);
   
   const daysInMonth = useMemo(() => {
     const days = new Date(year, month + 1, 0).getDate();
-    console.log('[CalendarGrid] daysInMonth:', days);
     return days;
   }, [year, month]);
   
+  // OPTIMIZATION 3: Convert heatmap array to Map for O(1) lookups
+  const heatmapMap = useMemo(() => {
+    const map = new Map<string, MonthlyHeatmapData>();
+    heatmapData.forEach(d => map.set(d.date, d));
+    return map;
+  }, [heatmapData]);
+  
   const days = useMemo(() => {
-    console.log('[CalendarGrid] Computing days array - firstDay:', firstDay, 'daysInMonth:', daysInMonth);
     return Array.from({ length: 42 }, (_, i) => {
       const dayNum = i - firstDay + 1;
       if (dayNum < 1 || dayNum > daysInMonth) return null;
       
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-      const dayData = heatmapData.find(d => d.date === dateStr);
+      const dayData = heatmapMap.get(dateStr);
       
       return { dayNum, dateStr, data: dayData };
     });
-  }, [firstDay, daysInMonth, year, month, heatmapData]);
+  }, [firstDay, daysInMonth, year, month, heatmapMap]);
 
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -719,19 +720,17 @@ export default function Vertex({
   const { mutate } = useSWRConfig();
   const hasAutoJumpedRef = useRef(false);
   const currentDateRef = useRef(currentDate);
+  
+  // OPTIMIZATION 2: Refs for stable realtime subscription
+  const selectedDateRef = useRef(selectedDate);
+  const selectedFacilityRef = useRef(selectedFacility);
+
+  // Keep refs in sync without triggering callback recreation
+  useEffect(() => { selectedDateRef.current = selectedDate; }, [selectedDate]);
+  useEffect(() => { selectedFacilityRef.current = selectedFacility; }, [selectedFacility]);
 
   // Reusable filtered patients to ensure consistency across all metrics
   const filteredGlobalPatients = useMemo(() => {
-    // Sample first patient to check field names
-    const samplePatient = globalPatients[0];
-    console.log('📋 Sample patient data structure:', {
-      availableFields: samplePatient ? Object.keys(samplePatient) : 'No patients',
-      sampleState: samplePatient?.screening_state || samplePatient?.state,
-      sampleDistrict: samplePatient?.screening_district || samplePatient?.district,
-      filterState,
-      filterDistrict
-    });
-    
     const filtered = globalPatients.filter((p: any) => {
       // Apply state filter - check multiple possible field names
       const patientState = p.screening_state || p.state;
@@ -748,23 +747,6 @@ export default function Vertex({
       
       return true;
     });
-    
-    // Debug logging
-    console.log('🔍 Filter Debug:', {
-      totalPatients: globalPatients.length,
-      filteredPatients: filtered.length,
-      filterState,
-      filterDistrict,
-      hasStateFilter: filterState !== 'All',
-      hasDistrictFilter: filterDistrict !== 'All',
-      filterReducedCount: globalPatients.length - filtered.length
-    });
-    
-    // Show sample of filtered vs unfiltered states
-    if (filterState !== 'All') {
-      const uniqueStates = [...new Set(globalPatients.map(p => p.screening_state || p.state).filter(Boolean))];
-      console.log('🗺️ Available states in data:', uniqueStates);
-    }
     
     return filtered;
   }, [globalPatients, filterState, filterDistrict]);
@@ -814,7 +796,6 @@ export default function Vertex({
   }, [currentDate]);
 
   useEffect(() => {
-    console.log('[Vertex] Mounting component, setting mounted=true');
     setMounted(true);
   }, []);
 
@@ -848,103 +829,100 @@ export default function Vertex({
   const availableStates = filtersData?.availableStates || [];
   const availableDistricts = filtersData?.availableDistricts || [];
 
+  // OPTIMIZATION 2: Stable callback for realtime updates - mutate functions from SWR are stable
+  const handleRealtimeUpdate = useCallback((payload: any) => {
+    const currentSelectedDate = selectedDateRef.current;
+    const currentSelectedFacility = selectedFacilityRef.current;
+    
+    const { eventType, old: oldRecord, new: newRecord } = payload;
+    const targets = new Set<string>();
+
+    // INSERT/DELETE always affect counts and potentially filters
+    if (eventType === 'INSERT' || eventType === 'DELETE') {
+      targets.add('heatmap');
+      targets.add('monthSummary');
+      if (currentSelectedDate) targets.add('daily');
+      if (currentSelectedDate) targets.add('geoSummary');
+      if (currentSelectedDate) targets.add('patientsByDate');
+      if (currentSelectedFacility && currentSelectedDate) targets.add('patientsByFacility');
+      
+      // Filters only affected if a new state/district is added or removed
+      if (eventType === 'INSERT' && newRecord?.screening_state) {
+        targets.add('filters');
+      }
+      if (eventType === 'DELETE' && oldRecord?.screening_state) {
+        targets.add('filters');
+      }
+    }
+
+    // UPDATE: only invalidate based on which fields changed
+    if (eventType === 'UPDATE') {
+      const changedFields = new Set<string>();
+      if (oldRecord && newRecord) {
+        Object.keys(newRecord).forEach(key => {
+          if (oldRecord[key] !== newRecord[key]) {
+            changedFields.add(key);
+          }
+        });
+      }
+
+      // Date-related changes affect heatmap, daily, patients-by-date, geo-summary
+      if (changedFields.has('screening_date') || changedFields.has('submitted_on')) {
+        targets.add('heatmap');
+        if (currentSelectedDate) targets.add('daily');
+        if (currentSelectedDate) targets.add('geoSummary');
+        if (currentSelectedDate) targets.add('patientsByDate');
+        if (currentSelectedFacility && currentSelectedDate) targets.add('patientsByFacility');
+      }
+
+      // Geography changes affect filters, geo-summary, patients-by-date
+      if (changedFields.has('screening_state') || changedFields.has('screening_district')) {
+        targets.add('filters');
+        if (currentSelectedDate) targets.add('geoSummary');
+        if (currentSelectedDate) targets.add('patientsByDate');
+        if (currentSelectedFacility && currentSelectedDate) targets.add('patientsByFacility');
+      }
+
+      // Facility changes affect geo-summary, patients-by-date
+      if (changedFields.has('facility_name')) {
+        if (currentSelectedDate) targets.add('geoSummary');
+        if (currentSelectedDate) targets.add('patientsByDate');
+        if (currentSelectedFacility && currentSelectedDate) targets.add('patientsByFacility');
+      }
+
+      // Status/diagnosis changes affect aggregates
+      if (changedFields.has('xray_result') || changedFields.has('tb_diagnosed') || 
+          changedFields.has('att_start_date') || changedFields.has('referral_date')) {
+        targets.add('heatmap');
+        targets.add('monthSummary');
+        if (currentSelectedDate) targets.add('daily');
+      }
+    }
+
+    // Execute invalidations
+    if (targets.has('heatmap')) mutateHeatmap();
+    if (targets.has('monthSummary')) mutateMonthSummary();
+    if (targets.has('daily')) mutateDaily();
+    if (targets.has('geoSummary')) mutateGeoSummary();
+    if (targets.has('patientsByDate')) mutatePatientsByDate();
+    if (targets.has('patientsByFacility')) mutatePatientsByFacility();
+    if (targets.has('filters')) mutateFilters();
+  }, [mutateHeatmap, mutateMonthSummary, mutateDaily, mutateGeoSummary, mutatePatientsByDate, mutatePatientsByFacility, mutateFilters]);
+
   // ── SURGICAL REALTIME INVALIDATION ─────────────────────────────────────
   // Only invalidate endpoints that could be affected by the specific change
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     
-    // Helper: Determine which endpoints to invalidate based on payload
-    const getInvalidationTargets = (payload: any) => {
-      const { eventType, old: oldRecord, new: newRecord } = payload;
-      const targets = new Set<string>();
-
-      // INSERT/DELETE always affect counts and potentially filters
-      if (eventType === 'INSERT' || eventType === 'DELETE') {
-        targets.add('heatmap');
-        targets.add('monthSummary');
-        if (selectedDate) targets.add('daily');
-        if (selectedDate) targets.add('geoSummary');
-        if (selectedDate) targets.add('patientsByDate');
-        if (selectedFacility && selectedDate) targets.add('patientsByFacility');
-        
-        // Filters only affected if a new state/district is added or removed
-        if (eventType === 'INSERT' && newRecord?.screening_state) {
-          targets.add('filters');
-        }
-        if (eventType === 'DELETE' && oldRecord?.screening_state) {
-          targets.add('filters');
-        }
-        return targets;
-      }
-
-      // UPDATE: only invalidate based on which fields changed
-      if (eventType === 'UPDATE') {
-        const changedFields = new Set<string>();
-        if (oldRecord && newRecord) {
-          Object.keys(newRecord).forEach(key => {
-            if (oldRecord[key] !== newRecord[key]) {
-              changedFields.add(key);
-            }
-          });
-        }
-
-        // Date-related changes affect heatmap, daily, patients-by-date, geo-summary
-        if (changedFields.has('screening_date') || changedFields.has('submitted_on')) {
-          targets.add('heatmap');
-          if (selectedDate) targets.add('daily');
-          if (selectedDate) targets.add('geoSummary');
-          if (selectedDate) targets.add('patientsByDate');
-          if (selectedFacility && selectedDate) targets.add('patientsByFacility');
-        }
-
-        // Geography changes affect filters, geo-summary, patients-by-date
-        if (changedFields.has('screening_state') || changedFields.has('screening_district')) {
-          targets.add('filters');
-          if (selectedDate) targets.add('geoSummary');
-          if (selectedDate) targets.add('patientsByDate');
-          if (selectedFacility && selectedDate) targets.add('patientsByFacility');
-        }
-
-        // Facility changes affect geo-summary, patients-by-date
-        if (changedFields.has('facility_name')) {
-          if (selectedDate) targets.add('geoSummary');
-          if (selectedDate) targets.add('patientsByDate');
-          if (selectedFacility && selectedDate) targets.add('patientsByFacility');
-        }
-
-        // Status/diagnosis changes affect aggregates
-        if (changedFields.has('xray_result') || changedFields.has('tb_diagnosed') || 
-            changedFields.has('att_start_date') || changedFields.has('referral_date')) {
-          targets.add('heatmap');
-          targets.add('monthSummary');
-          if (selectedDate) targets.add('daily');
-        }
-      }
-
-      return targets;
-    };
-
     const channel = supabase
       .channel('vertex-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, (payload) => {
-        const targets = getInvalidationTargets(payload);
-        
-        if (targets.has('heatmap')) mutateHeatmap();
-        if (targets.has('monthSummary')) mutateMonthSummary();
-        if (targets.has('daily') && selectedDate) mutateDaily();
-        if (targets.has('geoSummary') && selectedDate) mutateGeoSummary();
-        if (targets.has('patientsByDate') && selectedDate) mutatePatientsByDate();
-        if (targets.has('patientsByFacility') && selectedFacility && selectedDate) mutatePatientsByFacility();
-        if (targets.has('filters')) {
-          mutateFilters();
-        }
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, handleRealtimeUpdate)
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [mutateHeatmap, mutateMonthSummary, mutateDaily, selectedDate, mutateGeoSummary, mutatePatientsByDate, mutatePatientsByFacility, selectedFacility, mutateFilters]);
+  }, [handleRealtimeUpdate]);
 
   // Use Redis-backed heatmap (instant reads)
   const heatmapData = useMemo(() => {
@@ -1000,7 +978,6 @@ export default function Vertex({
     
     // Only jump if different from current month
     if (monthKey(nextClamped) !== currentKey) {
-      console.log('[Vertex] Auto-jumping to latest month:', nextClamped);
       setCurrentDate(nextClamped);
       hasAutoJumpedRef.current = true; // ✅ Mark as complete after jump
     } else {
@@ -1067,14 +1044,6 @@ export default function Vertex({
       const state = patient.screening_state || 'Unknown State';
       const district = patient.screening_district || 'Unknown District';
       const facility = patient.facility_name || 'Unknown Facility';
-
-      // Debug Central Jail Nagpur specifically
-      if (facility.includes('Central Jail Nagpur') || facility.includes('Nagpur')) {
-        console.log('[Vertex] 🏢 Processing Central Jail Nagpur patient:');
-        console.log('[Vertex]   Patient State:', state);
-        console.log('[Vertex]   Patient District:', district);
-        console.log('[Vertex]   Patient Facility:', facility);
-      }
 
       let districtMap = stateMap.get(state);
       if (!districtMap) {
@@ -1229,18 +1198,6 @@ export default function Vertex({
   };
 
   const handleFacilityClick = (facilityName: string, state: string, district: string) => {
-    console.log('[Vertex] 🔍 Facility clicked:');
-    console.log('[Vertex]   Facility Name:', facilityName);
-    console.log('[Vertex]   State:', state);
-    console.log('[Vertex]   District:', district);
-    
-    // Check if this is Central Jail Nagpur and log the details
-    if (facilityName.includes('Central Jail Nagpur') || facilityName.includes('Nagpur')) {
-      console.log('[Vertex] 🚨 CENTRAL JAIL NAGPUR CLICKED!');
-      console.log('[Vertex]   Expected: Maharashtra, Nagpur');
-      console.log('[Vertex]   Actual:', { state, district });
-    }
-    
     setSelectedFacility({ name: facilityName, state, district });
   };
 
@@ -1259,6 +1216,25 @@ export default function Vertex({
     mutateDaily();
     mutate((key) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
   };
+
+  // OPTIMIZATION 4: Memoize inline metric computations
+  const pendingAlertsCount = useMemo(() => {
+    return filteredGlobalPatients.filter((p: any) => {
+      const xrayResult = (p.xray_result || '').toLowerCase();
+      const isAbnormal = xrayResult === 'suspected tb case' || xrayResult.includes('abnormal') || xrayResult.includes('suspected');
+      const noTreatment = !p.att_start_date && !p.referral_date;
+      return isAbnormal && noTreatment;
+    }).length;
+  }, [filteredGlobalPatients]);
+
+  const thisMonthScreenedCount = useMemo(() => {
+    return filteredGlobalPatients.filter((p: any) => {
+      const dateValue = p.screening_date || p.submitted_on;
+      if (!dateValue) return false;
+      const date = new Date(dateValue);
+      return date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
+    }).length;
+  }, [filteredGlobalPatients, currentDate]);
 
   const formattedDate = selectedDate 
     ? new Date(selectedDate).toLocaleDateString('en-US', {
@@ -1371,16 +1347,7 @@ export default function Vertex({
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-rose-500 transition-colors">Pending</div>
                   <div className="flex items-center gap-1">
                     <span className="text-lg sm:text-xl lg:text-2xl font-black text-rose-600 tracking-tighter whitespace-nowrap leading-none">
-                      {(() => {
-                        return filteredGlobalPatients.filter((p: any) => {
-                          const isAbnormal = (() => {
-                            const xrayResult = (p.xray_result || '').toLowerCase();
-                            return xrayResult === 'suspected tb case' || xrayResult.includes('abnormal') || xrayResult.includes('suspected');
-                          })();
-                          const noTreatment = !p.att_start_date && !p.referral_date;
-                          return isAbnormal && noTreatment;
-                        }).length;
-                      })().toLocaleString()}
+                      {pendingAlertsCount.toLocaleString()}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0 leading-none pt-0.5">Alerts</span>
                   </div>
@@ -1389,14 +1356,7 @@ export default function Vertex({
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-emerald-500 transition-colors">This Month</div>
                   <div className="flex items-center gap-1">
                     <span className="text-lg sm:text-xl lg:text-2xl font-black text-emerald-600 tracking-tighter whitespace-nowrap leading-none">
-                      {(() => {
-                        return filteredGlobalPatients.filter((p: any) => {
-                          const dateValue = p.screening_date || p.submitted_on;
-                          if (!dateValue) return false;
-                          const date = new Date(dateValue);
-                          return date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
-                        }).length;
-                      })().toLocaleString()}
+                      {thisMonthScreenedCount.toLocaleString()}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0 leading-none pt-0.5">Screened</span>
                   </div>
