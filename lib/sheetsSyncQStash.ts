@@ -170,11 +170,18 @@ export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 
       return;
     }
     
+    // CRITICAL FIX: Wrap patient in batch format for Google Apps Script
+    const batchPayload = {
+      batch: [patient],
+      batch_id: `dev-${Date.now()}`,
+      count: 1
+    };
+    
     // Send directly without QStash
     fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patient),
+      body: JSON.stringify(batchPayload),
     })
       .then(response => {
         if (response.ok || response.status === 302) {
