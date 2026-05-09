@@ -149,6 +149,7 @@ export async function queuePatientSyncQStash(
 /**
  * Fire-and-forget wrapper (never throws)
  * Automatically falls back to DB queue if QStash is not configured
+ * In development, sends directly to Google Sheets for immediate sync
  */
 export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 'update'): void {
   console.log('[QStash] 🎯 syncToSheetsAsync START - patient:', patient.id, 'operation:', operation);
@@ -159,6 +160,37 @@ export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 
     nodeEnv: process.env.NODE_ENV,
   });
   
+  // DEVELOPMENT: Send directly to Google Sheets (bypass QStash)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[QStash] 🔧 Development mode - sending directly to Google Sheets');
+    const webhookUrl = process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
+    
+    if (!webhookUrl) {
+      console.error('[QStash] ❌ GOOGLE_SCRIPT_WEBHOOK_URL not configured');
+      return;
+    }
+    
+    // Send directly without QStash
+    fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patient),
+    })
+      .then(response => {
+        if (response.ok || response.status === 302) {
+          console.log('[QStash] ✅ Direct sync to Google Sheets succeeded');
+        } else {
+          console.error('[QStash] ❌ Direct sync failed:', response.status);
+        }
+      })
+      .catch(error => {
+        console.error('[QStash] ❌ Direct sync error:', error.message);
+      });
+    
+    return;
+  }
+  
+  // PRODUCTION: Use QStash queue
   queuePatientSyncQStash(patient, operation)
     .then(result => {
       console.log('[QStash] 📊 Queue result:', result);
