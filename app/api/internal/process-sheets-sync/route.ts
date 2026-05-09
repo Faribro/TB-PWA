@@ -52,14 +52,30 @@ async function handler(request: NextRequest) {
       );
     }
     
-    // Send to Google Sheets
+    // CRITICAL FIX: Wrap single patient in batch format expected by Google Apps Script
+    const batchPayload = {
+      batch: [patient],
+      batch_id: `qstash-${patient.id}-${Date.now()}`,
+      count: 1,
+      attempt: 1
+    };
+    
+    console.log('[ProcessSync] 📤 Sending batch payload to Google Sheets:');
+    console.log('[ProcessSync]   patient_id:', patient.id);
+    console.log('[ProcessSync]   payload fields:', Object.keys(patient).length);
+    console.log('[ProcessSync]   batch format:', Object.keys(batchPayload));
+    
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 20000);
     
     const response = await fetch(webhookUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patient),
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'SAMADHAAN-Sheets-Sync-QStash/2.0'
+      },
+      body: JSON.stringify(batchPayload),
       signal: controller.signal,
     });
     

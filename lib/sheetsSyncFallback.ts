@@ -82,10 +82,27 @@ export async function processPendingSyncs(limit: number = 50): Promise<{
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 20000);
         
+        // CRITICAL FIX: Wrap single patient in batch format expected by Google Apps Script
+        const batchPayload = {
+          batch: [job.payload],
+          batch_id: `fallback-${job.id}`,
+          count: 1,
+          attempt: job.retry_count + 1
+        };
+        
+        console.log('[SyncDB] 📤 Sending batch payload to Google Sheets:');
+        console.log('[SyncDB]   patient_id:', job.patient_id);
+        console.log('[SyncDB]   payload fields:', Object.keys(job.payload).length);
+        console.log('[SyncDB]   batch format:', Object.keys(batchPayload));
+        
         const response = await fetch(webhookUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(job.payload),
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'User-Agent': 'SAMADHAAN-Sheets-Sync-Fallback/2.0'
+          },
+          body: JSON.stringify(batchPayload),
           signal: controller.signal,
         });
         
