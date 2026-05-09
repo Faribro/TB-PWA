@@ -20,6 +20,7 @@ export function isSuperuser(scope: SessionScope | null): boolean {
 
 const fetcher = async (url: string) => {
   try {
+    console.log('[fetcher] Attempting to fetch session scope from:', url);
     const res = await fetch(url);
     
     // Check if response is HTML (redirect to login page)
@@ -30,19 +31,42 @@ const fetcher = async (url: string) => {
     }
     
     if (!res.ok) {
+      console.error('[fetcher] HTTP error response:', {
+        status: res.status,
+        statusText: res.statusText,
+        url: url
+      });
+      
       if (res.status === 401) {
+        console.log('[fetcher] Unauthorized - returning null session scope');
         return null;
       }
+      
+      if (res.status === 500) {
+        console.error('[fetcher] Server error - attempting to parse error response');
+        try {
+          const errorData = await res.json();
+          console.error('[fetcher] Server error details:', errorData);
+        } catch (parseError) {
+          console.error('[fetcher] Could not parse error response');
+        }
+      }
+      
       const error = new Error('Failed to fetch session scope');
       console.error('[fetcher] HTTP error:', res.status, res.statusText);
       throw error;
     }
     
     const data = await res.json();
+    console.log('[fetcher] Successfully fetched session scope:', data);
     return data;
   } catch (error) {
     // Handle network errors or JSON parsing errors
     console.error('[fetcher] Network or parsing error:', error);
+    console.error('[fetcher] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : 'No stack trace'
+    });
     return null;
   }
 };

@@ -54,7 +54,15 @@ const CONFIG = {
 export function syncToSheetsAsync(patient: PatientRecord, _operation: 'insert' | 'update'): void {
   const webhookUrl = process.env.GOOGLE_APPSCRIPT_URL || process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
   
+  console.log('[sheetsSync] 🔍 syncToSheetsAsync called:');
+  console.log('[sheetsSync]   patient ID:', patient.id || patient.kobo_uuid);
+  console.log('[sheetsSync]   operation:', _operation);
+  console.log('[sheetsSync]   webhookUrl exists:', !!webhookUrl);
+  console.log('[sheetsSync]   circuitBreakerOpen:', circuitBreakerOpen);
+  console.log('[sheetsSync]   patient fields count:', Object.keys(patient).length);
+  
   if (!webhookUrl || circuitBreakerOpen) {
+    console.log('[sheetsSync] ❌ Skipping sync - no webhookUrl or circuit breaker open');
     return;
   }
 
@@ -92,6 +100,12 @@ async function sendBatchWithRetry(
   batchId: number,
   attempt: number = 1
 ): Promise<void> {
+  console.log('[sheetsSync] 🔍 sendBatchWithRetry called:');
+  console.log('[sheetsSync]   batchId:', batchId);
+  console.log('[sheetsSync]   attempt:', attempt);
+  console.log('[sheetsSync]   batch size:', batch.length);
+  console.log('[sheetsSync]   webhookUrl:', webhookUrl.replace(/\/\/.*@/, '//***:***@')); // Hide credentials
+  
   try {
     // Minimal payload (only essential fields)
     const payload = {
@@ -108,15 +122,35 @@ async function sendBatchWithRetry(
         facility_name: p.facility_name,
         xray_result: p.xray_result,
         tb_diagnosed: p.tb_diagnosed,
+        // Clinical fields
+        referral_date: p.referral_date,
+        referred_facility: p.referred_facility,
+        tb_diagnosis_date: p.tb_diagnosis_date,
+        tb_type: p.tb_type,
+        att_start_date: p.att_start_date,
+        att_completion_date: p.att_completion_date,
+        hiv_status: p.hiv_status,
+        art_status: p.art_status,
+        art_number: p.art_number,
+        nikshay_abha_id: p.nikshay_abha_id,
+        registration_date: p.registration_date,
+        remarks: p.remarks,
       })),
       batch_id: `batch-${batchId}`,
       count: batch.length,
       attempt
     };
 
+    console.log('[sheetsSync] 📤 Sending payload to Google Sheets:');
+    console.log('[sheetsSync]   payload size:', JSON.stringify(payload).length, 'characters');
+    console.log('[sheetsSync]   batch fields per patient:', Object.keys(payload.batch[0] || {}).length);
+    console.log('[sheetsSync]   sample patient fields:', Object.keys(payload.batch[0] || {}));
+    console.log('[sheetsSync]   sample patient data:', JSON.stringify(payload.batch[0], null, 2));
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), CONFIG.TIMEOUT_MS);
 
+    console.log('[sheetsSync] 📡 Making HTTP request to Google Apps Script...');
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 
@@ -131,11 +165,22 @@ async function sendBatchWithRetry(
 
     clearTimeout(timeoutId);
 
+    console.log('[sheetsSync] 📥 Google Sheets response received:');
+    console.log('[sheetsSync]   response.status:', response.status);
+    console.log('[sheetsSync]   response.statusText:', response.statusText);
+    console.log('[sheetsSync]   response.ok:', response.ok);
+    console.log('[sheetsSync]   response.headers:', Object.fromEntries(response.headers.entries()));
+
     if (response.ok) {
       failureCount = 0; // Reset on success
+      const responseText = await response.text();
       console.log(`[sheetsSync] ✅ Batch synced: ${batch.length} records (attempt ${attempt})`);
+      console.log('[sheetsSync]   response body:', responseText);
     } else {
       const errorText = await response.text().catch(() => 'No response body');
+      console.error('[sheetsSync] ❌ Google Sheets sync failed:');
+      console.error('[sheetsSync]   HTTP status:', response.status);
+      console.error('[sheetsSync]   Error response:', errorText);
       throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
   } catch (error: any) {

@@ -3,7 +3,26 @@ import { auth } from '@/auth';
 
 export async function GET() {
   try {
+    console.log('[/api/me] Starting session fetch...');
+    
+    // Check environment variables
+    console.log('[/api/me] Environment check:', {
+      NEXTAUTH_SECRET: !!process.env.NEXTAUTH_SECRET,
+      AUTH_SECRET: !!process.env.AUTH_SECRET,
+      GOOGLE_CLIENT_ID: !!process.env.GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET: !!process.env.GOOGLE_CLIENT_SECRET,
+      NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    });
+    
     const session = await auth();
+    
+    console.log('[/api/me] Session result:', {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      userEmail: session?.user?.email,
+      userRole: session?.user?.role,
+    });
     
     if (!session?.user) {
       console.error('[/api/me] No session found');
@@ -59,9 +78,38 @@ export async function GET() {
 
     return NextResponse.json(scope);
   } catch (error) {
-    console.error('[/api/me] Error:', error);
+    console.error('[/api/me] Detailed error analysis:');
+    console.error('Error type:', typeof error);
+    console.error('Error name:', error instanceof Error ? error.name : 'Unknown');
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    // Check for specific error types
+    if (error instanceof Error) {
+      if (error.message.includes('NEXT_PUBLIC_SUPABASE_URL') || error.message.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+        console.error('[/api/me] Supabase configuration error - missing environment variables');
+        return NextResponse.json(
+          { error: 'Configuration Error', message: 'Database configuration missing' },
+          { status: 500 }
+        );
+      }
+      
+      if (error.message.includes('auth') || error.message.includes('session')) {
+        console.error('[/api/me] Authentication system error');
+        return NextResponse.json(
+          { error: 'Authentication Error', message: 'Authentication system unavailable' },
+          { status: 500 }
+        );
+      }
+    }
+    
     return NextResponse.json(
-      { error: 'Internal Server Error', message: String(error) },
+      { 
+        error: 'Internal Server Error', 
+        message: error instanceof Error ? error.message : String(error),
+        type: typeof error,
+        name: error instanceof Error ? error.name : 'Unknown'
+      },
       { status: 500 }
     );
   }

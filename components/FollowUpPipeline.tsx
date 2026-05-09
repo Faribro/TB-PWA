@@ -51,6 +51,23 @@ interface FollowUpPipelineProps {
   onUploadRegister?: () => void;
 }
 
+// Helper function to get the most recent clinical date for display
+const getMostRecentClinicalDate = (patient: Patient) => {
+  const dates = [];
+  
+  if (patient.screening_date) dates.push(new Date(patient.screening_date));
+  if (patient.referral_date) dates.push(new Date(patient.referral_date));
+  if (patient.date_of_tb_diagnosed) dates.push(new Date(patient.date_of_tb_diagnosed));
+  if (patient.att_start_date) dates.push(new Date(patient.att_start_date));
+  if (patient.att_completion_date) dates.push(new Date(patient.att_completion_date));
+  
+  if (dates.length === 0) return null;
+  
+  // Sort dates in descending order and return the most recent
+  dates.sort((a, b) => b.getTime() - a.getTime());
+  return dates[0];
+};
+
 // Task 2: Explicit Inline PatientCard Component
 const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelect }: { 
   patient: Patient; 
@@ -62,9 +79,9 @@ const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelec
   const phase = calculatePatientPhase(patient);
   const calculateDaysElapsed = (screeningDateStr: string | undefined) => {
     if (!screeningDateStr) return 0;
-    const screeningDate = new Date(screeningDateStr);
     const now = new Date();
-    const diffTime = Math.abs(now.getTime() - screeningDate.getTime());
+    const date = new Date(screeningDateStr);
+    const diffTime = Math.abs(now.getTime() - date.getTime());
     return Math.floor(diffTime / (1000 * 60 * 60 * 24));
   };
   const daysElapsed = calculateDaysElapsed(patient.screening_date);
@@ -234,6 +251,14 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
     globalPatients ?? initialPatients ?? []
   );
 
+  // Sync with prop changes
+  useEffect(() => {
+    const newPatients = globalPatients ?? initialPatients ?? [];
+    if (newPatients.length > 0) {
+      setPatients(newPatients);
+    }
+  }, [globalPatients, initialPatients]);
+
   // DEBUG: Log patient data flow
   console.log('FollowUpPipeline DEBUG - initialPatients:', initialPatients?.length);
   console.log('FollowUpPipeline DEBUG - patients state:', patients.length);
@@ -250,9 +275,15 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
       });
     },
     onUpdate: (updated) => {
-      setPatients(prev =>
-        prev.map(p => p.id === updated.id ? updated as unknown as Patient : p)
-      );
+      setPatients(prev => {
+        const newList = prev.map(p => p.id === updated.id ? updated as unknown as Patient : p);
+        // Also update the patient if drawer is open
+        if (onPatientClick) {
+          // Trigger parent component to refresh
+          window.dispatchEvent(new CustomEvent('patient-updated', { detail: updated }));
+        }
+        return newList;
+      });
     },
     onDelete: (deletedId) => {
       setPatients(prev => prev.filter(p => p.id !== Number(deletedId)))
@@ -1099,10 +1130,12 @@ function FiveColumnListView({ patients, onPatientClick, isSuspectedTB }: TwoColu
               </span>
             )}
             <span className="text-[8px] text-gray-500 font-medium bg-gray-50 px-1.5 py-0.5 rounded">
-              {patient.screening_date ? 
-                new Date(patient.screening_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 
-                'No Date'
-              }
+              {(() => {
+                const mostRecentDate = getMostRecentClinicalDate(patient);
+                return mostRecentDate ? 
+                  mostRecentDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 
+                  'No Date';
+              })()}
             </span>
           </div>
         </div>

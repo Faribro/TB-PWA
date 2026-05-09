@@ -53,6 +53,16 @@ export async function getCached<T>(key: string): Promise<T | null> {
 export async function setCached<T>(key: string, value: T, ttl: number = 60): Promise<void> {
   try {
     if (!upstashRedis) return;
+    
+    // Check payload size (Upstash limit: 1MB free, 10MB paid)
+    const serialized = JSON.stringify(value);
+    const sizeInMB = Buffer.byteLength(serialized, 'utf8') / (1024 * 1024);
+    
+    if (sizeInMB > 5) {
+      console.warn(`[Redis] Payload too large (${sizeInMB.toFixed(2)}MB), skipping cache for key: ${key}`);
+      return;
+    }
+    
     await upstashRedis.set(key, value, { ex: ttl });
   } catch (error) {
     console.error('[Redis] Set error:', error);

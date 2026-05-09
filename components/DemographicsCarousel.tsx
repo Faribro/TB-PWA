@@ -115,6 +115,8 @@ const FIELD_CONFIG: Record<string, {
   submitted_on: { type: 'date' },
   date_of_birth: { type: 'date' },
   referral_date: { type: 'date' },
+  referred_facility: { type: 'text' },
+  tb_diagnosis_date: { type: 'date' },
   diagnosis_date: { type: 'date' },
   att_start_date: { type: 'date' },
 
@@ -709,13 +711,12 @@ export function DemographicsCarousel({
             <DocSection title="Diagnostics & Treatment">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
                 <Field label="X-Ray Result"       value={formatXrayValue(gv('xray_result', patient?.xray_result))}                fieldKey="xray_result"         editable isEditing={E} onChange={H} />
-                <Field label="Date of referral for TB Examination (sputum)" value={gv('Date of referral for TB Examination (sputum) (dd/mm/yy)', patient?.['Date of referral for TB Examination (sputum) (dd/mm/yy)'])} fieldKey="Date of referral for TB Examination (sputum) (dd/mm/yy)" editable isEditing={E} onChange={H} />
-                <Field label="Name of facility where referred to" value={gv('Name of facility where referred to (Give code/name of all facilities)', patient?.['Name of facility where referred to (Give code/name of all facilities)'])} fieldKey="Name of facility where referred to (Give code/name of all facilities)" editable isEditing={E} onChange={H} />
+                <Field label="Date of referral for TB Examination (sputum)" value={gv('referral_date', patient?.referral_date)} fieldKey="referral_date" editable isEditing={E} onChange={H} />
+                <Field label="Name of facility where referred to" value={gv('referred_facility', patient?.referred_facility)} fieldKey="referred_facility" editable isEditing={E} onChange={H} />
                 <Field label="TB Past History"    value={gv('tb_past_history', patient?.tb_past_history)}        fieldKey="tb_past_history"     editable isEditing={E} onChange={H} />
                 <Field label="TB Diagnosed"       value={gv('tb_diagnosed_select', gv('tb_diagnosed', patient?.tb_diagnosed))} fieldKey="tb_diagnosed_select" editable isEditing={E} onChange={H} />
-                <Field label="Diagnosis Date"     value={gv('diagnosis_date', patient?.diagnosis_date)}          fieldKey="diagnosis_date"      editable isEditing={E} onChange={H} />
+                <Field label="Diagnosis Date"     value={gv('tb_diagnosis_date', patient?.tb_diagnosis_date)}          fieldKey="tb_diagnosis_date"      editable isEditing={E} onChange={H} />
                 <Field label="ATT Start Date"     value={gv('att_start_date', patient?.att_start_date)}          fieldKey="att_start_date"      editable isEditing={E} onChange={H} hint="Set when treatment begins" />
-                <Field label="Referral Date"      value={gv('referral_date', patient?.referral_date)}            fieldKey="referral_date"       editable isEditing={E} onChange={H} />
                 <Field label="Referred To"        value={gv('referred_to_facility', patient?.referred_to_facility)} fieldKey="referred_to_facility" editable isEditing={E} onChange={H} />
                 <Field label="AI Confidence"      value={gv('ai_confidence_score', patient?.ai_confidence_score)} fieldKey="ai_confidence_score" isEditing={E} onChange={H} />
                 {gv('referred_to_facility', patient?.referred_to_facility) === 'Other' && (

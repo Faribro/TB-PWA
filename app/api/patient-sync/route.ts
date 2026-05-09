@@ -39,10 +39,26 @@ const FIELD_MAPPING: Record<string, string | null> = {
   'NIKSHAY/ABHA ID': 'nikshay_abha_id',
   'Date of registration (dd/mm/yyyy)': 'registration_date',
   Remarks: 'remarks',
+  referral_date: 'referral_date',
+  referred_facility: 'referred_facility',
+  tb_diagnosed: 'tb_diagnosed',
+  tb_diagnosis_date: 'tb_diagnosis_date',
+  tb_type: 'tb_type',
+  att_start_date: 'att_start_date',
+  att_completion_date: 'att_completion_date',
+  hiv_status: 'hiv_status',
+  art_status: 'art_status',
+  art_number: 'art_number',
+  nikshay_abha_id: 'nikshay_abha_id',
+  registration_date: 'registration_date',
+  remarks: 'remarks',
   closure_reason: 'closure_reason',
+  other_facility_name: 'other_facility_name',
   'Serial Number': null,
   KoboUUID: null,
   KoboID: null,
+  id: null,
+  updated_at: null,
 };
 
 export async function POST(request: NextRequest) {
@@ -233,23 +249,106 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
     
     if (currentPatient) {
-      console.log('[patient-sync] 📋 Current patient fields count:', Object.keys(currentPatient).length);
+      console.log('[patient-sync] ✅ Current patient found, fields before update:');
+      console.log('[patient-sync] 📊 Total field count:', Object.keys(currentPatient).length);
+      
+      // Check specifically for clinical fields
+      const clinicalFields = [
+        'referral_date', 'referred_facility', 'tb_diagnosed', 'tb_diagnosis_date', 
+        'tb_type', 'att_start_date', 'att_completion_date', 'hiv_status', 
+        'art_status', 'art_number', 'nikshay_abha_id', 'registration_date', 'remarks'
+      ];
+      
+      console.log('[patient-sync] 🔍 Clinical field check:');
+      clinicalFields.forEach(field => {
+        const hasField = field in currentPatient;
+        const value = currentPatient[field];
+        console.log(`[patient-sync]   ${field}: ${hasField ? '✅ EXISTS' : '❌ MISSING'} = "${value}"`);
+      });
+      
+      console.log('[patient-sync] 📋 ALL fields in patient record:');
       for (const [k, v] of Object.entries(currentPatient)) {
         console.log(`[patient-sync]   "${k}": "${v}"`);
       }
     }
 
-    const { error: dbError } = await supabase
+    console.log('[patient-sync] 🔍 Executing Supabase update...');
+    console.log('[patient-sync]   Table: patients');
+    console.log('[patient-sync]   Where clause:', idField, '=', patientId);
+    console.log('[patient-sync]   Update fields count:', Object.keys(dbUpdates).length);
+    console.log('[patient-sync]   Update details:');
+    for (const [key, value] of Object.entries(dbUpdates)) {
+      console.log(`[patient-sync]     ${key}: "${value}" (${typeof value})`);
+    }
+
+    const { error: dbError, data: updateResult } = await supabase
       .from('patients')
       .update(dbUpdates)
-      .eq(idField, patientId);
+      .eq(idField, patientId)
+      .select('id, updated_at') // Get minimal response to verify update worked
+      .maybeSingle();
+    
+    console.log('[patient-sync] 🔍 Update operation result:');
+    console.log('[patient-sync]   dbError:', dbError);
+    console.log('[patient-sync]   updateResult:', updateResult);
+    console.log('[patient-sync]   idField:', idField);
+    console.log('[patient-sync]   patientId:', patientId);
+    console.log('[patient-sync]   dbUpdates sent:', JSON.stringify(dbUpdates, null, 2));
+    
+    // Check if update actually succeeded
+    if (dbError) {
+      console.error('[patient-sync] ❌ Database update failed:');
+      console.error('[patient-sync]   Error code:', dbError.code);
+      console.error('[patient-sync]   Error message:', dbError.message);
+      console.error('[patient-sync]   Error details:', dbError.details);
+      console.error('[patient-sync]   Error hint:', dbError.hint);
+    } else if (updateResult) {
+      console.log('[patient-sync] ✅ Database update succeeded, affected row:', updateResult.id);
+    } else {
+      console.warn('[patient-sync] ⚠️ Database update returned no result - possible no-op update');
+    }
     
     // Fetch the updated patient separately with all fields to ensure we get clinical data
-    const { data: updatedPatient } = await supabase
+    const { data: updatedPatient, error: selectError } = await supabase
       .from('patients')
       .select('*')
       .eq(idField, patientId)
       .maybeSingle();
+    
+    console.log('[patient-sync] 🔍 Select operation result:');
+    console.log('[patient-sync]   selectError:', selectError);
+    
+    if (selectError) {
+      console.error('[patient-sync] ❌ Failed to fetch updated patient:', selectError);
+      throw new Error(`Failed to fetch updated patient: ${selectError.message}`);
+    }
+    
+    if (!updatedPatient) {
+      console.error('[patient-sync] ❌ No updated patient returned');
+      throw new Error('No patient returned after update');
+    }
+    
+    console.log('[patient-sync] ✅ Updated patient fetched successfully');
+    console.log('[patient-sync] 📊 Updated patient field count:', Object.keys(updatedPatient).length);
+    
+    // Check specifically for clinical fields in the response
+    const clinicalFields = [
+      'referral_date', 'referred_facility', 'tb_diagnosed', 'tb_diagnosis_date', 
+      'tb_type', 'att_start_date', 'att_completion_date', 'hiv_status', 
+      'art_status', 'art_number', 'nikshay_abha_id', 'registration_date', 'remarks'
+    ];
+    
+    console.log('[patient-sync] 🔍 Clinical field check in RESPONSE:');
+    clinicalFields.forEach(field => {
+      const hasField = field in updatedPatient;
+      const value = updatedPatient[field];
+      console.log(`[patient-sync]   ${field}: ${hasField ? '✅ EXISTS' : '❌ MISSING'} = "${value}"`);
+    });
+    
+    console.log('[patient-sync] 📋 ALL fields in updated patient response:');
+    for (const [k, v] of Object.entries(updatedPatient)) {
+      console.log(`[patient-sync]   "${k}": "${v}"`);
+    }
 
     console.log('[patient-sync] STEP 5 - SUPABASE WRITE RESULT:');
     console.log('[patient-sync]   dbError:', dbError);
@@ -322,6 +421,8 @@ export async function POST(request: NextRequest) {
       console.log(`[patient-sync]     "${k}": "${v}"`);
     }
     console.log('[patient-sync]   screening_date in sheets payload:', updatedPatient?.screening_date);
+    
+    // CRITICAL FIX: Only sync to sheets AFTER confirming DB write succeeded
     syncToSheetsAsync(updatedPatient, 'update');
 
     const duration = Date.now() - startTime;

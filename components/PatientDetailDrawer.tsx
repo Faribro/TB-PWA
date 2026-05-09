@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useFailedUpdateRetry } from '@/hooks/useFailedUpdateRetry';
 import { useForm } from 'react-hook-form';
 import { User, FileText, Activity, Pill, Shield, ChevronDown, AlertCircle, CheckCircle2, Calendar, Sparkles, Lock, Unlock, Save, ClipboardList, X, MapPin, XCircle, Search, ArrowRightCircle, Settings2, AlertTriangle, Zap, TrendingUp, Award, Crown } from 'lucide-react';
@@ -139,27 +139,104 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   }, [mutate]);
 
   useEffect(() => {
+    console.log('[PatientDetailDrawer] 🔄 Patient prop changed:', {
+      patientId: patient?.id,
+      hasClinicalData: {
+        referral_date: !!patient?.referral_date,
+        referred_facility: !!patient?.referred_facility,
+        hiv_status: !!patient?.hiv_status,
+        tb_diagnosed: !!patient?.tb_diagnosed
+      }
+    });
     if (patient && Object.keys(patient).length > 0) {
+      // Check for meaningful clinical data presence (non-empty, non-null values)
+      const localHasMeaningfulClinicalData = 
+        (localPatient?.referral_date && localPatient.referral_date.trim() !== '') ||
+        (localPatient?.referred_facility && localPatient.referred_facility.trim() !== '') ||
+        (localPatient?.hiv_status && localPatient.hiv_status.trim() !== '') ||
+        (localPatient?.tb_diagnosed && localPatient.tb_diagnosed.trim() !== '') ||
+        (localPatient?.tb_diagnosis_date && localPatient.tb_diagnosis_date.trim() !== '');
+      
+      const patientHasMeaningfulClinicalData = 
+        (patient?.referral_date && patient.referral_date.trim() !== '') ||
+        (patient?.referred_facility && patient.referred_facility.trim() !== '') ||
+        (patient?.hiv_status && patient.hiv_status.trim() !== '') ||
+        (patient?.tb_diagnosed && patient.tb_diagnosed.trim() !== '') ||
+        (patient?.tb_diagnosis_date && patient.tb_diagnosis_date.trim() !== '');
+      
+      console.log('[PatientDetailDrawer] 🔍 Clinical data comparison:', {
+        localHasMeaningfulClinicalData,
+        patientHasMeaningfulClinicalData,
+        localPatientFields: {
+          referral_date: !!localPatient?.referral_date,
+          referred_facility: !!localPatient?.referred_facility,
+          hiv_status: !!localPatient?.hiv_status,
+          tb_diagnosed: !!localPatient?.tb_diagnosed
+        },
+        patientPropFields: {
+          referral_date: !!patient?.referral_date,
+          referred_facility: !!patient?.referred_facility,
+          hiv_status: !!patient?.hiv_status,
+          tb_diagnosed: !!patient?.tb_diagnosed
+        }
+      });
+      
+      // If localPatient has meaningful clinical data but patient prop doesn't, preserve localPatient
+      if (localHasMeaningfulClinicalData && !patientHasMeaningfulClinicalData) {
+        console.log('[PatientDetailDrawer] ✅ Preserving localPatient - has meaningful clinical data, patient prop does not');
+        return;
+      }
+      
+      // If both have meaningful data, use timestamps to decide (but handle undefined timestamps)
+      if (localHasMeaningfulClinicalData && patientHasMeaningfulClinicalData) {
+        // Only use timestamp comparison if both have valid timestamps
+        if (localPatient?.updated_at && patient?.updated_at) {
+          const localPatientUpdated = new Date(localPatient.updated_at) > new Date(patient.updated_at);
+          
+          if (localPatientUpdated) {
+            console.log('[PatientDetailDrawer] ✅ Preserving localPatient with newer timestamp');
+            return;
+          }
+        } else if (localPatient?.updated_at && !patient?.updated_at) {
+          // localPatient has timestamp but patient prop doesn't - preserve localPatient
+          console.log('[PatientDetailDrawer] ✅ Preserving localPatient - has timestamp, patient prop does not');
+          return;
+        }
+      }
+      
+      console.log('[PatientDetailDrawer] ⚠️ Updating localPatient with patient prop');
       setLocalPatient(patient);
     }
-  }, [patient]);
+  }, [patient, localPatient?.updated_at]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Debug: Monitor isSubmitting state changes
+  useEffect(() => {
+    console.log('[PatientDetailDrawer] 🔄 isSubmitting state changed to:', isSubmitting);
+  }, [isSubmitting]);
   const [showCloseLoop, setShowCloseLoop] = useState(false);
   const [isEditingDemographics, setIsEditingDemographics] = useState(false);
   const [isSavingDemographics, setIsSavingDemographics] = useState(false);
   const [internalOpen, setInternalOpen] = useState(isOpen);
+  const [activeTab, setActiveTab] = useState('clinical');
 
   const { watch, getValues, reset, setValue, formState: { isDirty } } = useForm<PatientFormData>({
     defaultValues: {
-      'Date of referral for TB Examination (sputum) (dd/mm/yy)': patient?.referral_date || '',
-      'Name of facility where referred to (Give code/name of all facilities)': patient?.referred_facility || '',
-      'TB diagnosed (Y/N)': patient?.tb_diagnosed || '',
-      'Date of TB Diagnosed (dd/mm/yy)': patient?.tb_diagnosis_date || '',
-      'Date of starting ATT (dd/mm/yyyy)': patient?.att_start_date || '',
-      'Date of Treatment Completion (dd/mm/yyyy)': patient?.att_completion_date || '',
-      'NIKSHAY/ABHA ID': patient?.nikshay_abha_id || '',
-      'Remarks': patient?.remarks || ''
+      'Date of referral for TB Examination (sputum) (dd/mm/yy)': '',
+      'Name of facility where referred to (Give code/name of all facilities)': '',
+      'TB diagnosed (Y/N)': '',
+      'Date of TB Diagnosed (dd/mm/yy)': '',
+      'Type of TB Diagnosed (P/EP)': '',
+      'Date of starting ATT (dd/mm/yyyy)': '',
+      'Date of Treatment Completion (dd/mm/yyyy)': '',
+      'HIV Status (Positive/Negative/Unknown)': '',
+      'Status at the time of referral (Pre ART/On ART)': '',
+      'ART Number (if on ART at the time of referral)': '',
+      'NIKSHAY/ABHA ID': '',
+      'Date of registration (dd/mm/yyyy)': '',
+      'Remarks': '',
+      'Other Facility Name': ''
     }
   });
 
@@ -168,82 +245,46 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     setInternalOpen(isOpen);
   }, [isOpen]);
 
-  // REMOVED: This useEffect was clearing form data with null values from localPatient
-// The smart useEffect below (lines 210+) handles form reset properly with fallback logic
-
-  // Debug: Check if localPatient has HIV/ART data
+  // Initialize form with patient data when drawer opens or localPatient changes
   useEffect(() => {
-    if (localPatient) {
-      console.log('[PatientDetailDrawer] 🔍 HIV/ART Debug - localPatient data:');
-      console.log('  hiv_status:', localPatient.hiv_status);
-      console.log('  art_status:', localPatient.art_status);
-      console.log('  art_number:', localPatient.art_number);
-      console.log('  All clinical fields:', {
+    if (localPatient && internalOpen) {
+      console.log('[PatientDetailDrawer] 🔄 Initializing form with localPatient data:', {
         referral_date: localPatient.referral_date,
         referred_facility: localPatient.referred_facility,
-        tb_diagnosed: localPatient.tb_diagnosed,
-        tb_diagnosis_date: localPatient.tb_diagnosis_date,
-        att_start_date: localPatient.att_start_date,
         hiv_status: localPatient.hiv_status,
-        art_status: localPatient.art_status,
-        art_number: localPatient.art_number,
-        nikshay_abha_id: localPatient.nikshay_abha_id
+        tb_diagnosed: localPatient.tb_diagnosed,
+        updated_at: localPatient.updated_at
+      });
+      console.log('[PatientDetailDrawer] 📋 Data source check - Using localPatient with timestamp:', localPatient.updated_at);
+      
+      const resetValues = {
+        'Date of referral for TB Examination (sputum) (dd/mm/yy)': formatDateForInput(localPatient.referral_date),
+        'Name of facility where referred to (Give code/name of all facilities)': localPatient.referred_facility || '',
+        'TB diagnosed (Y/N)': localPatient.tb_diagnosed || '',
+        'Date of TB Diagnosed (dd/mm/yy)': formatDateForInput(localPatient.tb_diagnosis_date),
+        'Type of TB Diagnosed (P/EP)': localPatient.tb_type || '',
+        'Date of starting ATT (dd/mm/yyyy)': formatDateForInput(localPatient.att_start_date),
+        'Date of Treatment Completion (dd/mm/yyyy)': formatDateForInput(localPatient.att_completion_date),
+        'HIV Status (Positive/Negative/Unknown)': localPatient.hiv_status || '',
+        'Status at the time of referral (Pre ART/On ART)': localPatient.art_status || '',
+        'ART Number (if on ART at the time of referral)': localPatient.art_number || '',
+        'NIKSHAY/ABHA ID': localPatient.nikshay_abha_id || '',
+        'Date of registration (dd/mm/yyyy)': formatDateForInput(localPatient.registration_date),
+        'Remarks': localPatient.remarks || '',
+        'Other Facility Name': localPatient.other_facility_name || ''
+      };
+      
+      console.log('[PatientDetailDrawer] 🔄 Form reset with values:', {
+        referral_date: resetValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
+        facility: resetValues['Name of facility where referred to (Give code/name of all facilities)'],
+        hiv_status: resetValues['HIV Status (Positive/Negative/Unknown)']
       });
       
-      // Check if form needs reset, but be more careful to avoid clearing data
-      const currentFormValues = getValues();
-      const hasFormData = 
-        currentFormValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'] ||
-        currentFormValues['Name of facility where referred to (Give code/name of all facilities)'] ||
-        currentFormValues['HIV Status (Positive/Negative/Unknown)'];
-      
-      const hasPatientData = 
-        localPatient.referral_date ||
-        localPatient.referred_facility ||
-        localPatient.hiv_status;
-      
-      // Only reset if we have patient data but no form data (initial load)
-      // Don't reset if form already has data (preserves user input)
-      if (hasPatientData && !hasFormData) {
-        console.log('[PatientDetailDrawer] 🔄 Initial load - resetting form with patient data');
-        const resetValues = {
-          'Date of referral for TB Examination (sputum) (dd/mm/yy)': formatDateForInput(localPatient.referral_date),
-          'Name of facility where referred to (Give code/name of all facilities)': localPatient.referred_facility || '',
-          'TB diagnosed (Y/N)': localPatient.tb_diagnosed || '',
-          'Date of TB Diagnosed (dd/mm/yy)': formatDateForInput(localPatient.tb_diagnosis_date),
-          'Type of TB Diagnosed (P/EP)': localPatient.tb_type || '',
-          'Date of starting ATT (dd/mm/yyyy)': formatDateForInput(localPatient.att_start_date),
-          'Date of Treatment Completion (dd/mm/yyyy)': formatDateForInput(localPatient.att_completion_date),
-          'HIV Status (Positive/Negative/Unknown)': localPatient.hiv_status || '',
-          'Status at the time of referral (Pre ART/On ART)': localPatient.art_status || '',
-          'ART Number (if on ART at the time of referral)': localPatient.art_number || '',
-          'NIKSHAY/ABHA ID': localPatient.nikshay_abha_id || '',
-          'Date of registration (dd/mm/yyyy)': formatDateForInput(localPatient.registration_date),
-          'Remarks': localPatient.remarks || ''
-        };
-        
-        console.log('[PatientDetailDrawer] 🔄 USEFFECT: About to reset form with patient data:', {
-          referral_date: resetValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
-          facility: resetValues['Name of facility where referred to (Give code/name of all facilities)'],
-          localPatient_referral_date: localPatient.referral_date,
-          localPatient_referred_facility: localPatient.referred_facility
-        });
-        
-        reset(resetValues, { keepDefaultValues: false });
-      } else if (hasFormData) {
-        console.log('[PatientDetailDrawer] 📋 Form already has data, skipping reset to preserve user input');
-        console.log('[PatientDetailDrawer] 🔍 Form data check:', {
-          hasReferralDate: !!currentFormValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
-          hasFacility: !!currentFormValues['Name of facility where referred to (Give code/name of all facilities)'],
-          hasHivStatus: !!currentFormValues['HIV Status (Positive/Negative/Unknown)'],
-          referralDate: currentFormValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
-          facility: currentFormValues['Name of facility where referred to (Give code/name of all facilities)']
-        });
-      } else {
-        console.log('[PatientDetailDrawer] ❓ No form data and no patient data - nothing to reset');
-      }
+      reset(resetValues, { keepDefaultValues: false });
     }
-  }, [localPatient, reset, getValues]);
+  }, [localPatient, internalOpen, reset]);
+  
+  // Form will be re-initialized when localPatient or internalOpen changes
 
   // ── Demographics State — Kobo-canonical keys with legacy fallbacks ──
   // Key names match the Kobo XLSX field names exactly. Supabase column mapping
@@ -444,28 +485,45 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   }, [scope, localPatient]);
 
   const handleSaveClinical = async () => {
+    console.log('[PatientDetailDrawer] 🚀 Clinical save started - isSubmitting was:', isSubmitting);
     const formData = getValues();
+    console.log('[PatientDetailDrawer] 📝 Form data:', formData);
     setSaving();
     setIsSubmitting(true);
+    console.log('[PatientDetailDrawer] 🔄 isSubmitting set to true');
 
     try {
-      const payload = {
-        id: localPatient.kobo_uuid || localPatient.id, // Use kobo_uuid as primary identifier, fallback to id
-        referral_date: formData['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
-        referred_facility: formData['Name of facility where referred to (Give code/name of all facilities)'],
-        tb_diagnosed: formData['TB diagnosed (Y/N)'],
-        tb_diagnosis_date: formData['Date of TB Diagnosed (dd/mm/yy)'],
-        tb_type: formData['Type of TB Diagnosed (P/EP)'],
-        att_start_date: formData['Date of starting ATT (dd/mm/yyyy)'],
-        att_completion_date: formData['Date of Treatment Completion (dd/mm/yyyy)'],
-        hiv_status: formData['HIV Status (Positive/Negative/Unknown)'],
-        art_status: formData['Status at the time of referral (Pre ART/On ART)'],
-        art_number: formData['ART Number (if on ART at the time of referral)'],
-        nikshay_abha_id: formData['NIKSHAY/ABHA ID'],
-        registration_date: formData['Date of registration (dd/mm/yyyy)'],
-        remarks: formData['Remarks'],
+      // Build payload programmatically from ALL form fields
+      const payload: Record<string, any> = {
+        id: localPatient.kobo_uuid || localPatient.id,
         updated_at: new Date().toISOString()
       };
+      
+      // Map ALL clinical form fields to database columns
+      const clinicalFieldMap: Record<string, string> = {
+        'Date of referral for TB Examination (sputum) (dd/mm/yy)': 'referral_date',
+        'Name of facility where referred to (Give code/name of all facilities)': 'referred_facility',
+        'TB diagnosed (Y/N)': 'tb_diagnosed',
+        'Date of TB Diagnosed (dd/mm/yy)': 'tb_diagnosis_date',
+        'Type of TB Diagnosed (P/EP)': 'tb_type',
+        'Date of starting ATT (dd/mm/yyyy)': 'att_start_date',
+        'Date of Treatment Completion (dd/mm/yyyy)': 'att_completion_date',
+        'HIV Status (Positive/Negative/Unknown)': 'hiv_status',
+        'Status at the time of referral (Pre ART/On ART)': 'art_status',
+        'ART Number (if on ART at the time of referral)': 'art_number',
+        'NIKSHAY/ABHA ID': 'nikshay_abha_id',
+        'Date of registration (dd/mm/yyyy)': 'registration_date',
+        'Remarks': 'remarks',
+        'Other Facility Name': 'other_facility_name'
+      };
+      
+      // Include all fields that have values
+      for (const [formKey, dbColumn] of Object.entries(clinicalFieldMap)) {
+        const value = formData[formKey];
+        if (value !== undefined && value !== null && value !== '') {
+          payload[dbColumn] = value;
+        }
+      }
 
       const patientKeys = Object.keys(localPatient || {});
       console.log('[PatientDetailDrawer] 🔍 Patient keys:', patientKeys);
@@ -543,124 +601,47 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       setSyncing();
       
       console.log('[PatientDetailDrawer] ✅ Save successful, response:', responseData);
+      console.log('[PatientDetailDrawer] 🔍 Response patient object:', responseData.patient);
+      console.log('[PatientDetailDrawer] 🔍 Response patient clinical fields:', {
+        referral_date: responseData.patient?.referral_date,
+        referred_facility: responseData.patient?.referred_facility,
+        tb_diagnosed: responseData.patient?.tb_diagnosed,
+        tb_diagnosis_date: responseData.patient?.tb_diagnosis_date,
+        att_start_date: responseData.patient?.att_start_date,
+        hiv_status: responseData.patient?.hiv_status
+      });
       
-      // Immediately update local state with server response
+      // Update local state with confirmed server data
       if (responseData.patient) {
-        console.log('[PatientDetailDrawer] 🔍 API Response Analysis:');
-        console.log('  Response has clinical fields:', {
-          referral_date: responseData.patient.referral_date,
-          referred_facility: responseData.patient.referred_facility,
-          hiv_status: responseData.patient.hiv_status,
-          tb_diagnosed: responseData.patient.tb_diagnosed
-        });
-        
-        // Get current form values before reset
-        const currentFormValues = getValues();
-        console.log('[PatientDetailDrawer] 📝 Current form values before reset:', {
-          referral_date: currentFormValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
-          referred_facility: currentFormValues['Name of facility where referred to (Give code/name of all facilities)'],
-          hiv_status: currentFormValues['HIV Status (Positive/Negative/Unknown)']
-        });
-        
         setLocalPatient(responseData.patient);
         
-        // CRITICAL FIX: Reset form with saved values, prioritize form values when API response is null
-        const resetValues = {
-          'Date of referral for TB Examination (sputum) (dd/mm/yy)': 
-            (responseData.patient.referral_date && responseData.patient.referral_date !== null) ? 
-              formatDateForInput(responseData.patient.referral_date) : 
-              currentFormValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
-          'Name of facility where referred to (Give code/name of all facilities)': 
-            (responseData.patient.referred_facility && responseData.patient.referred_facility !== null) ? 
-              responseData.patient.referred_facility : 
-              currentFormValues['Name of facility where referred to (Give code/name of all facilities)'] || '',
-          'TB diagnosed (Y/N)': 
-            (responseData.patient.tb_diagnosed && responseData.patient.tb_diagnosed !== null) ? 
-              responseData.patient.tb_diagnosed : 
-              currentFormValues['TB diagnosed (Y/N)'] || '',
-          'Date of TB Diagnosed (dd/mm/yy)': 
-            (responseData.patient.tb_diagnosis_date && responseData.patient.tb_diagnosis_date !== null) ? 
-              formatDateForInput(responseData.patient.tb_diagnosis_date) : 
-              currentFormValues['Date of TB Diagnosed (dd/mm/yy)'],
-          'Type of TB Diagnosed (P/EP)': 
-            (responseData.patient.tb_type && responseData.patient.tb_type !== null) ? 
-              responseData.patient.tb_type : 
-              currentFormValues['Type of TB Diagnosed (P/EP)'] || '',
-          'Date of starting ATT (dd/mm/yyyy)': 
-            (responseData.patient.att_start_date && responseData.patient.att_start_date !== null) ? 
-              formatDateForInput(responseData.patient.att_start_date) : 
-              currentFormValues['Date of starting ATT (dd/mm/yyyy)'],
-          'Date of Treatment Completion (dd/mm/yyyy)': 
-            (responseData.patient.att_completion_date && responseData.patient.att_completion_date !== null) ? 
-              formatDateForInput(responseData.patient.att_completion_date) : 
-              currentFormValues['Date of Treatment Completion (dd/mm/yyyy)'],
-          'HIV Status (Positive/Negative/Unknown)': 
-            (responseData.patient.hiv_status && responseData.patient.hiv_status !== null) ? 
-              responseData.patient.hiv_status : 
-              currentFormValues['HIV Status (Positive/Negative/Unknown)'] || '',
-          'Status at the time of referral (Pre ART/On ART)': 
-            (responseData.patient.art_status && responseData.patient.art_status !== null) ? 
-              responseData.patient.art_status : 
-              currentFormValues['Status at the time of referral (Pre ART/On ART)'] || '',
-          'ART Number (if on ART at the time of referral)': 
-            (responseData.patient.art_number && responseData.patient.art_number !== null) ? 
-              responseData.patient.art_number : 
-              currentFormValues['ART Number (if on ART at the time of referral)'] || '',
-          'NIKSHAY/ABHA ID': 
-            (responseData.patient.nikshay_abha_id && responseData.patient.nikshay_abha_id !== null) ? 
-              responseData.patient.nikshay_abha_id : 
-              currentFormValues['NIKSHAY/ABHA ID'] || '',
-          'Date of registration (dd/mm/yyyy)': 
-            (responseData.patient.registration_date && responseData.patient.registration_date !== null) ? 
-              formatDateForInput(responseData.patient.registration_date) : 
-              currentFormValues['Date of registration (dd/mm/yyyy)'],
-          'Remarks': 
-            (responseData.patient.remarks && responseData.patient.remarks !== null) ? 
-              responseData.patient.remarks : 
-              currentFormValues['Remarks'] || ''
-        };
-        
-        console.log('[PatientDetailDrawer] 🔄 SAVE: About to reset form with values:', {
-          referral_date: resetValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
-          facility: resetValues['Name of facility where referred to (Give code/name of all facilities)']
-        });
-        
-        reset(resetValues, { keepDefaultValues: false });
-        
-        console.log('[PatientDetailDrawer] ✅ Form reset completed with fallback logic');
+        // DO NOT reset form - keep user's input as source of truth
+        // Form is already clean after successful save
+        reset(getValues(), { keepValues: true, keepDirty: false });
       }
       
-      // Force immediate SWR revalidation
+      // Optimistic SWR mutation with confirmed data
       await mutate(
         (key: unknown) => {
           if (Array.isArray(key) &&
               ['patients', 'allPatients', 'patient'].includes(key[0] as string)) return true;
           return false;
         },
-        undefined,
-        { revalidate: true }
+        responseData.patient, // Provide the updated data directly
+        { revalidate: false } // Don't refetch - we have fresh data
       );
       onUpdate();
       
       setHasUnsavedChanges(false);
+      setSynced(responseData.patient.sheets_synced_at || new Date().toISOString());
       
-      // Show success toast
       toast.success('✅ Clinical data saved successfully', { id: 'clinical-save' });
-      
-      // Re-fetch from DB to confirm exact persisted state
-      const { data: freshPatient, error: fetchError } = await supabaseClient
-        .from('patients')
-        .select('*')
-        .eq('id', localPatient.id)
-        .maybeSingle();
-      if (freshPatient && !fetchError) {
-        setLocalPatient(freshPatient);
-      }
     } catch (error) {
       console.error('Save failed:', error);
       setError('Failed to sync');
       toast.error('❌ Failed to save. Please try again.');
     } finally {
+      console.log('[PatientDetailDrawer] 🔄 Finally block reached - resetting isSubmitting to false');
       setIsSubmitting(false);
     }
   };
@@ -668,34 +649,69 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   // Real-time updates using centralized hook
   usePatientRealtimeUpdates({
     patientId: patient?.id || '',
-    isEditing: isEditingDemographics,
+    isEditing: isEditingDemographics || isDirty, // Block updates when form is dirty
     onUpdate: (data) => {
       console.log('[PatientDetailDrawer] Realtime update received:', data);
+      console.log('[PatientDetailDrawer] Form isDirty:', isDirty);
+      console.log('[PatientDetailDrawer] isEditingDemographics:', isEditingDemographics);
       
-      // Check if the update has meaningful clinical data
-      const hasClinicalData = 
-        data.referral_date || 
-        data.referred_facility || 
-        data.hiv_status || 
-        data.tb_diagnosed ||
-        data.att_start_date;
-      
-      console.log('[PatientDetailDrawer] 🔄 Realtime update - hasClinicalData:', hasClinicalData);
-      
-      // Only update localPatient if there's meaningful data or if it's demographics data
-      // This prevents clearing form data with null values from server
-      if (hasClinicalData || data.inmate_name || data.screening_date) {
-        console.log('[PatientDetailDrawer] 📝 Updating localPatient with meaningful data');
-        setLocalPatient(data);
-      } else {
-        console.log('[PatientDetailDrawer] ⚠️ Skipping localPatient update - would clear form data');
-      }
-      
+      // Update local patient state (for display only)
+      setLocalPatient(data);
       setEditedDemographics(mapDemographics(data));
       
       // Check if sheets sync completed
       if (data.synced_to_sheets === true && status.state === 'syncing') {
         setSynced(data.sheets_synced_at || new Date().toISOString());
+      }
+      
+      // CRITICAL FIX: Update form values with realtime data when NOT editing
+      // This ensures clinical tab reflects updates in real-time
+      if (!isDirty && !isEditingDemographics) {
+        console.log('[PatientDetailDrawer] ✅ Updating form with realtime data');
+        const clinicalFieldMap: Record<string, string> = {
+          'Date of referral for TB Examination (sputum) (dd/mm/yy)': 'referral_date',
+          'Name of facility where referred to (Give code/name of all facilities)': 'referred_facility',
+          'TB diagnosed (Y/N)': 'tb_diagnosed',
+          'Date of TB Diagnosed (dd/mm/yy)': 'tb_diagnosis_date',
+          'Type of TB Diagnosed (P/EP)': 'tb_type',
+          'Date of starting ATT (dd/mm/yyyy)': 'att_start_date',
+          'Date of Treatment Completion (dd/mm/yyyy)': 'att_completion_date',
+          'HIV Status (Positive/Negative/Unknown)': 'hiv_status',
+          'Status at the time of referral (Pre ART/On ART)': 'art_status',
+          'ART Number (if on ART at the time of referral)': 'art_number',
+          'NIKSHAY/ABHA ID': 'nikshay_abha_id',
+          'Date of registration (dd/mm/yyyy)': 'registration_date',
+          'Remarks': 'remarks',
+        };
+        
+        // Build update object with formatted dates
+        const formUpdates: Record<string, any> = {};
+        for (const [formKey, dbColumn] of Object.entries(clinicalFieldMap)) {
+          const value = data[dbColumn];
+          if (value !== undefined && value !== null) {
+            // Format dates for HTML5 date inputs
+            if (formKey.toLowerCase().includes('date')) {
+              formUpdates[formKey] = formatDateForInput(value);
+            } else {
+              formUpdates[formKey] = value;
+            }
+          } else {
+            // Set empty string for null/undefined values to clear the field
+            formUpdates[formKey] = '';
+          }
+        }
+        
+        console.log('[PatientDetailDrawer] Form updates to apply:', formUpdates);
+        
+        // Update form values without marking as dirty
+        // Use Object.keys to iterate and setValue individually for better reactivity
+        Object.entries(formUpdates).forEach(([key, value]) => {
+          setValue(key as any, value, { shouldDirty: false, shouldTouch: false, shouldValidate: false });
+        });
+        
+        console.log('[PatientDetailDrawer] ✅ Form values updated successfully');
+      } else {
+        console.log('[PatientDetailDrawer] ⏸️ Skipping form update - user is editing');
       }
     }
   });
@@ -1027,7 +1043,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
               </div>
             </SheetHeader>
 
-            <Tabs defaultValue="clinical" className="flex-1 flex flex-col min-h-0">
+            <Tabs defaultValue="clinical" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
               <div style={{ borderBottom: '1px solid rgba(0,0,0,0.07)', padding: '0 24px' }}>
                 <TabsList className="bg-transparent gap-0 h-10 w-full justify-start rounded-none p-0">
                   <TabsTrigger
@@ -1049,7 +1065,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
               <ScrollArea className="flex-1">
                 <div className="w-full h-full flex flex-col">
-                  <TabsContent value="clinical" className="mt-0 p-6">
+                  <TabsContent value="clinical" className="mt-0 p-6 pb-0">
                     {(() => {
                       const watchedReferralDate = watch('Date of referral for TB Examination (sputum) (dd/mm/yy)');
                       const watchedFacility = watch('Name of facility where referred to (Give code/name of all facilities)');
@@ -1139,11 +1155,11 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                           title: 'HIV & ART Status',
                           icon: <Shield className="w-4 h-4" />,
                           isComplete: hivComplete,
-                          isCurrent: !hivComplete && treatmentComplete && phase === 'HIV Status',
+                          isCurrent: !hivComplete && treatmentComplete,
                           completionLabel: 'Submitted',
                           pendingLabel: 'Pending',
                           currentLabel: 'In Progress',
-                          isAttentionRequired: isStale && phase === 'HIV Status',
+                          isAttentionRequired: isStale,
                         },
                         {
                           id: 'nikshay',
@@ -1272,55 +1288,6 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                         </>
                       );
                     })()}
-
-              {/* Action Bar - Only visible on Clinical Tab now */}
-              <div className="py-3 mt-4 border-t border-black/[0.06] flex flex-col gap-2 shrink-0">
-                {!isClosed && !showCloseLoop && (
-                  <button
-                    data-tour-id="close-loop-button"
-                    onClick={() => setShowCloseLoop(true)}
-                    className="w-full h-[38px] rounded-[10px] text-[11px] font-bold uppercase tracking-[0.06em] text-red-600 flex items-center justify-center gap-1.5 mt-1 transition-all duration-150"
-                    style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.10)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.25)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.06)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)'; }}
-                  >
-                    <XCircle className="w-3.5 h-3.5" />
-                    Close Loop (Not TB)
-                  </button>
-                )}
-
-                {showCloseLoop && (
-                  <div className="p-3 bg-red-50 rounded-xl border border-red-100 space-y-2">
-                    <p className="text-[10px] font-extrabold uppercase text-red-700 tracking-wider">Confirm Loop Closure</p>
-                    <select onChange={(e) => handleCloseLoop(e.target.value)} className="w-full text-[13px] font-medium p-2.5 rounded-[10px] border-[1.5px] border-red-200 bg-white outline-none focus:border-red-400 focus:ring-[3px] focus:ring-red-500/10">
-                      <option value="">Select reason...</option>
-                      <option value="Negative sputum">Negative sputum</option>
-                      <option value="CXR Normal">CXR Normal</option>
-                      <option value="Not TB - Alternative diagnosis">Not TB - Alternative diagnosis</option>
-                      <option value="Patient declined treatment">Patient declined treatment</option>
-                      <option value="Transferred out">Transferred out</option>
-                      <option value="Lost to follow-up">Lost to follow-up</option>
-                      <option value="Died">Died</option>
-                      <option value="Other">Other</option>
-                    </select>
-                    <button onClick={() => setShowCloseLoop(false)} className="text-[9px] font-bold text-red-400 uppercase hover:text-red-600 transition-colors">Cancel</button>
-                  </div>
-                )}
-
-                {phase !== 'Closed' && (
-                  <button
-                    data-tour-id="submit-clinical-update"
-                    onClick={handleSaveClinical}
-                    disabled={isSubmitting}
-                    className="w-full h-[52px] rounded-[14px] text-[13px] font-extrabold uppercase tracking-[0.08em] text-white flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-px active:translate-y-0"
-                    style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)', boxShadow: '0 4px 14px rgba(15,23,42,0.25), 0 1px 3px rgba(15,23,42,0.15)' }}
-                  >
-                    {isSubmitting ? <Sparkles className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 opacity-70" />}
-                    Submit Clinical Update
-                  </button>
-                )}
-              </div>
-
                   </TabsContent>
 
                   <TabsContent value="demographics" className="mt-0 h-full flex flex-col">
@@ -1582,6 +1549,55 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                   </TabsContent>
                 </div>
               </ScrollArea>
+
+              {/* Action Bar - Fixed at bottom, only visible on Clinical Tab */}
+              {activeTab === 'clinical' && (
+                <div className="shrink-0 px-6 py-3 border-t border-black/[0.06] bg-white">
+                  {!isClosed && !showCloseLoop && (
+                    <button
+                      data-tour-id="close-loop-button"
+                      onClick={() => setShowCloseLoop(true)}
+                      className="w-full h-[38px] rounded-[10px] text-[11px] font-bold uppercase tracking-[0.06em] text-red-600 flex items-center justify-center gap-1.5 mb-2 transition-all duration-150"
+                      style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.10)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.25)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.06)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)'; }}
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      Close Loop (Not TB)
+                    </button>
+                  )}
+
+                  {showCloseLoop && (
+                    <div className="p-3 bg-red-50 rounded-xl border border-red-100 space-y-2 mb-2">
+                      <p className="text-[10px] font-extrabold uppercase text-red-700 tracking-wider">Confirm Loop Closure</p>
+                      <select onChange={(e) => handleCloseLoop(e.target.value)} className="w-full text-[13px] font-medium p-2.5 rounded-[10px] border-[1.5px] border-red-200 bg-white outline-none focus:border-red-400 focus:ring-[3px] focus:ring-red-500/10">
+                        <option value="">Select reason...</option>
+                        <option value="Negative sputum">Negative sputum</option>
+                        <option value="CXR Normal">CXR Normal</option>
+                        <option value="Not TB - Alternative diagnosis">Not TB - Alternative diagnosis</option>
+                        <option value="Patient declined treatment">Patient declined treatment</option>
+                        <option value="Transferred out">Transferred out</option>
+                        <option value="Lost to follow-up">Lost to follow-up</option>
+                        <option value="Died">Died</option>
+                        <option value="Other">Other</option>
+                      </select>
+                      <button onClick={() => setShowCloseLoop(false)} className="text-[9px] font-bold text-red-400 uppercase hover:text-red-600 transition-colors">Cancel</button>
+                    </div>
+                  )}
+
+                  {/* Always show save button on clinical tab */}
+                  <button
+                    data-tour-id="submit-clinical-update"
+                    onClick={handleSaveClinical}
+                    disabled={isSubmitting}
+                    className="w-full h-[52px] rounded-[14px] text-[13px] font-extrabold uppercase tracking-[0.08em] text-white flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-px active:translate-y-0"
+                    style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)', boxShadow: '0 4px 14px rgba(15,23,42,0.25), 0 1px 3px rgba(15,23,42,0.15)' }}
+                  >
+                    {isSubmitting ? <Sparkles className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 opacity-70" />}
+                    Submit Clinical Update
+                  </button>
+                </div>
+              )}
             </Tabs>
           </>
         )}

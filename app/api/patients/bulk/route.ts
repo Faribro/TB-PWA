@@ -205,7 +205,7 @@ export async function GET(request: NextRequest) {
       };
     });
     
-    // Store in Redis cache for 30s
+    // Store in Redis cache for 30s (will skip if payload > 5MB)
     try {
       await setCached(cacheKey, response, 30);
       console.log(`[patients/bulk] ✅ Cached ${response.data.length} records for 30s`);
