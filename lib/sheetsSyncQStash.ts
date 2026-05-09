@@ -104,17 +104,10 @@ export async function queuePatientSyncQStash(
     const webhookUrl = `${baseUrl}/api/internal/process-sheets-sync`;
     console.log('[QStash] 📤 Publishing to:', webhookUrl);
     
-    // Minimal payload
+    // CRITICAL FIX: Send COMPLETE patient object with ALL fields
+    // Google Sheets needs all clinical fields (referral_date, tb_diagnosed, etc.)
     const payload = {
-      patient: {
-        id: patient.id,
-        kobo_uuid: patient.kobo_uuid,
-        unique_id: patient.unique_id,
-        inmate_name: patient.inmate_name,
-        age: patient.age,
-        contact_number: patient.contact_number,
-        screening_state: patient.screening_state,
-      },
+      patient: patient, // Send entire patient object
       operation,
       timestamp: Date.now(),
     };

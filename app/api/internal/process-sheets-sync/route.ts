@@ -14,6 +14,28 @@ async function handler(request: NextRequest) {
     const body = await request.json();
     const { patient, operation, timestamp } = body;
     
+    console.log('[ProcessSync] 🔍 Received payload:', {
+      operation,
+      timestamp,
+      patientId: patient?.id,
+      patientFields: patient ? Object.keys(patient).length : 0,
+    });
+    
+    console.log('[ProcessSync] 📋 Patient data fields:', patient ? Object.keys(patient).sort() : []);
+    
+    // Log clinical fields specifically
+    const clinicalFields = [
+      'referral_date', 'referred_facility', 'tb_diagnosed', 'tb_diagnosis_date',
+      'tb_type', 'att_start_date', 'att_completion_date', 'hiv_status',
+      'art_status', 'art_number', 'nikshay_abha_id', 'registration_date', 'remarks'
+    ];
+    
+    console.log('[ProcessSync] 🏥 Clinical fields check:');
+    clinicalFields.forEach(field => {
+      const value = patient?.[field];
+      console.log(`[ProcessSync]   ${field}: ${value !== undefined && value !== null ? '✅ "' + value + '"' : '❌ missing'}`);
+    });
+    
     if (!patient || !operation) {
       return NextResponse.json(
         { success: false, error: 'Invalid payload' },
