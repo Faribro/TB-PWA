@@ -9,8 +9,15 @@ export function ScopeInitializer(): null {
   const initializeScope = useEntityStore(s => s.initializeScope);
 
   useEffect(() => {
-    if (scope) initializeScope(scope);
-  }, [scope?.role, scope?.state, scope?.district, initializeScope]);
+    if (scope) {
+      console.log('[ScopeInitializer] 🔍 Initializing user scope:');
+      console.log('[ScopeInitializer]   Role:', scope.role);
+      console.log('[ScopeInitializer]   State:', scope.state);
+      console.log('[ScopeInitializer]   District:', scope.district);
+      console.log('[ScopeInitializer]   Staff Name:', scope.staffName);
+      initializeScope(scope);
+    }
+  }, [scope?.role, scope?.state, scope?.district, scope?.staffName, initializeScope]);
 
   return null;
 }

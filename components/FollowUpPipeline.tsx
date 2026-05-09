@@ -298,11 +298,29 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
   const filteredPatients = useMemo(() => {
     let filtered = patientData;
 
+    console.log('[FollowUpPipeline] 🔍 Filtering debug:');
+    console.log('[FollowUpPipeline]   Total patients before filtering:', patientData.length);
+    console.log('[FollowUpPipeline]   activeFilters:', activeFilters);
+    console.log('[FollowUpPipeline]   treeFilter:', treeFilter);
+
     // Apply Universal State Filter
     if (activeFilters?.state) {
-      filtered = filtered.filter(p => 
-        normalizeGeographicKey(p.screening_state) === normalizeGeographicKey(activeFilters.state)
-      );
+      console.log('[FollowUpPipeline] 📍 Applying state filter:', activeFilters.state);
+      const beforeStateFilter = filtered.length;
+      filtered = filtered.filter(p => {
+        const patientState = normalizeGeographicKey(p.screening_state);
+        const filterState = normalizeGeographicKey(activeFilters.state);
+        const matches = patientState === filterState;
+        if (!matches && p.screening_state?.toLowerCase().includes('maharashtra')) {
+          console.log('[FollowUpPipeline] ❌ Maharashtra patient filtered out:');
+          console.log('[FollowUpPipeline]   Patient state:', p.screening_state, '-> normalized:', patientState);
+          console.log('[FollowUpPipeline]   Filter state:', activeFilters.state, '-> normalized:', filterState);
+          console.log('[FollowUpPipeline]   Patient name:', p.inmate_name);
+          console.log('[FollowUpPipeline]   Patient ID:', p.id || p.kobo_uuid);
+        }
+        return matches;
+      });
+      console.log('[FollowUpPipeline]   After state filter:', beforeStateFilter, '->', filtered.length);
     }
 
     // Apply Universal District Filter (from Sonic) OR Tree District Filter
