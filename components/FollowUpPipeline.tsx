@@ -20,23 +20,25 @@ import { useRealtimePatients } from '@/lib/useRealtimePatients';
 const supabase = getSupabaseBrowserClient();
 
 // Function to get dynamic location text based on filters
-function getLocationText(displayPatients) {
+function getLocationText(displayPatients: Patient[]) {
   const activeFilters = useEntityStore.getState().activeFilters;
   
+  // Priority 1: Use active filters if available
   if (activeFilters?.state && activeFilters?.district) {
     return `${activeFilters.state}, ${activeFilters.district}`;
   } else if (activeFilters?.state) {
     return activeFilters.state;
-  } else {
-    // Default to first available state/district from display patients
-    if (displayPatients && displayPatients.length > 0) {
-      const firstPatient = displayPatients[0];
-      const state = firstPatient.screening_state || firstPatient.state || 'Unknown';
-      const district = firstPatient.screening_district || firstPatient.district || 'Unknown';
-      return `${state}, ${district}`;
-    }
-    return 'All Locations';
   }
+  
+  // Priority 2: Derive from display patients (facility-scoped or date-scoped)
+  if (displayPatients && displayPatients.length > 0) {
+    const firstPatient = displayPatients[0];
+    const state = firstPatient.screening_state || firstPatient.state || 'Unknown';
+    const district = firstPatient.screening_district || firstPatient.district || 'Unknown';
+    return `${state}, ${district}`;
+  }
+  
+  return 'All Locations';
 }
 
 interface Patient {

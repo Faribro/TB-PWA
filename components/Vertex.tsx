@@ -1725,7 +1725,7 @@ export default function Vertex({
             {/* INTERNAL LAYOUT SAFETY - Allow full width for cards */}
             <div className="flex-1 p-0 bg-white/10" style={{ overflow: 'hidden' }}>
               <FollowUpPipeline 
-                patients={patientsForSelectedDate}
+                patients={selectedFacility ? sortedFacilityPatients : patientsForSelectedDate}
                 isLoading={false}
                 onPatientClick={handleOpenPatientDrawer}
                 onUploadRegister={canEdit ? () => setIsUploadModalOpen(true) : undefined}
