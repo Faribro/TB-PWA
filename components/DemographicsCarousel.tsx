@@ -159,8 +159,9 @@ interface ParsedSymptomsResult {
   rawValue: string | null;
 }
 
-// Alias map for known alternate symptom names
+// Alias map for known alternate symptom names (Kobo choice codes + common variants)
 const SYMPTOM_ALIASES: Record<string, string> = {
+  // Kobo underscore codes
   'weightloss': 'weight loss',
   'weight_loss': 'weight loss',
   'nightsweats': 'night sweats',
@@ -175,6 +176,24 @@ const SYMPTOM_ALIASES: Record<string, string> = {
   'loss_of_appetite': 'loss of appetite',
   'swellingneck': 'swelling in neck',
   'swelling_neck': 'swelling in neck',
+  'swelling in neck': 'swelling in neck',
+  // Kobo "of any duration" suffix variants
+  'cough 2wks': 'cough',
+  'cough of any duration': 'cough',
+  'cough_2wks': 'cough',
+  // Haemoptysis = blood in sputum
+  'haemoptysis': 'blood in sputum',
+  'hemoptysis': 'blood in sputum',
+  'haemoptysis blood in sputum': 'blood in sputum',
+  // Breathlessness = shortness of breath
+  'breathlessness': 'shortness of breath',
+  'dyspnoea': 'shortness of breath',
+  // Anorexia = loss of appetite
+  'anorexia': 'loss of appetite',
+  'loss of appetite anorexia': 'loss of appetite',
+  // Lymphadenopathy = swelling in neck
+  'lymphadenopathy': 'swelling in neck',
+  'swelling': 'swelling in neck',
 };
 
 // Export pure function for testing and reusability
@@ -191,7 +210,16 @@ export function parseKoboSymptoms(raw: string | null | undefined): ParsedSymptom
   }
   
   const rawTrimmed = raw.trim();
-  if (rawTrimmed.toLowerCase() === 'n/a' || rawTrimmed.includes('No_Symptomps') || rawTrimmed.toLowerCase().includes('no symptoms')) {
+  const rawLower = rawTrimmed.toLowerCase();
+
+  // "Yes" / "No" / "yes" / "no" — boolean presence flag, not a symptom list
+  // "no_symptoms" / "none" / "n/a" / "No_Symptomps" — explicit negation
+  if (
+    rawLower === 'yes' || rawLower === 'no' ||
+    rawLower === 'n/a' || rawLower === 'none' ||
+    rawLower === 'no_symptoms' || rawLower === 'no symptoms' ||
+    rawTrimmed.includes('No_Symptomps')
+  ) {
     return { symptoms: result, unrecognized: [], rawValue: rawTrimmed };
   }
   
@@ -200,39 +228,50 @@ export function parseKoboSymptoms(raw: string | null | undefined): ParsedSymptom
     return { symptoms: result, unrecognized: [rawTrimmed], rawValue: rawTrimmed };
   }
   
-  // Normalize: lowercase, strip punctuation, collapse spaces, replace underscores
-  const normalized = rawTrimmed
-    .toLowerCase()
-    .replace(/[^\w\s]/g, ' ') // Remove punctuation except word chars and spaces
+  // Normalize: lowercase, replace underscores with spaces, strip punctuation, collapse spaces
+  const normalized = rawLower
     .replace(/_/g, ' ')
+    .replace(/[^\w\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   
-  // Split on multiple delimiters: comma, semicolon, pipe, space, or mixed
-  const tokens = normalized.split(/[,;\|\s]+/).map(t => t.trim()).filter(Boolean);
+  // Split on comma, semicolon, pipe — NOT plain space (symptom names can be multi-word)
+  // Fall back to space-splitting only if no other delimiter found
+  const hasDelimiter = /[,;|]/.test(normalized);
+  const tokens = hasDelimiter
+    ? normalized.split(/[,;|]+/).map(t => t.trim()).filter(Boolean)
+    : normalized.split(/\s+/).map(t => t.trim()).filter(Boolean);
   
   // Process each token
   tokens.forEach(token => {
-    // Apply alias mapping
+    // Apply alias mapping first (handles underscore variants)
     const aliased = SYMPTOM_ALIASES[token] || token;
     
-    // Try exact match
+    // Try exact match against label
     const exactMatch = SYMPTOMS_MASTER.find(sym => sym.label.toLowerCase() === aliased);
     if (exactMatch) {
       result[exactMatch.id] = true;
       return;
     }
+
+    // Try exact match against symptom id (e.g. token = "weight_loss" → id = "weight_loss")
+    const idMatch = SYMPTOMS_MASTER.find(sym => sym.id === token.replace(/ /g, '_'));
+    if (idMatch) {
+      result[idMatch.id] = true;
+      return;
+    }
     
-    // Try partial match (≥60% word overlap)
-    const tokenWords = aliased.split(' ');
+    // Try partial match: token must contain the first word of a symptom label
+    // (handles "Cough_2wks" → contains "cough" → matches Cough)
     let bestMatch: typeof SYMPTOMS_MASTER[0] | null = null;
     let bestScore = 0;
     
     SYMPTOMS_MASTER.forEach(sym => {
       const symWords = sym.label.toLowerCase().split(' ');
-      const matches = tokenWords.filter(tw => symWords.some(sw => sw.includes(tw) || tw.includes(sw))).length;
-      const score = matches / Math.max(tokenWords.length, symWords.length);
-      
+      const tokenWords = aliased.split(' ');
+      // Score: how many symptom words appear in the token
+      const matches = symWords.filter(sw => tokenWords.some(tw => tw.includes(sw) || sw.includes(tw))).length;
+      const score = matches / symWords.length;
       if (score >= 0.6 && score > bestScore) {
         bestMatch = sym;
         bestScore = score;
@@ -244,7 +283,7 @@ export function parseKoboSymptoms(raw: string | null | undefined): ParsedSymptom
       return;
     }
     
-    // No match found - add to unrecognized
+    // No match found
     unrecognized.push(token);
   });
   
@@ -510,24 +549,16 @@ export function DemographicsCarousel({
   }, [patient, localValues, editedDemographics]);
 
   // Use exported parseKoboSymptoms function for robust parsing
+  // Priority: editedDemographics.symptoms10s (set from mapDemographics in parent) > patient fields
   const parsedSymptomsResult = useMemo(() => {
-    // Check both possible symptom fields and other potential symptom fields
-    const symptomsData = patient?.symptoms_10s || 
-                         patient?.symptoms_present || 
-                         patient?.tb_symptoms ||
-                         patient?.symptoms;
-    
-    console.log('DemographicsCarousel - checking symptoms fields:');
-    console.log('  symptoms_10s:', patient?.symptoms_10s);
-    console.log('  symptoms_present:', patient?.symptoms_present);
-    console.log('  tb_symptoms:', patient?.tb_symptoms);
-    console.log('  symptoms:', patient?.symptoms);
-    console.log('  using data:', symptomsData);
-    
-    const result = parseKoboSymptoms(symptomsData);
-    console.log('DemographicsCarousel - parsed symptoms result:', result);
-    return result;
-  }, [patient?.symptoms_10s, patient?.symptoms_present, patient?.tb_symptoms, patient?.symptoms]);
+    const symptomsData =
+      editedDemographics?.symptoms10s ||
+      patient?.symptoms_10s ||
+      patient?.symptoms_present ||
+      patient?.tb_symptoms ||
+      patient?.symptoms;
+    return parseKoboSymptoms(symptomsData);
+  }, [editedDemographics?.symptoms10s, patient?.symptoms_10s, patient?.symptoms_present, patient?.tb_symptoms, patient?.symptoms]);
   const parsedSymptoms = parsedSymptomsResult.symptoms;
   const unrecognizedSymptoms = parsedSymptomsResult.unrecognized;
   const symptomsRawValue = parsedSymptomsResult.rawValue;
@@ -536,15 +567,6 @@ export function DemographicsCarousel({
 
   if (!patient) return null;
   
-  // Debug: Check for symptom-related fields
-  const symptomFields = Object.keys(patient || {}).filter(key => 
-    key.toLowerCase().includes('symptom') || 
-    key.toLowerCase().includes('10s')
-  );
-  if (symptomFields.length > 0) {
-    console.log('DemographicsCarousel - found symptom fields:', symptomFields);
-  }
-
   const gv = getValue;
   const E = isEditingDemographics;
   const H = handleFieldChange;
@@ -564,7 +586,6 @@ export function DemographicsCarousel({
   const isHIV   = hiv === 'Positive';
   const isSusp  = xray === 'Suspected TB' || xrayRaw === 'Suspected_TB_Case';
   const symCount= Object.values(parsedSymptoms).filter(Boolean).length;
-  console.log('DemographicsCarousel - symptom count:', symCount, 'parsedSymptoms:', parsedSymptoms);
 
   // Real-time updates are handled by PatientDetailDrawer parent component
 
