@@ -102,6 +102,7 @@ const METRICS_CONFIG: Record<MetricKey, {
 };
 
 const AnimatedNumber = ({ value }: { value: number }) => {
+  if (value === undefined || value === null) return <span>0</span>;
   return (
     <motion.span
       initial={{ opacity: 0, y: 30, filter: "blur(8px)", rotateX: -45 }}
