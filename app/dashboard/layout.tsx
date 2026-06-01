@@ -15,6 +15,7 @@ import { useSWRAllPatients } from '@/hooks/useSWRPatients';
 import { useSessionScope } from '@/hooks/useSessionScope';
 import { EntityDataSync } from '@/components/EntityDataSync';
 import { SyncStatusFeed } from '@/components/SyncStatusFeed';
+import { PatientRealtimeNotification } from '@/components/PatientRealtimeNotification';
 import { useEntityStore } from '@/stores/useEntityStore';
 // Sound module loaded dynamically to avoid chunk errors
 let sounds: any = null;
@@ -269,6 +270,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden selection:bg-slate-900/20">
       <EntityDataSync patients={memoizedPatients} />
       <SyncStatusFeed />
+      <PatientRealtimeNotification />
 
       <motion.aside
         animate={{ width: sidebarOpen ? 280 : 80 }}

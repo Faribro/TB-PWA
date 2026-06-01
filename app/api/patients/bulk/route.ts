@@ -45,14 +45,14 @@ const BULK_COLUMNS = [
   
   // Diagnosis & Treatment
   'tb_diagnosed', 'tb_diagnosis_date', 'tb_type', 
-  'att_start_date', 'att_completion_date',
+  'att_start_date', 'att_completion_date', 'treatment_regimen',
   
   // HIV/ART
   'hiv_status', 'art_status', 'art_number',
   
   // Registration & Administrative
   'nikshay_abha_id', 'registration_date', 'closure_reason', 'remarks',
-  'ai_link_status', 'created_at', 'updated_at'
+  'ai_link_status', 'created_at', 'updated_at', 'other_facility_name'
 ].join(',');
 
 interface BulkResponse {

@@ -31,7 +31,8 @@ const FULL_COLUMNS = [
   'date_of_birth', 'contact_number', 'address', 'father_husband_name',
   'inmate_type', 'staff_name', 'symptoms_10s', 'tb_past_history', 'remarks',
   'tb_diagnosis_date', 'att_completion_date', 'art_status', 'art_number',
-  'registration_date', 'closure_reason', 'updated_at'
+  'registration_date', 'closure_reason', 'updated_at',
+  'other_facility_name', 'treatment_regimen'
 ].join(',');
 
 interface CursorPaginationResponse {

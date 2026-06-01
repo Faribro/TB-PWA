@@ -66,7 +66,7 @@ async function handler(request: NextRequest) {
     console.log('[ProcessSync]   batch format:', Object.keys(batchPayload));
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
     
     const response = await fetch(webhookUrl, {
       method: 'POST',

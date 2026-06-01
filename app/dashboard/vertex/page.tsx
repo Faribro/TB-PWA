@@ -147,7 +147,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
     console.log('[Vertex] Setting up real-time subscription for new patients');
     
     const channel = supabase
-      .channel('patients-changes')
+      .channel('vertex-patients-changes')
       .on(
         'postgres_changes',
         {

@@ -1036,14 +1036,29 @@ export default function Vertex({
     if (!patientsForSelectedDate || !patientsForSelectedDate.length) return [];
     
     const stateMap = new Map<string, Map<string, Map<string, any[]>>>();
+    const stateNameMap = new Map<string, string>();
+    const districtNameMap = new Map<string, string>();
 
     for (let i = 0; i < patientsForSelectedDate.length; i++) {
       const patient = patientsForSelectedDate[i];
       if (!patient) continue;
       
-      const state = patient.screening_state || 'Unknown State';
-      const district = patient.screening_district || 'Unknown District';
+      const originalState = patient.screening_state || 'Unknown State';
+      const originalDistrict = patient.screening_district || 'Unknown District';
       const facility = patient.facility_name || 'Unknown Facility';
+      
+      const stateKey = originalState.trim().toLowerCase();
+      const districtKey = `${stateKey}::${originalDistrict.trim().toLowerCase()}`;
+      
+      if (!stateNameMap.has(stateKey)) {
+        stateNameMap.set(stateKey, originalState.trim());
+      }
+      if (!districtNameMap.has(districtKey)) {
+        districtNameMap.set(districtKey, originalDistrict.trim());
+      }
+      
+      const state = stateNameMap.get(stateKey)!;
+      const district = districtNameMap.get(districtKey)!;
 
       let districtMap = stateMap.get(state);
       if (!districtMap) {

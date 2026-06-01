@@ -42,6 +42,7 @@ model patients {
   // Clinical
   referral_date          DateTime? @db.Date
   referred_facility      String?
+  other_facility_name    String?
   tb_diagnosed           String?
   tb_diagnosis_date      DateTime? @db.Date
   tb_type                String?
@@ -49,6 +50,7 @@ model patients {
   // Treatment
   att_start_date         DateTime? @db.Date
   att_completion_date    DateTime? @db.Date
+  treatment_regimen      String?
   hiv_status             String?
   art_status             String?
   art_number             String?

@@ -1,0 +1,37 @@
+{
+  "scanned": 500,
+  "stats": {
+    "total": 500,
+    "all_clinical_null": 3,
+    "only_hiv_status": 398,
+    "has_referral_date": 1,
+    "has_tb_diagnosed": 1,
+    "has_att_start": 1,
+    "has_nikshay": 1,
+    "fully_complete": 0,
+    "updated_without_clinical": 0,
+    "partial_saves_suspected": 496
+  },
+  "score_distribution": {
+    "0": 3,
+    "1": 398,
+    "2": 98,
+    "13": 1
+  },
+  "updated_without_clinical": [],
+  "by_month": {
+    "2026-06": {
+      "total": 85,
+      "withClinical": 85
+    },
+    "2026-05": {
+      "total": 415,
+      "withClinical": 412
+    }
+  },
+  "verdict": {
+    "primary": "3 patients (0.6%) have ZERO clinical data",
+    "suspicious": "0 patients were updated but still have zero clinical fields",
+    "pattern": "398 patients have ONLY hiv_status — consistent with partial save overwriting date fields with null"
+  }
+}

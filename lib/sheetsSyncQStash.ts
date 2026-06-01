@@ -177,13 +177,18 @@ export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 
       count: 1
     };
     
-    // Send directly without QStash
+    // Send directly without QStash with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    
     fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(batchPayload),
+      signal: controller.signal,
     })
       .then(response => {
+        clearTimeout(timeoutId);
         if (response.ok || response.status === 302) {
           console.log('[QStash] ✅ Direct sync to Google Sheets succeeded');
         } else {
@@ -191,6 +196,7 @@ export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 
         }
       })
       .catch(error => {
+        clearTimeout(timeoutId);
         console.error('[QStash] ❌ Direct sync error:', error.message);
       });
     

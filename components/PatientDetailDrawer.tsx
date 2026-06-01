@@ -24,6 +24,8 @@ import { useSyncStatus } from '@/lib/useSyncStatus';
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { DemographicsCarousel } from './DemographicsCarousel';
 import { usePatientRealtimeUpdates } from '@/hooks/usePatientRealtimeUpdates';
+import { CLINICAL_FORM_FIELD_TO_COLUMN, CLINICAL_DATE_COLUMNS } from '@/lib/db/clinicalFields';
+import { buildClinicalDiffPayload } from '@/lib/db/buildClinicalDiffPayload';
 
 const supabaseClient = getSupabaseBrowserClient();
 
@@ -133,93 +135,19 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const { status, setSaving, setSyncing, setSynced, setError, reset: resetSyncStatus } = useSyncStatus(patient?.id ?? null);
   const { getFailedUpdatesCount } = useFailedUpdateRetry();
 
-  // Force refresh session scope when drawer opens to prevent stale access control data
-  useEffect(() => {
-    mutate('/api/me');
-  }, [mutate]);
-
-  useEffect(() => {
-    console.log('[PatientDetailDrawer] 🔄 Patient prop changed:', {
-      patientId: patient?.id,
-      hasClinicalData: {
-        referral_date: !!patient?.referral_date,
-        referred_facility: !!patient?.referred_facility,
-        hiv_status: !!patient?.hiv_status,
-        tb_diagnosed: !!patient?.tb_diagnosed
-      }
-    });
-    if (patient && Object.keys(patient).length > 0) {
-      // Check for meaningful clinical data presence (non-empty, non-null values)
-      const localHasMeaningfulClinicalData = 
-        (localPatient?.referral_date && localPatient.referral_date.trim() !== '') ||
-        (localPatient?.referred_facility && localPatient.referred_facility.trim() !== '') ||
-        (localPatient?.hiv_status && localPatient.hiv_status.trim() !== '') ||
-        (localPatient?.tb_diagnosed && localPatient.tb_diagnosed.trim() !== '') ||
-        (localPatient?.tb_diagnosis_date && localPatient.tb_diagnosis_date.trim() !== '');
-      
-      const patientHasMeaningfulClinicalData = 
-        (patient?.referral_date && patient.referral_date.trim() !== '') ||
-        (patient?.referred_facility && patient.referred_facility.trim() !== '') ||
-        (patient?.hiv_status && patient.hiv_status.trim() !== '') ||
-        (patient?.tb_diagnosed && patient.tb_diagnosed.trim() !== '') ||
-        (patient?.tb_diagnosis_date && patient.tb_diagnosis_date.trim() !== '');
-      
-      console.log('[PatientDetailDrawer] 🔍 Clinical data comparison:', {
-        localHasMeaningfulClinicalData,
-        patientHasMeaningfulClinicalData,
-        localPatientFields: {
-          referral_date: !!localPatient?.referral_date,
-          referred_facility: !!localPatient?.referred_facility,
-          hiv_status: !!localPatient?.hiv_status,
-          tb_diagnosed: !!localPatient?.tb_diagnosed
-        },
-        patientPropFields: {
-          referral_date: !!patient?.referral_date,
-          referred_facility: !!patient?.referred_facility,
-          hiv_status: !!patient?.hiv_status,
-          tb_diagnosed: !!patient?.tb_diagnosed
-        }
-      });
-      
-      // If localPatient has meaningful clinical data but patient prop doesn't, preserve localPatient
-      if (localHasMeaningfulClinicalData && !patientHasMeaningfulClinicalData) {
-        console.log('[PatientDetailDrawer] ✅ Preserving localPatient - has meaningful clinical data, patient prop does not');
-        return;
-      }
-      
-      // If both have meaningful data, use timestamps to decide (but handle undefined timestamps)
-      if (localHasMeaningfulClinicalData && patientHasMeaningfulClinicalData) {
-        // Only use timestamp comparison if both have valid timestamps
-        if (localPatient?.updated_at && patient?.updated_at) {
-          const localPatientUpdated = new Date(localPatient.updated_at) > new Date(patient.updated_at);
-          
-          if (localPatientUpdated) {
-            console.log('[PatientDetailDrawer] ✅ Preserving localPatient with newer timestamp');
-            return;
-          }
-        } else if (localPatient?.updated_at && !patient?.updated_at) {
-          // localPatient has timestamp but patient prop doesn't - preserve localPatient
-          console.log('[PatientDetailDrawer] ✅ Preserving localPatient - has timestamp, patient prop does not');
-          return;
-        }
-      }
-      
-      console.log('[PatientDetailDrawer] ⚠️ Updating localPatient with patient prop');
-      setLocalPatient(patient);
-    }
-  }, [patient, localPatient?.updated_at]);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Debug: Monitor isSubmitting state changes
-  useEffect(() => {
-    console.log('[PatientDetailDrawer] 🔄 isSubmitting state changed to:', isSubmitting);
-  }, [isSubmitting]);
   const [showCloseLoop, setShowCloseLoop] = useState(false);
   const [isEditingDemographics, setIsEditingDemographics] = useState(false);
   const [isSavingDemographics, setIsSavingDemographics] = useState(false);
   const [internalOpen, setInternalOpen] = useState(isOpen);
   const [activeTab, setActiveTab] = useState('clinical');
+  // Tracks whether the canonical fresh fetch has completed for the current patient
+  const [fetchedPatient, setFetchedPatient] = useState<any>(null);
+
+  // Refs for managing save state and form reset timing
+  const justSavedRef = useRef(false);
+  const justSavedTimestampRef = useRef<number>(0);
+  const hasFetchedRef = useRef(false);
 
   const { watch, getValues, reset, setValue, formState: { isDirty } } = useForm<PatientFormData>({
     defaultValues: {
@@ -240,49 +168,158 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     }
   });
 
+  // Force refresh session scope when drawer opens to prevent stale access control data
+  useEffect(() => {
+    mutate('/api/me');
+  }, [mutate]);
+
+  useEffect(() => {
+    console.log('[PatientDetailDrawer] 🔄 Patient prop changed:', {
+      patientId: patient?.id,
+      kobo_uuid: patient?.kobo_uuid,
+      updated_at: patient?.updated_at,
+      hasClinicalData: {
+        referral_date: patient?.referral_date,
+        referred_facility: patient?.referred_facility,
+        hiv_status: patient?.hiv_status,
+        tb_diagnosed: patient?.tb_diagnosed,
+        tb_diagnosis_date: patient?.tb_diagnosis_date,
+        att_start_date: patient?.att_start_date,
+        art_status: patient?.art_status,
+        nikshay_abha_id: patient?.nikshay_abha_id
+      }
+    });
+    
+    if (patient && Object.keys(patient).length > 0) {
+      const isSamePatient =
+        (patient?.id && localPatient?.id && patient.id === localPatient.id) ||
+        (patient?.unique_id && localPatient?.unique_id && patient.unique_id === localPatient.unique_id);
+
+      if (isSamePatient) {
+        // Only accept patient prop if we haven't just saved (within last 1 second)
+        if (Date.now() - justSavedTimestampRef.current > 1000) {
+          console.log('[PatientDetailDrawer] ✅ Same patient - accepting fresh patient prop');
+          setLocalPatient(patient);
+        } else {
+          console.log('[PatientDetailDrawer] ⏭️ Skipping prop update - just saved');
+        }
+        return;
+      }
+
+      // Different patient - reset EVERYTHING
+      console.log('[PatientDetailDrawer] 🆕 Different patient - resetting all');
+      setLocalPatient(patient);
+      justSavedTimestampRef.current = 0; // Clear timestamp for new patient
+      hasFetchedRef.current = false; // Reset fetch flag for new patient
+      // Reset form to default values for new patient
+      reset({
+        'Date of referral for TB Examination (sputum) (dd/mm/yy)': '',
+        'Name of facility where referred to (Give code/name of all facilities)': '',
+        'TB diagnosed (Y/N)': '',
+        'Date of TB Diagnosed (dd/mm/yy)': '',
+        'Type of TB Diagnosed (P/EP)': '',
+        'Date of starting ATT (dd/mm/yyyy)': '',
+        'Date of Treatment Completion (dd/mm/yyyy)': '',
+        'HIV Status (Positive/Negative/Unknown)': '',
+        'Status at the time of referral (Pre ART/On ART)': '',
+        'ART Number (if on ART at the time of referral)': '',
+        'NIKSHAY/ABHA ID': '',
+        'Date of registration (dd/mm/yyyy)': '',
+        'Remarks': '',
+        'Other Facility Name': ''
+      }, { keepDefaultValues: false });
+    }
+  }, [patient, reset, localPatient]);
+
+  // Debug: Monitor isSubmitting state changes
+  useEffect(() => {
+    console.log('[PatientDetailDrawer] 🔄 isSubmitting state changed to:', isSubmitting);
+  }, [isSubmitting]);
+
   // Sync internal open state with prop
   useEffect(() => {
+    if (!isOpen && internalOpen) {
+      // Drawer just closed - clear fetch flag and canonical patient
+      hasFetchedRef.current = false;
+      setFetchedPatient(null);
+      // DO NOT clear justSavedTimestampRef - keep it to prevent overwriting saved data on re-open
+    }
     setInternalOpen(isOpen);
   }, [isOpen]);
 
-  // Initialize form with patient data when drawer opens or localPatient changes
+  // Fetch fresh patient data when drawer opens — this is the CANONICAL source for form prefill
   useEffect(() => {
-    if (localPatient && internalOpen) {
-      console.log('[PatientDetailDrawer] 🔄 Initializing form with localPatient data:', {
-        referral_date: localPatient.referral_date,
-        referred_facility: localPatient.referred_facility,
-        hiv_status: localPatient.hiv_status,
-        tb_diagnosed: localPatient.tb_diagnosed,
-        updated_at: localPatient.updated_at
+    if (!patient?.id || !isOpen) return;
+
+    // Reset fetchedPatient so form waits for fresh data
+    setFetchedPatient(null);
+
+    const url = new URL('/api/patient-sync', window.location.origin);
+    url.searchParams.set('patientId', patient.id);
+
+    fetch(url.toString())
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error(`Failed to fetch patient: ${res.status}`);
+      })
+      .then(data => {
+        if (data?.patient) {
+          console.log('[PatientDetailDrawer] ✅ Fresh fetch complete — setting canonical patient');
+          setFetchedPatient(data.patient);
+          setLocalPatient(data.patient);
+          justSavedTimestampRef.current = 0;
+          justSavedRef.current = false;
+        }
+      })
+      .catch(err => {
+        console.error('[PatientDetailDrawer] ❌ Fresh fetch failed, falling back to prop:', err);
+        // Fallback: use the patient prop so form is not permanently blank
+        setFetchedPatient(patient);
       });
-      console.log('[PatientDetailDrawer] 📋 Data source check - Using localPatient with timestamp:', localPatient.updated_at);
-      
-      const resetValues = {
-        'Date of referral for TB Examination (sputum) (dd/mm/yy)': formatDateForInput(localPatient.referral_date),
-        'Name of facility where referred to (Give code/name of all facilities)': localPatient.referred_facility || '',
-        'TB diagnosed (Y/N)': localPatient.tb_diagnosed || '',
-        'Date of TB Diagnosed (dd/mm/yy)': formatDateForInput(localPatient.tb_diagnosis_date),
-        'Type of TB Diagnosed (P/EP)': localPatient.tb_type || '',
-        'Date of starting ATT (dd/mm/yyyy)': formatDateForInput(localPatient.att_start_date),
-        'Date of Treatment Completion (dd/mm/yyyy)': formatDateForInput(localPatient.att_completion_date),
-        'HIV Status (Positive/Negative/Unknown)': localPatient.hiv_status || '',
-        'Status at the time of referral (Pre ART/On ART)': localPatient.art_status || '',
-        'ART Number (if on ART at the time of referral)': localPatient.art_number || '',
-        'NIKSHAY/ABHA ID': localPatient.nikshay_abha_id || '',
-        'Date of registration (dd/mm/yyyy)': formatDateForInput(localPatient.registration_date),
-        'Remarks': localPatient.remarks || '',
-        'Other Facility Name': localPatient.other_facility_name || ''
-      };
-      
-      console.log('[PatientDetailDrawer] 🔄 Form reset with values:', {
-        referral_date: resetValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
-        facility: resetValues['Name of facility where referred to (Give code/name of all facilities)'],
-        hiv_status: resetValues['HIV Status (Positive/Negative/Unknown)']
-      });
-      
-      reset(resetValues, { keepDefaultValues: false });
+  }, [patient?.id, isOpen]);
+  
+  useEffect(() => {
+    if (isSubmitting) {
+      justSavedRef.current = true;
+    } else if (justSavedRef.current) {
+      // We just finished saving - clear the flag but DON'T reset form
+      // The form values are already correct from the save payload
+      justSavedRef.current = false;
+      justSavedTimestampRef.current = Date.now();
+      console.log('[PatientDetailDrawer] ✅ Skip form reset - just completed save');
     }
-  }, [localPatient, internalOpen, reset]);
+  }, [isSubmitting]);
+  
+  // Reset form ONLY from the canonical fetched patient — never from the stale prop
+  useEffect(() => {
+    if (!fetchedPatient || !internalOpen) return;
+
+    const resetValues = {
+      'Date of referral for TB Examination (sputum) (dd/mm/yy)': formatDateForInput(fetchedPatient.referral_date),
+      'Name of facility where referred to (Give code/name of all facilities)': fetchedPatient.referred_facility || '',
+      'TB diagnosed (Y/N)': fetchedPatient.tb_diagnosed || '',
+      'Date of TB Diagnosed (dd/mm/yy)': formatDateForInput(fetchedPatient.tb_diagnosis_date),
+      'Type of TB Diagnosed (P/EP)': fetchedPatient.tb_type || '',
+      'Date of starting ATT (dd/mm/yyyy)': formatDateForInput(fetchedPatient.att_start_date),
+      'Date of Treatment Completion (dd/mm/yyyy)': formatDateForInput(fetchedPatient.att_completion_date),
+      'HIV Status (Positive/Negative/Unknown)': fetchedPatient.hiv_status || '',
+      'Status at the time of referral (Pre ART/On ART)': fetchedPatient.art_status || '',
+      'ART Number (if on ART at the time of referral)': fetchedPatient.art_number || '',
+      'NIKSHAY/ABHA ID': fetchedPatient.nikshay_abha_id || '',
+      'Date of registration (dd/mm/yyyy)': formatDateForInput(fetchedPatient.registration_date),
+      'Remarks': fetchedPatient.remarks || '',
+      'Other Facility Name': fetchedPatient.other_facility_name || ''
+    };
+
+    console.log('[PatientDetailDrawer] ✅ Form reset from canonical fetched patient:', {
+      id: fetchedPatient.id,
+      referral_date: resetValues['Date of referral for TB Examination (sputum) (dd/mm/yy)'],
+      tb_diagnosed: resetValues['TB diagnosed (Y/N)'],
+      hiv_status: resetValues['HIV Status (Positive/Negative/Unknown)']
+    });
+
+    reset(resetValues, { keepDefaultValues: false });
+  }, [fetchedPatient, internalOpen, reset]);
   
   // Form will be re-initialized when localPatient or internalOpen changes
 
@@ -488,42 +525,43 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     console.log('[PatientDetailDrawer] 🚀 Clinical save started - isSubmitting was:', isSubmitting);
     const formData = getValues();
     console.log('[PatientDetailDrawer] 📝 Form data:', formData);
+
+    // Guardrail 1: Don't save if we haven't fetched canonical patient yet
+    if (!fetchedPatient) {
+      const errorMsg = 'Assertion failed: fetchedPatient is null during clinical save';
+      console.error('[PatientDetailDrawer] ❌', errorMsg);
+      toast.error('Cannot save: Patient data still loading');
+      throw new Error(errorMsg);
+    }
+
     setSaving();
     setIsSubmitting(true);
     console.log('[PatientDetailDrawer] 🔄 isSubmitting set to true');
 
     try {
-      // Build payload programmatically from ALL form fields
-      const payload: Record<string, any> = {
-        id: localPatient.kobo_uuid || localPatient.id,
-        updated_at: new Date().toISOString()
-      };
-      
-      // Map ALL clinical form fields to database columns
-      const clinicalFieldMap: Record<string, string> = {
-        'Date of referral for TB Examination (sputum) (dd/mm/yy)': 'referral_date',
-        'Name of facility where referred to (Give code/name of all facilities)': 'referred_facility',
-        'TB diagnosed (Y/N)': 'tb_diagnosed',
-        'Date of TB Diagnosed (dd/mm/yy)': 'tb_diagnosis_date',
-        'Type of TB Diagnosed (P/EP)': 'tb_type',
-        'Date of starting ATT (dd/mm/yyyy)': 'att_start_date',
-        'Date of Treatment Completion (dd/mm/yyyy)': 'att_completion_date',
-        'HIV Status (Positive/Negative/Unknown)': 'hiv_status',
-        'Status at the time of referral (Pre ART/On ART)': 'art_status',
-        'ART Number (if on ART at the time of referral)': 'art_number',
-        'NIKSHAY/ABHA ID': 'nikshay_abha_id',
-        'Date of registration (dd/mm/yyyy)': 'registration_date',
-        'Remarks': 'remarks',
-        'Other Facility Name': 'other_facility_name'
-      };
-      
-      // Include all fields that have values
-      for (const [formKey, dbColumn] of Object.entries(clinicalFieldMap)) {
-        const value = formData[formKey];
-        if (value !== undefined && value !== null && value !== '') {
-          payload[dbColumn] = value;
-        }
+      // Build diff-based payload
+      const { payload, diffResults } = buildClinicalDiffPayload({
+        formData,
+        fetchedPatient,
+        onLog: (msg, data) => console.log(`[PatientDetailDrawer] ${msg}`, data)
+      });
+
+      // Log diff summaries in dev mode
+      if (process.env.NODE_ENV === 'development') {
+        const added = diffResults.filter(r => r.status === 'added').map(r => r.dbColumn);
+        const changed = diffResults.filter(r => r.status === 'changed').map(r => r.dbColumn);
+        const cleared = diffResults.filter(r => r.status === 'intentional_clear').map(r => r.dbColumn);
+        const unchanged = diffResults.filter(r => r.status === 'unchanged').map(r => r.dbColumn);
+        console.log('[PatientDetailDrawer] 📊 Clinical Save Diff Summary:', {
+          added,
+          changed,
+          cleared,
+          unchanged
+        });
       }
+
+      // Add identifier
+      payload.id = localPatient.kobo_uuid || localPatient.id;
 
       const patientKeys = Object.keys(localPatient || {});
       console.log('[PatientDetailDrawer] 🔍 Patient keys:', patientKeys);
@@ -601,7 +639,39 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       setSyncing();
       
       console.log('[PatientDetailDrawer] ✅ Save successful, response:', responseData);
-      console.log('[PatientDetailDrawer] 🔍 Response patient object:', responseData.patient);
+
+      // Verify API response contains expected persisted updates
+      if (!responseData.success || !responseData.patient) {
+        throw new Error('Invalid API response: missing success flag or patient object');
+      }
+
+      // Check each updated field against response
+      const mismatches: string[] = [];
+      Object.entries(payload).forEach(([key, val]) => {
+        if (key === 'id' || key === 'updated_at') return;
+        const responseVal = responseData.patient[key];
+        
+        if (CLINICAL_DATE_COLUMNS.has(key as any)) {
+          const normVal = val ? new Date(val).toISOString().split('T')[0] : null;
+          const normResp = responseVal ? new Date(responseVal).toISOString().split('T')[0] : null;
+          if (normVal !== normResp) {
+            mismatches.push(`${key}: expected ${normVal}, got ${normResp}`);
+          }
+        } else {
+          const strVal = val !== null && val !== undefined ? String(val).trim() : '';
+          const strResp = responseVal !== null && responseVal !== undefined ? String(responseVal).trim() : '';
+          if (strVal !== strResp) {
+            mismatches.push(`${key}: expected "${strVal}", got "${strResp}"`);
+          }
+        }
+      });
+
+      if (mismatches.length > 0) {
+        console.warn('[PatientDetailDrawer] ⚠️ API response verification warning - field mismatch:', mismatches);
+      } else {
+        console.log('[PatientDetailDrawer] ✅ API response verification: all fields match!');
+      }
+
       console.log('[PatientDetailDrawer] 🔍 Response patient clinical fields:', {
         referral_date: responseData.patient?.referral_date,
         referred_facility: responseData.patient?.referred_facility,
@@ -614,21 +684,27 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       // Update local state with confirmed server data
       if (responseData.patient) {
         setLocalPatient(responseData.patient);
+        // Update canonical patient so form reset effect uses fresh server data
+        setFetchedPatient(responseData.patient);
         
-        // DO NOT reset form - keep user's input as source of truth
-        // Form is already clean after successful save
+        justSavedRef.current = false;
+        justSavedTimestampRef.current = Date.now();
+        
+        // Keep current form values clean (user already sees correct values)
         reset(getValues(), { keepValues: true, keepDirty: false });
       }
       
-      // Optimistic SWR mutation with confirmed data
+      // Optimistic SWR mutation with confirmed data and revalidate bulk API
       await mutate(
         (key: unknown) => {
+          // Revalidate all patient-related keys
+          if (typeof key === 'string' && key.startsWith('/api/patients')) return true;
           if (Array.isArray(key) &&
               ['patients', 'allPatients', 'patient'].includes(key[0] as string)) return true;
           return false;
         },
         responseData.patient, // Provide the updated data directly
-        { revalidate: false } // Don't refetch - we have fresh data
+        { revalidate: true } // Do revalidate to get fresh data for parent
       );
       onUpdate();
       
@@ -668,25 +744,9 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       // This ensures clinical tab reflects updates in real-time
       if (!isDirty && !isEditingDemographics) {
         console.log('[PatientDetailDrawer] ✅ Updating form with realtime data');
-        const clinicalFieldMap: Record<string, string> = {
-          'Date of referral for TB Examination (sputum) (dd/mm/yy)': 'referral_date',
-          'Name of facility where referred to (Give code/name of all facilities)': 'referred_facility',
-          'TB diagnosed (Y/N)': 'tb_diagnosed',
-          'Date of TB Diagnosed (dd/mm/yy)': 'tb_diagnosis_date',
-          'Type of TB Diagnosed (P/EP)': 'tb_type',
-          'Date of starting ATT (dd/mm/yyyy)': 'att_start_date',
-          'Date of Treatment Completion (dd/mm/yyyy)': 'att_completion_date',
-          'HIV Status (Positive/Negative/Unknown)': 'hiv_status',
-          'Status at the time of referral (Pre ART/On ART)': 'art_status',
-          'ART Number (if on ART at the time of referral)': 'art_number',
-          'NIKSHAY/ABHA ID': 'nikshay_abha_id',
-          'Date of registration (dd/mm/yyyy)': 'registration_date',
-          'Remarks': 'remarks',
-        };
-        
         // Build update object with formatted dates
         const formUpdates: Record<string, any> = {};
-        for (const [formKey, dbColumn] of Object.entries(clinicalFieldMap)) {
+        for (const [formKey, dbColumn] of Object.entries(CLINICAL_FORM_FIELD_TO_COLUMN)) {
           const value = data[dbColumn];
           if (value !== undefined && value !== null) {
             // Format dates for HTML5 date inputs
@@ -1066,8 +1126,14 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
               <ScrollArea className="flex-1">
                 <div className="w-full h-full flex flex-col">
                   <TabsContent value="clinical" className="mt-0 p-6 pb-0">
-                    {(() => {
-                      const watchedReferralDate = watch('Date of referral for TB Examination (sputum) (dd/mm/yy)');
+                    {!fetchedPatient ? (
+                      <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-500 animate-pulse">
+                        <Sparkles className="w-8 h-8 animate-spin text-slate-400" />
+                        <p className="text-[13px] font-medium">Loading clinical record from server...</p>
+                      </div>
+                    ) : (
+                      (() => {
+                        const watchedReferralDate = watch('Date of referral for TB Examination (sputum) (dd/mm/yy)');
                       const watchedFacility = watch('Name of facility where referred to (Give code/name of all facilities)');
                       const watchedTbDiagnosed = watch('TB diagnosed (Y/N)');
                       const watchedDiagnosisDate = watch('Date of TB Diagnosed (dd/mm/yy)');
@@ -1287,7 +1353,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                           </div>
                         </>
                       );
-                    })()}
+                    })())}
                   </TabsContent>
 
                   <TabsContent value="demographics" className="mt-0 h-full flex flex-col">
@@ -1585,16 +1651,20 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                     </div>
                   )}
 
-                  {/* Always show save button on clinical tab */}
+                   {/* Always show save button on clinical tab */}
                   <button
                     data-tour-id="submit-clinical-update"
                     onClick={handleSaveClinical}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !fetchedPatient}
                     className="w-full h-[52px] rounded-[14px] text-[13px] font-extrabold uppercase tracking-[0.08em] text-white flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-px active:translate-y-0"
                     style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)', boxShadow: '0 4px 14px rgba(15,23,42,0.25), 0 1px 3px rgba(15,23,42,0.15)' }}
                   >
-                    {isSubmitting ? <Sparkles className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 opacity-70" />}
-                    Submit Clinical Update
+                    {isSubmitting ? (
+                      <Sparkles className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4 opacity-70" />
+                    )}
+                    {!fetchedPatient ? 'Loading Patient Data...' : isSubmitting ? 'Submitting...' : 'Submit Clinical Update'}
                   </button>
                 </div>
               )}

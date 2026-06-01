@@ -59,6 +59,7 @@ interface Patient {
   screening_district: string;
   district?: string;
   screening_state?: string;
+  state?: string;
   chest_x_ray_result?: string;
   xray_result?: string;
   symptoms_present?: string;

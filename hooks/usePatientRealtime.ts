@@ -12,22 +12,6 @@ import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
  * 
  * @param onUpdate - Callback function triggered on any patient change
  * @param enabled - Whether to enable the subscription (default: true)
- * 
- * @example
- * ```tsx
- * import { usePatientRealtime } from '@/hooks/usePatientRealtime';
- * import { mutate } from 'swr';
- * 
- * function PatientList() {
- *   const { data } = useSWR('/api/patients', fetcher);
- *   
- *   usePatientRealtime(() => {
- *     mutate('/api/patients'); // Refresh data on any change
- *   });
- *   
- *   return <div>{data?.patients.map(...)}</div>;
- * }
- * ```
  */
 export function usePatientRealtime(
   onUpdate: (payload: RealtimePostgresChangesPayload<any>) => void,
@@ -36,43 +20,53 @@ export function usePatientRealtime(
   useEffect(() => {
     if (!enabled) return;
 
-    const supabase = createClient();
-    
-    console.log('[Realtime] Subscribing to patients table changes...');
+    try {
+      const supabase = createClient();
+      
+      console.log('[Realtime] Subscribing to patients table changes...');
 
-    const channel = supabase
-      .channel('patients-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // Listen to INSERT, UPDATE, DELETE
-          schema: 'public',
-          table: 'patients'
-        },
-        (payload) => {
-          console.log('[Realtime] Patient change detected:', {
-            event: payload.eventType,
-            id: (payload.new as any)?.id || (payload.old as any)?.id,
-            timestamp: new Date().toISOString()
-          });
-          
-          onUpdate(payload);
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[Realtime] ✅ Successfully subscribed to patients table');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('[Realtime] ❌ Subscription error');
-        } else if (status === 'TIMED_OUT') {
-          console.error('[Realtime] ⏱️ Subscription timed out');
-        }
-      });
+      const channel = supabase.channel('notification-patients-changes');
 
-    // Cleanup on unmount
-    return () => {
-      console.log('[Realtime] Unsubscribing from patients table...');
-      supabase.removeChannel(channel);
-    };
+      channel
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'patients'
+          },
+          (payload) => {
+            console.log('[Realtime] Patient change detected:', {
+              event: payload.eventType,
+              id: (payload.new as any)?.id || (payload.old as any)?.id,
+              timestamp: new Date().toISOString()
+            });
+            
+            onUpdate(payload);
+          }
+        )
+        .subscribe((status, err) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('[Realtime] ✅ Successfully subscribed to patients table');
+          } else if (status === 'CHANNEL_ERROR') {
+            console.warn('[Realtime] ⚠️ Subscription error (non-blocking):', err?.message || err);
+          } else if (status === 'TIMED_OUT') {
+            console.warn('[Realtime] ⚠️ Subscription timed out');
+          }
+        });
+
+      return () => {
+        console.log('[Realtime] Unsubscribing from patients table...');
+        try {
+          channel.unsubscribe();
+          supabase.removeChannel(channel);
+        } catch (e) {
+          console.warn('[Realtime] ⚠️ Error removing channel:', e);
+        }
+      };
+    } catch (e) {
+      console.warn('[Realtime] ⚠️ Failed to setup realtime subscription (non-blocking):', e);
+      return () => {};
+    }
   }, [onUpdate, enabled]);
 }

@@ -1,0 +1,15 @@
+{
+  "patient_id": "b0632ca4-926e-477a-b91a-a48caa45bb28",
+  "scenario1": {
+    "description": "Prefilled form + single edit",
+    "payload": {
+      "updated_at": "2026-06-01T07:10:53.167Z",
+      "hiv_status": "Positive"
+    },
+    "verdict": "PASS: Non-destructive"
+  },
+  "scenario2": {
+    "description": "Save blocked when fetchedPatient is null",
+    "verdict": "PASS: Blocked"
+  }
+}

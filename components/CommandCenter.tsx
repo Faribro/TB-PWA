@@ -33,15 +33,27 @@ interface Patient {
   symptoms_present?: string;
   kobo_uuid?: string;
   referral_date: string | null;
+  referred_facility?: string | null;
   tb_diagnosed: string | null;
-  hiv_status: string | null;
+  tb_diagnosis_date?: string | null;
+  tb_type?: string | null;
   att_start_date: string | null;
-  att_completion_date: string | null;
+  att_completion_date?: string | null;
+  hiv_status: string | null;
+  art_status?: string | null;
+  art_number?: string | null;
+  nikshay_abha_id?: string | null;
+  nikshay_registration_date?: string | null;
+  other_facility_name?: string | null;
+  treatment_regimen?: string | null;
+  closure_reason?: string | null;
   risk_score: number;
   age: number;
   sex: string;
   created_at: string;
+  updated_at?: string;
   current_phase?: string;
+  [key: string]: any;
 }
 
 const PHASES = [
@@ -189,6 +201,9 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
     const patient = patients.find(p => p.id === id);
     if (!patient) return;
 
+    console.log('[CommandCenter.updatePatient] 🔄 Starting update for patient:', id);
+    console.log('[CommandCenter.updatePatient] 📝 Updates:', updates);
+
     const response = await fetch('/api/patient-sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -200,8 +215,39 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
     });
 
     if (response.ok) {
+      const responseData = await response.json();
+      
+      console.log('[CommandCenter.updatePatient] ✅ API response:', responseData);
+      console.log('[CommandCenter.updatePatient] 🔍 Response patient updated_at:', responseData.patient?.updated_at);
+      
+      // CRITICAL FIX: Update selectedPatient with full server-confirmed patient object
+      // This ensures all fields including updated_at timestamp are current
+      if (responseData.patient && selectedPatient?.id === id) {
+        console.log('[CommandCenter.updatePatient] 🔄 Updating selectedPatient with server response');
+        console.log('[CommandCenter.updatePatient] 📊 Before:', {
+          id: selectedPatient.id,
+          updated_at: selectedPatient.updated_at,
+          referred_facility: selectedPatient.referred_facility
+        });
+        setSelectedPatient(responseData.patient);
+        console.log('[CommandCenter.updatePatient] 📊 After:', {
+          id: responseData.patient.id,
+          updated_at: responseData.patient.updated_at,
+          referred_facility: responseData.patient.referred_facility
+        });
+      } else {
+        console.warn('[CommandCenter.updatePatient] ⚠️ Not updating selectedPatient:', {
+          hasPatient: !!responseData.patient,
+          selectedPatientId: selectedPatient?.id,
+          updateId: id,
+          match: selectedPatient?.id === id
+        });
+      }
+      
+      // Refresh SWR cache
       mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
-      if (selectedPatient?.id === id) setSelectedPatient({ ...selectedPatient, ...updates });
+    } else {
+      console.error('[CommandCenter.updatePatient] ❌ API error:', response.status);
     }
   };
 
@@ -723,10 +769,23 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
         {/* Patient Detail Drawer */}
         {selectedPatient && (
           <PatientDetailDrawer
+            key={selectedPatient.id || selectedPatient.kobo_uuid}
             patient={selectedPatient}
             isOpen={!!selectedPatient}
             onClose={() => setSelectedPatient(null)}
-            onUpdate={() => mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'))}
+            onUpdate={async () => {
+              // Refresh the list cache
+              mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+              
+              // Also refresh the selected patient from the list cache
+              // This ensures selectedPatient has the latest data including updated_at
+              if (selectedPatient?.id) {
+                const patientFromList = patients.find(p => p.id === selectedPatient.id);
+                if (patientFromList) {
+                  setSelectedPatient(patientFromList);
+                }
+              }
+            }}
           />
         )}
       </div>

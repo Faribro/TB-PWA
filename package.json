@@ -46,7 +46,17 @@
     "test:openrouter": "bun scripts/test-openrouter-fallback.ts",
     "test:context-validation": "bun scripts/test-register-context-validation.ts",
     "clear:cache": "node scripts/clear-patient-cache.js",
-    "test:state-normalization": "bun run lib/normalization/state.test.ts"
+    "test:state-normalization": "bun run lib/normalization/state.test.ts",
+    "test:clinical-db": "bun run scripts/test-clinical-db-row.ts",
+    "test:clinical-api": "bun run scripts/test-clinical-api-prefill.ts",
+    "test:clinical-parity": "bun run scripts/test-clinical-field-parity.ts",
+    "test:clinical-identifiers": "bun run scripts/test-clinical-identifier-paths.ts",
+    "test:clinical-all": "bun run scripts/test-clinical-db-row.ts && bun run scripts/test-clinical-api-prefill.ts && bun run scripts/test-clinical-field-parity.ts && bun run scripts/test-clinical-identifier-paths.ts",
+    "test:clinical-diff": "bun run scripts/test-clinical-diff-save.ts",
+    "test:clinical-clear": "bun run scripts/test-clinical-intentional-clear.ts",
+    "test:clinical-audit": "bun run scripts/test-clinical-real-save-audit.ts",
+    "test:clinical-flow": "bun run scripts/test-clinical-user-flow-save.ts",
+    "report:data-loss": "bun run scripts/report-clinical-data-loss-risk.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.43",
