@@ -216,9 +216,16 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
       if (isSamePatient) {
         // Only accept patient prop if we haven't just saved (within last 1 second)
+        // AND the incoming prop has at least as many fields as current localPatient
         if (Date.now() - justSavedTimestampRef.current > 1000) {
-          console.log('[PatientDetailDrawer] ✅ Same patient - accepting fresh patient prop');
-          setLocalPatient(patient);
+          const incomingKeys = Object.keys(patient).filter(k => patient[k] !== undefined).length;
+          const currentKeys = Object.keys(localPatient || {}).filter(k => (localPatient || {})[k] !== undefined).length;
+          if (incomingKeys >= currentKeys) {
+            console.log('[PatientDetailDrawer] ✅ Same patient - accepting fresh patient prop');
+            setLocalPatient(patient);
+          } else {
+            console.log('[PatientDetailDrawer] ⏭️ Skipping prop update - incoming has fewer fields than fetched patient');
+          }
         } else {
           console.log('[PatientDetailDrawer] ⏭️ Skipping prop update - just saved');
         }
