@@ -29,6 +29,25 @@ import { buildClinicalDiffPayload } from '@/lib/db/buildClinicalDiffPayload';
 
 const supabaseClient = getSupabaseBrowserClient();
 
+// Normalize HIV status from DB (lowercase) to form option values (Title case)
+const normalizeHivStatus = (val: string | null | undefined): string => {
+  if (!val) return '';
+  const v = val.trim().toLowerCase();
+  if (v === 'positive') return 'Positive';
+  if (v === 'negative') return 'Negative';
+  if (v === 'unknown') return 'Unknown';
+  return val; // pass through if already correct
+};
+
+// Normalize ART status from DB to form option values
+const normalizeArtStatus = (val: string | null | undefined): string => {
+  if (!val) return '';
+  const v = val.trim().toLowerCase();
+  if (v === 'pre art' || v === 'pre_art') return 'Pre ART';
+  if (v === 'on art' || v === 'on_art') return 'On ART';
+  return val;
+};
+
 // Helper to format dates for HTML5 date inputs (yyyy-MM-dd)
 const formatDateForInput = (dateStr: string | null | undefined): string => {
   if (!dateStr) return '';
@@ -302,8 +321,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       'Type of TB Diagnosed (P/EP)': fetchedPatient.tb_type || '',
       'Date of starting ATT (dd/mm/yyyy)': formatDateForInput(fetchedPatient.att_start_date),
       'Date of Treatment Completion (dd/mm/yyyy)': formatDateForInput(fetchedPatient.att_completion_date),
-      'HIV Status (Positive/Negative/Unknown)': fetchedPatient.hiv_status || '',
-      'Status at the time of referral (Pre ART/On ART)': fetchedPatient.art_status || '',
+      'HIV Status (Positive/Negative/Unknown)': normalizeHivStatus(fetchedPatient.hiv_status),
+      'Status at the time of referral (Pre ART/On ART)': normalizeArtStatus(fetchedPatient.art_status),
       'ART Number (if on ART at the time of referral)': fetchedPatient.art_number || '',
       'NIKSHAY/ABHA ID': fetchedPatient.nikshay_abha_id || '',
       'Date of registration (dd/mm/yyyy)': formatDateForInput(fetchedPatient.registration_date),
