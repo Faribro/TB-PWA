@@ -141,7 +141,7 @@ export function HorizontalHoverAccordion({
         {/* Compact title */}
         <motion.p
           className="text-xs font-black uppercase tracking-[0.3em] text-center leading-tight"
-          style={{ color: `${c.primary}90`, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
+          style={{ color: `${c.primary}CC`, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
           animate={{ y: [0, -1, 1, 0] }}
           transition={{ 
             duration: 2, 
@@ -175,7 +175,7 @@ export function HorizontalHoverAccordion({
               pathLength={0.3}
             />
           </svg>
-          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: `${c.primary}80` }}>
+          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: `${c.primary}CC` }}>
             {statusLabel}
           </span>
         </div>
