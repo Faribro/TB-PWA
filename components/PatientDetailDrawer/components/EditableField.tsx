@@ -30,13 +30,13 @@ export function EditableField({ label, value, onChange, type = 'text' }: Editabl
   
   return (
     <div>
-      <label className="block text-xs font-medium text-slate-500 mb-1">{label}</label>
+      <label className="block text-xs font-medium text-white/90 mb-1">{label}</label>
       <div className="relative group">
         <Input
           type={type}
           value={formattedValue}
           onChange={(e) => onChange(e.target.value)}
-          className="h-10 text-sm font-medium bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/60 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] rounded-xl transition-all duration-300"
+          className="h-10 text-sm font-medium text-white bg-white/10 hover:bg-white/15 focus:bg-white/20 border border-white/20 focus:border-white/40 focus:ring-4 focus:ring-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-xl transition-all duration-300"
         />
         {/* Shimmer effect on focus */}
         <motion.div
@@ -49,7 +49,7 @@ export function EditableField({ label, value, onChange, type = 'text' }: Editabl
           }}
           style={{ display: 'none' }}
         >
-          <div className="h-full w-full bg-gradient-to-r from-transparent via-blue-500/10 to-transparent" />
+          <div className="h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
         </motion.div>
       </div>
     </div>

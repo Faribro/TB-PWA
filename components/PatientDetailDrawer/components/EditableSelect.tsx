@@ -10,14 +10,14 @@ interface EditableSelectProps {
 export function EditableSelect({ label, value, onChange, options }: EditableSelectProps) {
   return (
     <div>
-      <label className="block text-xs font-medium text-slate-500 mb-1">{label}</label>
+      <label className="block text-xs font-medium text-white/90 mb-1">{label}</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="flex h-10 w-full rounded-xl border border-slate-200/60 bg-slate-50/50 hover:bg-white focus:bg-white px-3 py-2 text-sm font-medium ring-offset-white outline-none focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] transition-all duration-300"
+        className="flex h-10 w-full rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 focus:bg-white/20 px-3 py-2 text-sm font-medium text-white outline-none focus:ring-4 focus:ring-white/10 focus:border-white/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] transition-all duration-300"
       >
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
+          <option key={opt.value} value={opt.value} className="text-slate-900">
             {opt.label}
           </option>
         ))}
