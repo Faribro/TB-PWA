@@ -8,15 +8,16 @@ export function AuthErrorHandler() {
     const originalConsoleError = console.error
     
     console.error = (...args) => {
-      // Filter out Auth.js ClientFetchError messages
+      // Filter out Auth.js ClientFetchError messages and our fetcher logs
       const message = args[0]
       if (
         typeof message === 'string' && 
         (message.includes('ClientFetchError') || 
          message.includes('Failed to fetch') ||
-         message.includes('https://errors.authjs.dev'))
+         message.includes('https://errors.authjs.dev') ||
+         message.includes('[fetcher]'))
       ) {
-        // Suppress these specific Auth.js errors
+        // Suppress these specific errors
         return
       }
       // Log other errors normally

@@ -31,11 +31,12 @@ const fetcher = async (url: string) => {
     }
     
     if (!res.ok) {
-      console.error('[fetcher] HTTP error response:', {
+      const errorInfo = {
         status: res.status,
         statusText: res.statusText,
         url: url
-      });
+      };
+      console.error('[fetcher] HTTP error response:', errorInfo);
       
       if (res.status === 401) {
         console.log('[fetcher] Unauthorized - returning null session scope');
@@ -52,9 +53,9 @@ const fetcher = async (url: string) => {
         }
       }
       
-      const error = new Error('Failed to fetch session scope');
-      console.error('[fetcher] HTTP error:', res.status, res.statusText);
-      throw error;
+      // Don't throw an error, just return null
+      console.error('[fetcher] HTTP error, returning null:', res.status, res.statusText);
+      return null;
     }
     
     const data = await res.json();
