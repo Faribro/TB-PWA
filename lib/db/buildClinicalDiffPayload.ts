@@ -87,8 +87,8 @@ export function buildClinicalDiffPayload({
       finalFormValue = normalizeDate(formValue);
       finalDbValue = normalizeDate(dbValue);
     } else {
-      finalFormValue = (formValue !== null && formValue !== undefined) ? String(formValue).trim() : '';
-      finalDbValue = (dbValue !== null && dbValue !== undefined) ? String(dbValue).trim() : '';
+      finalFormValue = (formValue !== null && formValue !== undefined) ? String(formValue).trim().toLowerCase() : '';
+      finalDbValue = (dbValue !== null && dbValue !== undefined) ? String(dbValue).trim().toLowerCase() : '';
     }
 
     const dbHasValue = finalDbValue !== null && finalDbValue !== '';
