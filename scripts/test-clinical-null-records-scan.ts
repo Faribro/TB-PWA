@@ -44,6 +44,18 @@ async function main() {
 
   console.log(`📊 Scanning ${patients.length} patients...\n`);
 
+  type PatientRecord = {
+    id: string;
+    kobo_uuid?: string;
+    inmate_name?: string;
+    created_at?: string;
+    updated_at?: string;
+    [key: string]: any;
+  };
+
+  // Type assertion for patients array
+  const typedPatients = patients as unknown as PatientRecord[];
+
   // ─── Categorize each patient ───────────────────────────────────────────────
   const stats = {
     total: patients.length,
@@ -62,20 +74,20 @@ async function main() {
   const nullifiedPatterns: any[] = [];
   const updatedWithoutClinical: any[] = [];
 
-  patients.forEach(p => {
+  typedPatients.forEach((p: PatientRecord) => {
     const clinicalScore = CLINICAL_FIELDS.filter(f => {
-      const v = (p as any)[f];
+      const v = p[f];
       return v !== null && v !== undefined && v !== '';
     }).length;
 
     byScore[clinicalScore] = (byScore[clinicalScore] || 0) + 1;
 
     if (clinicalScore === 0) stats.all_clinical_null++;
-    if (clinicalScore === 1 && (p as any).hiv_status) stats.only_hiv_status++;
-    if ((p as any).referral_date) stats.has_referral_date++;
-    if ((p as any).tb_diagnosed) stats.has_tb_diagnosed++;
-    if ((p as any).att_start_date) stats.has_att_start++;
-    if ((p as any).nikshay_abha_id) stats.has_nikshay++;
+    if (clinicalScore === 1 && p.hiv_status) stats.only_hiv_status++;
+    if (p.referral_date) stats.has_referral_date++;
+    if (p.tb_diagnosed) stats.has_tb_diagnosed++;
+    if (p.att_start_date) stats.has_att_start++;
+    if (p.nikshay_abha_id) stats.has_nikshay++;
     if (clinicalScore === CLINICAL_FIELDS.length) stats.fully_complete++;
 
     // Detect: updated_at is NEWER than created_at but all clinical fields are null
@@ -98,8 +110,8 @@ async function main() {
 
     // Detect: has hiv_status but all date fields are null
     // Pattern: user saved with only hiv_status, date fields got nullified
-    const hasHiv = !!(p as any).hiv_status;
-    const allDatesNull = DATE_FIELDS.every(f => !(p as any)[f]);
+    const hasHiv = !!p.hiv_status;
+    const allDatesNull = DATE_FIELDS.every(f => !p[f]);
     if (hasHiv && allDatesNull && clinicalScore <= 2) {
       stats.partial_saves_suspected++;
     }
@@ -139,11 +151,11 @@ async function main() {
   // ─── Date pattern analysis ─────────────────────────────────────────────────
   console.log('\n📅 CREATION DATE PATTERN (clinical score by month):\n');
   const byMonth: Record<string, { total: number; withClinical: number }> = {};
-  patients.forEach(p => {
+  typedPatients.forEach((p: PatientRecord) => {
     const month = (p.created_at || '').substring(0, 7);
     if (!byMonth[month]) byMonth[month] = { total: 0, withClinical: 0 };
     byMonth[month].total++;
-    const score = CLINICAL_FIELDS.filter(f => (p as any)[f]).length;
+    const score = CLINICAL_FIELDS.filter(f => p[f]).length;
     if (score > 0) byMonth[month].withClinical++;
   });
 

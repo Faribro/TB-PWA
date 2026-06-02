@@ -39,8 +39,8 @@ async function seedTestPatient() {
         art_number: 'ART123456',
         nikshay_abha_id: 'NIKSHAY789',
         registration_date: new Date('2024-02-05'),
-        remarks: 'Test patient for clinical data verification',
-        other_facility_name: 'Test Other Facility'
+        remarks: 'Test patient for clinical data verification'
+        // other_facility_name removed - not in Prisma schema
       }
     });
 

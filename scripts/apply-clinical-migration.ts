@@ -46,14 +46,16 @@ async function applyMigration() {
 
     for (const stmt of statements) {
       console.log(`Executing: ${stmt}`);
-      const { error } = await supabase.rpc('exec_sql', { sql: stmt }).catch(() => {
+      try {
+        const { error } = await supabase.rpc('exec_sql', { sql: stmt });
+        if (error) {
+          console.warn(`⚠️  Could not execute via RPC: ${error.message}`);
+        }
+      } catch (rpcError) {
         // If exec_sql doesn't exist, let's just check if columns exist and skip
-        return { error: null };
-      });
-      
-      if (error) {
-        console.warn(`⚠️  Could not execute via RPC: ${error.message}`);
+        console.warn('⚠️  RPC exec_sql not available, skipping...');
       }
+
     }
 
     // Verify the columns exist
