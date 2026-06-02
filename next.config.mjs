@@ -5,6 +5,15 @@ const nextConfig = {
   
   // Removed deprecated instrumentationHook
 
+  // Webpack configuration for Prisma
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Don't bundle Prisma client on server side
+      config.externals.push('@prisma/client');
+    }
+    return config;
+  },
+
   async headers() {
     return [
       {
