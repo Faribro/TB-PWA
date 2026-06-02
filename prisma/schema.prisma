@@ -1,5 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Force rebuild: 2025-01-22-16:00
 
 generator client {
   provider   = "prisma-client-js"
