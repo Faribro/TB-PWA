@@ -1152,19 +1152,34 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
+                  {/* Row 1: Name + risk indicator */}
                   <div className="flex items-center gap-2">
-                    <SheetTitle className="text-[14px] font-black uppercase tracking-tight text-slate-900 leading-tight truncate">
+                    <SheetTitle className="text-[15px] font-bold text-slate-900 leading-tight truncate">
                       {localPatient?.inmate_name || 'Loading...'}
                     </SheetTitle>
                     {risk.riskLevel === 'high' && (
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0" title={risk.reason} />
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                    <span className="text-[11px] font-bold text-blue-600 font-mono tracking-wide">{localPatient?.unique_id || ''}</span>
-                    <span className="w-0.5 h-0.5 rounded-full bg-slate-300 flex-shrink-0" />
-                    <span className="text-[11px] text-slate-400 font-medium truncate max-w-[120px]">{localPatient?.facility_name}</span>
-                    <span className="w-0.5 h-0.5 rounded-full bg-slate-300 flex-shrink-0" />
+                  {/* Row 2: Single line — all meta with breathing room */}
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    {(() => {
+                      const items = [
+                        localPatient?.facility_type,
+                        localPatient?.facility_name,
+                        localPatient?.screening_state,
+                        localPatient?.age ? `${localPatient.age} yrs` : null,
+                        localPatient?.sex ? String(localPatient.sex).toLowerCase() : null,
+                        localPatient?.inmate_type || null,
+                        localPatient?.screening_date ? `Screened: ${String(localPatient.screening_date).slice(0, 10)}` : null,
+                      ].filter(Boolean) as string[];
+                      return items.map((item, i) => (
+                        <span key={i} className="flex items-center gap-2">
+                          {i > 0 && <span className="w-[3px] h-[3px] rounded-full bg-slate-300 flex-shrink-0" />}
+                          <span className="text-[12px] font-bold text-slate-700 leading-none">{item}</span>
+                        </span>
+                      ));
+                    })()}
                     <span className="inline-flex items-center gap-1 bg-slate-900 text-white rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest flex-shrink-0">
                       <span className="w-1 h-1 rounded-full bg-white/50" />
                       {phase ?? 'Screening'}
@@ -1175,11 +1190,13 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                       lastSyncedAt={status.lastSyncedAt}
                     />
                   </div>
+
                 </div>
                 <button onClick={() => handleClose(false)} className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center flex-shrink-0 transition-colors duration-150" aria-label="Close drawer">
                   <X className="w-4 h-4 text-slate-500" />
                 </button>
               </div>
+
             </SheetHeader>
 
             <Tabs defaultValue="clinical" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">

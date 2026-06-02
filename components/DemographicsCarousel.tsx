@@ -341,7 +341,7 @@ interface DemographicsCarouselProps {
   setIsEditingDemographics: (editing: boolean) => void;
 }
 const DocSection = ({ title, icon: Icon, children }: { title: string; icon?: any; children: React.ReactNode }) => (
-  <div className="flex flex-col gap-3.5 p-4 rounded-xl border border-slate-200/50 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.01)] transition-all duration-300">
+  <div className="flex flex-col gap-3.5 p-4 rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-300">
     <div className="flex items-center gap-2 pb-2 border-b border-slate-100/80">
       {Icon && <Icon className="w-3.5 h-3.5 text-slate-400" />}
       <span className="text-[10px] font-black tracking-[0.12em] text-slate-600 uppercase whitespace-nowrap">{title}</span>
@@ -354,15 +354,15 @@ const DocSection = ({ title, icon: Icon, children }: { title: string; icon?: any
 const SymptomRow = ({ label, selected }: { label: string; selected: boolean }) => (
   <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-all duration-150 select-none ${
     selected 
-      ? 'bg-red-50/60 border-red-200/80 text-red-950 shadow-[0_1px_2px_rgba(239,68,68,0.02)] font-semibold' 
-      : 'bg-slate-50/30 border-slate-100/50 text-slate-400 font-normal'
+      ? 'bg-red-50/60 border-red-200/80 text-red-900 shadow-[0_1px_2px_rgba(239,68,68,0.02)] font-bold' 
+      : 'bg-slate-50/30 border-slate-100/50 text-slate-600 font-semibold'
   }`}>
     <div className={`flex items-center justify-center w-3.5 h-3.5 rounded-full shrink-0 ${
-      selected ? 'bg-red-500 text-white shadow-sm' : 'bg-transparent border border-slate-300'
+      selected ? 'bg-red-500 text-white shadow-sm' : 'bg-transparent border border-slate-400'
     }`}>
       {selected ? <Check className="w-2 h-2" /> : null}
     </div>
-    <span className="text-[10px] leading-tight">{label}</span>
+    <span className="text-[11px] leading-tight">{label}</span>
   </div>
 );
 
@@ -384,8 +384,8 @@ const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, 
   const inputCls = 'w-full text-[11.5px] font-semibold text-slate-800 bg-white border border-slate-250 rounded-md px-2 py-0.5 outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] h-6.5';
   
   return (
-    <div className={`flex flex-col gap-0.5 rounded-lg border border-slate-200/50 bg-slate-50/30 px-2.5 py-1.5 transition-all duration-150 min-h-[50px] justify-center hover:bg-slate-50/60 hover:border-slate-350/50 ${className || 'col-span-1'}`}>
-      <span className="text-[8px] font-bold uppercase tracking-[0.1em] text-slate-400/90 leading-none mb-0.5">{label}</span>
+    <div className={`flex flex-col gap-0.5 rounded-lg border border-slate-200/80 bg-slate-50/50 px-2.5 py-1.5 transition-all duration-150 min-h-[50px] justify-center hover:bg-slate-50 hover:border-slate-300 ${className || 'col-span-1'}`}>
+      <span className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-700 leading-none mb-0.5">{label}</span>
       <div className="min-h-[24px] flex items-center w-full">
         {showInput ? (
           customComponent ? (
@@ -416,25 +416,24 @@ const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, 
               className={inputCls} />
           )
         ) : (
-          <div className="text-[12px] font-semibold text-slate-850 leading-normal break-words font-sans w-full bg-white/70 border border-slate-200/20 shadow-[0_1px_2px_rgba(15,23,42,0.01)] rounded-md px-2 py-0.5 min-h-[24px] flex items-center">
+          <div className="text-[12px] font-bold text-slate-900 leading-normal break-words font-sans w-full bg-white border border-slate-200/60 shadow-[0_1px_2px_rgba(15,23,42,0.04)] rounded-md px-2 py-0.5 min-h-[24px] flex items-center">
             {missing ? (
               hint ? (
-                <div className="flex items-center gap-1 text-slate-450 text-[10.5px] w-full">
+                <div className="flex items-center gap-1 text-slate-500 text-[10.5px] w-full">
                   <Info className="w-3 h-3 shrink-0" />
                   <span className="italic truncate">{hint}</span>
                 </div>
               ) : (
-                <span className="text-slate-400/70 font-medium italic text-[10.5px] w-full">Not recorded</span>
+                <span className="text-slate-400 font-medium italic text-[10.5px] w-full">Not recorded</span>
               )
             ) : ftype === 'checkbox' ? (
               <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8.5px] font-bold uppercase tracking-wider ${
-                toBool(value) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'
+                toBool(value) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
               }`}>
                 <span className={`w-1 h-1 rounded-full ${toBool(value) ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                 {toBool(value) ? 'Yes' : 'No'}
               </span>
             ) : (
-              // Format display value: capitalize and replace underscores
               typeof value === 'string' && value.length > 0 && fieldKey !== 'address' && fieldKey !== 'treatment_regimen' && fieldKey !== 'facility_name' && fieldKey !== 'referred_facility'
                 ? value.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
                 : value
@@ -595,50 +594,7 @@ export function DemographicsCarousel({
         className="flex-1 overflow-y-auto px-3.5 py-3.5 pb-28 hide-scrollbar"
       >
         {/* ── CLINICAL WORKSPACE DOCUMENT ── */}
-        <div className="bg-white border border-slate-200/50 shadow-[0_1px_3px_rgba(15,23,42,0.01)] overflow-hidden rounded-xl">
-
-          {/* ══ HEADER: Super compact Patient Summary Strip (Light weight clinical style) ══ */}
-          <div className="px-4 py-2.5 bg-white border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white text-xs font-black shadow-sm shrink-0">
-                {name.charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-[13.5px] font-black text-slate-900 leading-tight tracking-tight flex items-center gap-1.5 truncate">
-                  {name}
-                  {uid && (
-                    <span className="font-mono text-[9px] font-bold text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/40">
-                      {uid}
-                    </span>
-                  )}
-                </h1>
-              </div>
-            </div>
-
-            {/* Compact vital badges */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              {age && sex && (
-                <span className="text-[9.5px] font-bold text-slate-600 bg-slate-50 border border-slate-200/40 px-2 py-0.5 rounded-md">
-                  {age} yrs • {sex}
-                </span>
-              )}
-              {gv('inmate_type', patient?.inmate_type) && (
-                <span className="text-[9.5px] font-bold text-slate-600 bg-slate-50 border border-slate-200/40 px-2 py-0.5 rounded-md">
-                  {gv('inmate_type', patient?.inmate_type)}
-                </span>
-              )}
-              {sDate && (
-                <span className="text-[9.5px] font-medium text-slate-500 bg-slate-50 border border-slate-200/40 px-2 py-0.5 rounded-md">
-                  Screened: {sDate}
-                </span>
-              )}
-              {(ftype || facility || state) && (
-                <span className="text-[9.5px] font-medium text-blue-600 bg-blue-50/50 border border-blue-100/50 px-2 py-0.5 rounded-md max-w-[200px] truncate">
-                  {[ftype, facility, state].filter(Boolean).join(' • ')}
-                </span>
-              )}
-            </div>
-          </div>
+        <div className="bg-white border border-slate-200 shadow-md overflow-hidden rounded-xl">
 
           {/* ══ WORKSPACE GRID: Highly compressed two-column workstation ══ */}
           <div className="p-3.5 grid grid-cols-1 lg:grid-cols-10 gap-4 bg-slate-50/40">
@@ -707,23 +663,14 @@ export function DemographicsCarousel({
                   <Field label="Diagnosis Date"     value={gv('tb_diagnosis_date', patient?.tb_diagnosis_date)}    fieldKey="tb_diagnosis_date"   editable isEditing={E} onChange={H} className="col-span-1" />
                   <Field label="ATT Start Date"     value={gv('att_start_date', patient?.att_start_date)}          fieldKey="att_start_date"      editable isEditing={E} onChange={H} hint="Set when treatment begins" className="col-span-1" />
                   <Field label="Referred To"        value={gv('referred_to_facility', patient?.referred_to_facility)} fieldKey="referred_to_facility" editable isEditing={E} onChange={H} className="col-span-1" />
-                  <Field label="AI Confidence"      value={gv('ai_confidence_score', patient?.ai_confidence_score)} fieldKey="ai_confidence_score" isEditing={E} onChange={H} className="col-span-1" />
+
                   {gv('referred_to_facility', patient?.referred_to_facility) === 'Other' && (
                     <Field label="Specify Facility" value={gv('referred_to_facility_other', patient?.referred_to_facility_other)} fieldKey="referred_to_facility_other" editable isEditing={E} onChange={H} className="col-span-1" />
                   )}
-                  <Field label="Treatment Regimen"  value={gv('treatment_regimen', patient?.treatment_regimen)}    fieldKey="treatment_regimen"   editable isEditing={E} onChange={H} className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4" />
+
                 </div>
               </DocSection>
 
-              {/* § HIV / ART */}
-              <DocSection title="HIV / ART Status" icon={Shield}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
-                  <Field label="HIV Status"   value={gv('hiv_status', patient?.hiv_status)}   fieldKey="hiv_status"  editable isEditing={E} onChange={H} className="col-span-1" />
-                  <Field label="ART Started"  value={gv('art_started', patient?.art_started)}  fieldKey="art_started" editable isEditing={E} onChange={H} className="col-span-1" />
-                  <Field label="CPT Given"    value={gv('cpt_given', patient?.cpt_given)}      fieldKey="cpt_given"   editable isEditing={E} onChange={H} className="col-span-1" />
-                  <Field label="ART Center"   value={gv('art_center', patient?.art_center)}    fieldKey="art_center"  editable isEditing={E} onChange={H} hint="Required if HIV positive" className="col-span-1 sm:col-span-2" />
-                </div>
-              </DocSection>
 
               {/* § Registration & System */}
               <DocSection title="Registration & System" icon={ClipboardList}>
@@ -740,7 +687,7 @@ export function DemographicsCarousel({
             <div className="lg:col-span-3 flex flex-col gap-4">
               
               {/* § Clinical Dashboard Status (Super-compact 2x2 grid) */}
-              <div className="flex flex-col gap-3 p-3.5 rounded-xl border border-slate-200/50 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.01)]">
+              <div className="flex flex-col gap-3 p-3.5 rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-center gap-1.5 pb-2 border-b border-slate-100">
                   <Activity className="w-3.5 h-3.5 text-blue-500" />
                   <span className="text-[10px] font-black tracking-[0.12em] text-slate-600 uppercase">Status Dashboard</span>
@@ -798,7 +745,7 @@ export function DemographicsCarousel({
               </div>
 
               {/* § 10S Symptom Checklist (Dense & clean) */}
-              <div className="flex flex-col gap-3 p-3.5 rounded-xl border border-slate-200/50 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.01)]">
+              <div className="flex flex-col gap-3 p-3.5 rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-center gap-1.5 pb-2 border-b border-slate-100 justify-between">
                   <div className="flex items-center gap-1.5">
                     <ClipboardList className="w-3.5 h-3.5 text-indigo-500" />
@@ -843,6 +790,20 @@ export function DemographicsCarousel({
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* § HIV / ART Status */}
+              <div className="flex flex-col gap-3 p-3.5 rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center gap-1.5 pb-2 border-b border-slate-100">
+                  <Shield className="w-3.5 h-3.5 text-pink-500" />
+                  <span className="text-[10px] font-black tracking-[0.12em] text-slate-700 uppercase">HIV / ART Status</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="HIV Status"  value={gv('hiv_status', patient?.hiv_status)}  fieldKey="hiv_status"  editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="ART Started" value={gv('art_started', patient?.art_started)} fieldKey="art_started" editable isEditing={E} onChange={H} className="col-span-1" />
+
+                  <Field label="ART Center"  value={gv('art_center', patient?.art_center)}   fieldKey="art_center"  editable isEditing={E} onChange={H} hint="Required if HIV+" className="col-span-2" />
+                </div>
               </div>
             </div>
           </div>
