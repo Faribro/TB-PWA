@@ -19,10 +19,9 @@ async function handler(request: NextRequest) {
       timestamp,
       patientId: patient?.id,
       patientFields: patient ? Object.keys(patient).length : 0,
-      // Log batch metadata
-      console.log('[ProcessSync] 📦 Batch metadata:', { batch_id, attempt, count });
     });
     
+    console.log('[ProcessSync] 📦 Batch metadata:', { batch_id, attempt, count });
     console.log('[ProcessSync] 📋 Patient data fields:', patient ? Object.keys(patient).sort() : []);
     
     // Log clinical fields specifically
