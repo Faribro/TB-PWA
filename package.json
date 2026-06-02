@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "next dev --turbopack",
     "dev:webpack": "next dev",
     "dev:clean": "rimraf .next && next dev --turbopack",
-    "build": "rimraf .next && prisma generate && cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
+    "build": "rimraf .next node_modules/.prisma && prisma generate && cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
     "typecheck": "cross-env NODE_OPTIONS=--max-old-space-size=4096 tsc --noEmit",
     "clean": "rimraf .next",
     "start": "next start",
