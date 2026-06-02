@@ -187,6 +187,59 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     }
   });
 
+  const watchedReferralDate = watch('Date of referral for TB Examination (sputum) (dd/mm/yy)');
+  const watchedFacility = watch('Name of facility where referred to (Give code/name of all facilities)');
+  const watchedTbDiagnosed = watch('TB diagnosed (Y/N)');
+  const watchedDiagnosisDate = watch('Date of TB Diagnosed (dd/mm/yy)');
+  const watchedAttStart = watch('Date of starting ATT (dd/mm/yyyy)');
+  const watchedHivStatus = watch('HIV Status (Positive/Negative/Unknown)');
+  const watchedNikshay = watch('NIKSHAY/ABHA ID');
+  const watchedArtStatus = watch('Status at the time of referral (Pre ART/On ART)');
+
+  // Clear invalid clinical dependent fields automatically when parent fields transition
+  useEffect(() => {
+    if (watchedTbDiagnosed && watchedTbDiagnosed !== 'Y') {
+      const fieldsToClear = [
+        'Date of TB Diagnosed (dd/mm/yy)',
+        'Type of TB Diagnosed (P/EP)',
+        'Date of starting ATT (dd/mm/yyyy)',
+        'Date of Treatment Completion (dd/mm/yyyy)',
+        'NIKSHAY/ABHA ID',
+        'Date of registration (dd/mm/yyyy)'
+      ] as const;
+      
+      fieldsToClear.forEach(field => {
+        if (getValues(field)) {
+          setValue(field, '', { shouldDirty: true });
+        }
+      });
+    }
+  }, [watchedTbDiagnosed, setValue, getValues]);
+
+  useEffect(() => {
+    if (watchedHivStatus && watchedHivStatus !== 'Positive') {
+      const fieldsToClear = [
+        'Status at the time of referral (Pre ART/On ART)',
+        'ART Number (if on ART at the time of referral)'
+      ] as const;
+      
+      fieldsToClear.forEach(field => {
+        if (getValues(field)) {
+          setValue(field, '', { shouldDirty: true });
+        }
+      });
+    }
+  }, [watchedHivStatus, setValue, getValues]);
+
+  useEffect(() => {
+    if (watchedHivStatus === 'Positive' && watchedArtStatus && watchedArtStatus !== 'On ART') {
+      const field = 'ART Number (if on ART at the time of referral)';
+      if (getValues(field)) {
+        setValue(field, '', { shouldDirty: true });
+      }
+    }
+  }, [watchedHivStatus, watchedArtStatus, setValue, getValues]);
+
   // Force refresh session scope when drawer opens to prevent stale access control data
   useEffect(() => {
     mutate('/api/me');
@@ -1047,7 +1100,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   if (!localPatient) {
     return (
       <Sheet open={internalOpen} onOpenChange={handleClose}>
-        <SheetContent hideCloseButton className="w-full md:w-[92vw] md:max-w-[780px] !z-[500] p-0 flex flex-col overflow-hidden">
+        <SheetContent hideCloseButton className="w-full md:w-[90vw] md:max-w-[850px] lg:max-w-[1024px] xl:max-w-[1280px] !z-[500] p-0 flex flex-col overflow-hidden">
           <div className="flex items-center justify-center h-full">
             <div className="flex flex-col items-center gap-3">
               <div className="w-12 h-12 border-4 border-slate-200 border-t-slate-600 rounded-full animate-spin" />
@@ -1063,7 +1116,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     <Sheet open={internalOpen} onOpenChange={handleClose}>
       <SheetContent 
         hideCloseButton
-        className="w-full md:w-[92vw] md:max-w-[780px] !z-[500] p-0 flex flex-col overflow-hidden"
+        className="w-full md:w-[90vw] md:max-w-[850px] lg:max-w-[1024px] xl:max-w-[1280px] !z-[500] p-0 flex flex-col overflow-hidden"
         onEscapeKeyDown={(e) => {
           if (hasUnsavedChanges) {
             e.preventDefault();
@@ -1159,14 +1212,6 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                       </div>
                     ) : (
                       (() => {
-                        const watchedReferralDate = watch('Date of referral for TB Examination (sputum) (dd/mm/yy)');
-                      const watchedFacility = watch('Name of facility where referred to (Give code/name of all facilities)');
-                      const watchedTbDiagnosed = watch('TB diagnosed (Y/N)');
-                      const watchedDiagnosisDate = watch('Date of TB Diagnosed (dd/mm/yy)');
-                      const watchedAttStart = watch('Date of starting ATT (dd/mm/yyyy)');
-                      const watchedHivStatus = watch('HIV Status (Positive/Negative/Unknown)');
-                      const watchedNikshay = watch('NIKSHAY/ABHA ID');
-
                       // Debug: Log step indicator logic
                       console.log('[PatientDetailDrawer] 🚦 Step Indicator Debug:');
                       console.log('  watchedReferralDate:', watchedReferralDate);
@@ -1208,6 +1253,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                         return (Date.now() - d.getTime()) / 86400000 > 5;
                       })();
 
+                      const showTreatmentAndNikshay = watchedTbDiagnosed === 'Y';
+
                       const clinicalSections = [
                         {
                           id: 'sputum',
@@ -1231,38 +1278,42 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                           currentLabel: 'In Progress',
                           isAttentionRequired: isStale && phase === 'Diagnosis',
                         },
-                        {
-                          id: 'treatment',
-                          title: 'Treatment',
-                          icon: <Pill className="w-4 h-4" />,
-                          isComplete: treatmentComplete,
-                          isCurrent: !treatmentComplete && diagnosisComplete && phase === 'ATT Initiation',
-                          completionLabel: 'Submitted',
-                          pendingLabel: 'Pending',
-                          currentLabel: 'In Progress',
-                          isAttentionRequired: isStale && phase === 'ATT Initiation',
-                        },
+                        ...(showTreatmentAndNikshay ? [
+                          {
+                            id: 'treatment',
+                            title: 'Treatment',
+                            icon: <Pill className="w-4 h-4" />,
+                            isComplete: treatmentComplete,
+                            isCurrent: !treatmentComplete && diagnosisComplete && phase === 'ATT Initiation',
+                            completionLabel: 'Submitted',
+                            pendingLabel: 'Pending',
+                            currentLabel: 'In Progress',
+                            isAttentionRequired: isStale && phase === 'ATT Initiation',
+                          }
+                        ] : []),
                         {
                           id: 'hiv',
                           title: 'HIV & ART Status',
                           icon: <Shield className="w-4 h-4" />,
                           isComplete: hivComplete,
-                          isCurrent: !hivComplete && treatmentComplete,
+                          isCurrent: !hivComplete && (showTreatmentAndNikshay ? treatmentComplete : diagnosisComplete),
                           completionLabel: 'Submitted',
                           pendingLabel: 'Pending',
                           currentLabel: 'In Progress',
                           isAttentionRequired: isStale,
                         },
-                        {
-                          id: 'nikshay',
-                          title: 'Nikshay & Registration',
-                          icon: <ClipboardList className="w-4 h-4" />,
-                          isComplete: nikshayComplete,
-                          isCurrent: false,
-                          completionLabel: 'Submitted',
-                          pendingLabel: 'Pending',
-                          currentLabel: 'In Progress',
-                        },
+                        ...(showTreatmentAndNikshay ? [
+                          {
+                            id: 'nikshay',
+                            title: 'Nikshay & Registration',
+                            icon: <ClipboardList className="w-4 h-4" />,
+                            isComplete: nikshayComplete,
+                            isCurrent: false,
+                            completionLabel: 'Submitted',
+                            pendingLabel: 'Pending',
+                            currentLabel: 'In Progress',
+                          }
+                        ] : []),
                       ];
 
                       return (
@@ -1322,18 +1373,35 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                                         { value: 'N', label: 'No' }
                                       ]}
                                     />
-                                    <EditableField label="Date of Diagnosis" value={watchedDiagnosisDate} onChange={(val) => setValue('Date of TB Diagnosed (dd/mm/yy)', val, { shouldDirty: true })} type="date" />
-                                    <EditableSelect
-                                      label="Type of TB"
-                                      value={watch('Type of TB Diagnosed (P/EP)')}
-                                      onChange={(val) => setValue('Type of TB Diagnosed (P/EP)', val, { shouldDirty: true })}
-                                      options={[
-                                        { value: '', label: 'Select' },
-                                        { value: 'Pulmonary', label: 'Pulmonary' },
-                                        { value: 'Extrapulmonary Tuberculosis', label: 'Extrapulmonary Tuberculosis' },
-                                        { value: 'Unknown', label: 'Unknown' }
-                                      ]}
-                                    />
+                                    {watchedTbDiagnosed === 'Y' && (
+                                      <>
+                                        <EditableField label="Date of Diagnosis" value={watchedDiagnosisDate} onChange={(val) => setValue('Date of TB Diagnosed (dd/mm/yy)', val, { shouldDirty: true })} type="date" />
+                                        <EditableSelect
+                                          label="Type of TB"
+                                          value={watch('Type of TB Diagnosed (P/EP)')}
+                                          onChange={(val) => setValue('Type of TB Diagnosed (P/EP)', val, { shouldDirty: true })}
+                                          options={[
+                                            { value: '', label: 'Select' },
+                                            { value: 'Pulmonary', label: 'Pulmonary' },
+                                            { value: 'Extrapulmonary Tuberculosis', label: 'Extrapulmonary Tuberculosis' },
+                                            { value: 'Unknown', label: 'Unknown' }
+                                          ]}
+                                        />
+                                      </>
+                                    )}
+                                    {watchedTbDiagnosed === 'N' && (
+                                      <div className="p-3 bg-white/5 border border-white/10 rounded-xl space-y-1 mt-1">
+                                        <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Clinical Notice</p>
+                                        <p className="text-[11.5px] text-slate-300 font-medium leading-relaxed">
+                                          Downstream treatment and Nikshay fields are skipped because TB was not diagnosed. Use "Close Loop (Not TB)" below to close this patient's case.
+                                        </p>
+                                      </div>
+                                    )}
+                                    {watchedTbDiagnosed === '' && (
+                                      <div className="p-2.5 bg-white/5 border border-white/10 rounded-xl mt-1">
+                                        <p className="text-[11.5px] text-slate-400 italic">Select TB Diagnosed to reveal further fields.</p>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                                 {section.id === 'treatment' && (
@@ -1355,17 +1423,47 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                                         { value: 'Unknown', label: 'Unknown' }
                                       ]}
                                     />
-                                    <EditableSelect
-                                      label="ART Status"
-                                      value={watch('Status at the time of referral (Pre ART/On ART)')}
-                                      onChange={(val) => setValue('Status at the time of referral (Pre ART/On ART)', val, { shouldDirty: true })}
-                                      options={[
-                                        { value: '', label: 'Select' },
-                                        { value: 'Pre ART', label: 'Pre ART' },
-                                        { value: 'On ART', label: 'On ART' }
-                                      ]}
-                                    />
-                                    <EditableField label="ART Number" value={watch('ART Number (if on ART at the time of referral)')} onChange={(val) => setValue('ART Number (if on ART at the time of referral)', val, { shouldDirty: true })} />
+                                    {watchedHivStatus === 'Positive' && (
+                                      <>
+                                        <EditableSelect
+                                          label="ART Status"
+                                          value={watchedArtStatus}
+                                          onChange={(val) => setValue('Status at the time of referral (Pre ART/On ART)', val, { shouldDirty: true })}
+                                          options={[
+                                            { value: '', label: 'Select' },
+                                            { value: 'Pre ART', label: 'Pre ART' },
+                                            { value: 'On ART', label: 'On ART' }
+                                          ]}
+                                        />
+                                        {watchedArtStatus === 'On ART' && (
+                                          <EditableField label="ART Number" value={watch('ART Number (if on ART at the time of referral)')} onChange={(val) => setValue('ART Number (if on ART at the time of referral)', val, { shouldDirty: true })} />
+                                        )}
+                                        {watchedArtStatus === 'Pre ART' && (
+                                          <div className="p-2.5 bg-white/5 border border-white/10 rounded-xl mt-1">
+                                            <p className="text-[11.5px] text-slate-300 font-medium">
+                                              ART Number not required for Pre ART status.
+                                            </p>
+                                          </div>
+                                        )}
+                                        {watchedArtStatus === '' && (
+                                          <div className="p-2 bg-white/5 border border-white/10 rounded-xl mt-1">
+                                            <p className="text-[11.5px] text-slate-400 italic">Select ART Status to reveal ART Number.</p>
+                                          </div>
+                                        )}
+                                      </>
+                                    )}
+                                    {(watchedHivStatus === 'Negative' || watchedHivStatus === 'Unknown') && (
+                                      <div className="p-2.5 bg-white/5 border border-white/10 rounded-xl mt-1">
+                                        <p className="text-[11.5px] text-slate-300 font-medium">
+                                          ART details not required for HIV {watchedHivStatus} status.
+                                        </p>
+                                      </div>
+                                    )}
+                                    {watchedHivStatus === '' && (
+                                      <div className="p-2 bg-white/5 border border-white/10 rounded-xl mt-1">
+                                        <p className="text-[11.5px] text-slate-400 italic">Select HIV Status to reveal ART details.</p>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                                 {section.id === 'nikshay' && (
@@ -1681,7 +1779,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                   <button
                     data-tour-id="submit-clinical-update"
                     onClick={handleSaveClinical}
-                    disabled={isSubmitting || !fetchedPatient}
+                    disabled={isSubmitting || !fetchedPatient || !isDirty}
                     className="w-full h-[52px] rounded-[14px] text-[13px] font-extrabold uppercase tracking-[0.08em] text-white flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-px active:translate-y-0"
                     style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)', boxShadow: '0 4px 14px rgba(15,23,42,0.25), 0 1px 3px rgba(15,23,42,0.15)' }}
                   >

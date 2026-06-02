@@ -1,7 +1,7 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Calendar, User, MapPin, Activity, CheckCircle2, XCircle, Building2, Phone, Hash, Settings2, Lock, Unlock, FileText, Shield, ClipboardList, Check, Minus, Info } from 'lucide-react';
+import { Calendar, User, MapPin, Activity, CheckCircle2, XCircle, Building2, Phone, Hash, Settings2, Lock, Unlock, FileText, Shield, ClipboardList, Check, Minus, Info, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { SearchableDistrictSelect } from './SearchableDistrictSelect';
 
@@ -340,39 +340,37 @@ interface DemographicsCarouselProps {
   isEditingDemographics: boolean;
   setIsEditingDemographics: (editing: boolean) => void;
 }
-
-// â”€â”€ Section header: bold uppercase + full-width rule (LaTeX \section style)
-const DocSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="flex flex-col gap-5">
-    <div className="flex items-center gap-3 py-3">
-      <span className="text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase whitespace-nowrap">{title}</span>
-      <div className="flex-1 h-px bg-slate-200" />
+const DocSection = ({ title, icon: Icon, children }: { title: string; icon?: any; children: React.ReactNode }) => (
+  <div className="flex flex-col gap-3.5 p-4 rounded-xl border border-slate-200/50 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.01)] transition-all duration-300">
+    <div className="flex items-center gap-2 pb-2 border-b border-slate-100/80">
+      {Icon && <Icon className="w-3.5 h-3.5 text-slate-400" />}
+      <span className="text-[10px] font-black tracking-[0.12em] text-slate-600 uppercase whitespace-nowrap">{title}</span>
     </div>
     {children}
   </div>
 );
 
-// â”€â”€ Symptom row: clinical checklist style for better scanning
+// ── Symptom row: clinical checklist style for better scanning ──
 const SymptomRow = ({ label, selected }: { label: string; selected: boolean }) => (
-  <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-[4px] transition-all duration-150 select-none ${
+  <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-all duration-150 select-none ${
     selected 
-      ? 'bg-red-50 text-slate-900' 
-      : 'bg-white text-slate-400'
+      ? 'bg-red-50/60 border-red-200/80 text-red-950 shadow-[0_1px_2px_rgba(239,68,68,0.02)] font-semibold' 
+      : 'bg-slate-50/30 border-slate-100/50 text-slate-400 font-normal'
   }`}>
-    <div className={`flex items-center justify-center w-4 h-4 rounded-full shrink-0 ${
-      selected ? 'bg-red-500' : 'bg-transparent border-2 border-slate-300'
+    <div className={`flex items-center justify-center w-3.5 h-3.5 rounded-full shrink-0 ${
+      selected ? 'bg-red-500 text-white shadow-sm' : 'bg-transparent border border-slate-300'
     }`}>
-      {selected ? <div className="w-1.5 h-1.5 rounded-full bg-white" /> : null}
+      {selected ? <Check className="w-2 h-2" /> : null}
     </div>
-    <span className={`text-[11px] font-medium leading-tight ${selected ? 'font-semibold' : 'font-normal'}`}>{label}</span>
+    <span className="text-[10px] leading-tight">{label}</span>
   </div>
 );
 
-// â”€â”€ Data field: label over value, view or edit
-const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, span = 1, hint, customComponent }: {
+// ── Data field: label over value, view or edit with visual parity and no layout shift ──
+const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, className, hint, customComponent }: {
   label: string; value: any; fieldKey: string;
   editable?: boolean; isEditing?: boolean;
-  onChange?: (k: string, v: any) => void; span?: number;
+  onChange?: (k: string, v: any) => void; className?: string;
   hint?: string; customComponent?: React.ReactNode;
 }) => {
   const cfg = FIELD_CONFIG[fieldKey];
@@ -381,66 +379,69 @@ const Field = ({ label, value, fieldKey, editable = false, isEditing, onChange, 
   const showInput = editable && !cfg?.readOnly && isEditing && onChange;
   const toBool = (v: any) => v === true || v === 1 || v === 'true' || v === 'yes' || v === 'Yes';
   const missing = value === null || value === undefined || value === '';
-  const inputCls = 'w-full text-[13px] font-semibold text-slate-800 bg-white border border-slate-300 rounded px-2.5 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus-visible:ring-2 focus-visible:ring-indigo-300 transition-all shadow-sm';
+  
+  // Premium input class with soft colors
+  const inputCls = 'w-full text-[11.5px] font-semibold text-slate-800 bg-white border border-slate-250 rounded-md px-2 py-0.5 outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] h-6.5';
+  
   return (
-    <div className="flex flex-col gap-1.5 min-w-0" style={span > 1 ? { gridColumn: `span ${span}` } : {}}>
-      <span className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">{label}</span>
-      {showInput ? (
-        customComponent ? (
-          customComponent
-        ) : ftype === 'checkbox' ? (
-          <button 
-            type="button" 
-            onClick={() => onChange!(fieldKey, !toBool(value))}
-            aria-label={label}
-            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-emerald-400 ${
-              toBool(value) ? 'bg-emerald-500 border-emerald-500' : 'bg-slate-200 border-slate-300'
-            }`}>
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition duration-200 ${toBool(value) ? 'translate-x-4' : 'translate-x-0'}`} />
-          </button>
-        ) : fopts ? (
-          <div className="relative">
-            <select value={value ?? ''} onChange={e => onChange!(fieldKey, e.target.value)} className={inputCls + ' appearance-none pr-7 cursor-pointer'}>
-              <option value="" disabled>Select…</option>
-              {fopts.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
-            <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-          </div>
+    <div className={`flex flex-col gap-0.5 rounded-lg border border-slate-200/50 bg-slate-50/30 px-2.5 py-1.5 transition-all duration-150 min-h-[50px] justify-center hover:bg-slate-50/60 hover:border-slate-350/50 ${className || 'col-span-1'}`}>
+      <span className="text-[8px] font-bold uppercase tracking-[0.1em] text-slate-400/90 leading-none mb-0.5">{label}</span>
+      <div className="min-h-[24px] flex items-center w-full">
+        {showInput ? (
+          customComponent ? (
+            <div className="w-full">{customComponent}</div>
+          ) : ftype === 'checkbox' ? (
+            <button 
+              type="button" 
+              onClick={() => onChange!(fieldKey, !toBool(value))}
+              aria-label={label}
+              className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-emerald-400 ${
+                toBool(value) ? 'bg-emerald-500 border-emerald-500' : 'bg-slate-200 border-slate-300'
+              }`}>
+              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition duration-200 ${toBool(value) ? 'translate-x-3.5' : 'translate-x-0'}`} />
+            </button>
+          ) : fopts ? (
+            <div className="relative w-full">
+              <select value={value ?? ''} onChange={e => onChange!(fieldKey, e.target.value)} className={inputCls + ' appearance-none pr-7 cursor-pointer'}>
+                <option value="" disabled>Select…</option>
+                {fopts.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+              <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            </div>
+          ) : (
+            <input type={ftype === 'number' ? 'number' : ftype === 'date' ? 'date' : 'text'}
+              value={value ?? ''}
+              onChange={e => onChange!(fieldKey, ftype === 'number' ? Number(e.target.value) : e.target.value)}
+              placeholder={cfg?.placeholder ?? `Enter ${label.toLowerCase()}`}
+              className={inputCls} />
+          )
         ) : (
-          <input type={ftype === 'number' ? 'number' : ftype === 'date' ? 'date' : 'text'}
-            value={value ?? ''}
-            onChange={e => onChange!(fieldKey, ftype === 'number' ? Number(e.target.value) : e.target.value)}
-            placeholder={cfg?.placeholder ?? `Enter ${label.toLowerCase()}`}
-            className={inputCls} />
-        )
-      ) : (
-        <>
-          <div className="text-[15px] font-semibold text-slate-900 leading-snug break-words">
+          <div className="text-[12px] font-semibold text-slate-850 leading-normal break-words font-sans w-full bg-white/70 border border-slate-200/20 shadow-[0_1px_2px_rgba(15,23,42,0.01)] rounded-md px-2 py-0.5 min-h-[24px] flex items-center">
             {missing ? (
               hint ? (
-                <div className="flex items-center gap-1.5 text-slate-400 text-[12px]">
+                <div className="flex items-center gap-1 text-slate-450 text-[10.5px] w-full">
                   <Info className="w-3 h-3 shrink-0" />
-                  <span className="italic">{hint}</span>
+                  <span className="italic truncate">{hint}</span>
                 </div>
               ) : (
-                <span className="text-slate-400 font-medium italic text-[12px]">Not recorded</span>
+                <span className="text-slate-400/70 font-medium italic text-[10.5px] w-full">Not recorded</span>
               )
             ) : ftype === 'checkbox' ? (
-              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide ${
+              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8.5px] font-bold uppercase tracking-wider ${
                 toBool(value) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'
               }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${toBool(value) ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                <span className={`w-1 h-1 rounded-full ${toBool(value) ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                 {toBool(value) ? 'Yes' : 'No'}
               </span>
             ) : (
               // Format display value: capitalize and replace underscores
-              typeof value === 'string' && value.length > 0
+              typeof value === 'string' && value.length > 0 && fieldKey !== 'address' && fieldKey !== 'treatment_regimen' && fieldKey !== 'facility_name' && fieldKey !== 'referred_facility'
                 ? value.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
                 : value
             )}
           </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 };
@@ -587,209 +588,287 @@ export function DemographicsCarousel({
   const isSusp  = xray === 'Suspected TB' || xrayRaw === 'Suspected_TB_Case';
   const symCount= Object.values(parsedSymptoms).filter(Boolean).length;
 
-  // Real-time updates are handled by PatientDetailDrawer parent component
-
   return (
-    <div className="flex flex-col w-full h-full relative overflow-hidden" style={{ background: '#edecea' }}>
+    <div className="flex flex-col w-full h-full relative overflow-hidden bg-slate-100/50">
       <motion.div
         initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
-        className="flex-1 overflow-y-auto px-3 py-4 pb-28 hide-scrollbar"
+        className="flex-1 overflow-y-auto px-3.5 py-3.5 pb-28 hide-scrollbar"
       >
-        {/* â”€â”€ DOCUMENT â”€â”€ */}
-        <div className="bg-white border border-slate-300/80 shadow-[0_3px_20px_rgba(0,0,0,0.09)] overflow-hidden" style={{ borderRadius: 2 }}>
+        {/* ── CLINICAL WORKSPACE DOCUMENT ── */}
+        <div className="bg-white border border-slate-200/50 shadow-[0_1px_3px_rgba(15,23,42,0.01)] overflow-hidden rounded-xl">
 
-          {/* â•â• HEADER: name panel left + status box right (responsive) â•â• */}
-          <div className="flex flex-col md:flex-row items-stretch">
-            {/* Left dark panel */}
-            <div className="flex-1 px-6 py-6 flex flex-col justify-between" style={{ background: '#111827' }}>
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 mb-1">Patient Clinical Record</p>
-                <h1 className="text-[28px] font-black text-white leading-tight tracking-tight mb-3">{name}</h1>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-semibold text-slate-400">
-                  {[ftype, facility, state].filter(Boolean).map((v, i) => (
-                    <span key={i} className="flex items-center gap-1">
-                      <span className="w-1 h-1 rounded-full bg-slate-600 shrink-0" />{v}
-                    </span>
-                  ))}
-                </div>
+          {/* ══ HEADER: Super compact Patient Summary Strip (Light weight clinical style) ══ */}
+          <div className="px-4 py-2.5 bg-white border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white text-xs font-black shadow-sm shrink-0">
+                {name.charAt(0).toUpperCase()}
               </div>
-              <div className="flex flex-wrap gap-x-5 gap-y-1 mt-4 text-[11px] font-semibold text-slate-400">
-                {age  && <span className="text-white/70">Age: <strong className="text-white">{age}</strong></span>}
-                {sex  && <span className="text-white/70">Sex: <strong className="text-white">{sex}</strong></span>}
-                {uid  && <span className="text-white/70">ID: <strong className="text-white font-mono">{uid}</strong></span>}
-                {sDate&& <span className="text-white/70">Screened: <strong className="text-white">{sDate}</strong></span>}
+              <div className="min-w-0">
+                <h1 className="text-[13.5px] font-black text-slate-900 leading-tight tracking-tight flex items-center gap-1.5 truncate">
+                  {name}
+                  {uid && (
+                    <span className="font-mono text-[9px] font-bold text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/40">
+                      {uid}
+                    </span>
+                  )}
+                </h1>
               </div>
             </div>
 
-            {/* Right: clinical status box (LaTeX tcolorbox equivalent) */}
-            <div className="w-full md:w-52 shrink-0 border-l-0 md:border-l-4 border-t-4 md:border-t-0 border-slate-700 bg-slate-50 px-4 py-4 flex flex-col gap-3.5">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 mb-1">Clinical Status</p>
-              {[
-                { label: 'X-Ray',       val: xray,  flag: isSusp, flagColor: 'text-amber-700 bg-amber-50 border-amber-300' },
-                { label: 'HIV',         val: hiv,   flag: isHIV,  flagColor: 'text-pink-700 bg-pink-50 border-pink-300'   },
-                { label: 'TB Dx',       val: tbDx,  flag: isTBDx, flagColor: 'text-red-700 bg-red-50 border-red-300'      },
-                { label: 'Symptoms',    val: `${symCount} / 10`, flag: symCount >= 3, flagColor: 'text-orange-700 bg-orange-50 border-orange-300' },
-              ].map(({ label, val, flag, flagColor }) => (
-                <div key={label} className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500 shrink-0">{label}</span>
-                  {val ? (
-                    <span className={`text-[12px] font-semibold px-1.5 py-0.5 rounded border ${flag ? flagColor : 'text-emerald-700 bg-emerald-50 border-emerald-200'}`}>
-                      {flag && 'âš‘ '}{String(val)}
-                    </span>
-                  ) : <span className="text-[12px] italic text-slate-400 font-medium">Not recorded</span>}
-                </div>
-              ))}
+            {/* Compact vital badges */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {age && sex && (
+                <span className="text-[9.5px] font-bold text-slate-600 bg-slate-50 border border-slate-200/40 px-2 py-0.5 rounded-md">
+                  {age} yrs • {sex}
+                </span>
+              )}
+              {gv('inmate_type', patient?.inmate_type) && (
+                <span className="text-[9.5px] font-bold text-slate-600 bg-slate-50 border border-slate-200/40 px-2 py-0.5 rounded-md">
+                  {gv('inmate_type', patient?.inmate_type)}
+                </span>
+              )}
+              {sDate && (
+                <span className="text-[9.5px] font-medium text-slate-500 bg-slate-50 border border-slate-200/40 px-2 py-0.5 rounded-md">
+                  Screened: {sDate}
+                </span>
+              )}
+              {(ftype || facility || state) && (
+                <span className="text-[9.5px] font-medium text-blue-600 bg-blue-50/50 border border-blue-100/50 px-2 py-0.5 rounded-md max-w-[200px] truncate">
+                  {[ftype, facility, state].filter(Boolean).join(' • ')}
+                </span>
+              )}
             </div>
           </div>
 
-          {/* â•â• BODY â•â• */}
-          <div className="px-6 py-7 flex flex-col gap-8">
-
-            {/* Â§ Identity & Contact */}
-            <DocSection title="Identity & Contact">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
-                <Field label="Father / Husband"  value={gv('father_husband_name', patient?.father_husband_name)} fieldKey="father_husband_name" editable isEditing={E} onChange={H} />
-                <Field label="Date of Birth"      value={gv('date_of_birth', patient?.date_of_birth)}            fieldKey="date_of_birth"      editable isEditing={E} onChange={H} />
-                <Field label="Age"                value={gv('age', patient?.age)}                                fieldKey="age"                 editable isEditing={E} onChange={H} />
-                <Field label="Sex"                value={gv('sex', patient?.sex)}                                fieldKey="sex"                 editable isEditing={E} onChange={H} />
-                <Field label="Inmate Type"        value={gv('inmate_type', patient?.inmate_type)}                fieldKey="inmate_type"         editable isEditing={E} onChange={H} />
-                <Field label="Contact"            value={gv('contact_number', patient?.contact_number)}          fieldKey="contact_number"      editable isEditing={E} onChange={H} />
-                <Field label="Full Address"       value={getFullAddress()} fieldKey="address" span={3} editable isEditing={E} onChange={H} />
-                {gv('inmate_type', patient?.inmate_type) === 'Other' && (
-                  <Field label="Specify Type"     value={gv('inmate_type_other', patient?.inmate_type_other)}    fieldKey="inmate_type_other"   editable isEditing={E} onChange={H} />
-                )}
-              </div>
-            </DocSection>
-
-            {/* Â§ Screening Encounter */}
-            <DocSection title="Screening Encounter">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
-                <Field label="Screening Date"     value={gv('screening_date', patient?.screening_date)}          fieldKey="screening_date"      editable isEditing={E} onChange={H} />
-                <Field label="Facility Name"      value={gv('facility_name', patient?.facility_name)}            fieldKey="facility_name"       editable isEditing={E} onChange={H} />
-                <Field label="Facility Type"      value={gv('facility_type', patient?.facility_type)}            fieldKey="facility_type"       editable isEditing={E} onChange={H} />
-                <Field label="Screening State"    value={gv('screening_state', patient?.screening_state)}        fieldKey="screening_state"     editable isEditing={E} onChange={H} />
-                <Field 
-                  label="Screening District" 
-                  value={gv('screening_district', patient?.screening_district)}  
-                  fieldKey="screening_district"  
-                  editable isEditing={E} onChange={H} 
-                  customComponent={
-                    E && (
-                      <SearchableDistrictSelect
-                        value={gv('screening_district', patient?.screening_district) || ''}
-                        onChange={(value) => H('screening_district', value)}
-                        state={gv('screening_state', patient?.screening_state) || ''}
-                      />
-                    )
-                  }
-                />
-                <Field label="Staff Name"         value={gv('staff_name', patient?.staff_name)}                  fieldKey="staff_name"          editable isEditing={E} onChange={H} />
-                <Field label="Submitted On"       value={gv('submitted_on', patient?.submitted_on)}              fieldKey="submitted_on"        editable isEditing={E} onChange={H} />
-                {gv('screening_state', patient?.screening_state) === 'Other' && (
-                  <Field label="Specify State"    value={gv('screening_state_other', patient?.screening_state_other)} fieldKey="screening_state_other" editable isEditing={E} onChange={H} />
-                )}
-                {gv('screening_district', patient?.screening_district) === 'Other' && (
-                  <Field label="Specify District" value={gv('screening_district_other', patient?.screening_district_other)} fieldKey="screening_district_other" editable isEditing={E} onChange={H} />
-                )}
-              </div>
-            </DocSection>
-
-            {/* Â§ 10S Symptom Checklist */}
-            <DocSection title="10S Symptom Checklist">
-              <div className="flex items-center gap-3 mb-3">
-                <span className={`text-[11px] font-semibold ${
-                  symCount >= 3 ? 'text-red-600' : symCount >= 1 ? 'text-amber-600' : 'text-slate-400'
-                }`}>
-                  {symCount} of 10 symptoms
-                </span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
-                {SYMPTOMS_MASTER.map(s => <SymptomRow key={s.id} label={s.label} selected={parsedSymptoms[s.id]} />)}
-              </div>
-              {symCount === 0 && (
-                <div className="mt-4 text-slate-400 italic text-[12px]">
-                  No symptoms recorded
+          {/* ══ WORKSPACE GRID: Highly compressed two-column workstation ══ */}
+          <div className="p-3.5 grid grid-cols-1 lg:grid-cols-10 gap-4 bg-slate-50/40">
+            
+            {/* Left Content Area (70% width) - Core fields */}
+            <div className="lg:col-span-7 flex flex-col gap-4">
+              
+              {/* § Identity & Contact */}
+              <DocSection title="Identity & Contact" icon={User}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                  <Field label="Father / Husband"  value={gv('father_husband_name', patient?.father_husband_name)} fieldKey="father_husband_name" editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="Date of Birth"      value={gv('date_of_birth', patient?.date_of_birth)}            fieldKey="date_of_birth"      editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="Age"                value={gv('age', patient?.age)}                                fieldKey="age"                 editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="Sex"                value={gv('sex', patient?.sex)}                                fieldKey="sex"                 editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="Inmate Type"        value={gv('inmate_type', patient?.inmate_type)}                fieldKey="inmate_type"         editable isEditing={E} onChange={H} className="col-span-1" />
+                  {gv('inmate_type', patient?.inmate_type) === 'Other' && (
+                    <Field label="Specify Type"     value={gv('inmate_type_other', patient?.inmate_type_other)}    fieldKey="inmate_type_other"   editable isEditing={E} onChange={H} className="col-span-1" />
+                  )}
+                  <Field label="Contact"            value={gv('contact_number', patient?.contact_number)}          fieldKey="contact_number"      editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="Full Address"       value={getFullAddress()} fieldKey="address" className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4" editable isEditing={E} onChange={H} />
                 </div>
-              )}
-              {unrecognizedSymptoms.length > 0 && (
-                <div className="mt-3 flex flex-col gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Unrecognized symptoms:</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {unrecognizedSymptoms.map((sym, i) => (
-                      <span key={i} className="text-[11px] text-slate-400 italic bg-slate-50 px-2 py-0.5 rounded">{sym}</span>
-                    ))}
+              </DocSection>
+
+              {/* § Screening Encounter */}
+              <DocSection title="Screening Encounter" icon={Calendar}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                  <Field label="Screening Date"     value={gv('screening_date', patient?.screening_date)}          fieldKey="screening_date"      editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="Facility Name"      value={gv('facility_name', patient?.facility_name)}            fieldKey="facility_name"       editable isEditing={E} onChange={H} className="col-span-1 sm:col-span-2" />
+                  <Field label="Facility Type"      value={gv('facility_type', patient?.facility_type)}            fieldKey="facility_type"       editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="Screening State"    value={gv('screening_state', patient?.screening_state)}        fieldKey="screening_state"     editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field 
+                    label="Screening District" 
+                    value={gv('screening_district', patient?.screening_district)}  
+                    fieldKey="screening_district"  
+                    editable isEditing={E} onChange={H} 
+                    className="col-span-1"
+                    customComponent={
+                      E && (
+                        <SearchableDistrictSelect
+                          value={gv('screening_district', patient?.screening_district) || ''}
+                          onChange={(value) => H('screening_district', value)}
+                          state={gv('screening_state', patient?.screening_state) || ''}
+                        />
+                      )
+                    }
+                  />
+                  <Field label="Staff Name"         value={gv('staff_name', patient?.staff_name)}                  fieldKey="staff_name"          editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="Submitted On"       value={gv('submitted_on', patient?.submitted_on)}              fieldKey="submitted_on"        editable isEditing={E} onChange={H} className="col-span-1" />
+                  {gv('screening_state', patient?.screening_state) === 'Other' && (
+                    <Field label="Specify State"    value={gv('screening_state_other', patient?.screening_state_other)} fieldKey="screening_state_other" editable isEditing={E} onChange={H} className="col-span-1" />
+                  )}
+                  {gv('screening_district', patient?.screening_district) === 'Other' && (
+                    <Field label="Specify District" value={gv('screening_district_other', patient?.screening_district_other)} fieldKey="screening_district_other" editable isEditing={E} onChange={H} className="col-span-1" />
+                  )}
+                </div>
+              </DocSection>
+
+              {/* § Diagnostics & Treatment (Mirror) */}
+              <DocSection title="Diagnostics & Treatment" icon={Activity}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                  <Field label="X-Ray Result"       value={formatXrayValue(gv('xray_result', patient?.xray_result))}                fieldKey="xray_result"         editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="Referral Date"      value={gv('referral_date', patient?.referral_date)}            fieldKey="referral_date"       editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="Referred Facility"  value={gv('referred_facility', patient?.referred_facility)}    fieldKey="referred_facility"   editable isEditing={E} onChange={H} className="col-span-1 sm:col-span-2" />
+                  <Field label="TB Past History"    value={gv('tb_past_history', patient?.tb_past_history)}        fieldKey="tb_past_history"     editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="TB Diagnosed"       value={gv('tb_diagnosed_select', gv('tb_diagnosed', patient?.tb_diagnosed))} fieldKey="tb_diagnosed_select" editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="Diagnosis Date"     value={gv('tb_diagnosis_date', patient?.tb_diagnosis_date)}    fieldKey="tb_diagnosis_date"   editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="ATT Start Date"     value={gv('att_start_date', patient?.att_start_date)}          fieldKey="att_start_date"      editable isEditing={E} onChange={H} hint="Set when treatment begins" className="col-span-1" />
+                  <Field label="Referred To"        value={gv('referred_to_facility', patient?.referred_to_facility)} fieldKey="referred_to_facility" editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="AI Confidence"      value={gv('ai_confidence_score', patient?.ai_confidence_score)} fieldKey="ai_confidence_score" isEditing={E} onChange={H} className="col-span-1" />
+                  {gv('referred_to_facility', patient?.referred_to_facility) === 'Other' && (
+                    <Field label="Specify Facility" value={gv('referred_to_facility_other', patient?.referred_to_facility_other)} fieldKey="referred_to_facility_other" editable isEditing={E} onChange={H} className="col-span-1" />
+                  )}
+                  <Field label="Treatment Regimen"  value={gv('treatment_regimen', patient?.treatment_regimen)}    fieldKey="treatment_regimen"   editable isEditing={E} onChange={H} className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4" />
+                </div>
+              </DocSection>
+
+              {/* § HIV / ART */}
+              <DocSection title="HIV / ART Status" icon={Shield}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                  <Field label="HIV Status"   value={gv('hiv_status', patient?.hiv_status)}   fieldKey="hiv_status"  editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="ART Started"  value={gv('art_started', patient?.art_started)}  fieldKey="art_started" editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="CPT Given"    value={gv('cpt_given', patient?.cpt_given)}      fieldKey="cpt_given"   editable isEditing={E} onChange={H} className="col-span-1" />
+                  <Field label="ART Center"   value={gv('art_center', patient?.art_center)}    fieldKey="art_center"  editable isEditing={E} onChange={H} hint="Required if HIV positive" className="col-span-1 sm:col-span-2" />
+                </div>
+              </DocSection>
+
+              {/* § Registration & System */}
+              <DocSection title="Registration & System" icon={ClipboardList}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                  <Field label="Unique ID"    value={gv('unique_id', patient?.unique_id || patient?.serial_number)} fieldKey="unique_id" editable isEditing={E} onChange={H} hint="Serial number from Kobo" className="col-span-1" />
+                  <Field label="Nikshay ID"   value={gv('nikshay_id', patient?.nikshay_id)}   fieldKey="nikshay_id"  editable isEditing={E} onChange={H} hint="Assign after TB confirmation" className="col-span-1" />
+                  <Field label="ABHA ID"      value={gv('abha_id', patient?.abha_id)}          fieldKey="abha_id"     editable isEditing={E} onChange={H} hint="Link via ABHA portal" className="col-span-1" />
+                  <Field label="Kobo UUID"    value={gv('kobo_uuid', patient?.kobo_uuid)}      fieldKey="kobo_uuid"   isEditing={E} onChange={H} hint="Generated by Kobo on submission" className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4" />
+                </div>
+              </DocSection>
+            </div>
+
+            {/* Right Side Rail (30% width) - Support rail & alerts */}
+            <div className="lg:col-span-3 flex flex-col gap-4">
+              
+              {/* § Clinical Dashboard Status (Super-compact 2x2 grid) */}
+              <div className="flex flex-col gap-3 p-3.5 rounded-xl border border-slate-200/50 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.01)]">
+                <div className="flex items-center gap-1.5 pb-2 border-b border-slate-100">
+                  <Activity className="w-3.5 h-3.5 text-blue-500" />
+                  <span className="text-[10px] font-black tracking-[0.12em] text-slate-600 uppercase">Status Dashboard</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { 
+                      label: 'X-Ray', 
+                      val: xray, 
+                      flag: isSusp, 
+                      icon: FileText,
+                      color: isSusp ? 'text-amber-700 bg-amber-50 border-amber-200' : xray === 'Normal' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-650 bg-slate-50 border-slate-200' 
+                    },
+                    { 
+                      label: 'HIV Status', 
+                      val: hiv, 
+                      flag: isHIV, 
+                      icon: Shield,
+                      color: isHIV ? 'text-pink-700 bg-pink-50 border-pink-200' : hiv === 'Negative' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-650 bg-slate-50 border-slate-200' 
+                    },
+                    { 
+                      label: 'TB diagnosed', 
+                      val: tbDx, 
+                      flag: isTBDx, 
+                      icon: Activity,
+                      color: isTBDx ? 'text-red-700 bg-red-50 border-red-200' : tbDx === 'No' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-650 bg-slate-50 border-slate-200' 
+                    },
+                    { 
+                      label: 'Symptoms', 
+                      val: `${symCount} / 10`, 
+                      flag: symCount >= 3, 
+                      icon: Info,
+                      color: symCount >= 3 ? 'text-orange-700 bg-orange-50 border-orange-200' : symCount > 0 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-emerald-700 bg-emerald-50 border-emerald-200' 
+                    },
+                  ].map(({ label, val, flag, icon: Icon, color }) => (
+                    <div key={label} className="flex flex-col justify-between p-2 rounded-lg border border-slate-150 bg-slate-50/20 shadow-[0_1px_1px_rgba(0,0,0,0.01)] h-14">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">{label}</span>
+                        <Icon className="w-3.5 h-3.5 text-slate-400/70" />
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        {val ? (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border leading-none flex items-center gap-1 ${color}`}>
+                            {flag && <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse shrink-0" />}
+                            <span className="truncate max-w-[70px]">{String(val)}</span>
+                          </span>
+                        ) : (
+                          <span className="text-[9px] italic text-slate-400 font-medium">None</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* § 10S Symptom Checklist (Dense & clean) */}
+              <div className="flex flex-col gap-3 p-3.5 rounded-xl border border-slate-200/50 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.01)]">
+                <div className="flex items-center gap-1.5 pb-2 border-b border-slate-100 justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <ClipboardList className="w-3.5 h-3.5 text-indigo-500" />
+                    <span className="text-[10px] font-black tracking-[0.12em] text-slate-600 uppercase">Symptom Checklist</span>
                   </div>
+                  <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full border ${
+                    symCount >= 3 ? 'bg-red-50 border-red-200 text-red-700' : symCount > 0 ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                  }`}>
+                    {symCount} / 10
+                  </span>
                 </div>
-              )}
-              {symCount >= 3 && (
-                <div className="mt-4 flex items-center gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-[4px]">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-red-700">âš‘ High Risk â€” {symCount} symptoms present. Prioritise immediate referral.</span>
-                </div>
-              )}
-            </DocSection>
 
-            {/* Â§ Diagnostics & Treatment */}
-            <DocSection title="Diagnostics & Treatment">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
-                <Field label="X-Ray Result"       value={formatXrayValue(gv('xray_result', patient?.xray_result))}                fieldKey="xray_result"         editable isEditing={E} onChange={H} />
-                <Field label="Date of referral for TB Examination (sputum)" value={gv('referral_date', patient?.referral_date)} fieldKey="referral_date" editable isEditing={E} onChange={H} />
-                <Field label="Name of facility where referred to" value={gv('referred_facility', patient?.referred_facility)} fieldKey="referred_facility" editable isEditing={E} onChange={H} />
-                <Field label="TB Past History"    value={gv('tb_past_history', patient?.tb_past_history)}        fieldKey="tb_past_history"     editable isEditing={E} onChange={H} />
-                <Field label="TB Diagnosed"       value={gv('tb_diagnosed_select', gv('tb_diagnosed', patient?.tb_diagnosed))} fieldKey="tb_diagnosed_select" editable isEditing={E} onChange={H} />
-                <Field label="Diagnosis Date"     value={gv('tb_diagnosis_date', patient?.tb_diagnosis_date)}          fieldKey="tb_diagnosis_date"      editable isEditing={E} onChange={H} />
-                <Field label="ATT Start Date"     value={gv('att_start_date', patient?.att_start_date)}          fieldKey="att_start_date"      editable isEditing={E} onChange={H} hint="Set when treatment begins" />
-                <Field label="Referred To"        value={gv('referred_to_facility', patient?.referred_to_facility)} fieldKey="referred_to_facility" editable isEditing={E} onChange={H} />
-                <Field label="AI Confidence"      value={gv('ai_confidence_score', patient?.ai_confidence_score)} fieldKey="ai_confidence_score" isEditing={E} onChange={H} />
-                {gv('referred_to_facility', patient?.referred_to_facility) === 'Other' && (
-                  <Field label="Specify Facility" value={gv('referred_to_facility_other', patient?.referred_to_facility_other)} fieldKey="referred_to_facility_other" editable isEditing={E} onChange={H} />
+                <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-1 gap-1">
+                  {SYMPTOMS_MASTER.map(s => (
+                    <SymptomRow key={s.id} label={s.label} selected={parsedSymptoms[s.id]} />
+                  ))}
+                </div>
+
+                {symCount === 0 && (
+                  <div className="text-slate-400 italic text-[10.5px] text-center py-2 bg-slate-50/50 rounded-lg border border-dashed border-slate-200/60">
+                    No symptoms recorded
+                  </div>
+                )}
+
+                {unrecognizedSymptoms.length > 0 && (
+                  <div className="mt-1 flex flex-col gap-1 border-t border-slate-100 pt-2">
+                    <span className="text-[8.5px] font-bold uppercase tracking-wide text-slate-400">Unrecognized:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {unrecognizedSymptoms.map((sym, i) => (
+                        <span key={i} className="text-[9.5px] text-slate-500 font-medium italic bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/50">{sym}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {symCount >= 3 && (
+                  <div className="mt-1 flex items-start gap-2 px-2.5 py-2 bg-red-50 border border-red-200/50 rounded-lg">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                    <div className="flex flex-col">
+                      <span className="text-[9.5px] font-bold text-red-800 uppercase tracking-wide leading-none">High Risk</span>
+                      <span className="text-[9px] text-red-700/90 leading-tight mt-0.5">3+ symptoms: prioritize sputum/X-ray.</span>
+                    </div>
+                  </div>
                 )}
               </div>
-              <div className="mt-4">
-                <Field label="Treatment Regimen" value={gv('treatment_regimen', patient?.treatment_regimen)} fieldKey="treatment_regimen" editable isEditing={E} onChange={H} />
-              </div>
-            </DocSection>
-
-            {/* Â§ HIV / ART */}
-            <DocSection title="HIV / ART Status">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
-                <Field label="HIV Status"   value={gv('hiv_status', patient?.hiv_status)}   fieldKey="hiv_status"  editable isEditing={E} onChange={H} />
-                <Field label="ART Started"  value={gv('art_started', patient?.art_started)}  fieldKey="art_started" editable isEditing={E} onChange={H} />
-                <Field label="ART Center"   value={gv('art_center', patient?.art_center)}    fieldKey="art_center"  editable isEditing={E} onChange={H} hint="Required if HIV positive" />
-                <Field label="CPT Given"    value={gv('cpt_given', patient?.cpt_given)}      fieldKey="cpt_given"   editable isEditing={E} onChange={H} />
-              </div>
-            </DocSection>
-
-            {/* Â§ Registration & System */}
-            <DocSection title="Registration & System">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
-                <Field label="Unique ID"    value={gv('unique_id', patient?.unique_id || patient?.serial_number)} fieldKey="unique_id" editable isEditing={E} onChange={H} hint="Serial number from Kobo" />
-                <Field label="Nikshay ID"   value={gv('nikshay_id', patient?.nikshay_id)}   fieldKey="nikshay_id"  editable isEditing={E} onChange={H} hint="Assign after TB confirmation" />
-                <Field label="ABHA ID"      value={gv('abha_id', patient?.abha_id)}          fieldKey="abha_id"     editable isEditing={E} onChange={H} hint="Link via ABHA portal" />
-                <Field label="Kobo UUID"    value={gv('kobo_uuid', patient?.kobo_uuid)}      fieldKey="kobo_uuid"   isEditing={E} onChange={H} hint="Generated by Kobo on submission" />
-              </div>
-            </DocSection>
-
-          </div>{/* /body */}
-        </div>{/* /document */}
+            </div>
+          </div>
+        </div>
       </motion.div>
 
-      {/* â•â• ACTION BAR â•â• */}
+      {/* ══ ACTION BAR ══ */}
       <div className="absolute bottom-0 left-0 w-full flex items-center gap-2.5 px-5 py-3.5 bg-white/95 backdrop-blur-md border-t border-slate-200 z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.07)]">
         <button
-          className="flex-1 flex items-center justify-center gap-2 h-10 rounded font-bold text-[10px] uppercase tracking-[0.12em] transition-all duration-200 border"
-          style={{ borderColor: E ? '#10b98150' : '#e2e8f0', backgroundColor: E ? '#f0fdf4' : '#f8fafc', color: E ? '#059669' : '#64748b' }}
+          className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-xl font-bold text-[10px] uppercase tracking-[0.12em] transition-all duration-200 border ${
+            E 
+              ? 'border-emerald-200 bg-emerald-50/50 text-emerald-700 hover:bg-emerald-100/50 shadow-sm' 
+              : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100'
+          }`}
           onClick={() => setIsEditingDemographics(!E)}
         >
           {E ? <><Lock className="w-3.5 h-3.5"/><span>Lock Editing</span></> : <><Unlock className="w-3.5 h-3.5"/><span>Unlock to Edit</span></>}
         </button>
         <button
-          className="flex-1 flex items-center justify-center gap-2 h-10 rounded font-bold text-[10px] uppercase tracking-[0.12em] border border-red-200 text-red-500 hover:bg-red-50 transition-all duration-200"
+          className="flex-1 flex items-center justify-center gap-2 h-10 rounded-xl font-bold text-[10px] uppercase tracking-[0.12em] border border-red-200 text-red-500 hover:bg-red-50 transition-all duration-200"
           onClick={() => document.dispatchEvent(new CustomEvent('openCloseLoopModal'))}
         >
           <XCircle className="w-3.5 h-3.5"/><span>Close Loop</span>
         </button>
         <button
-          className="flex-[2] relative flex items-center justify-center gap-2 h-10 rounded font-bold text-[10px] uppercase tracking-[0.12em] text-white overflow-hidden group transition-all duration-200 shadow-[0_2px_10px_rgba(15,23,42,0.2)] hover:-translate-y-px"
+          className="flex-[2] relative flex items-center justify-center gap-2 h-10 rounded-xl font-bold text-[10px] uppercase tracking-[0.12em] text-white overflow-hidden group transition-all duration-200 shadow-[0_2px_10px_rgba(15,23,42,0.2)] hover:-translate-y-px"
           style={{ background: 'linear-gradient(135deg,#0f172a,#1e293b)' }}
           onClick={() => { if (E) { flushPendingChanges(); document.dispatchEvent(new CustomEvent('saveDemographicsEvent', { detail: localValues })); setIsEditingDemographics(false); } else { document.dispatchEvent(new CustomEvent('submitClinicalUpdateEvent')); } }}
         >
