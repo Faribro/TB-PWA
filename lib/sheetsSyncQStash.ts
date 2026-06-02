@@ -71,7 +71,8 @@ function getQStashClient(): Client | null {
  */
 export async function queuePatientSyncQStash(
   patient: PatientRecord,
-  operation: 'insert' | 'update'
+  operation: 'insert' | 'update',
+  options: { source?: string; sheetTab?: string } = {}
 ): Promise<{ queued: boolean; messageId?: string; error?: string }> {
   console.log('[QStash] 🚀 Starting queue operation for patient:', patient.id);
   
@@ -110,11 +111,15 @@ export async function queuePatientSyncQStash(
       patient: patient, // Send entire patient object
       operation,
       timestamp: Date.now(),
+      source: options.source ?? 'unknown',
+      sheet_tab: options.sheetTab ?? 'Patient Linelist_TB',
     };
     
     console.log('[QStash] 📦 Payload prepared:', {
       patientId: patient.id,
       operation,
+      source: payload.source,
+      sheet_tab: payload.sheet_tab,
       payloadSize: JSON.stringify(payload).length,
     });
     
@@ -151,8 +156,13 @@ export async function queuePatientSyncQStash(
  * Automatically falls back to DB queue if QStash is not configured
  * In development, sends directly to Google Sheets for immediate sync
  */
-export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 'update'): void {
-  console.log('[QStash] 🎯 syncToSheetsAsync START - patient:', patient.id, 'operation:', operation);
+export interface SyncOptions {
+  source?: string;
+  sheetTab?: string;
+}
+
+export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 'update', options: SyncOptions = {}): void {
+  console.log('[QStash] 🎯 syncToSheetsAsync START - patient:', patient.id, 'operation:', operation, 'options:', options);
   console.log('[QStash] 🔑 Environment snapshot:', {
     hasQstashToken: !!process.env.QSTASH_TOKEN,
     hasVercelUrl: !!process.env.VERCEL_URL,
@@ -172,10 +182,15 @@ export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 
     
     // CRITICAL FIX: Wrap patient in batch format for Google Apps Script
     const batchPayload = {
+      patient,
+      operation,
+      source: options.source ?? 'unknown',
+      sheet_tab: options.sheetTab ?? 'Patient Linelist_TB',
       batch: [patient],
       batch_id: `dev-${Date.now()}`,
       count: 1
     };
+
     
     // Send directly without QStash with timeout
     const controller = new AbortController();
@@ -204,7 +219,7 @@ export function syncToSheetsAsync(patient: PatientRecord, operation: 'insert' | 
   }
   
   // PRODUCTION: Use QStash queue
-  queuePatientSyncQStash(patient, operation)
+  queuePatientSyncQStash(patient, operation, { source: options.source, sheetTab: options.sheetTab })
     .then(result => {
       console.log('[QStash] 📊 Queue result:', result);
       if (!result.queued) {

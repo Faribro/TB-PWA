@@ -11,6 +11,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { waitUntil } from '@vercel/functions';
+import { google } from 'googleapis';
 
 export interface PatientRecord {
   id?: string;

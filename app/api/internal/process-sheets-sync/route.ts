@@ -12,13 +12,15 @@ async function handler(request: NextRequest) {
   
   try {
     const body = await request.json();
-    const { patient, operation, timestamp } = body;
+    const { patient, operation, timestamp, batch_id, attempt, count } = body;
     
     console.log('[ProcessSync] 🔍 Received payload:', {
       operation,
       timestamp,
       patientId: patient?.id,
       patientFields: patient ? Object.keys(patient).length : 0,
+      // Log batch metadata
+      console.log('[ProcessSync] 📦 Batch metadata:', { batch_id, attempt, count });
     });
     
     console.log('[ProcessSync] 📋 Patient data fields:', patient ? Object.keys(patient).sort() : []);
@@ -87,6 +89,9 @@ async function handler(request: NextRequest) {
     
     const duration = Date.now() - startTime;
     console.log(`[ProcessSync] ✅ Synced patient ${patient.id} in ${duration}ms`);
+    console.log('[ProcessSync] 📡 Response status:', response.status, response.statusText);
+    const responseText = await response.text();
+    console.log('[ProcessSync] 📄 Response body (first 200 chars):', responseText.slice(0, 200));
     
     return NextResponse.json({
       success: true,
@@ -96,6 +101,9 @@ async function handler(request: NextRequest) {
   } catch (error: any) {
     const duration = Date.now() - startTime;
     console.error(`[ProcessSync] ❌ Failed after ${duration}ms:`, error.message);
+    console.error('[ProcessSync] ❗ Error details:', { name: error.name, stack: error.stack });
+    const origin = process.env.NODE_ENV === 'development' ? 'dev-direct' : 'qstash';
+    console.error('[ProcessSync] 🔎 Origin of payload:', origin);
     
     // Return 500 to trigger QStash retry
     return NextResponse.json(

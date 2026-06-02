@@ -3,10 +3,7 @@ const nextConfig = {
   reactStrictMode: false,
   images: { unoptimized: true },
   
-  // Enable instrumentation for background services
-  experimental: {
-    instrumentationHook: true,
-  },
+  // Removed deprecated instrumentationHook
 
   async headers() {
     return [

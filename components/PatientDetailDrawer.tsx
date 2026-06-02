@@ -1047,7 +1047,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   if (!localPatient) {
     return (
       <Sheet open={internalOpen} onOpenChange={handleClose}>
-        <SheetContent hideCloseButton className="w-[95vw] sm:max-w-[650px] md:max-w-[750px] lg:max-w-[850px] !z-[500] p-0 flex flex-col overflow-hidden">
+        <SheetContent hideCloseButton className="w-full md:w-[92vw] md:max-w-[780px] !z-[500] p-0 flex flex-col overflow-hidden">
           <div className="flex items-center justify-center h-full">
             <div className="flex flex-col items-center gap-3">
               <div className="w-12 h-12 border-4 border-slate-200 border-t-slate-600 rounded-full animate-spin" />
@@ -1063,7 +1063,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     <Sheet open={internalOpen} onOpenChange={handleClose}>
       <SheetContent 
         hideCloseButton
-        className="w-[95vw] sm:max-w-[650px] md:max-w-[750px] lg:max-w-[850px] !z-[500] p-0 flex flex-col overflow-hidden"
+        className="w-full md:w-[92vw] md:max-w-[780px] !z-[500] p-0 flex flex-col overflow-hidden"
         onEscapeKeyDown={(e) => {
           if (hasUnsavedChanges) {
             e.preventDefault();
@@ -1092,7 +1092,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
           <>
             {/* ── Compact 72px header ── */}
             <SheetHeader className="shrink-0 p-0 border-0">
-              <div className="flex items-center gap-3 px-5 py-3 border-b border-black/[0.06] bg-white">
+              <div className="flex items-center gap-3 px-7 py-3 border-b border-black/[0.06] bg-white">
                 <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center flex-shrink-0 shadow-md shadow-slate-900/20">
                   <span className="text-sm font-black text-white leading-none">
                     {localPatient?.inmate_name?.charAt(0)?.toUpperCase() ?? '?'}
@@ -1130,7 +1130,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
             </SheetHeader>
 
             <Tabs defaultValue="clinical" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-              <div style={{ borderBottom: '1px solid rgba(0,0,0,0.07)', padding: '0 24px' }}>
+              <div style={{ borderBottom: '1px solid rgba(0,0,0,0.07)', padding: '0 28px' }}>
                 <TabsList className="bg-transparent gap-0 h-10 w-full justify-start rounded-none p-0">
                   <TabsTrigger
                     value="clinical"
