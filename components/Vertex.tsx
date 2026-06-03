@@ -24,7 +24,12 @@ import {
   Building2,
   ChevronDown,
   ChevronRight as ChevronRightIcon,
-  Upload
+  Upload,
+  ShieldAlert,
+  ShieldCheck,
+  Clock,
+  Check,
+  AlertTriangle
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -152,50 +157,50 @@ const CalendarHeader = ({
   }, [currentDate, mounted]);
 
   return (
-  <div className="space-y-3 mb-4 px-1">
+  <div className="space-y-2 mb-3 px-1">
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl vertex-header-icon flex items-center justify-center">
-          <CalendarIcon className="w-6 h-6 text-indigo-600" />
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl vertex-header-icon flex items-center justify-center shrink-0">
+          <CalendarIcon className="w-5 h-5 text-indigo-600" />
         </div>
         <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tighter">
+          <h2 className="text-2xl font-black text-slate-900 tracking-tighter leading-none">
             {formattedMonth}
           </h2>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Neural Timeline Overview</p>
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.14em] mt-0.5">Screening Activity</p>
         </div>
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-1.5">
         <Button
           data-tour-id="neural-timeline-prev-month"
           onClick={onPrevMonth}
           variant="ghost"
           size="sm"
-          className="h-10 w-10 vertex-nav-btn flex items-center justify-center rounded-xl p-0"
+          className="h-9 w-9 vertex-nav-btn flex items-center justify-center rounded-xl p-0"
         >
-          <ChevronLeft className="w-5 h-5 text-slate-600" />
+          <ChevronLeft className="w-4 h-4 text-slate-600" />
         </Button>
         <Button
           data-tour-id="neural-timeline-next-month"
           onClick={onNextMonth}
           variant="ghost"
           size="sm"
-          className="h-10 w-10 vertex-nav-btn flex items-center justify-center rounded-xl p-0"
+          className="h-9 w-9 vertex-nav-btn flex items-center justify-center rounded-xl p-0"
         >
-          <ChevronRight className="w-5 h-5 text-slate-600" />
+          <ChevronRight className="w-4 h-4 text-slate-600" />
         </Button>
       </div>
     </div>
     
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2">
       <div className="relative flex-1">
         <Select value={filterState} onValueChange={onFilterStateChange}>
           <SelectTrigger
             data-tour-id="neural-timeline-state-filter"
-            className="h-10 text-xs font-bold vertex-filter-select rounded-xl focus:ring-4 focus:ring-indigo-500/10"
+            className="h-9 text-xs font-bold vertex-filter-select rounded-xl focus:ring-4 focus:ring-indigo-500/10"
           >
             <div className="flex items-center gap-2">
-              <MapPin className="w-3.5 h-3.5 text-slate-400" />
+              <MapPin className="w-3 h-3 text-slate-400" />
               <SelectValue placeholder="State" />
             </div>
           </SelectTrigger>
@@ -210,9 +215,9 @@ const CalendarHeader = ({
       
       <div className="relative flex-1">
         <Select value={filterDistrict} onValueChange={onFilterDistrictChange}>
-          <SelectTrigger className="h-10 text-xs font-bold vertex-filter-select rounded-xl focus:ring-4 focus:ring-indigo-500/10">
+          <SelectTrigger className="h-9 text-xs font-bold vertex-filter-select rounded-xl focus:ring-4 focus:ring-indigo-500/10">
             <div className="flex items-center gap-2">
-              <Building2 className="w-3.5 h-3.5 text-slate-400" />
+              <Building2 className="w-3 h-3 text-slate-400" />
               <SelectValue placeholder="District" />
             </div>
           </SelectTrigger>
@@ -277,18 +282,18 @@ const CalendarGrid = ({
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div className="space-y-2.5" data-tour-id="neural-timeline-calendar">
-      <div className="grid grid-cols-7 gap-1.5 mb-0.5">
+    <div className="space-y-1.5" data-tour-id="neural-timeline-calendar">
+      <div className="grid grid-cols-7 gap-1 mb-0.5">
         {weekDays.map(day => (
-          <div key={day} className="text-center text-[10px] font-black text-slate-400/90 uppercase tracking-[0.18em]">
+          <div key={day} className="text-center text-[11px] font-black text-slate-500 uppercase tracking-[0.1em]">
             {day}
           </div>
         ))}
       </div>
       {/* Magnetic scroll snap container */}
-      <div className="grid grid-cols-7 gap-1.5 scroll-snap-x">
+      <div className="grid grid-cols-7 gap-1">
         {days.map((day, idx) => {
-          if (!day) return <div key={idx} className="aspect-square w-full rounded-xl" style={{ minHeight: "clamp(40px, 5.2vh, 52px)" }} />;
+          if (!day) return <div key={idx} className="aspect-square w-full rounded-xl" style={{ minHeight: "clamp(30px, 4vh, 44px)" }} />;
           
           const isSelected = selectedDate === day.dateStr;
           const hasActivity = day.data && day.data.screenedCount > 0;
@@ -317,7 +322,7 @@ const CalendarGrid = ({
                 shouldDim && "opacity-30 grayscale"
               )}
               style={{
-                minHeight: "clamp(40px, 5.2vh, 52px)"
+                minHeight: "clamp(30px, 4vh, 44px)"
               }}
             >
               
@@ -363,46 +368,89 @@ const SparkCard = ({
   label, 
   value, 
   color = 'cyan',
-  trend
+  trend,
+  percentage,
+  accent,
+  stage
 }: { 
   icon: any; 
   label: string; 
   value: number;
-  color?: 'cyan' | 'emerald' | 'amber' | 'red';
+  color?: string;
   trend?: string;
+  percentage?: string;
+  accent?: string;
+  stage?: string;
 }) => {
-  const colorClasses = {
-    cyan: 'bg-blue-50 text-blue-600 border-blue-200 shadow-blue-500/5',
-    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-200 shadow-emerald-500/5',
-    amber: 'bg-amber-50 text-amber-600 border-amber-200 shadow-amber-500/5',
-    red: 'bg-rose-50 text-rose-600 border-rose-200 shadow-rose-500/5'
-  };
+  let borderClass = 'border-l-blue-500';
+  let textClass = 'text-blue-500';
+
+  if (accent) {
+    if (accent.includes('border-l-')) {
+      const parts = accent.split(',');
+      const borderPart = parts[0]?.trim();
+      let iconPart = parts[1]?.trim() || '';
+      if (iconPart.startsWith('icon ')) {
+        iconPart = iconPart.slice(5).trim();
+      }
+      borderClass = borderPart;
+      textClass = iconPart;
+    } else {
+      borderClass = `border-l-${accent}`;
+      textClass = `text-${accent}`;
+    }
+  } else {
+    const colorMap: Record<string, { border: string; text: string }> = {
+      cyan: { border: 'border-l-blue-500', text: 'text-blue-500' },
+      amber: { border: 'border-l-amber-500', text: 'text-amber-500' },
+      red: { border: 'border-l-rose-500', text: 'text-rose-500' },
+      emerald: { border: 'border-l-emerald-500', text: 'text-emerald-500' }
+    };
+    const mapped = colorMap[color] || colorMap.cyan;
+    borderClass = mapped.border;
+    textClass = mapped.text;
+  }
 
   return (
     <SmokeCard>
       <BentoTilt>
-        <Card className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 group transition-all duration-200 hover:shadow-md hover:border-blue-300 relative overflow-hidden">
+        <Card className={cn(
+          "bg-white p-3 rounded-xl shadow-sm border border-slate-100/80 overflow-hidden relative border-l-4 group transition-all duration-200 hover:shadow-md hover:border-slate-200 h-full",
+          borderClass
+        )}>
           {/* Glassmorphism overlay on hover */}
           <div className="absolute inset-0 glass-depth-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           
-          <div className="flex items-start justify-between relative z-10">
-            <div className="flex-1">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 opacity-80">
+          <div className="flex flex-col justify-between h-full relative z-10 gap-3">
+            {/* Top row: Label & Icon */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
                 {label}
-              </p>
-              <p className="text-4xl font-black text-slate-900 tracking-tighter group-hover:scale-105 transition-transform duration-500">
+              </span>
+              <Icon className={cn("w-4 h-4 flex-shrink-0 transition-transform duration-500 group-hover:rotate-12", textClass)} />
+            </div>
+
+            {/* Middle row: Value & Percentage */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[22px] font-black text-slate-900 tracking-tighter leading-none group-hover:scale-[1.02] transition-transform duration-300 origin-left">
                 {value.toLocaleString()}
-              </p>
-              {trend && (
-                <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-wide">{trend}</p>
+              </span>
+              {percentage && (
+                <span className={cn(
+                  "inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-current/10 text-current",
+                  textClass
+                )}>
+                  {percentage}
+                </span>
               )}
             </div>
-            <div className={cn(
-              "w-12 h-12 rounded-2xl border-2 flex items-center justify-center shadow-lg transition-transform duration-500 group-hover:rotate-12", 
-              colorClasses[color]
-            )}>
-              <Icon className="w-6 h-6" />
-            </div>
+
+            {/* Bottom row: Optional sub-label */}
+            {trend && (
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide leading-none mt-1">
+                {trend}
+              </p>
+            )}
           </div>
         </Card>
       </BentoTilt>
@@ -1292,6 +1340,16 @@ export default function Vertex({
     }
   }, [selectedDate, dailySparks, globalPatients, now]);
 
+  const totalScreened = dailySparks?.totalScreened ?? 0;
+  const suspectedTB   = dailySparks?.onTrack       ?? 0;
+  const tbDiagnosed   = dailySparks?.diagnosed      ?? 0;
+  const pendingSputum = dailySparks?.pendingSputum  ?? 0;
+  const notSuspected  = Math.max(0, totalScreened - suspectedTB);
+  const notDiagnosed  = Math.max(0, totalScreened - tbDiagnosed);
+
+  const pct = (n: number) =>
+    totalScreened > 0 ? `${Math.round((n / totalScreened) * 100)}%` : "—";
+
   return (
     <>
       <GlassShatterOverlay />
@@ -1309,18 +1367,11 @@ export default function Vertex({
            initial={{ opacity: 0, x: -40 }}
            animate={{ opacity: 1, x: 0 }}
            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-           className="w-full lg:col-span-5 lg:sticky lg:top-2 lg:self-start lg:h-[calc(100vh-0.75rem)] min-w-0"
+           className="w-full lg:col-span-5 lg:sticky lg:top-2 lg:self-start min-w-0"
         >
-          <div className="vertex-glass-card rounded-[24px] p-3 lg:p-4 flex flex-col relative h-full min-h-0">
+          <div className="vertex-glass-card rounded-[24px] p-3 lg:p-4 flex flex-col relative min-h-0">
 
-            <div
-              className="min-h-0 overflow-y-auto pr-1 hide-scrollbar"
-              style={{
-                maxHeight: 'min(76vh, calc(100vh - 200px))',
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none'
-              }}
-            >
+            <div className="overflow-hidden">
               <CalendarHeader 
                 currentDate={currentDate}
                 onPrevMonth={handlePrevMonth}
@@ -1347,33 +1398,35 @@ export default function Vertex({
             </div>
             
             {/* Monthly Pulse Console - Dynamic Metrics */}
-            <div className="mt-3 pt-4 pb-2 px-3 vertex-pulse-console rounded-xl flex items-center gap-4 justify-between shrink-0 overflow-hidden">
-              <div className="flex items-center gap-4 min-w-0 overflow-hidden">
+            <div className="mt-3 pt-3 pb-2 px-3 vertex-pulse-console rounded-xl flex items-center gap-3 justify-between shrink-0 overflow-hidden">
+              <div className="flex items-center gap-3 min-w-0 overflow-hidden">
                 <div className="group shrink-0">
-                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-indigo-500 transition-colors">Total</div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 tracking-tighter whitespace-nowrap leading-none">
+                  <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-indigo-500 transition-colors">Total</div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg sm:text-xl lg:text-[22px] font-black text-slate-900 tracking-tighter whitespace-nowrap leading-none">
                       {filteredGlobalPatients.length.toLocaleString()}
                     </span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0 leading-none pt-0.5">Screened</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase shrink-0 leading-none">Screened</span>
                   </div>
                 </div>
+                <div className="vertex-metric-divider" />
                 <div className="group shrink-0">
-                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-rose-500 transition-colors">Pending</div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-lg sm:text-xl lg:text-2xl font-black text-rose-600 tracking-tighter whitespace-nowrap leading-none">
+                  <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-rose-500 transition-colors">Pending</div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg sm:text-xl lg:text-[22px] font-black text-rose-600 tracking-tighter whitespace-nowrap leading-none">
                       {pendingAlertsCount.toLocaleString()}
                     </span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0 leading-none pt-0.5">Alerts</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase shrink-0 leading-none">Alerts</span>
                   </div>
                 </div>
+                <div className="vertex-metric-divider hidden sm:block" />
                 <div className="group hidden sm:block shrink-0">
-                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-emerald-500 transition-colors">This Month</div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-lg sm:text-xl lg:text-2xl font-black text-emerald-600 tracking-tighter whitespace-nowrap leading-none">
+                  <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-emerald-500 transition-colors">This Month</div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg sm:text-xl lg:text-[22px] font-black text-emerald-600 tracking-tighter whitespace-nowrap leading-none">
                       {thisMonthScreenedCount.toLocaleString()}
                     </span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0 leading-none pt-0.5">Screened</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase shrink-0 leading-none">Screened</span>
                   </div>
                 </div>
               </div>
@@ -1408,7 +1461,7 @@ export default function Vertex({
            className="w-full lg:col-span-7 flex flex-col lg:sticky lg:top-6 h-[calc(100vh-3rem)] min-w-0"
            id="right-scroll-container"
         >
-          <Card className="flex flex-col flex-1 min-h-0 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm relative">
+          <Card className="care-cascade-card flex flex-col flex-1 min-h-0 overflow-hidden relative">
             <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-blue-500/[0.02] to-transparent pointer-events-none" />
             <AnimatePresence mode="wait">
               {selectedDate ? (
@@ -1421,25 +1474,25 @@ export default function Vertex({
                   transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                   className="flex flex-col flex-1 min-h-0"
                 >
-                  {/* Header */}
-                  <div className="flex-shrink-0 flex items-center justify-between px-8 py-6 border-b border-slate-200/50 bg-white/40 backdrop-blur-xl">
+                  {/* Header — Premium frosted glass */}
+                  <div className="flex-shrink-0 flex items-center justify-between px-8 py-5 vertex-feed-header">
                     <div>
-                      <h3 className="text-3xl font-black text-slate-950 tracking-tighter uppercase leading-none">{formattedDate}</h3>
-                      <div className="flex items-center gap-2 mt-1">
+                      <h3 className="text-[21px] font-black text-slate-900 tracking-tight leading-none">{formattedDate}</h3>
+                      <div className="flex items-center gap-2 mt-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                        <p className="text-[11px] font-bold text-blue-600 uppercase tracking-widest">Active Intelligence Feed</p>
+                        <p className="text-[9px] font-black uppercase tracking-[0.22em] text-blue-600/80">Daily Summary</p>
+                        <span className="w-1 h-1 rounded-full bg-slate-300" />
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.12em]">{patientsForSelectedDate.length} records</p>
                       </div>
                     </div>
                     {!selectedPatient && (
-                      <Button
+                      <button
                         onClick={handleClearDate}
-                        variant="ghost"
-                        size="sm"
-                        className="text-slate-400 hover:text-slate-950 hover:bg-slate-100 rounded-xl font-bold uppercase text-[10px] tracking-widest border border-transparent hover:border-slate-200 px-4 h-10"
+                        className="flex items-center justify-center rounded-lg bg-slate-100 hover:bg-rose-50 hover:border hover:border-rose-200 w-7 h-7 text-slate-400 hover:text-rose-500 transition-all duration-200"
+                        title="Close Feed"
                       >
-                        <X className="w-4 h-4 mr-2" />
-                        Close
-                      </Button>
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     )}
                   </div>
 
@@ -1452,92 +1505,137 @@ export default function Vertex({
                           <GSAPCubeLoader />
                         </div>
                       ) : (
-                        <div className="grid grid-cols-2 gap-6">
-                          <SparkCard 
-                            icon={Users}
-                            label="Total Screened"
-                            value={dailySparks.totalScreened}
-                            color="cyan"
-                          />
-                          <SparkCard 
-                            icon={CheckCircle2}
-                            label="Suspected TB"
-                            value={dailySparks.onTrack}
-                            color="amber"
-                          />
-                          <SparkCard 
-                            icon={AlertCircle}
-                            label="TB Diagnosed"
-                            value={dailySparks.diagnosed}
-                            color="red"
-                          />
-                          <SparkCard 
-                            icon={Activity}
-                            label="Pending Sputum"
-                            value={dailySparks.pendingSputum}
-                            color="emerald"
-                          />
-                        </div>
-                      )}
+                        <div className="space-y-6">
+                          {/* Stage 1 — Screening & Triage */}
+                          <div>
+                            <div className="flex items-center gap-3 mb-3">
+                              <span className="vertex-stage-label text-[9px] font-black uppercase tracking-[0.18em] text-blue-500">
+                                Stage 1 — Screening & Triage
+                              </span>
+                              <div className="flex-1 h-px bg-gradient-to-r from-blue-100 to-transparent" />
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <SparkCard 
+                                icon={Users}
+                                label="Total Screened"
+                                value={totalScreened}
+                                accent="border-l-blue-500, icon text-blue-500"
+                              />
+                              <SparkCard 
+                                icon={ShieldAlert}
+                                label="Suspected TB"
+                                value={suspectedTB}
+                                accent="border-l-amber-500, icon text-amber-500"
+                                percentage={pct(suspectedTB)}
+                              />
+                              <SparkCard 
+                                icon={ShieldCheck}
+                                label="Not Suspected"
+                                value={notSuspected}
+                                accent="border-l-slate-400, icon text-slate-400"
+                                percentage={pct(notSuspected)}
+                              />
+                            </div>
+                          </div>
 
-                      {/* Geography Summary Chips — Elegant Intelligence Tags */}
-                      {selectedDate && groupedGeography.length > 0 && (
-                        <div className="flex flex-wrap gap-2.5">
-                          {(() => {
-                            const topState = groupedGeography[0];
-                            const topDistrict = topState?.districts?.[0];
-                            const totalLocations = groupedGeography.reduce((sum, state) => 
-                              sum + state.districts.reduce((dSum, d) => dSum + d.facilities.length, 0), 0);
-                            
-                            return (
-                              <>
-                                <div className="px-3.5 py-2 bg-white border border-slate-200 rounded-xl flex items-center gap-2.5 shadow-sm">
-                                  <MapPin className="w-4 h-4 text-blue-600" />
-                                  <div className="flex flex-col">
-                                    <span className="text-xs font-semibold text-slate-900">{topState?.stateName || 'N/A'}</span>
-                                    <span className="text-[9px] font-medium text-slate-500 uppercase tracking-wide">Top State</span>
-                                  </div>
-                                </div>
-                                {topDistrict && (
-                                  <div className="px-3.5 py-2 bg-white border border-slate-200 rounded-xl flex items-center gap-2.5 shadow-sm">
-                                    <Building2 className="w-4 h-4 text-emerald-600" />
-                                    <div className="flex flex-col">
-                                      <span className="text-xs font-semibold text-slate-900">{topDistrict.districtName}</span>
-                                      <span className="text-[9px] font-medium text-slate-500 uppercase tracking-wide">Top District</span>
-                                    </div>
-                                  </div>
-                                )}
-                                <div className="px-3.5 py-2 bg-white border border-slate-200 rounded-xl flex items-center gap-2.5 shadow-sm">
-                                  <Users className="w-4 h-4 text-slate-600" />
-                                  <div className="flex flex-col">
-                                    <span className="text-xs font-semibold text-slate-900">{totalLocations}</span>
-                                    <span className="text-[9px] font-medium text-slate-500 uppercase tracking-wide">Locations</span>
-                                  </div>
-                                </div>
-                              </>
-                            );
-                          })()}
+                          {/* Stage 2 — Diagnosis & Sputum */}
+                          <div>
+                            <div className="flex items-center gap-3 mb-3">
+                              <span className="vertex-stage-label text-[9px] font-black uppercase tracking-[0.18em] text-rose-400">
+                                Stage 2 — Diagnosis & Sputum
+                              </span>
+                              <div className="flex-1 h-px bg-gradient-to-r from-rose-100 to-transparent" />
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <SparkCard 
+                                icon={Clock}
+                                label="Pending Sputum"
+                                value={pendingSputum}
+                                accent="border-l-emerald-500, icon text-emerald-500"
+                              />
+                              <SparkCard 
+                                icon={Activity}
+                                label="TB Diagnosed"
+                                value={tbDiagnosed}
+                                accent="border-l-rose-500, icon text-rose-500"
+                                percentage={pct(tbDiagnosed)}
+                              />
+                              <SparkCard 
+                                icon={Check}
+                                label="Not Diagnosed"
+                                value={notDiagnosed}
+                                accent="border-l-zinc-400, icon text-zinc-400"
+                                percentage={pct(notDiagnosed)}
+                              />
+                            </div>
+                          </div>
                         </div>
                       )}
 
                       {/* Geographic Hierarchy Breakdown — Elegant Feature Block */}
                       <div className="space-y-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-11 h-11 rounded-xl bg-slate-900 flex items-center justify-center">
-                            <MapPin className="w-5.5 h-5.5 text-white" />
-                          </div>
-                          <div>
-                            <h4 className="text-[12px] font-semibold text-slate-900 uppercase tracking-[0.15em]">
-                              Geographic Case Distribution
-                            </h4>
-                            <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide mt-0.5">
-                              Operational drilldown by location
-                            </p>
-                          </div>
-                        </div>
+                        {(() => {
+                          const topStateObj = groupedGeography[0];
+                          const topState = topStateObj?.stateName || 'N/A';
+                          const topDistrict = topStateObj?.districts?.[0]?.districtName || 'N/A';
+                          const locationsCount = groupedGeography.reduce((sum, state) => 
+                            sum + state.districts.reduce((dSum, d) => dSum + d.facilities.length, 0), 0);
+
+                          return (
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                              {/* LEFT: icon + title + subtitle */}
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-7 h-7 rounded-lg bg-slate-900 flex items-center justify-center shrink-0">
+                                  <MapPin className="w-3.5 h-3.5 text-white" />
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-800 leading-tight">
+                                    Geographic Case Distribution
+                                  </p>
+                                  <p className="text-[9px] text-slate-400 font-medium">
+                                    Operational drilldown by location
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* RIGHT: compact meta pills — wire to existing topState, topDistrict, locationsCount variables */}
+                              {selectedDate && groupedGeography.length > 0 && (
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {/* Top State */}
+                                  <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-100">
+                                    <MapPin className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                                    <div>
+                                      <p className="text-[8px] font-bold uppercase tracking-wide text-slate-400 leading-none">State</p>
+                                      <p className="text-[10px] font-black text-slate-800 leading-tight truncate max-w-[70px]">{topState}</p>
+                                    </div>
+                                  </div>
+
+                                  {/* Top District */}
+                                  <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-100">
+                                    <Building2 className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                                    <div>
+                                      <p className="text-[8px] font-bold uppercase tracking-wide text-slate-400 leading-none">District</p>
+                                      <p className="text-[10px] font-black text-slate-800 leading-tight truncate max-w-[70px]">{topDistrict}</p>
+                                    </div>
+                                  </div>
+
+                                  {/* Locations */}
+                                  <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-100">
+                                    <Users className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                                    <div>
+                                      <p className="text-[8px] font-bold uppercase tracking-wide text-slate-400 leading-none">Locations</p>
+                                      <p className="text-[10px] font-black text-slate-800 leading-tight">{locationsCount}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+
                         <div
                           key={geographyKey}
-                          className="bg-white rounded-2xl p-4 border border-slate-200/60 shadow-sm relative"
+                          className="vertex-geo-card rounded-2xl p-4 relative"
                         >
                           {isDateChanging && (
                             <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] rounded-2xl z-10 flex items-center justify-center">
@@ -1656,53 +1754,52 @@ export default function Vertex({
                     const year = currentDate.getFullYear();
 
                     return (
-                      <div className="flex flex-col flex-1">
-                        {/* Premium Care Cascade - Production-Grade Responsive Grid */}
-                        <div className="flex-shrink-0 px-6 py-4">
-                            <div className="flex items-center justify-between mb-4">
-                              <div>
-                                <h4 className="text-xl font-bold text-slate-900 tracking-widest uppercase">Care Cascade</h4>
-                                <p className="text-xs text-slate-600 mt-1 font-medium">Real-time patient journey analytics</p>
-                              </div>
-                              <div className="text-sm text-slate-700 font-semibold">{monthName} {year}</div>
+                      <div className="flex flex-col flex-1 h-full">
+                        <div className="flex-shrink-0 flex flex-col">
+                          {/* Premium Care Cascade Header */}
+                          <div className="flex-shrink-0 flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100/80 shadow-sm relative z-10">
+                            <div>
+                              <h4 className="text-xl font-bold text-slate-900 tracking-[0.06em] uppercase">CARE CASCADE</h4>
+                              <p className="text-[11px] text-slate-400 font-medium tracking-wide mt-1">Real-time patient journey analytics</p>
                             </div>
-                            
-                            <div className="flex flex-col gap-2">
-
-                              {/* Premium Pie Chart - Care Cascade Visualization */}
-                              <div className="relative bg-white/50 backdrop-blur-sm rounded-2xl px-6 pt-6 pb-2 border border-white/40 shadow-lg">
-                                <ScreeningFrequencyChart
-                                  data={[
-                                    { stage: "Screened", value: stats.total },
-                                    { stage: "Not Suspected", value: stats.notSuspected },
-                                    { stage: "Suspected", value: stats.suspected },
-                                    { stage: "Referred", value: stats.referralDone },
-                                    { stage: "Diagnosed", value: stats.diagnosed },
-                                    { stage: "ATT Started", value: stats.attStarted }
-                                  ]}
-                                />
-                              </div>
-
-                              {/* Timeline Band - Screening Frequency Jan-Dec */}
-                              <div className="-mt-1">
-                                <ScreeningFrequencyTimeline
-                                  patients={filteredYearPatients}
-                                  year={year}
-                                  currentMonth={currentDate.getMonth()}
-                                  isLoading={isLoading}
-                                />
-                              </div>
-
-                            </div>
+                            <div className="text-[11px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100/80 px-2.5 py-0.5 rounded-full shadow-sm">{monthName} {year}</div>
                           </div>
-
-                          {/* Bottom Hint */}
-                          <div className="mt-auto px-5 pb-5 pt-3 border-t border-slate-100">
-                            <p className="text-xs text-slate-400 leading-relaxed">
-                              Select a specific date on the calendar to view daily intelligence.
-                            </p>
+                          
+                          {/* Donut Zone Section */}
+                          <div className="px-6 pt-5 pb-4">
+                            <div className="relative cascade-donut-zone p-5 shadow-sm">
+                              <ScreeningFrequencyChart
+                                data={[
+                                  { stage: "Screened", value: stats.total },
+                                  { stage: "Not Suspected", value: stats.notSuspected },
+                                  { stage: "Suspected", value: stats.suspected },
+                                  { stage: "Referred", value: stats.referralDone },
+                                  { stage: "Diagnosed", value: stats.diagnosed },
+                                  { stage: "ATT Started", value: stats.attStarted }
+                                ]}
+                              />
+                            </div>
                           </div>
                         </div>
+
+                        {/* Bottom section — fills remaining space, content starts from top */}
+                        <div className="flex-1 bg-slate-50/40 rounded-b-[18px] overflow-hidden">
+                          {/* Premium Divider */}
+                          <div className="relative mx-6 my-0">
+                            <div className="h-px bg-gradient-to-r from-transparent via-slate-200/80 to-transparent" />
+                          </div>
+
+                          {/* Timeline Band */}
+                          <div className="pt-4 px-6 pb-0">
+                            <ScreeningFrequencyTimeline
+                              patients={filteredYearPatients}
+                              year={year}
+                              currentMonth={currentDate.getMonth()}
+                              isLoading={isLoading}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     );
                   })()}
                 </motion.div>

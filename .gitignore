@@ -40,6 +40,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Windows reserved-name files created by Git Bash redirect (2>nul)
+/nul
+/1
+/80
+
 .vercel
 
 # Sentry Config File

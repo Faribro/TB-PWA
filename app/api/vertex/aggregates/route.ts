@@ -228,7 +228,8 @@ async function computeMonthlySummary(
 
   (data || []).forEach((record: any) => {
     screened++;
-    if (record.xray_result === 'Suspected TB Case') suspected++;
+    const xray = (record.xray_result || '').toLowerCase();
+    if (xray === 'suspected tb case' || xray.includes('abnormal') || xray.includes('suspected')) suspected++;
     if (record.tb_diagnosed === 'Y') diagnosed++;
     if (record.att_start_date) attStarted++;
     if (record.referral_date) referred++;
@@ -267,7 +268,8 @@ async function computeDailySummary(
     totalScreened++;
     if (!record.referral_date) pendingSputum++;
     if (record.tb_diagnosed === 'Y') diagnosed++;
-    if (record.xray_result === 'Suspected TB Case') onTrack++;
+    const xray = (record.xray_result || '').toLowerCase();
+    if (xray === 'suspected tb case' || xray.includes('abnormal') || xray.includes('suspected')) onTrack++;
   });
 
   return { totalScreened, pendingSputum, diagnosed, onTrack };
