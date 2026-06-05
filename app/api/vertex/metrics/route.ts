@@ -1,22 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { createServerClient } from '@/lib/supabase-server-admin';
 import { normalizeRole, Role } from '@/lib/constants/roles';
 import { getCachedWithMemory } from '@/lib/memory-cache';
 import { CacheNamespace, buildVersionedKey, bumpCacheVersion } from '@/lib/cache-version';
+import { prisma } from '@/lib/prisma';
 
-// Version 2.0.2 - Bumped cache version after fixing flexible matching
+// Version 2.1.0 - Refactored to utilize mv_daily_vertex_metrics materialized view
 export const maxDuration = 15;
 export const dynamic = 'force-dynamic';
 export const revalidate = 0; // Force no caching
-
-interface PatientRecord {
-  screening_date: string;
-  tb_diagnosed: string | null;
-  xray_result: string | null;
-  att_start_date: string | null;
-  referral_date: string | null;
-}
 
 interface DailyStats {
   date: string;
@@ -57,7 +49,7 @@ export async function GET(request: NextRequest) {
     }
     const view = searchParams.get('view') ?? 'month'; // 'month' or 'year'
 
-    // Optional state/district filters from query params (for future filter bar integration)
+    // Optional state/district filters from query params
     const filterState = searchParams.get('state');
     const filterDistrict = searchParams.get('district');
 
@@ -77,178 +69,101 @@ export async function GET(request: NextRequest) {
     const rawRole = session.user.role ?? 'ME';
     const role = normalizeRole(rawRole) ?? Role.ME_OFFICER;
     const state = session.user.state;
-    const staffName = (session.user as any).staffName;
-
-    const applyFilters = (query: any) => {
-      // Role-based filtering
-      if (role === Role.ADMIN || role === Role.PROGRAM_MANAGER) {
-        // National tier - no filters
-      } else if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
-        if (state && state !== 'All') {
-          // Maharashtra SPM sees both Maharashtra and Mumbai data
-          if (state === 'Maharashtra') {
-            query = query.in('screening_state', ['Maharashtra', 'Mumbai']);
-          } else {
-            query = query.eq('screening_state', state);
-          }
-        }
-      } else if (role === Role.PRISON_COORDINATOR) {
-        if (staffName) {
-          query = query.ilike('staff_name', staffName.trim());
-        }
-      }
-      
-      // Query param filtering (overrides for filter bar)
-      if (filterState && filterState !== 'all') {
-        // Maharashtra filter includes Mumbai data
-        if (filterState === 'Maharashtra') {
-          query = query.in('screening_state', ['Maharashtra', 'Mumbai']);
-        } else {
-          query = query.eq('screening_state', filterState);
-        }
-      }
-      if (filterDistrict && filterDistrict !== 'all') {
-        query = query.eq('screening_district', filterDistrict);
-      }
-      
-      return query;
-    };
 
     // Try three-layer cache (Memory → Redis → Database)
     const responseData = await getCachedWithMemory(
       cacheKey,
       async () => {
-        const supabase = createServerClient();
+        let startDate: string;
+        let endDate: string;
 
-    if (view === 'year') {
-      // YEAR VIEW: Paginated fetch for full year data
-      // CRITICAL: Supabase PostgREST caps at 1000 rows by default.
-      // .range(0, 99999) does NOT bypass this cap — we must paginate in 1000-row chunks.
-      const yearStart = `${year}-01-01`;
-      const yearEnd = `${year}-12-31`;
-
-      const PAGE_SIZE = 1000;
-      let yearData: PatientRecord[] = [];
-      let page = 0;
-      let totalCount = 0;
-
-      try {
-        while (page < 50) { // Safety: max 50 pages (50k rows)
-          const start = page * PAGE_SIZE;
-          const end = start + PAGE_SIZE - 1;
-
-          let pageQuery = supabase
-            .from('patients')
-            .select('screening_date, tb_diagnosed, xray_result, att_start_date, referral_date', { count: page === 0 ? 'exact' : null })
-            .gte('screening_date', yearStart)
-            .lte('screening_date', yearEnd)
-            .not('screening_date', 'is', null)
-            .order('screening_date', { ascending: true })
-            .range(start, end);
-
-          pageQuery = applyFilters(pageQuery);
-
-          const { data: pageData, error, count } = await pageQuery;
-
-          if (error) throw error;
-          if (page === 0 && count) totalCount = count;
-
-          const rowsThisPage = pageData?.length || 0;
-          yearData = yearData.concat(pageData || []);
-
-          console.log(`[/api/vertex/metrics] Year page ${page}: ${rowsThisPage} rows (total: ${yearData.length} / ${totalCount || '?'})`);
-
-          if (rowsThisPage === 0) break;
-          if (totalCount > 0 && yearData.length >= totalCount) break;
-          if (rowsThisPage < PAGE_SIZE) break;
-
-          page++;
+        if (view === 'year') {
+          startDate = `${year}-01-01`;
+          endDate = `${year}-12-31`;
+        } else {
+          const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+          const lastDay = new Date(year, month, 0).getDate();
+          const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+          startDate = monthStart;
+          endDate = monthEnd;
         }
-      } catch (yearError: any) {
-        console.error('[/api/vertex/metrics] Year query error:', yearError);
-        return NextResponse.json({
-          error: 'Database query timeout',
-          details: yearError.message,
-          fallback: true
-        }, {
-          status: 200,
-          headers: {
-            'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200'
+
+        // Base query selecting summaries from materialized view
+        let queryStr = `
+          SELECT 
+            registration_date::text AS date,
+            SUM(screened_count)::integer AS count,
+            SUM(suspected_count)::integer AS suspected,
+            SUM(diagnosed_count)::integer AS "tbPositive",
+            SUM(att_started_count)::integer AS "attStarted",
+            SUM(referred_count)::integer AS referred
+          FROM public.mv_daily_vertex_metrics
+          WHERE registration_date >= $1::date AND registration_date <= $2::date
+        `;
+
+        const params: any[] = [startDate, endDate];
+
+        // Determine state filter
+        let targetState: string | null = null;
+        if (filterState && filterState !== 'all') {
+          targetState = filterState;
+        } else if ((role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) && state && state !== 'All') {
+          targetState = state;
+        }
+
+        if (targetState) {
+          if (targetState.toLowerCase() === 'maharashtra') {
+            queryStr += ` AND LOWER(screening_state) IN ('maharashtra', 'mumbai')`;
+          } else {
+            params.push(targetState);
+            queryStr += ` AND LOWER(screening_state) = LOWER($${params.length})`;
           }
-        });
-      }
-
-      // Aggregate in JavaScript - O(n) single pass
-      const dailyMap = new Map<string, DailyStats>();
-      let totalScreened = 0;
-      let totalSuspected = 0;
-      let totalDiagnosed = 0;
-      let totalAttStarted = 0;
-      let totalReferred = 0;
-
-      if (!yearData || yearData.length === 0) {
-        console.log(`[/api/vertex/metrics] Year ${year}: No data found`);
-        return {
-          screened: 0,
-          suspected: 0,
-          diagnosed: 0,
-          attStarted: 0,
-          referred: 0,
-          dailyBreakdown: [],
-          _meta: { year, view: 'year', yearStart, yearEnd, role, state: state || null, totalRecords: 0 }
-        };
-      }
-
-      (yearData as PatientRecord[]).forEach((record) => {
-        const date = record.screening_date;
-        totalScreened++;
-
-        // Flexible matching for xray_result (case-insensitive, multiple formats)
-        const xrayLower = (record.xray_result || '').toLowerCase();
-        const isSuspected = xrayLower.includes('suspected') || 
-                           xrayLower.includes('abnormal') ||
-                           record.xray_result === 'Suspected TB Case';
-        
-        // Flexible matching for tb_diagnosed (Y, Yes, yes, etc.)
-        const tbLower = (record.tb_diagnosed || '').toLowerCase();
-        const isDiagnosed = tbLower === 'y' || tbLower === 'yes';
-        
-        const isAttStarted = record.att_start_date !== null;
-        const isReferred = record.referral_date !== null;
-
-        if (isSuspected) totalSuspected++;
-        if (isDiagnosed) totalDiagnosed++;
-        if (isAttStarted) totalAttStarted++;
-        if (isReferred) totalReferred++;
-
-        // Daily breakdown
-        if (!dailyMap.has(date)) {
-          dailyMap.set(date, {
-            date,
-            count: 0,
-            tbPositive: 0,
-            suspected: 0,
-            attStarted: 0,
-            referred: 0
-          });
         }
 
-        const dayStats = dailyMap.get(date)!;
-        dayStats.count++;
-        if (isDiagnosed) dayStats.tbPositive++;
-        if (isSuspected) dayStats.suspected++;
-        if (isAttStarted) dayStats.attStarted++;
-        if (isReferred) dayStats.referred++;
-      });
+        // Determine district filter
+        if (filterDistrict && filterDistrict !== 'all') {
+          params.push(filterDistrict);
+          queryStr += ` AND LOWER(screening_district) = LOWER($${params.length})`;
+        }
 
-      const dailyBreakdown = Array.from(dailyMap.values()).sort((a, b) =>
-        a.date.localeCompare(b.date)
-      );
-      
-      console.log(`[/api/vertex/metrics] Year ${year}: Aggregated ${totalScreened} records into ${dailyBreakdown.length} days`);
-      if (totalScreened === 1000) {
-        console.warn(`[/api/vertex/metrics] ⚠️ WARNING: Exactly 1000 records - may indicate Supabase cap!`);
-      }
+        // Add group by and order by
+        queryStr += `
+          GROUP BY registration_date
+          ORDER BY registration_date ASC
+        `;
+
+        // Execute raw query using global Prisma client
+        const dbRows = await prisma.$queryRawUnsafe<any[]>(queryStr, ...params);
+
+        // Aggregate totals and build breakdown
+        let totalScreened = 0;
+        let totalSuspected = 0;
+        let totalDiagnosed = 0;
+        let totalAttStarted = 0;
+        let totalReferred = 0;
+
+        const dailyBreakdown: DailyStats[] = dbRows.map((row: any) => {
+          const count = Number(row.count || 0);
+          const suspected = Number(row.suspected || 0);
+          const tbPositive = Number(row.tbPositive || 0);
+          const attStarted = Number(row.attStarted || 0);
+          const referred = Number(row.referred || 0);
+
+          totalScreened += count;
+          totalSuspected += suspected;
+          totalDiagnosed += tbPositive;
+          totalAttStarted += attStarted;
+          totalReferred += referred;
+
+          return {
+            date: row.date,
+            count,
+            tbPositive: tbPositive,
+            suspected,
+            attStarted,
+            referred
+          };
+        });
 
         return {
           screened: totalScreened,
@@ -259,163 +174,15 @@ export async function GET(request: NextRequest) {
           dailyBreakdown,
           _meta: {
             year,
-            view: 'year',
-            yearStart,
-            yearEnd,
+            ...(view !== 'year' && { month }),
+            view,
+            startDate,
+            endDate,
             role,
             state: state || null,
-            totalRecords: yearData?.length ?? 0
+            totalRecords: dbRows.length
           }
         };
-    } else {
-      // MONTH VIEW: Paginated fetch for single month data
-      // CRITICAL: Supabase PostgREST caps at 1000 rows by default.
-      // .range(0, 99999) does NOT bypass this cap — we must paginate in 1000-row chunks.
-      const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
-      const lastDay = new Date(year, month, 0).getDate();
-      const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-      
-      const PAGE_SIZE = 1000;
-      let monthData: PatientRecord[] = [];
-      let page = 0;
-      let totalCount = 0;
-      
-      try {
-        while (page < 50) { // Safety: max 50 pages (50k rows)
-          const start = page * PAGE_SIZE;
-          const end = start + PAGE_SIZE - 1;
-
-          let pageQuery = supabase
-            .from('patients')
-            .select('screening_date, tb_diagnosed, xray_result, att_start_date, referral_date', { count: page === 0 ? 'exact' : null })
-            .gte('screening_date', monthStart)
-            .lte('screening_date', monthEnd)
-            .not('screening_date', 'is', null)
-            .order('screening_date', { ascending: true })
-            .range(start, end);
-
-          pageQuery = applyFilters(pageQuery);
-
-          const { data: pageData, error, count } = await pageQuery;
-
-          if (error) throw error;
-          if (page === 0 && count) totalCount = count;
-
-          const rowsThisPage = pageData?.length || 0;
-          monthData = monthData.concat(pageData || []);
-
-          console.log(`[/api/vertex/metrics] Month page ${page}: ${rowsThisPage} rows (total: ${monthData.length} / ${totalCount || '?'})`);
-
-          if (rowsThisPage === 0) break;
-          if (totalCount > 0 && monthData.length >= totalCount) break;
-          if (rowsThisPage < PAGE_SIZE) break;
-
-          page++;
-        }
-      } catch (monthError: any) {
-        console.error('[/api/vertex/metrics] Month query error:', monthError);
-        return NextResponse.json({ 
-          error: 'Database query timeout',
-          details: monthError.message,
-          fallback: true
-        }, { 
-          status: 200,
-          headers: {
-            'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600'
-          }
-        });
-      }
-      
-      // Aggregate in JavaScript
-      const dailyMap = new Map<string, DailyStats>();
-      let totalScreened = 0;
-      let totalSuspected = 0;
-      let totalDiagnosed = 0;
-      let totalAttStarted = 0;
-      let totalReferred = 0;
-      
-      if (!monthData || monthData.length === 0) {
-        console.log(`[/api/vertex/metrics] Month ${year}-${month}: No data found`);
-        return {
-          screened: 0,
-          suspected: 0,
-          diagnosed: 0,
-          attStarted: 0,
-          referred: 0,
-          dailyBreakdown: [],
-          _meta: { year, month, view: 'month', monthStart, monthEnd, role, state: state || null, totalRecords: 0 }
-        };
-      }
-      
-      (monthData as PatientRecord[]).forEach((record) => {
-        const date = record.screening_date;
-        totalScreened++;
-        
-        // Flexible matching for xray_result (case-insensitive, multiple formats)
-        const xrayLower = (record.xray_result || '').toLowerCase();
-        const isSuspected = xrayLower.includes('suspected') || 
-                           xrayLower.includes('abnormal') ||
-                           record.xray_result === 'Suspected TB Case';
-        
-        // Flexible matching for tb_diagnosed (Y, Yes, yes, etc.)
-        const tbLower = (record.tb_diagnosed || '').toLowerCase();
-        const isDiagnosed = tbLower === 'y' || tbLower === 'yes';
-        
-        const isAttStarted = record.att_start_date !== null;
-        const isReferred = record.referral_date !== null;
-        
-        if (isSuspected) totalSuspected++;
-        if (isDiagnosed) totalDiagnosed++;
-        if (isAttStarted) totalAttStarted++;
-        if (isReferred) totalReferred++;
-        
-        if (!dailyMap.has(date)) {
-          dailyMap.set(date, {
-            date,
-            count: 0,
-            tbPositive: 0,
-            suspected: 0,
-            attStarted: 0,
-            referred: 0
-          });
-        }
-        
-        const dayStats = dailyMap.get(date)!;
-        dayStats.count++;
-        if (isDiagnosed) dayStats.tbPositive++;
-        if (isSuspected) dayStats.suspected++;
-        if (isAttStarted) dayStats.attStarted++;
-        if (isReferred) dayStats.referred++;
-      });
-      
-      const dailyBreakdown = Array.from(dailyMap.values()).sort((a, b) =>
-        a.date.localeCompare(b.date)
-      );
-      
-      console.log(`[/api/vertex/metrics] Month ${year}-${month}: Aggregated ${totalScreened} records into ${dailyBreakdown.length} days`);
-      if (totalScreened === 1000) {
-        console.warn(`[/api/vertex/metrics] ⚠️ WARNING: Exactly 1000 records - may indicate Supabase cap!`);
-      }
-
-      return {
-        screened: totalScreened,
-        suspected: totalSuspected,
-        diagnosed: totalDiagnosed,
-        attStarted: totalAttStarted,
-        referred: totalReferred,
-        dailyBreakdown,
-        _meta: {
-          year,
-          month,
-          view: 'month',
-          monthStart,
-          monthEnd,
-          role,
-          state: state || null,
-          totalRecords: monthData?.length ?? 0
-        }
-      };
-    }
       },
       30
     );

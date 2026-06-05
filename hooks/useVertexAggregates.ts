@@ -70,9 +70,9 @@ export function useVertexHeatmap(
     const districtParam = district || 'all';
     
     // Prefetch previous year
-    fetch(`/api/vertex/aggregates?type=heatmap&year=${prevYear}&state=${stateParam}&district=${districtParam}`);
+    fetch(`/api/vertex/aggregates?type=heatmap&year=${prevYear}&state=${stateParam}&district=${districtParam}`).catch(() => {});
     // Prefetch next year
-    fetch(`/api/vertex/aggregates?type=heatmap&year=${nextYear}&state=${stateParam}&district=${districtParam}`);
+    fetch(`/api/vertex/aggregates?type=heatmap&year=${nextYear}&state=${stateParam}&district=${districtParam}`).catch(() => {});
   }, [year, state, district, session]);
 
   return {
@@ -125,9 +125,9 @@ export function useVertexMonthSummary(
     const nextYear = month === 12 ? year + 1 : year;
     
     // Prefetch previous month
-    fetch(`/api/vertex/aggregates?type=month&year=${prevYear}&month=${prevMonth}&state=${stateParam}&district=${districtParam}`);
+    fetch(`/api/vertex/aggregates?type=month&year=${prevYear}&month=${prevMonth}&state=${stateParam}&district=${districtParam}`).catch(() => {});
     // Prefetch next month
-    fetch(`/api/vertex/aggregates?type=month&year=${nextYear}&month=${nextMonth}&state=${stateParam}&district=${districtParam}`);
+    fetch(`/api/vertex/aggregates?type=month&year=${nextYear}&month=${nextMonth}&state=${stateParam}&district=${districtParam}`).catch(() => {});
   }, [year, month, state, district, session]);
 
   return {

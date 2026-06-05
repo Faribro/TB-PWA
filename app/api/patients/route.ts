@@ -170,8 +170,8 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    // Validate and cap limit - NEVER exceed 1000
-    requestedLimit = Math.min(requestedLimit, 1000);
+    // Validate and cap limit - strictly cap/enforce 50-row limit
+    requestedLimit = Math.min(requestedLimit, 50);
     
     // Validate and sanitize filters
     let filters: PatientFilters;
@@ -362,8 +362,8 @@ export async function GET(request: NextRequest) {
           'id', 'unique_id', 'inmate_name', 'screening_date', 'submitted_on',
           'screening_state', 'screening_district', 'facility_name', 'facility_type',
           'xray_result', 'tb_diagnosed', 'tb_type', 'att_start_date',
-          'referral_date', 'hiv_status', 'sex', 'age', 'created_at',
-          'chest_x_ray_result', 'symptoms_present'
+          'referral_date', 'hiv_status', 'sex', 'age', 'created_at'
+          // Stripped out bulky text blobs to ensure payload size is minimized for Redis
         ];
 
         const selectBlock = selectedFields.reduce((acc, field) => {
