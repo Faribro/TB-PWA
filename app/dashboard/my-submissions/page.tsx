@@ -43,7 +43,6 @@ export default function MySubmissionsPage() {
   const { data: session } = useSession();
   const scope = useSessionScope();
   const { pendingCount, isSyncing, syncPending, isOnline } = useOfflineSync();
-  const supabase = getSupabaseBrowserClient();
 
   const [patients, setPatients] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,6 +53,12 @@ export default function MySubmissionsPage() {
   const staffName = scope?.staffName || session?.user?.staffName || session?.user?.name;
   const userName = session?.user?.name || 'Officer';
   const userFacility = session?.user?.district || 'Your Facility';
+
+  // Lazy initialize supabase client only in browser
+  const getClient = useCallback(() => {
+    if (typeof window === 'undefined') return null;
+    return getSupabaseBrowserClient();
+  }, []);
 
   // Realtime subscription for live updates
   const { status: realtimeStatus } = useRealtimePatients({
@@ -82,6 +87,9 @@ export default function MySubmissionsPage() {
     }
 
     const fetchSubmissions = async () => {
+      const supabase = getClient();
+      if (!supabase) return;
+
       setIsLoading(true);
       try {
         const result = await fuzzyStaffLookup(
@@ -102,7 +110,7 @@ export default function MySubmissionsPage() {
     };
 
     fetchSubmissions();
-  }, [staffName, supabase]);
+  }, [staffName, getClient]);
 
   // Calculate stats
   const stats = useMemo(() => {

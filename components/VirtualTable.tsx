@@ -17,6 +17,7 @@ interface VirtualTableProps {
   getPhase: (patient: any) => number;
   getDaysInPhase: (patient: any) => number;
   isOverdue: (patient: any) => boolean;
+  onScrollThresholdReached?: () => void;
 }
 
 export function VirtualTable({
@@ -29,8 +30,21 @@ export function VirtualTable({
   getPhase,
   getDaysInPhase,
   isOverdue,
+  onScrollThresholdReached,
 }: VirtualTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const scrollHeight = target.scrollHeight;
+    const scrollTop = target.scrollTop;
+    const clientHeight = target.clientHeight;
+    
+    // Trigger threshold reached if within 100px of bottom or scrolled past 80%
+    if (scrollHeight - scrollTop - clientHeight < 100 || (scrollTop + clientHeight) / scrollHeight >= 0.8) {
+      onScrollThresholdReached?.();
+    }
+  };
 
   const virtualizer = useVirtualizer({
     count: patients.length,
@@ -40,7 +54,7 @@ export function VirtualTable({
   });
 
   return (
-    <div ref={parentRef} className="h-full overflow-auto">
+    <div ref={parentRef} className="h-full overflow-auto" onScroll={handleScroll}>
       <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
         {virtualizer.getVirtualItems().map((virtualRow) => {
           const patient = patients[virtualRow.index];

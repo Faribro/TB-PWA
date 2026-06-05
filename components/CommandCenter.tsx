@@ -16,6 +16,8 @@ import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { LinesAndDotsLoader } from './LinesAndDotsLoader';
 import { Z_INDEX } from '@/lib/zIndex';
 import { VirtualTable } from './VirtualTable';
+import { useSessionScope } from '@/hooks/useSessionScope';
+import { usePatientRealtime } from '@/hooks/usePatientRealtime';
 
 const supabase = getSupabaseBrowserClient();
 
@@ -89,7 +91,7 @@ interface CommandCenterProps {
   initialFilter?: any;
 }
 
-function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }: CommandCenterProps) {
+function CommandCenter({ globalPatients, isLoading = false, initialFilter }: CommandCenterProps) {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [triageIds, setTriageIds] = useState<string[]>([]);
@@ -128,6 +130,97 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
     setShowDashboard(prev => !prev);
   }, []);
 
+  const scope = useSessionScope();
+  const isFetchingInternally = !globalPatients;
+
+  const {
+    patients: fetchedPatients = [],
+    isLoading: fetchedLoading,
+    total: fetchedTotalCount,
+    mutate: localMutate,
+    loadMore,
+    hasMore,
+    isLoadingMore
+  } = useSWRAllPatients(isFetchingInternally ? scope : null, {
+    limit: 50,
+    filters: {
+      state: filters.state || undefined,
+      district: filters.district || undefined,
+      dateFrom: filters.dateFrom || undefined,
+      dateTo: filters.dateTo || undefined,
+      search: debouncedSearch || undefined,
+      facilityType: filters.facilityType || undefined,
+      tbDiagnosed: filters.tbDiagnosed || undefined
+    }
+  });
+
+  const patientsData = isFetchingInternally ? fetchedPatients : (globalPatients || []);
+  const isPatientsLoading = isFetchingInternally ? fetchedLoading : isLoading;
+
+  // Subscribe to real-time patient updates in-place!
+  usePatientRealtime((payload) => {
+    if (!isFetchingInternally) return;
+    
+    console.log('[CommandCenter] Patient change detected, mutating in-place:', payload.eventType);
+    
+    localMutate((currentData: any) => {
+      if (!currentData) return currentData;
+      
+      const newData = currentData.map((page: any) => ({
+        ...page,
+        data: [...page.data]
+      }));
+      
+      const { eventType, new: newRecord, old: oldRecord } = payload;
+      
+      if (eventType === 'INSERT') {
+        if (newData.length > 0) {
+          // Verify if the new record matches the current state/district/search filters before adding
+          let matches = true;
+          if (filters.state && newRecord.screening_state !== filters.state) matches = false;
+          if (filters.district && newRecord.screening_district !== filters.district) matches = false;
+          if (debouncedSearch) {
+            const searchLower = debouncedSearch.toLowerCase();
+            const nameMatch = newRecord.inmate_name?.toLowerCase().includes(searchLower);
+            const idMatch = newRecord.unique_id?.toLowerCase().includes(searchLower);
+            if (!nameMatch && !idMatch) matches = false;
+          }
+          
+          if (matches) {
+            newData[0].data = [newRecord, ...newData[0].data];
+          }
+        } else {
+          newData.push({
+            data: [newRecord],
+            nextCursor: null,
+            hasMore: false,
+            meta: { returned: 1, requestedLimit: 50, role: '', durationMs: 0, mode: 'cursor' }
+          });
+        }
+      } else if (eventType === 'UPDATE') {
+        let updated = false;
+        for (const page of newData) {
+          const index = page.data.findIndex((p: any) => p.id === newRecord.id);
+          if (index !== -1) {
+            page.data[index] = { ...page.data[index], ...newRecord };
+            updated = true;
+            break;
+          }
+        }
+      } else if (eventType === 'DELETE') {
+        for (const page of newData) {
+          const index = page.data.findIndex((p: any) => p.id === oldRecord.id);
+          if (index !== -1) {
+            page.data.splice(index, 1);
+            break;
+          }
+        }
+      }
+      
+      return newData;
+    }, false); // false = do not revalidate
+  }, scope, isFetchingInternally);
+
   // Mock user session - replace with actual auth
   const userRole = 'State M&E';
   const userState = undefined; // Set to 'Maharashtra' to test state filtering
@@ -140,8 +233,8 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
   );
 
   // SWR config for cache revalidation
-  const { mutate } = useSWRConfig();
-  const totalCount = globalPatients.length;
+  const { mutate: globalMutate } = useSWRConfig();
+  const totalCount = isFetchingInternally ? fetchedTotalCount : patientsData.length;
 
   // Define isSLABreach before using it
   const isSLABreach = useCallback((patient: Patient): boolean => {
@@ -154,7 +247,7 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
 
   // Client-side filters with Spark filter logic
   const patients = useMemo(() => {
-    let filtered = globalPatients;
+    let filtered = patientsData;
     
     // Apply Spark filter (actionType)
     if (initialFilter?.actionType) {
@@ -174,8 +267,8 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
       });
     }
     
-    // Apply search filter
-    if (debouncedSearch) {
+    // Apply search filter (only if not fetching internally)
+    if (debouncedSearch && !isFetchingInternally) {
       const searchLower = debouncedSearch.toLowerCase();
       filtered = filtered.filter(p => 
         p.inmate_name?.toLowerCase().includes(searchLower) ||
@@ -185,10 +278,12 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
     
     // Apply other filters
     filtered = filtered.filter(p => {
-      if (filters.state && p.screening_state !== filters.state) return false;
-      if (filters.district && p.screening_district !== filters.district) return false;
-      if (filters.facilityType && p.facility_type !== filters.facilityType) return false;
-      if (filters.tbDiagnosed && p.tb_diagnosed !== filters.tbDiagnosed) return false;
+      if (!isFetchingInternally) {
+        if (filters.state && p.screening_state !== filters.state) return false;
+        if (filters.district && p.screening_district !== filters.district) return false;
+        if (filters.facilityType && p.facility_type !== filters.facilityType) return false;
+        if (filters.tbDiagnosed && p.tb_diagnosed !== filters.tbDiagnosed) return false;
+      }
       if (filters.hivStatus && p.hiv_status !== filters.hivStatus) return false;
       if (filters.phase && calculatePatientPhase(p).phase !== filters.phase) return false;
       if (filters.overdueOnly && !isSLABreach(p)) return false;
@@ -196,7 +291,7 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
     });
     
     return filtered;
-  }, [globalPatients, debouncedSearch, filters, isSLABreach, initialFilter]);
+  }, [patientsData, debouncedSearch, filters, isSLABreach, initialFilter, isFetchingInternally]);
 
   const updatePatient = async (id: string, updates: Partial<Patient>) => {
     const patient = patients.find(p => p.id === id);
@@ -246,7 +341,11 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
       }
       
       // Refresh SWR cache
-      mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+      if (isFetchingInternally) {
+        localMutate();
+      } else {
+        globalMutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+      }
     } else {
       console.error('[CommandCenter.updatePatient] ❌ API error:', response.status);
     }
@@ -255,19 +354,16 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
   const bulkUpdate = async (updates: Partial<Patient>) => {
     const ids = Array.from(selectedIds);
     await Promise.all(ids.map(id => supabase.from('patients').update(updates).eq('id', id)));
-    mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+    if (isFetchingInternally) {
+      localMutate();
+    } else {
+      globalMutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+    }
     setSelectedIds(new Set());
   };
 
-  // Paginate the filtered patients
-  const paginatedPatients = useMemo(() => {
-    const startIndex = (page - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return patients.slice(startIndex, endIndex);
-  }, [patients, page, pageSize]);
-  
-  const filteredPatients = paginatedPatients;
-  const displayTotalCount = patients.length;
+  const filteredPatients = patients;
+  const displayTotalCount = totalCount;
 
   const canSelectForTriage = useCallback((patient: Patient): boolean => {
     const xrayResult = (patient.chest_x_ray_result || patient.xray_result || '').toLowerCase();
@@ -336,7 +432,11 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
       ]);
       
       setTriageIds([]);
-      mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+      if (isFetchingInternally) {
+        localMutate();
+      } else {
+        globalMutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+      }
     } finally {
       setIsTriaging(false);
     }
@@ -561,63 +661,85 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Patient List */}
-        <div className="flex-1 overflow-y-auto p-6 max-h-[calc(100vh-180px)]">
+        <div 
+          onScroll={(e) => {
+            if (viewMode !== 'grid') return;
+            const target = e.currentTarget;
+            const scrollHeight = target.scrollHeight;
+            const scrollTop = target.scrollTop;
+            const clientHeight = target.clientHeight;
+            if (scrollHeight - scrollTop - clientHeight < 100 || (scrollTop + clientHeight) / scrollHeight >= 0.8) {
+              loadMore?.();
+            }
+          }}
+          className="flex-1 overflow-y-auto p-6 max-h-[calc(100vh-180px)]"
+        >
           {viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredPatients.map((patient) => (
-                <motion.div
-                  key={patient.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                  transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                  onClick={() => setSelectedPatient(patient)}
-                  className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(0,74,153,0.12)] hover:-translate-y-1 transition-all duration-300 group cursor-pointer flex flex-col justify-between min-h-[160px]"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                        {patient.inmate_name || 'Unknown Patient'}
-                      </h3>
-                      <span className="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded-md mt-1 inline-block">
-                        {patient.kobo_uuid?.substring(0, 8) || patient.unique_id?.substring(0, 8)}
-                      </span>
-                    </div>
-                    {canSelectForTriage(patient) && (
-                      <input
-                        type="checkbox"
-                        checked={triageIds.includes(patient.id)}
-                        onChange={(e) => { e.stopPropagation(); toggleTriageSelect(patient.id); }}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    )}
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center">
-                        <MapPin className="w-3.5 h-3.5" />
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredPatients.map((patient) => (
+                  <motion.div
+                    key={patient.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                    transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                    onClick={() => setSelectedPatient(patient)}
+                    className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(0,74,153,0.12)] hover:-translate-y-1 transition-all duration-300 group cursor-pointer flex flex-col justify-between min-h-[160px]"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                          {patient.inmate_name || 'Unknown Patient'}
+                        </h3>
+                        <span className="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded-md mt-1 inline-block">
+                          {patient.kobo_uuid?.substring(0, 8) || patient.unique_id?.substring(0, 8)}
+                        </span>
                       </div>
-                      <span className="truncate">{patient.facility_name}, {patient.screening_district}</span>
+                      {canSelectForTriage(patient) && (
+                        <input
+                          type="checkbox"
+                          checked={triageIds.includes(patient.id)}
+                          onChange={(e) => { e.stopPropagation(); toggleTriageSelect(patient.id); }}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      )}
                     </div>
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                      <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase shadow-sm ${
-                        calculatePatientPhase(patient).phase === 'Sputum Test' ? 'bg-amber-50 text-amber-700 border border-amber-200/50' :
-                        calculatePatientPhase(patient).phase === 'Diagnosis' ? 'bg-blue-50 text-blue-700 border border-blue-200/50' :
-                        calculatePatientPhase(patient).phase === 'ATT Initiation' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/50' :
-                        'bg-slate-50 text-slate-700 border border-slate-200/50'
-                      }`}>
-                        {calculatePatientPhase(patient).phase}
-                      </span>
-                      <span className="text-[10px] font-bold text-slate-500">
-                        {getDaysInPhase(patient)}d Active
-                      </span>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center">
+                          <MapPin className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="truncate">{patient.facility_name}, {patient.screening_district}</span>
+                      </div>
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase shadow-sm ${
+                          calculatePatientPhase(patient).phase === 'Sputum Test' ? 'bg-amber-50 text-amber-700 border border-amber-200/50' :
+                          calculatePatientPhase(patient).phase === 'Diagnosis' ? 'bg-blue-50 text-blue-700 border border-blue-200/50' :
+                          calculatePatientPhase(patient).phase === 'ATT Initiation' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/50' :
+                          'bg-slate-50 text-slate-700 border border-slate-200/50'
+                        }`}>
+                          {calculatePatientPhase(patient).phase}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-500">
+                          {getDaysInPhase(patient)}d Active
+                        </span>
+                      </div>
                     </div>
+                  </motion.div>
+                ))}
+              </div>
+              {isLoadingMore && (
+                <div className="flex justify-center items-center py-6">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                    <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                    Loading more...
                   </div>
-                </motion.div>
-              ))}
-            </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="glass-light rounded-4xl border border-white shadow-2xl overflow-hidden flex flex-col h-[calc(100vh-320px)]">
               {/* Flex Header Row to match VirtualTable columns */}
@@ -644,7 +766,7 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
               </div>
 
               {/* Scrollable VirtualTable container */}
-              <div className="flex-1 min-h-0">
+              <div className="flex-1 min-h-0 relative">
                 <VirtualTable
                   patients={patients}
                   onPatientClick={setSelectedPatient}
@@ -655,7 +777,14 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
                   getPhase={getPhase}
                   getDaysInPhase={getDaysInPhase}
                   isOverdue={isOverdue}
+                  onScrollThresholdReached={loadMore}
                 />
+                {isLoadingMore && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-4 py-2 rounded-full border border-slate-200 shadow-xl flex items-center gap-2 text-xs font-semibold text-slate-700 z-50">
+                    <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                    Loading more...
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -670,7 +799,11 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
             onClose={() => setSelectedPatient(null)}
             onUpdate={async () => {
               // Refresh the list cache
-              mutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+               if (isFetchingInternally) {
+                 localMutate();
+               } else {
+                 globalMutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+               }
               
               // Also refresh the selected patient from the list cache
               // This ensures selectedPatient has the latest data including updated_at

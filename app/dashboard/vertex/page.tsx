@@ -169,18 +169,17 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
           fetch('/api/cache/invalidate', { method: 'POST' }).catch(console.error);
           
           // Optimistic update: prepend new patient to existing data
-          mutatePatients((currentData) => {
-            if (!currentData || !currentData.data) return currentData;
+          mutatePatients((currentData: any) => {
+            if (!currentData || !Array.isArray(currentData) || currentData.length === 0) return currentData;
             
-            // Prepend new patient to the beginning of array
-            const newData = {
-              ...currentData,
-              data: [payload.new, ...currentData.data],
-              meta: {
-                ...currentData.meta,
-                returned: currentData.data.length + 1
-              }
-            };
+            // Clone pages to avoid direct state mutation issues
+            const newData = currentData.map((page: any) => ({
+              ...page,
+              data: [...page.data]
+            }));
+            
+            // Prepend new patient to the beginning of the first page
+            newData[0].data = [payload.new, ...newData[0].data];
             
             // Trigger count pulse animation
             setCountPulse(true);
