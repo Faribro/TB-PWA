@@ -33,7 +33,7 @@ export default function FollowUpPage() {
   usePatientRealtime(() => {
     console.log('[FollowUp] Patient change detected, refreshing data...');
     mutate(); // Refresh SWR cache on any patient change
-  });
+  }, scope);
 
   return (
     <div className="h-screen flex flex-col">

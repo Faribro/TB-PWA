@@ -14,6 +14,7 @@ import {
   validateCursor,
   type PatientFilters 
 } from '@/lib/api/patients-scope';
+import { prisma } from '@/lib/prisma';
 
 export const maxDuration = 30;
 export const dynamic = 'force-dynamic';
@@ -101,6 +102,31 @@ function validateDistrict(district: string | undefined): string | undefined {
   return district;
 }
 
+function getPrismaStateConditions(state: string) {
+  const normalized = state.toLowerCase().replace(/[_\s]+/g, '');
+  switch (normalized) {
+    case 'maharashtra':
+    case 'mumbai':
+      return {
+        OR: [
+          { screening_state: { contains: 'maharashtra', mode: 'insensitive' as const } },
+          { screening_state: { contains: 'mumbai', mode: 'insensitive' as const } }
+        ]
+      };
+    case 'madhyapradesh':
+      return { screening_state: { equals: 'Madhya Pradesh' } };
+    case 'uttarakhand':
+    case 'uttaranchal':
+      return { screening_state: { equals: 'Uttarakhand' } };
+    case 'gujarat':
+      return { screening_state: { equals: 'Gujarat' } };
+    case 'chandigarh':
+      return { screening_state: { equals: 'Chandigarh' } };
+    default:
+      return { screening_state: { contains: state, mode: 'insensitive' as const } };
+  }
+}
+
 /**
  * GET /api/patients - Cursor-based pagination with stable ordering
  * 
@@ -126,21 +152,26 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get('limit');
     const cursor = searchParams.get('cursor');
     
-    // Parse limit with validation
-    // CRITICAL: Cap at 1000 to work within Supabase PostgREST limits
-    // Clients should use cursor pagination for larger datasets
-    let requestedLimit = 500; // Default
-    if (limitParam) {
-      requestedLimit = parseInt(limitParam, 10);
-    } else if (pageSizeParam) {
-      requestedLimit = parseInt(pageSizeParam, 10);
+    // Validate cursor UUID string format if present
+    if (cursor && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cursor)) {
+      return NextResponse.json({
+        error: 'Invalid parameters',
+        message: 'Invalid cursor: must be a valid UUID'
+      }, { status: 400 });
+    }
+    
+    // Parse limit with validation (defaults to 50)
+    let requestedLimit = 50;
+    const rawLimit = limitParam || pageSizeParam;
+    if (rawLimit) {
+      const parsed = parseInt(rawLimit, 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        requestedLimit = parsed;
+      }
     }
     
     // Validate and cap limit - NEVER exceed 1000
-    if (isNaN(requestedLimit) || requestedLimit < 1) {
-      requestedLimit = 500;
-    }
-    requestedLimit = Math.min(requestedLimit, 1000); // Hard cap at 1k (Supabase limit)
+    requestedLimit = Math.min(requestedLimit, 1000);
     
     // Validate and sanitize filters
     let filters: PatientFilters;
@@ -182,7 +213,6 @@ export async function GET(request: NextRequest) {
     
     // Column selection - minimize payload
     const fullDetails = searchParams.get('fullDetails') === 'true';
-    const selectedColumns = fullDetails ? FULL_COLUMNS : LIST_COLUMNS;
     
     // Generate cache key based on all parameters
     const cacheKey = `patients:${scope.role}:${scope.sessionState || 'all'}:${cursor || 'first'}:${requestedLimit}:${JSON.stringify(filters)}:${fullDetails}`;
@@ -191,111 +221,210 @@ export async function GET(request: NextRequest) {
     const cachedResponse = await getCachedWithMemory<CursorPaginationResponse>(
       cacheKey,
       async (): Promise<CursorPaginationResponse> => {
-        const supabase = createServerClient();
-
-    // Structured logging
-    logApiRequest('/api/patients', scope, {
-      limit: requestedLimit,
-      hasCursor: !!cursor,
-      fullDetails,
-      filters: Object.entries(filters)
-        .filter(([_, v]) => v !== undefined)
-        .map(([k]) => k)
-    });
-
-    /**
-     * Build query with stable keyset pagination
-     * Order by: created_at DESC, id DESC
-     * - created_at has NOT NULL constraint (stable)
-     * - id is unique (deterministic tie-breaker)
-     * - No NULL ordering issues
-     */
-    const fetchLimit = requestedLimit + 1;
-    let query = supabase
-      .from('patients')
-      .select(selectedColumns)
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false });
-
-    // Apply RBAC + user filters via shared utility
-    console.log('[patients/GET] RBAC applied:', {
-      role: scope.role,
-      isNational: scope.isNational,
-      hasFilters: Object.keys(filters).length > 0
-    });
-    query = buildScopedQuery(query, scope, filters);
-
-    // Apply cursor for keyset pagination
-    if (cursor) {
-      const decoded = decodeCursor(cursor);
-      if (!decoded) {
-        // Graceful degradation: invalid cursor returns first page
-        logApiResponse('/api/patients', Date.now() - startTime, {
-          status: 'warning',
-          message: 'Invalid cursor ignored, returning first page'
+        // Structured logging
+        logApiRequest('/api/patients', scope, {
+          limit: requestedLimit,
+          hasCursor: !!cursor,
+          fullDetails,
+          filters: Object.entries(filters)
+            .filter(([_, v]) => v !== undefined)
+            .map(([k]) => k)
         });
-      } else {
-        const [lastCreatedAt, lastId] = decoded;
-        // Keyset: WHERE (created_at < last) OR (created_at = last AND id < lastId)
-        query = query.or(`created_at.lt.${lastCreatedAt},and(created_at.eq.${lastCreatedAt},id.lt.${lastId})`);
-      }
-    }
 
-    // Apply limit AFTER all filters (including cursor)
-    // Use .limit() which works correctly with keyset pagination
-    query = query.limit(fetchLimit);
+        // Build Prisma where clause
+        const where: any = { AND: [] };
 
-    // Execute query
-    const { data, error } = await query;
+        // 1. Apply RBAC filters
+        const { role, sessionState, staffName, isNational } = scope;
+        if (!isNational) {
+          if (role === 'State Program Manager' || role === 'State Officer' || role === 'ME' || role === 'State M&E' || role === 'ME Officer') {
+            if (sessionState && sessionState !== 'All') {
+              where.AND.push(getPrismaStateConditions(sessionState));
+            }
+          } else if (role === 'PC' || role === 'Prison Coordinator') {
+            if (staffName) {
+              where.AND.push({
+                staff_name: {
+                  equals: staffName.trim(),
+                  mode: 'insensitive'
+                }
+              });
+            }
+          }
+        }
 
-    if (error) {
-      logApiResponse('/api/patients', Date.now() - startTime, {
-        status: 'error',
-        error: error.message,
-        code: error.code
-      });
-      throw new Error(error.message);
-    }
+        // 2. Apply user-provided filters
+        if (filters.state && filters.state !== 'all') {
+          where.AND.push(getPrismaStateConditions(filters.state));
+        }
+        
+        if (filters.district && filters.district !== 'all') {
+          where.AND.push({
+            screening_district: {
+              equals: filters.district
+            }
+          });
+        }
+        
+        if (filters.dateFrom) {
+          where.AND.push({
+            screening_date: {
+              gte: new Date(filters.dateFrom)
+            }
+          });
+        }
+        
+        if (filters.dateTo) {
+          where.AND.push({
+            screening_date: {
+              lte: new Date(filters.dateTo)
+            }
+          });
+        }
+        
+        if (filters.search) {
+          const searchLower = filters.search.trim();
+          where.AND.push({
+            OR: [
+              { inmate_name: { contains: searchLower, mode: 'insensitive' } },
+              { unique_id: { contains: searchLower, mode: 'insensitive' } }
+            ]
+          });
+        }
+        
+        if (filters.facilityType && filters.facilityType !== 'all') {
+          where.AND.push({
+            facility_type: {
+              equals: filters.facilityType
+            }
+          });
+        }
+        
+        if (filters.suspected && filters.suspected !== 'all') {
+          if (filters.suspected === 'Yes') {
+            where.AND.push({
+              OR: [
+                { xray_result: { contains: 'abnormal', mode: 'insensitive' } },
+                { xray_result: { contains: 'suspected', mode: 'insensitive' } },
+                { chest_x_ray_result: { contains: 'abnormal', mode: 'insensitive' } },
+                { chest_x_ray_result: { contains: 'suspected', mode: 'insensitive' } }
+              ]
+            });
+          } else if (filters.suspected === 'No') {
+            where.AND.push({
+              OR: [
+                { xray_result: { contains: 'normal', mode: 'insensitive' } },
+                { chest_x_ray_result: { contains: 'normal', mode: 'insensitive' } }
+              ]
+            });
+          } else {
+            where.AND.push({
+              xray_result: {
+                equals: filters.suspected
+              }
+            });
+          }
+        }
+        
+        if (filters.tbDiagnosed && filters.tbDiagnosed !== 'all') {
+          if (filters.tbDiagnosed.toLowerCase() === 'pending') {
+            where.AND.push({
+              tb_diagnosed: null
+            });
+          } else {
+            where.AND.push({
+              tb_diagnosed: {
+                equals: filters.tbDiagnosed
+              }
+            });
+          }
+        }
 
-    // Determine if there are more results
-    // If we got exactly fetchLimit records, there might be more
-    const hasMore = data.length === fetchLimit;
-    const records = hasMore ? data.slice(0, requestedLimit) : data;
+        // Clean up empty AND array
+        if (where.AND.length === 0) {
+          delete where.AND;
+        }
 
-    // Generate next cursor using stable created_at + id
-    let nextCursor: string | null = null;
-    if (hasMore && records.length > 0) {
-      const lastRecord = records[records.length - 1] as any;
-      nextCursor = encodeCursor(lastRecord.created_at, lastRecord.id);
-    }
+        // Fields selection configuration
+        const selectedFields = fullDetails ? [
+          'id', 'unique_id', 'inmate_name', 'screening_date', 'submitted_on',
+          'screening_state', 'screening_district', 'facility_name', 'facility_type',
+          'xray_result', 'tb_diagnosed', 'tb_type', 'att_start_date',
+          'referral_date', 'hiv_status', 'sex', 'age', 'created_at',
+          'chest_x_ray_result', 'symptoms_present',
+          'referred_facility', 'kobo_uuid', 'ai_link_status', 'nikshay_abha_id',
+          'date_of_birth', 'contact_number', 'address', 'father_husband_name',
+          'inmate_type', 'staff_name', 'symptoms_10s', 'tb_past_history', 'remarks',
+          'tb_diagnosis_date', 'att_completion_date', 'art_status', 'art_number',
+          'registration_date', 'closure_reason', 'updated_at',
+          'other_facility_name', 'treatment_regimen'
+        ] : [
+          'id', 'unique_id', 'inmate_name', 'screening_date', 'submitted_on',
+          'screening_state', 'screening_district', 'facility_name', 'facility_type',
+          'xray_result', 'tb_diagnosed', 'tb_type', 'att_start_date',
+          'referral_date', 'hiv_status', 'sex', 'age', 'created_at',
+          'chest_x_ray_result', 'symptoms_present'
+        ];
 
-    const durationMs = Date.now() - startTime;
-    
-    // Structured logging
-    logApiResponse('/api/patients', durationMs, {
-      status: 'success',
-      returned: records.length,
-      hasMore,
-      role: scope.role,
-      scope: scope.sessionState || 'national'
-    });
+        const selectBlock = selectedFields.reduce((acc, field) => {
+          acc[field] = true;
+          return acc;
+        }, {} as Record<string, boolean>);
 
-    const response: CursorPaginationResponse = {
-      data: records,
-      nextCursor,
-      hasMore,
-      meta: {
-        returned: records.length,
-        requestedLimit,
-        role: scope.role,
-        durationMs,
-        mode: 'cursor',
-        scope: scope.sessionState || 'national',
-        // Note: total is NOT included - use /api/patients/summary for true totals
-      }
-    };
+        // Keyset Pagination configuration (take: limit + 1, order by: created_at DESC, id DESC)
+        const fetchLimit = requestedLimit + 1;
+        const prismaQuery: any = {
+          take: fetchLimit,
+          where,
+          select: selectBlock,
+          orderBy: [
+            { created_at: 'desc' },
+            { id: 'desc' }
+          ]
+        };
 
-    return response;
+        if (cursor) {
+          prismaQuery.cursor = { id: cursor };
+          prismaQuery.skip = 1;
+        }
+
+        // Execute query using global Prisma client singleton
+        const data = await prisma.patients.findMany(prismaQuery);
+
+        // Determine if there are more results
+        const hasMore = data.length === fetchLimit;
+        const records = hasMore ? data.slice(0, requestedLimit) : data;
+
+        // Generate next cursor (the unique record UUID string)
+        let nextCursor: string | null = null;
+        if (hasMore && records.length > 0) {
+          nextCursor = records[records.length - 1].id;
+        }
+
+        const durationMs = Date.now() - startTime;
+        
+        // Structured logging
+        logApiResponse('/api/patients', durationMs, {
+          status: 'success',
+          returned: records.length,
+          hasMore,
+          role: scope.role,
+          scope: scope.sessionState || 'national'
+        });
+
+        return {
+          data: records,
+          nextCursor,
+          hasMore,
+          meta: {
+            returned: records.length,
+            requestedLimit,
+            role: scope.role,
+            durationMs,
+            mode: 'cursor',
+            scope: scope.sessionState || 'national',
+          }
+        };
       },
       30 // 30s TTL
     );

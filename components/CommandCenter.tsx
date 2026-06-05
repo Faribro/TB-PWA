@@ -15,11 +15,12 @@ import { useSWRConfig } from 'swr';
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { LinesAndDotsLoader } from './LinesAndDotsLoader';
 import { Z_INDEX } from '@/lib/zIndex';
+import { VirtualTable } from './VirtualTable';
 
 const supabase = getSupabaseBrowserClient();
 
 interface Patient {
-  id: number;
+  id: string;
   unique_id: string;
   inmate_name: string;
   screening_state: string;
@@ -90,8 +91,8 @@ interface CommandCenterProps {
 
 function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }: CommandCenterProps) {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [triageIds, setTriageIds] = useState<number[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [triageIds, setTriageIds] = useState<string[]>([]);
   const [isTriaging, setIsTriaging] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 400);
@@ -197,7 +198,7 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
     return filtered;
   }, [globalPatients, debouncedSearch, filters, isSLABreach, initialFilter]);
 
-  const updatePatient = async (id: number, updates: Partial<Patient>) => {
+  const updatePatient = async (id: string, updates: Partial<Patient>) => {
     const patient = patients.find(p => p.id === id);
     if (!patient) return;
 
@@ -290,7 +291,7 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
     return filteredPatients.filter(p => canSelectForTriage(p)).length;
   }, [filteredPatients, canSelectForTriage]);
 
-  const toggleTriageSelect = (id: number) => {
+  const toggleTriageSelect = (id: string) => {
     setTriageIds(prev => 
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
@@ -343,7 +344,7 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
 
 
 
-  const closeLoop = async (id: number, reason: string) => {
+  const closeLoop = async (id: string, reason: string) => {
     await updatePatient(id, { tb_diagnosed: 'No', referral_date: new Date().toISOString(), att_start_date: null });
   };
 
@@ -369,7 +370,7 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
     ? filterMetadata?.locationMap.get(filters.state) || [] 
     : [];
 
-  const toggleSelect = (id: number) => {
+  const toggleSelect = (id: string) => {
     const newSet = new Set(selectedIds);
     newSet.has(id) ? newSet.delete(id) : newSet.add(id);
     setSelectedIds(newSet);
@@ -618,151 +619,45 @@ function CommandCenter({ globalPatients = [], isLoading = false, initialFilter }
               ))}
             </div>
           ) : (
-            <div className="glass-light rounded-4xl border border-white shadow-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left w-12">
-                      <input
-                        type="checkbox"
-                        checked={triageIds.length > 0 && triageIds.length === eligibleCount && eligibleCount > 0}
-                        onChange={toggleSelectAllEligible}
-                        disabled={eligibleCount === 0}
-                        aria-label={eligibleCount === 0 ? 'No eligible patients for bulk triage' : `Select all ${eligibleCount} eligible patients`}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-30 disabled:cursor-not-allowed"
-                        title={eligibleCount === 0 ? 'No eligible patients for bulk triage' : `Select all ${eligibleCount} eligible patients`}
-                      />
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Patient</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">State</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">District</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Facility</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Submitted On</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Phase</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Days</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100/50">
-                  {filteredPatients.map((patient, idx) => {
-                    const phase = getPhase(patient);
-                    const days = getDaysInPhase(patient);
-                    const overdue = isOverdue(patient);
-                    const canSelect = canSelectForTriage(patient);
-                    
-                    return (
-                      <motion.tr key={patient.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.02 }}
-                        onClick={() => setSelectedPatient(patient)}
-                        className={`cursor-pointer transition-all hover:bg-blue-50 ${selectedPatient?.id === patient.id ? 'bg-blue-50' : ''} ${overdue ? 'bg-red-50' : ''}`}>
-                        <td className="px-4 py-3">
-                          <div title={!canSelect ? 'Requires manual follow-up: Abnormal X-Ray or Symptoms Present' : 'Select for bulk triage'}>
-                            <input
-                              type="checkbox"
-                              checked={triageIds.includes(patient.id)}
-                              onChange={(e) => {
-                                e.stopPropagation();
-                                toggleTriageSelect(patient.id);
-                              }}
-                              disabled={!canSelect}
-                              aria-label={canSelect ? `Select ${patient.inmate_name} for triage` : 'Patient requires manual follow-up'}
-                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-30 disabled:cursor-not-allowed"
-                            />
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            {overdue && <Clock className="w-4 h-4 text-red-500" />}
-                            <div>
-                              <div className="font-semibold text-slate-900">{patient.inmate_name}</div>
-                              <div className="text-xs text-slate-500 font-mono">{patient.unique_id}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-slate-600">{patient.screening_state}</td>
-                        <td className="px-4 py-3 text-sm text-slate-600">{patient.screening_district}</td>
-                        <td className="px-4 py-3 text-sm text-slate-600">{patient.facility_name}</td>
-                        <td className="px-4 py-3 text-sm text-slate-600">
-                          {patient.screening_date ? (() => {
-                            const date = new Date(patient.screening_date);
-                            const dd = String(date.getDate()).padStart(2, '0');
-                            const mm = String(date.getMonth() + 1).padStart(2, '0');
-                            const yy = String(date.getFullYear()).slice(-2);
-                            return `${dd}/${mm}/${yy}`;
-                          })() : '-'}
-                        </td>
-                        <td className="px-4 py-3">
-                          <PhaseCell patient={patient} />
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`text-sm font-medium ${overdue ? 'text-red-600' : 'text-slate-600'}`}>{days}d</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {(() => {
-                            const { phase } = calculatePatientPhase(patient);
-                            const statusConfig = {
-                              'Screening': { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Screening' },
-                              'Sputum Test': { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Awaiting Sputum' },
-                              'Diagnosis': { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Pending Diagnosis' },
-                              'ATT Initiation': { bg: 'bg-orange-100', text: 'text-orange-700', label: 'Starting ATT' },
-                              'Closed': { bg: 'bg-gray-100', text: 'text-gray-700', label: patient.tb_diagnosed === 'Y' ? 'Completed' : 'Not TB' }
-                            };
-                            const config = statusConfig[phase as keyof typeof statusConfig];
-                            return (
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
-                                {config.label}
-                              </span>
-                            );
-                          })()}
-                        </td>
-                      </motion.tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            
-            <div className="border-t border-slate-200 px-6 py-4 flex items-center justify-between bg-slate-50">
-              <div className="text-sm text-slate-600">
-                Showing {displayTotalCount > 0 ? ((page - 1) * pageSize) + 1 : 0} to {Math.min(page * pageSize, displayTotalCount)} of {displayTotalCount.toLocaleString()} patients
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setPage(1)} disabled={page === 1}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-white border border-slate-200 hover:bg-slate-50">
-                  First
-                </button>
-                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-white border border-slate-200 hover:bg-slate-50">
-                  Previous
-                </button>
-                <div className="flex items-center gap-1">
-                  {[...Array(Math.min(5, Math.ceil(displayTotalCount / pageSize)))].map((_, i) => {
-                    const pageNum = Math.max(1, page - 2) + i;
-                    if (pageNum > Math.ceil(displayTotalCount / pageSize)) return null;
-                    return (
-                      <button key={pageNum} onClick={() => setPage(pageNum)}
-                        className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${
-                          page === pageNum 
-                            ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' 
-                            : 'bg-white border border-slate-200 hover:bg-slate-50 text-slate-600'
-                        }`}>
-                        {pageNum}
-                      </button>
-                    );
-                  })}
+            <div className="glass-light rounded-4xl border border-white shadow-2xl overflow-hidden flex flex-col h-[calc(100vh-320px)]">
+              {/* Flex Header Row to match VirtualTable columns */}
+              <div className="flex items-center px-4 py-3 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase select-none">
+                <div className="w-12 flex-shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={triageIds.length > 0 && triageIds.length === eligibleCount && eligibleCount > 0}
+                    onChange={toggleSelectAllEligible}
+                    disabled={eligibleCount === 0}
+                    aria-label={eligibleCount === 0 ? 'No eligible patients for bulk triage' : `Select all ${eligibleCount} eligible patients`}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                    title={eligibleCount === 0 ? 'No eligible patients for bulk triage' : `Select all ${eligibleCount} eligible patients`}
+                  />
                 </div>
-                <button onClick={() => setPage(p => Math.min(Math.ceil(displayTotalCount / pageSize), p + 1))} disabled={page >= Math.ceil(displayTotalCount / pageSize)}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-white border border-slate-200 hover:bg-slate-50">
-                  Next
-                </button>
-                <button onClick={() => setPage(Math.ceil(displayTotalCount / pageSize))} disabled={page >= Math.ceil(displayTotalCount / pageSize)}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-white border border-slate-200 hover:bg-slate-50">
-                  Last
-                </button>
+                <div className="flex-1 min-w-0">Patient</div>
+                <div className="w-32 flex-shrink-0">State</div>
+                <div className="w-32 flex-shrink-0">District</div>
+                <div className="w-48 flex-shrink-0">Facility</div>
+                <div className="w-24 flex-shrink-0">Submitted On</div>
+                <div className="w-32 flex-shrink-0">Phase</div>
+                <div className="w-16 flex-shrink-0">Days</div>
+                <div className="w-32 flex-shrink-0">Status</div>
+              </div>
+
+              {/* Scrollable VirtualTable container */}
+              <div className="flex-1 min-h-0">
+                <VirtualTable
+                  patients={patients}
+                  onPatientClick={setSelectedPatient}
+                  selectedPatientId={selectedPatient?.id}
+                  triageIds={triageIds}
+                  onTriageToggle={toggleTriageSelect}
+                  canSelectForTriage={canSelectForTriage}
+                  getPhase={getPhase}
+                  getDaysInPhase={getDaysInPhase}
+                  isOverdue={isOverdue}
+                />
               </div>
             </div>
-          </div>
           )}
         </div>
 

@@ -10,9 +10,9 @@ import { calculatePatientPhase } from '@/lib/phase-engine';
 interface VirtualTableProps {
   patients: any[];
   onPatientClick: (patient: any) => void;
-  selectedPatientId?: number;
-  triageIds: number[];
-  onTriageToggle: (id: number) => void;
+  selectedPatientId?: string;
+  triageIds: string[];
+  onTriageToggle: (id: string) => void;
   canSelectForTriage: (patient: any) => boolean;
   getPhase: (patient: any) => number;
   getDaysInPhase: (patient: any) => number;
