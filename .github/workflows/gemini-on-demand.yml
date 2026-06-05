@@ -1,0 +1,93 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Gemini On-Demand Assistant
+# Triggered by typing @gemini-cli in any issue or PR comment.
+# Supports slash commands: /review /fix /explain /test /triage /security
+# ─────────────────────────────────────────────────────────────────────────────
+name: "🤖 Gemini — On-Demand Assistant"
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  on-demand:
+    name: Handle @gemini-cli mention
+    runs-on: ubuntu-latest
+    # Only run if the comment mentions @gemini-cli
+    if: contains(github.event.comment.body, '@gemini-cli')
+
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect context (issue vs PR)
+        id: context
+        run: |
+          if [ "${{ github.event.issue.pull_request }}" != "" ]; then
+            echo "is_pr=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_pr=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get PR diff (if this is a PR comment)
+        id: diff
+        if: steps.context.outputs.is_pr == 'true'
+        run: |
+          PR_NUMBER=${{ github.event.issue.number }}
+          git fetch origin
+          BASE=$(gh pr view $PR_NUMBER --json baseRefName -q .baseRefName)
+          HEAD=$(gh pr view $PR_NUMBER --json headRefName -q .headRefName)
+          git fetch origin $BASE $HEAD 2>/dev/null || true
+          DIFF=$(git diff origin/$BASE...origin/$HEAD | head -c 10000)
+          echo "diff<<EOF" >> $GITHUB_OUTPUT
+          echo "$DIFF" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Gemini on-demand
+        uses: google-github-actions/run-gemini-cli@v0
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          prompt: |
+            You are an AI assistant for SAMADHAAN — a Next.js 15 TB surveillance PWA.
+            Read GEMINI.md for full project context (stack, RBAC, patterns, conventions).
+
+            A user mentioned @gemini-cli in a comment. Here is the full context:
+
+            **Thread context:**
+            - Type: ${{ steps.context.outputs.is_pr == 'true' && 'Pull Request' || 'Issue' }}
+            - Number: #${{ github.event.issue.number }}
+            - Title: ${{ github.event.issue.title }}
+            - Comment by: ${{ github.event.comment.user.login }}
+            - Comment body:
+              "${{ github.event.comment.body }}"
+
+            ${{ steps.context.outputs.is_pr == 'true' && format('**PR Diff (first 10k chars):**\n```diff\n{0}\n```', steps.diff.outputs.diff) || '' }}
+
+            **Supported slash commands:**
+            - `/review` — Code review of the PR diff or issue context
+            - `/fix` — Suggest a concrete fix for the described bug
+            - `/explain` — Explain what the code or issue is about in plain English
+            - `/test` — Suggest test cases or test scripts for the scenario
+            - `/triage` — Re-triage the issue: severity, labels, next steps
+            - `/security` — Security audit: auth, RLS, RBAC, data exposure risks
+            - No command / free-form — Answer the question or request naturally
+
+            Parse the user's comment to determine which command (if any) was used.
+            Then respond accordingly with a helpful, concrete, and SAMADHAAN-aware answer.
+
+            Post your response as a comment using:
+            `gh ${{ steps.context.outputs.is_pr == 'true' && 'pr' || 'issue' }} comment ${{ github.event.issue.number }} --repo ${{ github.repository }}`
+
+            Start your response with: **🤖 Gemini CLI** | then your answer.
+            Be concise, practical, and reference specific files/lines from the diff or codebase when relevant.

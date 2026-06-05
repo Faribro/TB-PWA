@@ -1,0 +1,64 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Gemini Auto Issue Triage
+# Triggers on every new issue opened in the repository.
+# Gemini reads the issue title + body, assigns labels, priority, and a
+# short triage summary as a comment. It also flags security or RBAC concerns.
+# ─────────────────────────────────────────────────────────────────────────────
+name: "🤖 Gemini — Auto Issue Triage"
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  triage:
+    name: Triage Issue
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write        # to post comments and add labels
+      contents: read       # to read GEMINI.md project context
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Triage issue with Gemini CLI
+        uses: google-github-actions/run-gemini-cli@v0
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          prompt: |
+            You are an expert triage engineer for SAMADHAAN — a Next.js 15 TB surveillance PWA 
+            deployed on Vercel with Supabase, Prisma, NextAuth v5, and Bun.
+            
+            Read the GEMINI.md file in this repository for full project context, stack details, 
+            role hierarchy, and the list of valid GitHub issue labels.
+
+            A new GitHub issue has been opened:
+
+            **Title:** ${{ github.event.issue.title }}
+            **Body:**
+            ${{ github.event.issue.body }}
+
+            Your tasks:
+            1. Identify the issue category (bug, enhancement, security, etc.)
+            2. Determine which part of the system is affected (auth, database, api, ui, etl, realtime, rbac, ci-cd, performance)
+            3. Assess severity: Critical / High / Medium / Low
+            4. Flag if this is a SECURITY or RBAC issue — these are BLOCKING by default
+            5. Check if the issue is a known pattern in SAMADHAAN (e.g., missing `force-dynamic`, Supabase prerender errors, RLS bypass, env var issues)
+            6. Suggest whether it is a `good first issue` for new contributors
+
+            Then do the following using the GitHub CLI (gh):
+            - Add the appropriate labels from: bug, enhancement, auth, database, api, ui, performance, ci-cd, security, etl, realtime, rbac, good-first-issue, needs-investigation, blocking
+            - Post a comment on the issue with:
+              - A one-line triage summary
+              - Severity level
+              - Which file(s) or module is likely affected
+              - Suggested next steps or fix approach
+              - Any known context from the SAMADHAAN codebase
+
+            Use `gh issue edit` to add labels and `gh issue comment` to post the triage note.
+            Issue number: ${{ github.event.issue.number }}
+            Repository: ${{ github.repository }}
