@@ -67,6 +67,9 @@ export function useRealtimePatients(
   };
 
   const subscribe = useCallback(() => {
+    // Skip if not in browser
+    if (typeof window === 'undefined') return;
+
     const supabase = getSupabaseBrowserClient();
 
     if (channelRef.current) {
