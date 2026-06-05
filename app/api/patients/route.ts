@@ -389,7 +389,10 @@ export async function GET(request: NextRequest) {
         }
 
         // Execute query using global Prisma client singleton
-        const data = await prisma.patients.findMany(prismaQuery);
+        const [data, total] = await Promise.all([
+          prisma.patients.findMany(prismaQuery),
+          !cursor ? prisma.patients.count({ where }) : Promise.resolve(undefined)
+        ]);
 
         // Determine if there are more results
         const hasMore = data.length === fetchLimit;
@@ -423,6 +426,7 @@ export async function GET(request: NextRequest) {
             durationMs,
             mode: 'cursor',
             scope: scope.sessionState || 'national',
+            total: total ?? undefined
           }
         };
       },

@@ -113,8 +113,7 @@ export function useSWRAllPatients(
   }, [hasMore, isLoadingMore, isValidating, setSize]);
 
   const currentLoadedCount = patients.length;
-  // Use metadata count if available, otherwise fallback to current loaded count
-  const apiTotalCount = data ? (data[data.length - 1]?.meta?.total ?? currentLoadedCount) : currentLoadedCount;
+  const apiTotalCount = data ? (data[0]?.meta?.total ?? currentLoadedCount) : currentLoadedCount;
 
   return {
     patients,
