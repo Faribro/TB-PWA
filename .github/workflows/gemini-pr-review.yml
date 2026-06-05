@@ -25,6 +25,12 @@ on:
       - "vercel.json"
       - ".github/workflows/**"
 
+# Cancel any in-flight review run for this PR when a new commit is pushed.
+# Different PRs get independent concurrency groups and never block each other.
+concurrency:
+  group: gemini-pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   pr-review:
     name: Review Pull Request
