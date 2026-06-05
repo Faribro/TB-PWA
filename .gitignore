@@ -33,6 +33,20 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Local secret/env emulation folders — NEVER commit these
+.vercel-env/
+.vercel-env*
+*.vercel-env
+
+# Plaintext secret dumps — safety net
+**/supabase-anon.txt
+**/supabase-url.txt
+**/supabase-service.txt
+**/database-url.txt
+**/direct-url.txt
+**/nextauth-url.txt
+redis-env*.txt
+
 # vercel
 .vercel
 
