@@ -1,9 +1,5 @@
 'use client'
 
-// Force dynamic rendering to avoid prerender errors at build time.
-// The Supabase client requires env vars that are only available at request time.
-export const dynamic = 'force-dynamic'
-
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
