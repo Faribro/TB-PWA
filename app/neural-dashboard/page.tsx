@@ -1,5 +1,8 @@
 'use client';
 
+// Force dynamic rendering to avoid prerender errors at build time
+export const dynamic = 'force-dynamic';
+
 import { useState } from 'react';
 import { useSWRConfig } from 'swr';
 import { TreeFilterProvider } from '@/contexts/TreeFilterContext';
