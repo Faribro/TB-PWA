@@ -122,17 +122,31 @@ export function ScreeningFrequencyChart({ data }: { data: ChartItem[] }) {
     return <Sector {...props} />;
   };
 
+  const [isMobile, setIsMobile] = useState(false);
+  
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const cx = isMobile ? '50%' : '32%';
+  const labelLeft = isMobile ? '50%' : '32%';
+
   return (
-    <div className="relative w-full h-[320px] flex items-center justify-between px-0">
+    <div className="relative w-full h-auto min-h-[300px] sm:min-h-0 sm:h-[250px] md:h-[260px] xl:h-[300px] flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-4 px-0">
       {/* Left: Pie Chart */}
-      <div className="w-[58%] h-full relative flex items-center justify-center">
+      <div className="w-full sm:w-[56%] lg:w-[58%] h-[200px] sm:h-full relative flex items-center justify-center">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={chartData}
               dataKey="value"
               nameKey="name"
-              cx="32%"
+              cx={cx}
               cy="50%"
               innerRadius="62%"
               outerRadius="82%"
@@ -140,7 +154,7 @@ export function ScreeningFrequencyChart({ data }: { data: ChartItem[] }) {
               stroke="white"
               strokeWidth={2}
               shape={renderSectorShape}
-              label={renderCustomLabel}
+              label={isMobile ? undefined : renderCustomLabel}
               labelLine={false}
               onMouseEnter={(_, index) => setActiveIndex(index)}
               onMouseLeave={() => setActiveIndex(undefined)}
@@ -152,22 +166,22 @@ export function ScreeningFrequencyChart({ data }: { data: ChartItem[] }) {
           </PieChart>
         </ResponsiveContainer>
         
-        {/* Donut Center Label (Locked to 32% center of the Pie) */}
+        {/* Donut Center Label (Locked to responsive center of the Pie) */}
         <div 
           className="absolute flex flex-col items-center justify-center pointer-events-none"
-          style={{ left: '32%', top: '50%', transform: 'translate(-50%, -50%)' }}
+          style={{ left: labelLeft, top: '50%', transform: 'translate(-50%, -50%)' }}
         >
-          <span className="text-[34px] font-black text-slate-900 leading-none tracking-tight">
+          <span className="text-xl sm:text-2xl xl:text-[34px] font-black text-slate-900 leading-none tracking-tight">
             {total.toLocaleString()}
           </span>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1.5">
+          <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1.5">
             Total Screened
           </span>
         </div>
       </div>
 
       {/* Right: Legend */}
-      <div className="w-[40%] flex flex-col gap-1.5 pr-1">
+      <div className="w-full sm:w-[42%] lg:w-[38%] flex flex-col gap-1 sm:gap-1.5 pr-0 sm:pr-1">
         {chartData.map((item, index) => {
           const isMajor = item.value / total > 0.10;
           const percent = total > 0 ? (item.value / total) * 100 : 0;
@@ -176,7 +190,7 @@ export function ScreeningFrequencyChart({ data }: { data: ChartItem[] }) {
           return (
             <div
               key={item.name}
-              className={`flex items-center justify-between p-2 rounded-xl transition-all duration-200 cursor-pointer ${
+              className={`flex items-center justify-between p-1 sm:p-1.5 xl:p-2 rounded-xl transition-all duration-200 cursor-pointer ${
                 activeIndex === index 
                   ? 'bg-slate-100/90 shadow-sm translate-x-1' 
                   : 'hover:bg-slate-50/50'
@@ -184,25 +198,25 @@ export function ScreeningFrequencyChart({ data }: { data: ChartItem[] }) {
               onMouseEnter={() => setActiveIndex(index)}
               onMouseLeave={() => setActiveIndex(undefined)}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 {/* Color Swatch Circle */}
-                <div className="relative flex items-center justify-center w-5 h-5 shrink-0">
+                <div className="relative flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 shrink-0">
                   <div
-                    className="w-2.5 h-2.5 rounded-full"
+                    className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full"
                     style={{
                       backgroundColor: item.fill,
                       boxShadow: `0 0 0 1px #fff, 0 0 0 3px ${item.fill}33`
                     }}
                   />
                 </div>
-                <div className="text-[13px] font-bold text-slate-700 truncate">{item.name}</div>
+                <div className="text-xs sm:text-[13px] font-bold text-slate-700 truncate">{item.name}</div>
               </div>
               
               <div className="flex flex-col items-end shrink-0">
-                <div className={isMajor ? "text-[20px] font-black text-slate-900 leading-none" : "text-[16px] font-black text-slate-700 leading-none"}>
+                <div className={isMajor ? "text-[14px] sm:text-[16px] xl:text-[20px] font-black text-slate-900 leading-none" : "text-xs sm:text-[14px] xl:text-[16px] font-black text-slate-700 leading-none"}>
                   {item.value.toLocaleString()}
                 </div>
-                <div className="text-[10px] text-slate-400 font-semibold mt-1 leading-none">
+                <div className="text-[9px] sm:text-[10px] text-slate-400 font-semibold mt-1 leading-none">
                   {percentStr}
                 </div>
               </div>

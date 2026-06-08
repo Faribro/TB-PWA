@@ -166,8 +166,8 @@ export function ScreeningFrequencyTimeline({
   }
 
   return (
-    <div className="w-full max-w-full relative flex flex-col overflow-hidden">
-      <div className="relative h-[160px] sm:h-[180px] lg:h-[200px] w-full max-w-full min-w-0">
+    <div className="w-full max-w-full relative flex flex-col h-full overflow-hidden">
+      <div className="relative h-full w-full max-w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart 
             data={chartData} 

@@ -1789,44 +1789,42 @@ export default function Vertex({
                     const year = currentDate.getFullYear();
 
                     return (
-                      <div className="flex flex-col flex-1 h-full">
-                        <div className="flex-shrink-0 flex flex-col">
-                          {/* Premium Care Cascade Header */}
-                          <div className="flex-shrink-0 flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100/80 shadow-sm relative z-10">
-                            <div>
-                              <h4 className="text-xl font-bold text-slate-900 tracking-[0.06em] uppercase">CARE CASCADE</h4>
-                              <p className="text-[11px] text-slate-400 font-medium tracking-wide mt-1">Real-time patient journey analytics</p>
-                            </div>
-                            <div className="text-[11px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100/80 px-2.5 py-0.5 rounded-full shadow-sm">{monthName} {year}</div>
+                      <div className="flex flex-col flex-1 h-full min-h-0 justify-between">
+                        {/* Premium Care Cascade Header */}
+                        <div className="flex-shrink-0 flex items-center justify-between px-6 pt-4 pb-3 border-b border-slate-100/80 shadow-sm relative z-10 bg-white rounded-t-[20px]">
+                          <div>
+                            <h4 className="text-lg font-bold text-slate-900 tracking-[0.06em] uppercase">CARE CASCADE</h4>
+                            <p className="text-[10px] text-slate-400 font-medium tracking-wide mt-0.5">Real-time patient journey analytics</p>
                           </div>
-                          
-                          {/* Donut Zone Section - compact */}
-                          <div className="px-6 pt-3 pb-2">
-                            <div className="relative cascade-donut-zone p-4 shadow-sm">
-                              <ScreeningFrequencyChart
-                                data={[
-                                  { stage: "Screened", value: stats.total },
-                                  { stage: "Not Suspected", value: stats.notSuspected },
-                                  { stage: "Suspected", value: stats.suspected },
-                                  { stage: "Referred", value: stats.referralDone },
-                                  { stage: "Diagnosed", value: stats.diagnosed },
-                                  { stage: "ATT Started", value: stats.attStarted }
-                                ]}
-                              />
-                            </div>
+                          <div className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100/80 px-2 py-0.5 rounded-full shadow-sm">{monthName} {year}</div>
+                        </div>
+
+                        {/* Donut Zone Section - compact & fluid */}
+                        <div className="px-6 pt-3 pb-1 flex-1 flex flex-col justify-center min-h-0 overflow-hidden">
+                          <div className="relative cascade-donut-zone p-3 shadow-sm flex-1 flex items-center min-h-0 overflow-hidden">
+                            <ScreeningFrequencyChart
+                              data={[
+                                { stage: "Screened", value: stats.total },
+                                { stage: "Not Suspected", value: stats.notSuspected },
+                                { stage: "Suspected", value: stats.suspected },
+                                { stage: "Referred", value: stats.referralDone },
+                                { stage: "Diagnosed", value: stats.diagnosed },
+                                { stage: "ATT Started", value: stats.attStarted }
+                              ]}
+                            />
                           </div>
                         </div>
 
                         {/* Bottom section — compact for better timeline visibility */}
-                        <div className="flex-1 bg-slate-50/40 rounded-b-[18px] overflow-hidden min-h-0">
+                        <div className="bg-slate-50/40 rounded-b-[20px] overflow-hidden flex-shrink-0">
                           {/* Premium Divider */}
-                          <div className="relative mx-6 my-0">
+                          <div className="relative mx-6 my-1">
                             <div className="h-px bg-gradient-to-r from-transparent via-slate-200/80 to-transparent" />
                           </div>
 
-                          {/* Timeline Band - compact */}
-                          <div className="pt-3 px-6 pb-4 min-h-[220px] max-w-full overflow-hidden">
-                            <div className="w-full max-w-full min-w-0">
+                          {/* Timeline Band - compact & fluid height */}
+                          <div className="pt-2 px-6 pb-3 h-[130px] sm:h-[150px] lg:h-[170px] xl:h-[190px] w-full overflow-hidden">
+                            <div className="w-full max-w-full min-w-0 h-full">
                               <ScreeningFrequencyTimeline
                                 monthlyBreakdown={yearMonthlyBreakdown}
                                 year={year}
