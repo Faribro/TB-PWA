@@ -1800,9 +1800,9 @@ export default function Vertex({
                             <div className="text-[11px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100/80 px-2.5 py-0.5 rounded-full shadow-sm">{monthName} {year}</div>
                           </div>
                           
-                          {/* Donut Zone Section */}
-                          <div className="px-6 pt-5 pb-4">
-                            <div className="relative cascade-donut-zone p-5 shadow-sm">
+                          {/* Donut Zone Section - compact */}
+                          <div className="px-6 pt-3 pb-2">
+                            <div className="relative cascade-donut-zone p-4 shadow-sm">
                               <ScreeningFrequencyChart
                                 data={[
                                   { stage: "Screened", value: stats.total },
@@ -1817,21 +1817,23 @@ export default function Vertex({
                           </div>
                         </div>
 
-                        {/* Bottom section — fills remaining space with proper scroll */}
-                        <div className="flex-1 bg-slate-50/40 rounded-b-[18px] overflow-y-auto min-h-0">
+                        {/* Bottom section — compact for better timeline visibility */}
+                        <div className="flex-1 bg-slate-50/40 rounded-b-[18px] overflow-hidden min-h-0">
                           {/* Premium Divider */}
                           <div className="relative mx-6 my-0">
                             <div className="h-px bg-gradient-to-r from-transparent via-slate-200/80 to-transparent" />
                           </div>
 
-                          {/* Timeline Band - with minimum height to prevent collapse */}
-                          <div className="pt-4 px-6 pb-6 min-h-[280px]">
-                            <ScreeningFrequencyTimeline
-                              monthlyBreakdown={yearMonthlyBreakdown}
-                              year={year}
-                              currentMonth={currentDate.getMonth()}
-                              isLoading={isLoading}
-                            />
+                          {/* Timeline Band - compact */}
+                          <div className="pt-3 px-6 pb-4 min-h-[220px] max-w-full overflow-hidden">
+                            <div className="w-full max-w-full min-w-0">
+                              <ScreeningFrequencyTimeline
+                                monthlyBreakdown={yearMonthlyBreakdown}
+                                year={year}
+                                currentMonth={currentDate.getMonth()}
+                                isLoading={isLoading}
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>

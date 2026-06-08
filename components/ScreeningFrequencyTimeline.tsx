@@ -166,12 +166,12 @@ export function ScreeningFrequencyTimeline({
   }
 
   return (
-    <div className="w-full relative flex flex-col pb-0">
-      <div className="relative h-[180px] sm:h-[200px] lg:h-[220px] w-full min-w-0">
+    <div className="w-full max-w-full relative flex flex-col overflow-hidden">
+      <div className="relative h-[160px] sm:h-[180px] lg:h-[200px] w-full max-w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart 
             data={chartData} 
-            margin={{ top: 8, right: 0, bottom: 0, left: 0 }}
+            margin={{ top: 5, right: 8, bottom: 25, left: 8 }}
           >
             <defs>
               <linearGradient id="activeBarGradient" x1="0" y1="0" x2="0" y2="1">
@@ -186,7 +186,7 @@ export function ScreeningFrequencyTimeline({
               tickLine={false} 
               axisLine={false} 
               interval={0}
-              height={35}
+              height={40}
             />
             <YAxis hide={true} domain={[0, maxValue * 1.15]} />
             <Tooltip 
