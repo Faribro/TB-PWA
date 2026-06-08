@@ -3,6 +3,7 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useState, useCallback, useMemo, useRef, useEffect, memo } from 'react';
 import dynamic from 'next/dynamic';
+import useSWR from 'swr';
 import { GeoJsonLayer, ColumnLayer, TextLayer } from '@deck.gl/layers';
 import { LightingEffect, AmbientLight, PointLight } from '@deck.gl/core';
 import Map from 'react-map-gl/maplibre';
@@ -27,6 +28,9 @@ import { normalizeGeographicKey } from '@/lib/normalizeGeographicKey';
 import { feature } from 'topojson-client';
 import { useEntityStore } from '@/stores/useEntityStore';
 import maplibregl from 'maplibre-gl';
+
+const fetcher = (url: string) => fetch(url).then(r => r.json());
+
 
 const DeckGL = dynamic(() => import('@deck.gl/react').then(mod => mod.default), {
   ssr: false,
@@ -354,9 +358,28 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
 
   const geoData = topoGeoData;
 
-  // Build O(n) aggregation dictionary using mapPatients (not filteredPatients)
-  // This ensures the map shows all districts even when one is selected
-  const choroplethDict = useChoroplethDictionary(mapPatients, depthLevel);
+  // ─── Server-side choropleth (full DB aggregation) ───────────────────────────
+  const geoChoroplethUrl = `/api/vertex/geo-choropleth${filter.state ? `?state=${encodeURIComponent(filter.state)}` : ''}`;
+  const { data: geoChoroplethData } = useSWR<{
+    districts: Record<string, ChoroplethMetrics>;
+    states:    Record<string, ChoroplethMetrics>;
+  }>(geoChoroplethUrl, fetcher, {
+    revalidateOnFocus: false,
+    refreshInterval: 60_000,
+  });
+
+  // Build the choropleth Map from server data (preferred) or fall back to client scan
+  const clientChoroplethDict = useChoroplethDictionary(mapPatients, depthLevel);
+  const choroplethDict = useMemo((): Map<string, ChoroplethMetrics> => {
+    if (!geoChoroplethData) return clientChoroplethDict;
+    const source = depthLevel === 'state' ? geoChoroplethData.states : geoChoroplethData.districts;
+    const dict = new globalThis.Map<string, ChoroplethMetrics>();
+    for (const [key, metrics] of Object.entries(source)) {
+      dict.set(key, metrics);
+    }
+    return dict;
+  }, [geoChoroplethData, depthLevel, clientChoroplethDict]);
+
 
   // Match cities to TB data with geography matching
   const enrichedCities = useMemo(() => {

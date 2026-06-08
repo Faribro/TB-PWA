@@ -691,6 +691,7 @@ export default function Vertex({
   externalPatients,
   externalLoading,
   summaryData,
+  monthMetrics,
 }: {
   externalPatients?: any[];
   externalLoading?: boolean;
@@ -702,6 +703,13 @@ export default function Vertex({
     suspected: number;
     diagnosed: number;
     onTreatment: number;
+  };
+  monthMetrics?: {
+    screened: number;
+    suspected: number;
+    diagnosed: number;
+    attStarted: number;
+    referred: number;
   };
 } = {}) {
 
@@ -980,6 +988,22 @@ export default function Vertex({
       breachCount: day.breachCount
     }));
   }, [cachedHeatmap]);
+
+  // Derive monthly screened counts for the timeline bar chart from the full heatmap
+  // This avoids passing the 50-row patient page slice into the chart
+  const yearMonthlyBreakdown = useMemo((): number[] => {
+    const counts = Array(12).fill(0);
+    for (const day of heatmapData) {
+      if (!day.date) continue;
+      const parts = day.date.split('-');
+      if (parts.length < 2) continue;
+      const monthIdx = parseInt(parts[1], 10) - 1; // 0-indexed
+      if (monthIdx >= 0 && monthIdx < 12) {
+        counts[monthIdx] += day.screenedCount;
+      }
+    }
+    return counts;
+  }, [heatmapData]);
 
   // FIXED: Auto-jump to latest month with data (ONE-TIME ONLY)
   useEffect(() => {
@@ -1397,14 +1421,14 @@ export default function Vertex({
               </div>
             </div>
             
-            {/* Monthly Pulse Console - Dynamic Metrics */}
-            <div className="mt-3 pt-3 pb-2 px-3 vertex-pulse-console rounded-xl flex items-center gap-3 justify-between shrink-0 overflow-hidden">
+            {/* Monthly Pulse Console - Dynamic Metrics - Responsive wrapping */}
+            <div className="mt-3 pt-3 pb-2 px-3 vertex-pulse-console rounded-xl flex flex-wrap items-center gap-2 sm:gap-3 justify-between shrink-0 overflow-hidden">
               <div className="flex items-center gap-3 min-w-0 overflow-hidden">
                 <div className="group shrink-0">
                   <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-indigo-500 transition-colors">Total</div>
                   <div className="flex items-baseline gap-1">
                     <span className="text-lg sm:text-xl lg:text-[22px] font-black text-slate-900 tracking-tighter whitespace-nowrap leading-none">
-                      {filteredGlobalPatients.length.toLocaleString()}
+                      {(summaryData?.total ?? filteredGlobalPatients.length).toLocaleString()}
                     </span>
                     <span className="text-[9px] font-bold text-slate-400 uppercase shrink-0 leading-none">Screened</span>
                   </div>
@@ -1414,7 +1438,7 @@ export default function Vertex({
                   <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-rose-500 transition-colors">Pending</div>
                   <div className="flex items-baseline gap-1">
                     <span className="text-lg sm:text-xl lg:text-[22px] font-black text-rose-600 tracking-tighter whitespace-nowrap leading-none">
-                      {pendingAlertsCount.toLocaleString()}
+                      {(summaryData?.pending ?? pendingAlertsCount).toLocaleString()}
                     </span>
                     <span className="text-[9px] font-bold text-slate-400 uppercase shrink-0 leading-none">Alerts</span>
                   </div>
@@ -1424,7 +1448,7 @@ export default function Vertex({
                   <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 opacity-80 group-hover:text-emerald-500 transition-colors">This Month</div>
                   <div className="flex items-baseline gap-1">
                     <span className="text-lg sm:text-xl lg:text-[22px] font-black text-emerald-600 tracking-tighter whitespace-nowrap leading-none">
-                      {thisMonthScreenedCount.toLocaleString()}
+                      {(summaryData?.screenedThisMonth ?? thisMonthScreenedCount).toLocaleString()}
                     </span>
                     <span className="text-[9px] font-bold text-slate-400 uppercase shrink-0 leading-none">Screened</span>
                   </div>
@@ -1458,7 +1482,7 @@ export default function Vertex({
            initial={{ opacity: 0, x: 40 }}
            animate={{ opacity: 1, x: 0 }}
            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
-           className="w-full lg:col-span-7 flex flex-col lg:sticky lg:top-6 h-[calc(100vh-3rem)] min-w-0"
+           className="w-full lg:col-span-7 flex flex-col lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)] min-w-0"
            id="right-scroll-container"
         >
           <Card className="care-cascade-card flex flex-col flex-1 min-h-0 overflow-hidden relative">
@@ -1734,7 +1758,9 @@ export default function Vertex({
                       return date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
                     });
 
-                    const stats = {
+                    // Prefer server-side monthMetrics (from /api/vertex/metrics) for accuracy
+                    // Fall back to client-side computation from the partial 50-row snapshot
+                    const clientStats = {
                       total: filteredMonthPatients.length,
                       suspected: filteredMonthPatients.filter((p: any) => {
                         const xrayResult = (p.xray_result || '').toLowerCase();
@@ -1749,6 +1775,15 @@ export default function Vertex({
                       attStarted: filteredMonthPatients.filter((p: any) => p.att_start_date != null).length,
                       referralDone: filteredMonthPatients.filter((p: any) => p.referral_date != null).length,
                     };
+                    const stats = monthMetrics ? {
+                      total: monthMetrics.screened,
+                      suspected: monthMetrics.suspected,
+                      notSuspected: Math.max(0, monthMetrics.screened - monthMetrics.suspected),
+                      diagnosed: monthMetrics.diagnosed,
+                      notDiagnosed: Math.max(0, monthMetrics.screened - monthMetrics.diagnosed),
+                      attStarted: monthMetrics.attStarted,
+                      referralDone: monthMetrics.referred,
+                    } : clientStats;
 
                     const monthName = currentDate.toLocaleDateString('en-US', { month: 'long' });
                     const year = currentDate.getFullYear();
@@ -1782,17 +1817,17 @@ export default function Vertex({
                           </div>
                         </div>
 
-                        {/* Bottom section — fills remaining space, content starts from top */}
-                        <div className="flex-1 bg-slate-50/40 rounded-b-[18px] overflow-hidden">
+                        {/* Bottom section — fills remaining space with proper scroll */}
+                        <div className="flex-1 bg-slate-50/40 rounded-b-[18px] overflow-y-auto min-h-0">
                           {/* Premium Divider */}
                           <div className="relative mx-6 my-0">
                             <div className="h-px bg-gradient-to-r from-transparent via-slate-200/80 to-transparent" />
                           </div>
 
-                          {/* Timeline Band */}
-                          <div className="pt-4 px-6 pb-0">
+                          {/* Timeline Band - with minimum height to prevent collapse */}
+                          <div className="pt-4 px-6 pb-6 min-h-[280px]">
                             <ScreeningFrequencyTimeline
-                              patients={filteredYearPatients}
+                              monthlyBreakdown={yearMonthlyBreakdown}
                               year={year}
                               currentMonth={currentDate.getMonth()}
                               isLoading={isLoading}

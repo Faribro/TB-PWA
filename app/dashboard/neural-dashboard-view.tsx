@@ -3,6 +3,14 @@
 import { memo } from 'react';
 import Vertex from '@/components/Vertex';
 
+interface MonthMetrics {
+  screened: number;
+  suspected: number;
+  diagnosed: number;
+  attStarted: number;
+  referred: number;
+}
+
 interface NeuralDashboardViewProps {
   globalPatients?: any[];
   isLoading?: boolean;
@@ -18,6 +26,7 @@ interface NeuralDashboardViewProps {
     diagnosed: number;
     onTreatment: number;
   };
+  monthMetrics?: MonthMetrics;
 }
 
 /* ─── Empty state ─── */
@@ -34,6 +43,7 @@ const NeuralDashboardView = memo(function NeuralDashboardView({
   globalPatients = [],
   isLoading = false,
   summaryData,
+  monthMetrics,
 }: NeuralDashboardViewProps) {
   // Show loading state while fetching
   if (isLoading) {
@@ -54,7 +64,7 @@ const NeuralDashboardView = memo(function NeuralDashboardView({
 
   return (
     <div className="w-full h-full">
-      <Vertex summaryData={summaryData} />
+      <Vertex summaryData={summaryData} monthMetrics={monthMetrics} />
     </div>
   );
 });

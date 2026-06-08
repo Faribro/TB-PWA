@@ -652,11 +652,11 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
               transition={{ duration: 0.3 }}
             >
               <span className="font-semibold text-[#28251d]">
-                {filteredPatients.length.toLocaleString()}
+                {(summaryData?.total ?? totalCount ?? filteredPatients.length).toLocaleString()}
               </span>
               {' / '}
               <span className="font-semibold text-[#28251d]">
-                {totalCount > 0 ? totalCount.toLocaleString() : summaryData?.total?.toLocaleString() || '...'}
+                {(summaryData?.total ?? totalCount)?.toLocaleString() || '...'}
               </span>
             </motion.span>
             
@@ -918,6 +918,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
               filter={null}
               onSetFilter={() => {}}
               summaryData={summaryData}
+              monthMetrics={monthMetrics}
             />
           </div>
         )}

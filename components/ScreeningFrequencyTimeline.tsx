@@ -6,7 +6,12 @@ import { Database, AlertCircle } from 'lucide-react';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface ScreeningFrequencyTimelineProps {
-  patients: any[];
+  patients?: any[];
+  /**
+   * Pre-aggregated monthly screened counts (index 0=Jan … 11=Dec).
+   * When provided, the raw patient scan is skipped entirely.
+   */
+  monthlyBreakdown?: number[];
   year: number;
   currentMonth: number;
   isLoading: boolean;
@@ -14,15 +19,21 @@ interface ScreeningFrequencyTimelineProps {
 }
 
 export function ScreeningFrequencyTimeline({ 
-  patients, 
+  patients = [], 
+  monthlyBreakdown,
   year, 
   currentMonth,
   isLoading,
   error
 }: ScreeningFrequencyTimelineProps) {
   
-  // Data Aggregation
+  // Data Aggregation — prefers server-provided breakdown over raw scan
   const monthlyData = useMemo(() => {
+    // If server breakdown is provided, use it directly (accurate full-dataset counts)
+    if (monthlyBreakdown && monthlyBreakdown.length === 12) {
+      return monthlyBreakdown.map(count => ({ count, corrected: 0 }));
+    }
+    // Fallback: derive from patient rows (may only cover paginated subset)
     if (!patients || patients.length === 0) return Array(12).fill(0).map(() => ({ count: 0, corrected: 0 }));
     
     const data = Array(12).fill(0).map(() => ({ count: 0, corrected: 0 }));
@@ -42,7 +53,7 @@ export function ScreeningFrequencyTimeline({
       }
     }
     return data;
-  }, [patients, year]);
+  }, [patients, monthlyBreakdown, year]);
 
   const hasData = useMemo(() => monthlyData.some(v => v.count > 0), [monthlyData]);
   const maxValue = Math.max(...monthlyData.map(m => m.count), 1);
@@ -156,7 +167,7 @@ export function ScreeningFrequencyTimeline({
 
   return (
     <div className="w-full relative flex flex-col pb-0">
-      <div className="relative h-[220px] w-full min-w-0">
+      <div className="relative h-[180px] sm:h-[200px] lg:h-[220px] w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart 
             data={chartData} 
