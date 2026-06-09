@@ -34,6 +34,8 @@ export async function GET(request: NextRequest) {
     const year = parseInt(searchParams.get('year') ?? new Date().getFullYear().toString(), 10);
     const month = parseInt(searchParams.get('month') ?? (new Date().getMonth() + 1).toString(), 10);
     
+    console.log('[/api/vertex/metrics] Incoming request:', { year, month, view: searchParams.get('view'), state: searchParams.get('state'), district: searchParams.get('district') });
+    
     // Validate year is not too far in future
     const currentYear = new Date().getFullYear();
     if (year > currentYear + 1) {

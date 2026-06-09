@@ -99,6 +99,16 @@ if (typeof window !== 'undefined') {
 // Supabase Client (singleton — prevents Multiple GoTrueClient warning)
 const supabase = getSupabaseBrowserClient();
 
+// Robust fetcher for Client-side SWR hooks
+const clientFetcher = async (url: string) => {
+  const r = await fetch(url);
+  if (!r.ok) {
+    const errorData = await r.json().catch(() => ({}));
+    throw new Error(errorData.message || errorData.error || `HTTP error! status: ${r.status}`);
+  }
+  return r.json();
+};
+
 // Spring Animation Config
 const springConfig = { type: 'spring' as const, stiffness: 300, damping: 30 };
 const CALENDAR_DEPTH = {
@@ -822,23 +832,30 @@ export default function Vertex({
 
   // TIER 2: Geo-summary for selected date (server-side aggregation, replaces client-side grouping)
   const { data: geoSummaryData, mutate: mutateGeoSummary } = useSWR(
-    selectedDate ? `/api/vertex/geo-summary?date=${selectedDate}&state=${filterState === 'All' ? 'all' : filterState}&district=${filterDistrict === 'All' ? 'all' : filterDistrict}` : null,
-    (url: string) => fetch(url).then(r => r.json()),
+    mounted && sessionScope && selectedDate ? `/api/vertex/geo-summary?date=${selectedDate}&state=${filterState === 'All' ? 'all' : filterState}&district=${filterDistrict === 'All' ? 'all' : filterDistrict}` : null,
+    clientFetcher,
     { revalidateOnFocus: false, revalidateOnReconnect: false, dedupingInterval: 5000 }
   );
 
   // TIER 3: Patient detail rows for selected date (scoped, minimal columns)
   const { data: patientsByDateData, mutate: mutatePatientsByDate } = useSWR(
-    selectedDate ? `/api/vertex/patients-by-date?date=${selectedDate}&state=${filterState === 'All' ? 'all' : filterState}&district=${filterDistrict === 'All' ? 'all' : filterDistrict}` : null,
-    (url: string) => fetch(url).then(r => r.json()),
+    mounted && sessionScope && selectedDate ? `/api/vertex/patients-by-date?date=${selectedDate}&state=${filterState === 'All' ? 'all' : filterState}&district=${filterDistrict === 'All' ? 'all' : filterDistrict}` : null,
+    clientFetcher,
     { revalidateOnFocus: false, revalidateOnReconnect: false, dedupingInterval: 5000 }
   );
 
   // TIER 3: Patient detail rows for selected facility
   const { data: patientsByFacilityData, mutate: mutatePatientsByFacility } = useSWR(
-    selectedFacility && selectedDate ? `/api/vertex/patients-by-date?date=${selectedDate}&facility=${encodeURIComponent(selectedFacility.name)}&state=${selectedFacility.state}&district=${selectedFacility.district}` : null,
-    (url: string) => fetch(url).then(r => r.json()),
+    mounted && sessionScope && selectedFacility && selectedDate ? `/api/vertex/patients-by-date?date=${selectedDate}&facility=${encodeURIComponent(selectedFacility.name)}&state=${selectedFacility.state}&district=${selectedFacility.district}` : null,
+    clientFetcher,
     { revalidateOnFocus: false, revalidateOnReconnect: false, dedupingInterval: 5000 }
+  );
+
+  // Fetch metrics dynamically for the selected calendar month (currentDate) and active filters
+  const { data: localMonthMetrics } = useSWR(
+    mounted && sessionScope ? `/api/vertex/metrics?year=${currentDate.getFullYear()}&month=${currentDate.getMonth() + 1}&view=month&state=${filterState === 'All' ? 'all' : filterState}&district=${filterDistrict === 'All' ? 'all' : filterDistrict}` : null,
+    clientFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 5000 }
   );
 
   // Server-provided data (preferred over client-side derivation)
@@ -877,8 +894,8 @@ export default function Vertex({
 
   // TIER 2: Filters endpoint for available states/districts (lightweight, no full patient fetch)
   const { data: filtersData, mutate: mutateFilters } = useSWR(
-    '/api/vertex/filters',
-    (url: string) => fetch(url).then(r => r.json()),
+    mounted && sessionScope ? '/api/vertex/filters' : null,
+    clientFetcher,
     { revalidateOnFocus: false, revalidateOnReconnect: false, dedupingInterval: 300000 } // 5min cache
   );
 
@@ -1775,14 +1792,20 @@ export default function Vertex({
                       attStarted: filteredMonthPatients.filter((p: any) => p.att_start_date != null).length,
                       referralDone: filteredMonthPatients.filter((p: any) => p.referral_date != null).length,
                     };
-                    const stats = monthMetrics ? {
-                      total: monthMetrics.screened,
-                      suspected: monthMetrics.suspected,
-                      notSuspected: Math.max(0, monthMetrics.screened - monthMetrics.suspected),
-                      diagnosed: monthMetrics.diagnosed,
-                      notDiagnosed: Math.max(0, monthMetrics.screened - monthMetrics.diagnosed),
-                      attStarted: monthMetrics.attStarted,
-                      referralDone: monthMetrics.referred,
+                    const isInitialState = currentDate.getFullYear() === 2026 && 
+                                           currentDate.getMonth() === 3 && 
+                                           filterState === 'All' && 
+                                           filterDistrict === 'All';
+                    const activeMonthMetrics = localMonthMetrics || (isInitialState ? monthMetrics : null);
+                    const hasValidMetrics = activeMonthMetrics && typeof activeMonthMetrics.screened === 'number';
+                    const stats = hasValidMetrics ? {
+                      total: activeMonthMetrics.screened,
+                      suspected: activeMonthMetrics.suspected,
+                      notSuspected: Math.max(0, activeMonthMetrics.screened - activeMonthMetrics.suspected),
+                      diagnosed: activeMonthMetrics.diagnosed,
+                      notDiagnosed: Math.max(0, activeMonthMetrics.screened - activeMonthMetrics.diagnosed),
+                      attStarted: activeMonthMetrics.attStarted,
+                      referralDone: activeMonthMetrics.referred,
                     } : clientStats;
 
                     const monthName = currentDate.toLocaleDateString('en-US', { month: 'long' });

@@ -62,6 +62,18 @@ const STATE_FILE_MAP: Record<string, string> = {
   'goa': 'goa',
   'jammu and kashmir': 'jammu-and-kashmir',
   'ladakh': 'ladakh',
+  'mizoram': 'mizoram',
+  'chandigarh': 'chandigarh',
+  'arunachal pradesh': 'arunachal-pradesh',
+  'manipur': 'manipur',
+  'meghalaya': 'meghalaya',
+  'nagaland': 'nagaland',
+  'sikkim': 'sikkim',
+  'tripura': 'tripura',
+  'andaman and nicobar islands': 'andaman-and-nicobar-islands',
+  'dnh and dd': 'dnh-and-dd',
+  'lakshadweep': 'lakshadweep',
+  'puducherry': 'puducherry',
 };
 
 interface PinnedInsight {
@@ -87,7 +99,7 @@ interface Patient {
   staff_name?: string;
 }
 
-type ActiveMetric = 'screened' | 'diagnosed' | 'initiated' | 'completed' | 'breaches';
+type ActiveMetric = 'screened' | 'diagnosed' | 'initiated' | 'completed' | 'breaches' | 'suspected' | 'normal';
 
 interface TooltipData {
   totalPatients: number;
@@ -104,6 +116,18 @@ interface CityData {
   admin_name: string;
   population: string;
 }
+
+// Global cache for parsed date strings to avoid GC pressure and CPU overhead in O(N) loops
+const dateCache = new globalThis.Map<string, number>();
+
+const parseDateToMs = (dateStr: string): number => {
+  if (!dateStr) return 0;
+  const cached = dateCache.get(dateStr);
+  if (cached !== undefined) return cached;
+  const ms = new Date(dateStr).getTime();
+  dateCache.set(dateStr, ms);
+  return ms;
+};
 
 interface SpatialIntelligenceMapProps {
   globalPatients?: Patient[];
@@ -137,8 +161,14 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
   const [webGLError, setWebGLError] = useState<string | null>(null);
   const [showCascade, setShowCascade] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [heatmapMode, setHeatmapMode] = useState<'auto' | 'state' | 'district' | 'facility'>('district');
-  const [activeMetric, setActiveMetric] = useState<ActiveMetric>('screened');
+  const [heatmapMode, setHeatmapMode] = useState<'auto' | 'state' | 'district' | 'facility'>('auto');
+  const activeGISMetric = useEntityStore(s => s.activeGISMetric);
+  const setActiveGISMetric = useEntityStore(s => s.setActiveGISMetric);
+  const activeMetric = (activeGISMetric || 'screened') as ActiveMetric;
+  const setActiveMetric = useCallback((metric: ActiveMetric) => {
+    setActiveGISMetric(metric);
+  }, [setActiveGISMetric]);
+
   const [hoveredHUD, setHoveredHUD] = useState<{ district: string; breachRate: number; patients: number; x: number; y: number; yieldPercent?: number } | null>(null);
   const [pinnedInsights, setPinnedInsights] = useState<PinnedInsight[]>([]);
   const [citiesData, setCitiesData] = useState<CityData[]>([]);
@@ -150,12 +180,10 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
   const deckRef = useRef<any>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const permissions = useRolePermissions();
-  const activeGISMetric = useEntityStore(s => s.activeGISMetric);
   const showGISLeaderboard = useEntityStore(s => s.showGISLeaderboard);
   const showGISCascade = useEntityStore(s => s.showGISCascade);
   const sonicFlyTarget = useEntityStore(s => s.sonicFlyTarget);
   const setSonicFlyTarget = useEntityStore(s => s.setSonicFlyTarget);
-  const setActiveGISMetric = useEntityStore(s => s.setActiveGISMetric);
   const setShowGISLeaderboard = useEntityStore(s => s.setShowGISLeaderboard);
   const setShowGISCascade = useEntityStore(s => s.setShowGISCascade);
   const setMapInstance = useEntityStore(s => s.setMapInstance);
@@ -196,110 +224,127 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
     }, 100);
   }, []);
 
-  // Apply filters to patients with normalized geographic matching
+  // Apply filters to patients with normalized geographic matching (optimized single-pass O(N) engine)
   const filteredPatients = useMemo(() => {
-    let filtered = globalPatients;
-    
-    // Apply tree filter district
-    if (treeFilter?.district) {
-      filtered = filtered.filter(p => 
-        p && normalizeGeographicKey(p.screening_district) === normalizeGeographicKey(treeFilter.district)
-      );
-    }
-    
-    // Apply universal filter state (state-wide filtering)
-    if (filter.state) {
-      filtered = filtered.filter(p => 
-        p && normalizeGeographicKey(p.screening_state) === normalizeGeographicKey(filter.state)
-      );
-    }
-    
-    // Apply universal filter district (district-level filtering)
-    if (filter.district) {
-      filtered = filtered.filter(p => 
-        p && normalizeGeographicKey(p.screening_district) === normalizeGeographicKey(filter.district)
-      );
-    }
+    const stateKey = filter.state ? normalizeGeographicKey(filter.state) : null;
+    const districtKey = filter.district ? normalizeGeographicKey(filter.district) : null;
+    const treeDistrictKey = treeFilter?.district ? normalizeGeographicKey(treeFilter.district) : null;
+    const status = filter.status;
+    const nowMs = Date.now();
 
-    // Apply categorical status filters (ENHANCED ENGINE)
-    if (filter.status !== 'All') {
-      filtered = filtered.filter(p => {
-        if (!p) return false;
-        
-        switch (filter.status) {
+    return globalPatients.filter(p => {
+      if (!p) return false;
+      
+      if (treeDistrictKey && normalizeGeographicKey(p.screening_district) !== treeDistrictKey) {
+        return false;
+      }
+      
+      if (stateKey && normalizeGeographicKey(p.screening_state) !== stateKey) {
+        return false;
+      }
+      
+      if (districtKey && normalizeGeographicKey(p.screening_district) !== districtKey) {
+        return false;
+      }
+      
+      if (status !== 'All') {
+        switch (status) {
           case 'Suspected':
-            // Suspected: Patients awaiting diagnosis (not "Yes" and not "No")
             return !p.tb_diagnosed || (p.tb_diagnosed !== 'Yes' && p.tb_diagnosed !== 'Y' && p.tb_diagnosed !== 'No');
           
           case 'Normal':
-            // Normal: Patients confirmed non-TB
             return p.tb_diagnosed === 'No' || p.tb_diagnosed === 'N';
           
-          case 'High Alert':
-            // High Alert: Using existing SLA Breach definition
-            const screeningDate = p.screening_date ? new Date(p.screening_date) : null;
-            if (!screeningDate) return false;
-            const daysSince = (Date.now() - screeningDate.getTime()) / (1000 * 60 * 60 * 24);
-            return !p.referral_date && daysSince > 7;
+          case 'High Alert': {
+            if (p.referral_date || !p.screening_date) return false;
+            const screeningTime = parseDateToMs(p.screening_date);
+            const daysSince = (nowMs - screeningTime) / (1000 * 60 * 60 * 24);
+            return daysSince > 7;
+          }
           
-          case 'On Track':
-            // On Track: Diagnosed and referred or within SLA
-            const sDate = p.screening_date ? new Date(p.screening_date) : null;
-            if (!sDate) return true;
-            const dSince = (Date.now() - sDate.getTime()) / (1000 * 60 * 60 * 24);
-            return !!p.referral_date || dSince <= 7;
+          case 'On Track': {
+            if (p.referral_date) return true;
+            if (!p.screening_date) return true;
+            const screeningTime = parseDateToMs(p.screening_date);
+            const daysSince = (nowMs - screeningTime) / (1000 * 60 * 60 * 24);
+            return daysSince <= 7;
+          }
+            
+          case 'Diagnosed':
+            return p.tb_diagnosed === 'Yes' || p.tb_diagnosed === 'Y';
+            
+          case 'Initiated':
+            return !!p.att_start_date;
+            
+          case 'Completed':
+            return !!p.att_completion_date;
+            
+          case 'Breach': {
+            if (p.referral_date || !p.screening_date) return false;
+            const screeningTime = parseDateToMs(p.screening_date);
+            const daysSince = (nowMs - screeningTime) / (1000 * 60 * 60 * 24);
+            return daysSince > 7;
+          }
             
           default:
             return true;
         }
-      });
-    }
-    
-    return filtered;
-  }, [globalPatients, treeFilter, filter.state, filter.district]);
+      }
+      
+      return true;
+    });
+  }, [globalPatients, treeFilter, filter.state, filter.district, filter.status]);
 
-  // Map patients: Show all patients in selected state, or all data if no state filter
-  // This ensures the map displays complete state-wide data for visualization
+  // Map patients: Show all patients in selected state, or all data if no state filter (optimized single-pass O(N) engine)
   const mapPatients = useMemo(() => {
-    let basePatients = globalPatients;
+    const stateKey = filter.state ? normalizeGeographicKey(filter.state) : null;
 
-    // Apply temporal filtering if actively playing or in historical mode
-    if (isTemporalMode) {
-      basePatients = basePatients.filter(p => {
-        if (!p) return false;
+    return globalPatients.filter(p => {
+      if (!p) return false;
+
+      if (isTemporalMode) {
         const dateValue = p.screening_date;
         if (!dateValue) return false;
-        const pDate = new Date(dateValue).getTime();
-        return pDate <= currentPlayhead;
-      });
-    }
+        const pDate = parseDateToMs(dateValue);
+        if (pDate > currentPlayhead) return false;
+      }
 
-    // If state filter is active, show all patients in that state
-    if (filter.state) {
-      return basePatients.filter(p => 
-        p && normalizeGeographicKey(p.screening_state) === normalizeGeographicKey(filter.state!)
-      );
-    }
-    
-    // If district filter is active, show all patients (to keep other districts visible)
-    // The highlighting will show which district is selected
-    if (filter.district) {
-      return basePatients;
-    }
-    
-    // No filters: show all patients
-    return basePatients;
-  }, [globalPatients, filter.state, filter.district, isTemporalMode, currentPlayhead]);
+      if (stateKey && normalizeGeographicKey(p.screening_state) !== stateKey) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [globalPatients, filter.state, isTemporalMode, currentPlayhead]);
+
+  const lastResolutionRef = useRef<'state' | 'district'>('state');
 
   // Determine depth level based on heatmap mode
   const depthLevel = useMemo(() => {
-    if (heatmapMode === 'auto') {
-      const zoom = viewState.zoom;
-      if (zoom < 5.5) return 'state';
+    if (filter.state) {
+      lastResolutionRef.current = 'district';
       return 'district';
     }
-    return heatmapMode === 'state' ? 'state' : 'district';
-  }, [heatmapMode, viewState.zoom]);
+
+    if (heatmapMode === 'auto') {
+      const zoom = viewState.zoom;
+      const prev = lastResolutionRef.current;
+      
+      let nextRes: 'state' | 'district' = prev;
+      if (zoom < 5.8) {
+        nextRes = 'state';
+      } else if (zoom >= 6.2) {
+        nextRes = 'district';
+      }
+      
+      lastResolutionRef.current = nextRes;
+      return nextRes;
+    }
+
+    const nextRes = heatmapMode === 'state' ? 'state' : 'district';
+    lastResolutionRef.current = nextRes;
+    return nextRes;
+  }, [heatmapMode, viewState.zoom, filter.state]);
 
   // Load TopoJSON and convert to GeoJSON
   useEffect(() => {
@@ -359,7 +404,14 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
   const geoData = topoGeoData;
 
   // ─── Server-side choropleth (full DB aggregation) ───────────────────────────
-  const geoChoroplethUrl = `/api/vertex/geo-choropleth${filter.state ? `?state=${encodeURIComponent(filter.state)}` : ''}`;
+  const geoChoroplethUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    if (filter.state) params.set('state', filter.state);
+    if (filter.district) params.set('district', filter.district);
+    const query = params.toString();
+    return `/api/vertex/geo-choropleth${query ? `?${query}` : ''}`;
+  }, [filter.state, filter.district]);
+
   const { data: geoChoroplethData } = useSWR<{
     districts: Record<string, ChoroplethMetrics>;
     states:    Record<string, ChoroplethMetrics>;
@@ -380,29 +432,24 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
     return dict;
   }, [geoChoroplethData, depthLevel, clientChoroplethDict]);
 
+  // Dedicated district-level dictionary for 3D city pillars (always resolved at district granularity)
+  const clientDistrictDict = useChoroplethDictionary(mapPatients, 'district');
+  const districtChoroplethDict = useMemo((): Map<string, ChoroplethMetrics> => {
+    if (!geoChoroplethData) return clientDistrictDict;
+    const dict = new globalThis.Map<string, ChoroplethMetrics>();
+    for (const [key, metrics] of Object.entries(geoChoroplethData.districts)) {
+      dict.set(key, metrics);
+    }
+    return dict;
+  }, [geoChoroplethData, clientDistrictDict]);
 
-  // Match cities to TB data with geography matching
-  const enrichedCities = useMemo(() => {
-    return citiesData
-      .filter(city => city.lat && city.lng)
-      .map(city => {
-        const key = normalizeGeographicKey(city.city);
-        const metrics = choroplethDict.get(key);
-        return {
-          ...city,
-          tbCases: metrics?.screened || 0,
-          position: [parseFloat(city.lng), parseFloat(city.lat)],
-          population: parseInt(city.population) || 0
-        };
-      })
-      .filter(city => city.tbCases > 0);
-  }, [citiesData, choroplethDict]);
+
 
   // Extract unique coordinators for filter
   const uniqueCoordinators = useMemo(() => {
     const coordinators = new Set<string>();
     filteredPatients.forEach(p => {
-      if (p.staff_name) coordinators.add(p.staff_name);
+        if (p.staff_name) coordinators.add(p.staff_name);
     });
     return Array.from(coordinators).sort();
   }, [filteredPatients]);
@@ -414,42 +461,77 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
     }
 
     const value = metrics[metric] || 0;
-    const screened = metrics.screened || 1; // Prevent division by zero
-    const diagnosed = metrics.diagnosed || 0;
-    const breaches = metrics.breaches || 0;
-    
-    // Safe percentage calculations with guards
+    const screened = metrics.screened || 1;
     const percentage = Math.min(Math.max((value / screened) * 100, 0), 100);
-    const yieldPercent = Math.min(Math.max((diagnosed / screened) * 100, 0), 100);
-    const breachPercent = Math.min(Math.max((breaches / screened) * 100, 0), 100);
 
-    // Breach metric: Red scale (high = bad) - Legend-aligned
-    if (metric === 'breaches') {
-      if (breachPercent > 90) return [153, 27, 27, 255];   // SLA Breach (>90%) - Deep pulse red
-      if (breachPercent > 70) return [239, 68, 68, 220];   // Critical Tier (>70%) - Red
-      if (breachPercent >= 40) return [245, 158, 11, 200]; // Warning Tier (40-60%) - Amber
-      if (breachPercent < 20 || yieldPercent > 15) return [16, 185, 129, 220]; // High Yield / On Track - Emerald
-      return [100, 116, 139, 160];                         // Neutral - Slate
-    }
-
-    // Screened metric: Volume-based Cyan/Indigo scale
+    // 1. SCREENED: Cyan/Indigo (Volume-based)
     if (metric === 'screened') {
-      const maxScreened = 500; // Adjust based on your data range
+      const maxScreened = 500;
       const intensity = Math.min(Math.max(value / maxScreened, 0), 1);
-      
-      if (intensity > 0.8) return [79, 70, 229, 220];    // Deep indigo (very high volume)
-      if (intensity > 0.6) return [99, 102, 241, 200];   // Indigo
-      if (intensity > 0.4) return [129, 140, 248, 180];  // Light indigo
-      if (intensity > 0.2) return [6, 182, 212, 160];    // Cyan
-      return [14, 165, 233, 140];                        // Sky blue (low volume)
+      if (intensity > 0.8) return [79, 70, 229, 220];    // Indigo
+      if (intensity > 0.6) return [99, 102, 241, 200];   // Indigo-light
+      if (intensity > 0.4) return [6, 182, 212, 220];    // Cyan
+      if (intensity > 0.2) return [14, 165, 233, 180];   // Sky
+      return [14, 165, 233, 120];                        // Dim Sky
     }
 
-    // Diagnosed/Initiated/Completed: Yield-based Emerald/Cyan scale (high = good)
-    if (percentage > 80) return [16, 185, 129, 220];   // Dark emerald (excellent)
-    if (percentage > 60) return [34, 197, 94, 200];    // Emerald (good)
-    if (percentage > 40) return [6, 182, 212, 180];    // Cyan (moderate)
-    if (percentage > 20) return [14, 165, 233, 160];   // Sky (low)
-    return [100, 116, 139, 140];                       // Slate (very low)
+    // 2. DIAGNOSED: Amber/Orange scale (high = high alert)
+    if (metric === 'diagnosed') {
+      if (value > 20) return [217, 119, 6, 230];   // Dark Amber
+      if (value > 10) return [245, 158, 11, 210];  // Amber
+      if (value > 5) return [251, 191, 36, 190];   // Amber-light
+      if (value > 0) return [253, 224, 71, 160];   // Yellow-dim
+      return [100, 116, 139, 140];                 // Slate for 0 cases
+    }
+
+    // 3. SUSPECTED: Yellow/Gold scale (high = attention needed)
+    if (metric === 'suspected') {
+      if (value > 150) return [234, 179, 8, 230];  // Gold/Yellow-700
+      if (value > 80) return [250, 204, 21, 210];  // Yellow-600
+      if (value > 30) return [253, 224, 71, 180];  // Yellow-400
+      if (value > 0) return [254, 240, 138, 150];  // Yellow-200
+      return [100, 116, 139, 140];                 // Slate
+    }
+
+    // 4. NORMAL: Emerald/Green (high = healthy)
+    if (metric === 'normal') {
+      const maxNormal = 500;
+      const intensity = Math.min(Math.max(value / maxNormal, 0), 1);
+      if (intensity > 0.8) return [5, 150, 105, 220];   // Emerald-600
+      if (intensity > 0.5) return [16, 185, 129, 200];  // Emerald-500
+      if (intensity > 0.2) return [52, 211, 153, 180];  // Emerald-400
+      return [110, 231, 183, 140];                      // Emerald-300
+    }
+
+    // 5. INITIATED (ATT): Purple scale (treatment initiation)
+    if (metric === 'initiated') {
+      if (value > 20) return [109, 40, 217, 230];   // Violet-700
+      if (value > 10) return [139, 92, 246, 210];   // Violet-500
+      if (value > 5) return [167, 139, 250, 180];   // Violet-400
+      if (value > 0) return [196, 181, 253, 150];   // Violet-300
+      return [100, 116, 139, 140];                  // Slate
+    }
+
+    // 6. COMPLETED: Green/Teal scale (successful completions)
+    if (metric === 'completed') {
+      if (value > 10) return [15, 118, 110, 230];   // Teal-700
+      if (value > 5) return [20, 184, 166, 210];    // Teal-500
+      if (value > 2) return [45, 212, 191, 180];    // Teal-400
+      if (value > 0) return [94, 234, 212, 150];    // Teal-300
+      return [100, 116, 139, 140];                  // Slate
+    }
+
+    // 7. BREACHES: Red/Warning scale
+    if (metric === 'breaches') {
+      const breachPercent = Math.min(Math.max((value / screened) * 100, 0), 100);
+      if (breachPercent > 90) return [153, 27, 27, 255];   // Deep red
+      if (breachPercent > 70) return [239, 68, 68, 220];   // Red
+      if (breachPercent >= 40) return [245, 158, 11, 200]; // Amber
+      if (breachPercent < 20) return [16, 185, 129, 220];  // Emerald
+      return [100, 116, 139, 160];                         // Slate
+    }
+
+    return [100, 116, 139, 140];
   }, []);
 
   // Polished two-step flyTo with perfect framing
@@ -473,6 +555,54 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
     processCoords(coordinates);
     return [minX, minY, maxX, maxY];
   };
+
+  // Pre-calculate and cache centroids/bboxes for loaded GeoJSON features to avoid traversing coordinates on every render
+  const geoMetadataCache = useMemo(() => {
+    const cache = new globalThis.Map<string, { center: [number, number], bbox: [number, number, number, number] }>();
+    if (!geoData || !geoData.features) return cache;
+    
+    // Process states
+    const stateGroups = new globalThis.Map<string, any[]>();
+    geoData.features.forEach((f: any) => {
+      const stateName = f.properties?.st_nm || f.properties?.NAME_1 || f.properties?.state || '';
+      if (stateName) {
+        const key = normalizeGeographicKey(stateName);
+        if (!stateGroups.has(key)) stateGroups.set(key, []);
+        stateGroups.get(key)!.push(f);
+      }
+      
+      // Process individual district metadata
+      const districtName = f.properties?.district || f.properties?.NAME_2 || f.properties?.dtname || '';
+      if (districtName && f.geometry && f.geometry.coordinates) {
+        const key = normalizeGeographicKey(districtName);
+        const bbox = getBBox(f.geometry.coordinates);
+        const center: [number, number] = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2];
+        cache.set(`district-${key}`, { center, bbox });
+      }
+    });
+    
+    // Process state groups metadata
+    stateGroups.forEach((features, key) => {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      features.forEach(f => {
+        if (f.geometry && f.geometry.coordinates) {
+          const bbox = getBBox(f.geometry.coordinates);
+          minX = Math.min(minX, bbox[0]);
+          minY = Math.min(minY, bbox[1]);
+          maxX = Math.max(maxX, bbox[2]);
+          maxY = Math.max(maxY, bbox[3]);
+        }
+      });
+      if (minX !== Infinity) {
+        cache.set(`state-${key}`, {
+          center: [(minX + maxX) / 2, (minY + maxY) / 2],
+          bbox: [minX, minY, maxX, maxY]
+        });
+      }
+    });
+    
+    return cache;
+  }, [geoData]);
 
   // Polished two-step flyTo with perfect framing
   const flyToDistrictInTwoSteps = useCallback((target: { lat: number; lng: number; district: string; bbox?: [number, number, number, number] }) => {
@@ -518,34 +648,115 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
   // Cinematic flyTo function for smooth district navigation
   const flyToDistrict = useCallback((district: string) => {
     const key = normalizeGeographicKey(district);
-    const metrics = choroplethDict.get(key);
     
-    // Find feature from GeoJSON
-    const feature = geoData?.features.find((f: any) => 
-      normalizeGeographicKey(f.properties.district || f.properties.st_nm || '') === key
-    );
-    
-    if (feature) {
-      let latitude = 20.5, longitude = 78.4;
-      let bbox: [number, number, number, number] | undefined;
-
-      // Calculate BBox
-      if (feature.geometry?.coordinates) {
-        bbox = getBBox(feature.geometry.coordinates);
-      }
-      
-      // Use centroid if available, else center of bbox
-      if (feature.properties?.centroidLat && feature.properties?.centroidLng) {
-        latitude = feature.properties.centroidLat;
-        longitude = feature.properties.centroidLng;
-      } else if (bbox) {
-        latitude = (bbox[1] + bbox[3]) / 2;
-        longitude = (bbox[0] + bbox[2]) / 2;
-      }
-      
-      flyToDistrictInTwoSteps({ lat: latitude, lng: longitude, district, bbox });
+    // Check cache first
+    const cached = geoMetadataCache.get(`district-${key}`);
+    if (cached) {
+      flyToDistrictInTwoSteps({
+        lat: cached.center[1],
+        lng: cached.center[0],
+        district,
+        bbox: cached.bbox
+      });
+      return;
     }
-  }, [choroplethDict, geoData, flyToDistrictInTwoSteps]);
+    
+    // Fallback search
+    if (geoData?.features) {
+      const feature = geoData.features.find((f: any) => 
+        normalizeGeographicKey(f.properties.district || f.properties.st_nm || '') === key
+      );
+      if (feature) {
+        let latitude = 20.5, longitude = 78.4;
+        let bbox: [number, number, number, number] | undefined;
+        if (feature.geometry?.coordinates) {
+          bbox = getBBox(feature.geometry.coordinates);
+        }
+        if (feature.properties?.centroidLat && feature.properties?.centroidLng) {
+          latitude = feature.properties.centroidLat;
+          longitude = feature.properties.centroidLng;
+        } else if (bbox) {
+          latitude = (bbox[1] + bbox[3]) / 2;
+          longitude = (bbox[0] + bbox[2]) / 2;
+        }
+        flyToDistrictInTwoSteps({ lat: latitude, lng: longitude, district, bbox });
+      }
+    }
+  }, [geoData, geoMetadataCache, flyToDistrictInTwoSteps]);
+
+  // Dynamically generated state centroids and totals when zoomed out (depthLevel === 'state')
+  const stateLabels = useMemo(() => {
+    if (depthLevel !== 'state' || !geoData || !geoData.features) return [];
+    
+    // Group features by state name
+    const stateGroups = new globalThis.Map<string, string>();
+    
+    geoData.features.forEach((f: any) => {
+      const stateName = f.properties?.st_nm || f.properties?.NAME_1 || f.properties?.state || '';
+      if (stateName) {
+        stateGroups.set(normalizeGeographicKey(stateName), stateName);
+      }
+    });
+    
+    const labels: any[] = [];
+    
+    stateGroups.forEach((stateKey, key) => {
+      const cached = geoMetadataCache.get(`state-${key}`);
+      if (!cached) return;
+      
+      const metrics = choroplethDict.get(key);
+      const val = metrics ? (metrics[activeMetric] || 0) : 0;
+      
+      if (val > 0) {
+        labels.push({
+          name: stateKey,
+          value: val,
+          position: cached.center,
+          isState: true
+        });
+      }
+    });
+    
+    return labels;
+  }, [geoData, depthLevel, choroplethDict, activeMetric, geoMetadataCache]);
+
+  // Dynamically generated district centroids and totals when zoomed in (depthLevel === 'district')
+  const districtLabels = useMemo(() => {
+    if (depthLevel !== 'district' || !geoData || !geoData.features) return [];
+    
+    return geoData.features.map((f: any) => {
+      const districtName = f.properties?.district || f.properties?.NAME_2 || f.properties?.dtname || '';
+      if (!districtName) return null;
+      
+      const key = normalizeGeographicKey(districtName);
+      const cached = geoMetadataCache.get(`district-${key}`);
+      if (!cached) return null;
+      
+      const metrics = districtChoroplethDict.get(key);
+      const val = metrics ? (metrics[activeMetric] || 0) : 0;
+      
+      return {
+        name: districtName,
+        value: val,
+        position: cached.center,
+        isState: false
+      };
+    }).filter(Boolean).filter((d: any) => d!.value > 0);
+  }, [geoData, depthLevel, districtChoroplethDict, activeMetric, geoMetadataCache]);
+
+  // Combined active map labels based on zoom depthLevel
+  const dynamicMapLabels = useMemo(() => {
+    return depthLevel === 'state' ? stateLabels : districtLabels;
+  }, [depthLevel, stateLabels, districtLabels]);
+
+  // Dynamic scaling: Find the max value of the selected metric across the currently active map labels
+  const maxActiveMetricValue = useMemo(() => {
+    let max = 1;
+    dynamicMapLabels.forEach((d) => {
+      if (d.value > max) max = d.value;
+    });
+    return max;
+  }, [dynamicMapLabels]);
 
   // 3D GeoJSON Choropleth Layer with hardware acceleration
   const choroplethLayer = useMemo(() => {
@@ -572,8 +783,11 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
         },
         getElevation: (d: any) => {
           if (!d || !d.properties) return 1000;
-          const name = d.properties.district || d.properties.st_nm || '';
-          const key = normalizeGeographicKey(name);
+          const districtName = d.properties.district || d.properties.NAME_2 || d.properties.dtname || '';
+          const stateName = d.properties.st_nm || d.properties.NAME_1 || d.properties.state || '';
+          const useState = depthLevel === 'state';
+          const name = useState ? stateName : districtName;
+          const key = normalizeGeographicKey(name || districtName || stateName || '');
           const metrics = choroplethDict.get(key);
           if (!metrics) {
             return 1000;
@@ -583,7 +797,8 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
           if (!Number.isFinite(val) || isNaN(val)) {
             return 1000;
           }
-          const elevation = Math.max(val * 150, 1000);
+          const baseHeight = maxActiveMetricValue > 0 ? (val / maxActiveMetricValue) * 30000 : 0;
+          const elevation = Math.max(baseHeight, 1000);
           // Final safety check
           return Number.isFinite(elevation) ? elevation : 1000;
         },
@@ -593,9 +808,11 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
           // Fallback for multiple GeoJSON property name conventions
           const districtName = d.properties.district || d.properties.NAME_2 || d.properties.dtname || '';
           const stateName = d.properties.st_nm || d.properties.NAME_1 || d.properties.state || '';
-          const key = normalizeGeographicKey(districtName);
+          const useState = depthLevel === 'state';
+          const name = useState ? stateName : districtName;
+          const key = normalizeGeographicKey(name || districtName || stateName || '');
           const metrics = choroplethDict.get(key);
-          const isHovered = hoveredHUD?.district === districtName;
+          const isHovered = hoveredHUD?.district === name;
           
           // Robust case-insensitive highlight comparison
           const isHighlighted = highlightedTarget && 
@@ -680,8 +897,8 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
           specularColor: [60, 64, 70]
         },
         updateTriggers: {
-          getFillColor: [activeMetric, choroplethDict, hoveredHUD, filter.state, filter.district, highlightedTarget, isTemporalMode, currentPlayhead],
-          getElevation: [activeMetric, choroplethDict, isTemporalMode, currentPlayhead],
+          getFillColor: [activeMetric, choroplethDict, depthLevel, hoveredHUD, filter.state, filter.district, highlightedTarget, isTemporalMode, currentPlayhead, maxActiveMetricValue],
+          getElevation: [activeMetric, choroplethDict, depthLevel, isTemporalMode, currentPlayhead, maxActiveMetricValue],
           getLineColor: [filter.state, filter.district, highlightedTarget, isTemporalMode, currentPlayhead],
           getLineWidth: [filter.state, filter.district, isTemporalMode, currentPlayhead]
         },
@@ -691,25 +908,32 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
         },
         onClick: (info: any) => {
           if (info.object) {
-            const districtName = info.object.properties.district || info.object.properties.NAME_2 || info.object.properties.dtname;
+            const districtName = info.object.properties.district || info.object.properties.NAME_2 || info.object.properties.dtname || '';
+            const stateName = info.object.properties.st_nm || info.object.properties.NAME_1 || info.object.properties.state || '';
+            const useState = depthLevel === 'state';
+            const name = useState ? stateName : districtName;
             
             // Magic Lens Neural Link: If lens is active, trigger Sonic deep scan
-            if (isLensActive && districtName) {
-              const key = normalizeGeographicKey(districtName);
+            if (isLensActive && name) {
+              const key = normalizeGeographicKey(name);
               const metrics = choroplethDict.get(key);
               
               if (metrics) {
                 // Dispatch to Sonic for deep scan
-                setSonicDeepScanTarget(districtName);
+                setSonicDeepScanTarget(name);
                 setSonicDeepScanData({
-                  district: districtName,
+                  district: name,
                   screened: metrics.screened,
                   breaches: metrics.breaches,
                   breachRate: metrics.screened > 0 ? (metrics.breaches / metrics.screened) * 100 : 0,
                 });
                 
-                // Highlight the district on map
-                setSonicFlyTarget({ district: districtName });
+                // Highlight the target on map
+                if (useState) {
+                  setSonicFlyTarget({ state: name });
+                } else {
+                  setSonicFlyTarget({ district: name });
+                }
               }
               
               return; // Prevent normal click behavior
@@ -731,14 +955,17 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
           if (isLensActive) {
             updateMousePosition(info.x, info.y);
             if (info.object) {
-              const districtName = info.object.properties.district || info.object.properties.NAME_2 || info.object.properties.dtname;
-              const key = normalizeGeographicKey(districtName || '');
+              const districtName = info.object.properties.district || info.object.properties.NAME_2 || info.object.properties.dtname || '';
+              const stateName = info.object.properties.st_nm || info.object.properties.NAME_1 || info.object.properties.state || '';
+              const useState = depthLevel === 'state';
+              const name = useState ? stateName : districtName;
+              const key = normalizeGeographicKey(name || districtName || stateName || '');
               const metrics = choroplethDict.get(key);
               
               if (metrics) {
                 updateHoveredDistrict({
                   properties: {
-                    district: districtName,
+                    district: name,
                     screened: metrics.screened,
                     breaches: metrics.breaches,
                     sla_breaches: metrics.breaches,
@@ -755,24 +982,27 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
           
           // Normal hover logic (existing)
           if (info.object) {
-            const districtName = info.object.properties.district || info.object.properties.NAME_2 || info.object.properties.dtname;
-            const key = normalizeGeographicKey(districtName || '');
+            const districtName = info.object.properties.district || info.object.properties.NAME_2 || info.object.properties.dtname || '';
+            const stateName = info.object.properties.st_nm || info.object.properties.NAME_1 || info.object.properties.state || '';
+            const useState = depthLevel === 'state';
+            const name = useState ? stateName : districtName;
+            const key = normalizeGeographicKey(name || districtName || stateName || '');
             const metrics = choroplethDict.get(key);
             
             if (metrics) {
               const breachRate = metrics.screened > 0 ? (metrics.breaches / metrics.screened) * 100 : 0;
               const yieldPercent = metrics.screened > 0 ? (metrics.diagnosed / metrics.screened) * 100 : 0;
               setHoveredHUD({
-                district: districtName,
+                district: name,
                 breachRate,
                 patients: metrics.screened,
                 yieldPercent,
                 x: info.x,
                 y: info.y
               });
-            } else if (districtName) {
+            } else if (name) {
               setHoveredHUD({
-                district: districtName,
+                district: name,
                 breachRate: 0,
                 patients: 0,
                 yieldPercent: 0,
@@ -789,22 +1019,22 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
       console.error('Error creating choropleth layer:', error);
       return null;
     }
-  }, [isClient, webGLSupported, geoData, choroplethDict, activeMetric, getColorFromMetric, setDistrict, filter.state, filter.district, hoveredHUD, flyToDistrict]);
+  }, [isClient, webGLSupported, geoData, choroplethDict, depthLevel, activeMetric, getColorFromMetric, setDistrict, filter.state, filter.district, hoveredHUD, flyToDistrict, maxActiveMetricValue]);
 
   // City Pillars Layer (Glowing Columns) - Wired to Active Metric
   const hoveredHUDRef = useRef(hoveredHUD);
   useEffect(() => { hoveredHUDRef.current = hoveredHUD; }, [hoveredHUD]);
 
   const cityPillarsLayer = useMemo(() => {
-    if (!isClient || !webGLSupported || enrichedCities.length === 0) return null;
+    if (!isClient || !webGLSupported || dynamicMapLabels.length === 0) return null;
 
     return new ColumnLayer({
       id: 'city-pillars-layer',
-      data: enrichedCities,
+      data: dynamicMapLabels,
       pickable: true,
       extruded: true,
       diskResolution: 6,
-      radius: 8000,
+      radius: depthLevel === 'state' ? 18000 : 8000,
       material: {
         ambient: 0.2,
         diffuse: 0.8,
@@ -813,92 +1043,81 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
       },
       getPosition: (d: any) => d.position,
       getElevation: (d: any) => {
-        const key = normalizeGeographicKey(d.city);
-        const metrics = choroplethDict.get(key);
-        const value = metrics ? (metrics[activeMetric] || 0) : (d.tbCases || 0);
-        const baseHeight = value * 2;
+        const value = d.value;
+        const baseHeight = maxActiveMetricValue > 0 ? (value / maxActiveMetricValue) * 50000 : 0;
         const isInHoveredDistrict = hoveredHUDRef.current && 
-          normalizeGeographicKey(d.city) === normalizeGeographicKey(hoveredHUDRef.current.district);
+          normalizeGeographicKey(d.name) === normalizeGeographicKey(hoveredHUDRef.current.district);
         return isInHoveredDistrict ? baseHeight * 1.5 : baseHeight;
       },
       getFillColor: (d: any) => {
         const isInHoveredDistrict = hoveredHUDRef.current && 
-          normalizeGeographicKey(d.city) === normalizeGeographicKey(hoveredHUDRef.current.district);
+          normalizeGeographicKey(d.name) === normalizeGeographicKey(hoveredHUDRef.current.district);
         
         if (isInHoveredDistrict) {
           return [100, 200, 255, 255];
         }
         
-        const isBreachView = activeMetric === 'breaches' || activeGISMetric === 'breaches';
-        const key = normalizeGeographicKey(d.city);
-        const metrics = choroplethDict.get(key);
-        const value = metrics ? (metrics[activeMetric] || 0) : (d.tbCases || 0);
-        const intensity = Math.min(value / 150, 1);
-
-        if (isBreachView) {
-          return [
-            255,
-            Math.max(20, 100 * (1 - intensity)),
-            Math.max(20, 100 * (1 - intensity)),
-            230
-          ];
-        }
-
-        return [
-          Math.max(20, 255 * (1 - intensity)),
-          200,
-          255,
-          220
-        ];
+        const key = normalizeGeographicKey(d.name);
+        const dictToUse = depthLevel === 'state' ? choroplethDict : districtChoroplethDict;
+        const metrics = dictToUse.get(key);
+        const color = getColorFromMetric(metrics, activeMetric);
+        return color;
       },
       updateTriggers: {
-        getElevation: [hoveredHUD, activeMetric, activeGISMetric, choroplethDict],
-        getFillColor: [hoveredHUD, activeMetric, activeGISMetric, choroplethDict]
+        getElevation: [hoveredHUD, activeMetric, activeGISMetric, dynamicMapLabels, maxActiveMetricValue],
+        getFillColor: [hoveredHUD, activeMetric, activeGISMetric, choroplethDict, districtChoroplethDict, depthLevel, dynamicMapLabels, maxActiveMetricValue]
       }
     });
-  }, [isClient, webGLSupported, enrichedCities, activeMetric, activeGISMetric, choroplethDict]); // Omitted hoveredHUD to stop geometry re-generation
+  }, [isClient, webGLSupported, dynamicMapLabels, depthLevel, activeMetric, activeGISMetric, choroplethDict, districtChoroplethDict, maxActiveMetricValue]);
 
   // City Pillars Text Layer (Numbers on top of Columns with Dynamic Scaling & Glow)
   const cityPillarsTextLayer = useMemo(() => {
-    if (!isClient || !webGLSupported || enrichedCities.length === 0) return null;
+    if (!isClient || !webGLSupported || dynamicMapLabels.length === 0) return null;
 
     return new TextLayer({
       id: 'city-pillars-text-layer',
-      data: enrichedCities,
+      data: dynamicMapLabels,
       parameters: {
         depthTest: false,
         blend: true
       },
       getPosition: (d: any) => {
-        const key = normalizeGeographicKey(d.city);
-        const metrics = choroplethDict.get(key);
-        const value = metrics ? (metrics[activeMetric] || 0) : (d.tbCases || 0);
-        const baseHeight = value * 2;
+        const value = d.value;
+        const baseHeight = maxActiveMetricValue > 0 ? (value / maxActiveMetricValue) * 50000 : 0;
         const isInHoveredDistrict = hoveredHUDRef.current && 
-          normalizeGeographicKey(d.city) === normalizeGeographicKey(hoveredHUDRef.current.district);
+          normalizeGeographicKey(d.name) === normalizeGeographicKey(hoveredHUDRef.current.district);
         
         const finalPosition = d.position || [0, 0];
-        return [finalPosition[0], finalPosition[1], (isInHoveredDistrict ? baseHeight * 1.5 : baseHeight) + 5000];
+        return [finalPosition[0], finalPosition[1], (isInHoveredDistrict ? baseHeight * 1.5 : baseHeight) + 8000];
       },
       getText: (d: any) => {
-        const key = normalizeGeographicKey(d.city);
-        const metrics = choroplethDict.get(key);
-        const value = metrics ? metrics[activeMetric] : d.tbCases;
-        return value === 0 ? ' ' : String(value);
+        if (d.isState) {
+          return `${d.name.toUpperCase()}\n${d.value.toLocaleString()}`;
+        }
+        return `${d.name}\n${d.value.toLocaleString()}`;
       },
-      getSize: 16,
+      getSize: depthLevel === 'state' ? 18 : 14,
       sizeUnits: 'pixels',
       sizeScale: 1,
-      sizeMinPixels: 14,
+      sizeMinPixels: 12,
       sizeMaxPixels: 48,
       getColor: [255, 255, 255, 255],
       getTextAnchor: 'middle',
-      getAlignmentBaseline: 'bottom',
+      getAlignmentBaseline: 'center',
       fontFamily: 'Outfit, sans-serif',
       fontWeight: 'bold',
-      outlineColor: [59, 130, 246, 220],
-      outlineWidth: 3,
       billboard: true,
+      background: true,
+      getBackgroundColor: [10, 12, 20, 220],
+      getBorderColor: (d: any) => {
+        const key = normalizeGeographicKey(d.name);
+        const dictToUse = d.isState ? choroplethDict : districtChoroplethDict;
+        const metrics = dictToUse.get(key);
+        const color = getColorFromMetric(metrics, activeMetric);
+        return [color[0], color[1], color[2], 255];
+      },
+      getBorderWidth: 2,
+      backgroundPadding: [12, 8, 12, 8],
       fontSettings: {
         sdf: true,
         buffer: 4,
@@ -906,14 +1125,15 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
         radius: 8
       },
       updateTriggers: {
-        getPosition: [hoveredHUD, activeMetric, activeGISMetric, choroplethDict],
-        getText: [activeMetric, activeGISMetric, choroplethDict]
+        getPosition: [hoveredHUD, activeMetric, activeGISMetric, dynamicMapLabels, maxActiveMetricValue],
+        getText: [activeMetric, activeGISMetric, dynamicMapLabels, depthLevel, maxActiveMetricValue],
+        getBorderColor: [activeMetric, activeGISMetric, choroplethDict, districtChoroplethDict, depthLevel]
       },
       transitions: {
         getPosition: { duration: 600, type: 'spring' }
       }
     });
-  }, [isClient, webGLSupported, enrichedCities, activeMetric, activeGISMetric, choroplethDict]); // Omitted hoveredHUD for perf gain
+  }, [isClient, webGLSupported, dynamicMapLabels, depthLevel, activeMetric, activeGISMetric, maxActiveMetricValue, choroplethDict, districtChoroplethDict, getColorFromMetric]);
 
   // Lighting effect for 3D visualization
   const lightingEffect = useMemo(() => {
@@ -945,25 +1165,56 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
     const activeDistrict = filter.district || treeFilter?.district;
     if (activeDistrict) {
       flyToDistrict(activeDistrict);
-    } else {
-      setViewState({
+    } else if (!filter.state) {
+      setViewState(prev => ({
+        ...prev,
         longitude: 78.4,
         latitude: 20.5,
-        zoom: 4.5,
+        zoom: 5.0,
         pitch: 55,
         bearing: -15,
         transitionDuration: 1500,
         transitionInterpolator: new FlyToInterpolator()
-      });
+      }));
     }
-  }, [filter.district, treeFilter?.district, flyToDistrict]);
+  }, [filter.district, treeFilter?.district, filter.state, flyToDistrict]);
 
-  // ── Sonic metric switch ──────────────────────────────────────────
+  // Handle state filter: smoothly fit the camera to the state boundary once loaded using the cached metadata
   useEffect(() => {
-    if (!activeGISMetric) return;
-    setActiveMetric(activeGISMetric as ActiveMetric);
-    setActiveGISMetric('');
-  }, [activeGISMetric, setActiveGISMetric]);
+    if (!filter.state || !geoData) return;
+    
+    const key = normalizeGeographicKey(filter.state);
+    const cached = geoMetadataCache.get(`state-${key}`);
+    
+    if (cached) {
+      const bbox = cached.bbox;
+      const latitude = cached.center[1];
+      const longitude = cached.center[0];
+      
+      const dx = bbox[2] - bbox[0];
+      const dy = bbox[3] - bbox[1];
+      const maxD = Math.max(dx, dy);
+      
+      let zoom = 5.5;
+      if (maxD < 1) zoom = 9.5;
+      else if (maxD < 3) zoom = 7.5;
+      else if (maxD < 5) zoom = 6.8;
+      else if (maxD < 10) zoom = 6.2;
+      
+      setViewState(prev => ({
+        ...prev,
+        longitude,
+        latitude,
+        zoom,
+        pitch: 50,
+        bearing: -10,
+        transitionDuration: 1800,
+        transitionInterpolator: new FlyToInterpolator({ speed: 1.2 })
+      }));
+    }
+  }, [filter.state, geoData, geoMetadataCache]);
+
+
 
   // ── Sonic leaderboard / cascade toggles ─────────────────────────
   useEffect(() => {
@@ -1024,13 +1275,13 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
       // Try exact normalized match first
       const normalizedDistrict = normalizeGeographicKey(district);
       
-      const districtKey = choroplethDict.has(normalizedDistrict) 
+      const districtKey = districtChoroplethDict.has(normalizedDistrict) 
         ? normalizedDistrict
-        : Array.from(choroplethDict.keys()).find(k => 
+        : Array.from(districtChoroplethDict.keys()).find(k => 
             k.includes(normalizedDistrict) || normalizedDistrict.includes(k)
           );
       
-      const districtData = districtKey ? choroplethDict.get(districtKey) : null;
+      const districtData = districtKey ? districtChoroplethDict.get(districtKey) : null;
 
       if (districtData && geoData) {
         // Find the exact feature using normalized key
@@ -1307,6 +1558,9 @@ export default memo(function SpatialIntelligenceMap({ globalPatients = [] }: Spa
       showLeaderboard={showLeaderboard}
       heatmapMode={heatmapMode}
       onHeatmapModeChange={setHeatmapMode}
+      choroplethDict={choroplethDict}
+      choroplethData={geoChoroplethData}
+      activeMetric={activeMetric}
     >
       <div className="relative w-full h-full overflow-hidden bg-slate-900 pb-24" 
         style={{ cursor: isLensActive ? 'none' : 'default' }}

@@ -1,12 +1,25 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, Layers, X, BarChart3, Trophy, Globe, Maximize2, Settings, Search, Cpu, Database, ChevronLeft, ChevronRight, Activity, AlertCircle, ChevronDown, Sparkles, Send, Compass } from 'lucide-react';
 import { useUniversalFilter } from '@/contexts/FilterContext';
 import { KPIRibbon } from './KPIRibbon';
 import { ColorLegend } from './ColorLegend';
-import { SteeringWheelButton } from './SteeringWheelButton';
+
+import { normalizeGeographicKey } from '@/lib/normalizeGeographicKey';
+
+// Global cache for parsed date strings to avoid GC pressure and CPU overhead in O(N) loops
+const dateCache = new Map<string, number>();
+
+const parseDateToMs = (dateStr: string): number => {
+  if (!dateStr) return 0;
+  const cached = dateCache.get(dateStr);
+  if (cached !== undefined) return cached;
+  const ms = new Date(dateStr).getTime();
+  dateCache.set(dateStr, ms);
+  return ms;
+};
 
 interface CommandCenterLayoutProps {
   children: ReactNode;
@@ -20,6 +33,9 @@ interface CommandCenterLayoutProps {
   showLeaderboard: boolean;
   heatmapMode: 'auto' | 'state' | 'district' | 'facility';
   onHeatmapModeChange: (mode: 'auto' | 'state' | 'district' | 'facility') => void;
+  choroplethDict?: Map<string, any>;
+  choroplethData?: { districts: Record<string, any>; states: Record<string, any> };
+  activeMetric?: string;
 }
 
 export function CommandCenterLayout({
@@ -34,6 +50,9 @@ export function CommandCenterLayout({
   showLeaderboard,
   heatmapMode,
   onHeatmapModeChange,
+  choroplethDict,
+  choroplethData,
+  activeMetric,
 }: CommandCenterLayoutProps) {
   const { filter, setDistrict, setState, setStatus, resetFilters, hasActiveFilters } = useUniversalFilter();
   const [selectedState, setSelectedState] = useState<string | null>(null);
@@ -60,19 +79,147 @@ export function CommandCenterLayout({
   const matrixRef = useRef<HTMLDivElement>(null);
   const aiFeedRef = useRef<HTMLDivElement>(null);
 
-  // Quick stats extraction
-  const highRiskPatients = filteredPatients.filter(p => !p.referral_date).length;
   // Pin matrix to global nodes so it doesn't collapse when the user zeroes in on a single node
   const activePool = (globalPatients && globalPatients.length > 0) ? globalPatients : filteredPatients;
-  const topDistricts = [...new Set(activePool.map((p: any) => p.screening_district))].slice(0, 6);
 
-  // Get unique states for state cards
-  const uniqueStates = [...new Set(activePool.map((p: any) => p.screening_state).filter(Boolean))].sort();
+  // Pre-calculate state and district analytics in a single pass O(N) loop to avoid O(M * N) filter overhead.
+  const { stateMetricsMap, districtMetricsMap } = useMemo(() => {
+    const stateMap = new Map<string, { name: string; screened: number; patients: any[] }>();
+    const distMap = new Map<string, {
+      name: string;
+      state: string;
+      screened: number;
+      suspected: number;
+      diagnosed: number;
+      initiated: number;
+      completed: number;
+      breaches: number;
+      patients: any[];
+    }>();
+
+    const nowMs = Date.now();
+    const activePoolArray = activePool || [];
+
+    for (let i = 0; i < activePoolArray.length; i++) {
+      const p = activePoolArray[i];
+      if (!p) continue;
+
+      // State Aggregation
+      const state = p.screening_state;
+      if (state) {
+        const key = normalizeGeographicKey(state);
+        let stateData = stateMap.get(key);
+        if (!stateData) {
+          stateData = { name: state, screened: 0, patients: [] };
+          stateMap.set(key, stateData);
+        }
+        stateData.screened++;
+        stateData.patients.push(p);
+      }
+
+      // District Aggregation
+      const dist = p.screening_district;
+      if (dist) {
+        const key = normalizeGeographicKey(dist);
+        let distData = distMap.get(key);
+        if (!distData) {
+          distData = {
+            name: dist,
+            state: p.screening_state || '',
+            screened: 0,
+            suspected: 0,
+            diagnosed: 0,
+            initiated: 0,
+            completed: 0,
+            breaches: 0,
+            patients: [],
+          };
+          distMap.set(key, distData);
+        }
+        distData.screened++;
+        distData.patients.push(p);
+
+        if (p.xray_result === 'Suspected TB Case') {
+          distData.suspected++;
+        }
+        if (p.tb_diagnosed === 'Y' || p.tb_diagnosed === 'Yes') {
+          distData.diagnosed++;
+        }
+        if (p.att_start_date) {
+          distData.initiated++;
+        }
+        if (p.att_completion_date) {
+          distData.completed++;
+        }
+
+        // SLA Breach calculation
+        if (!p.referral_date && p.screening_date) {
+          const sTime = parseDateToMs(p.screening_date);
+          const days = (nowMs - sTime) / (1000 * 60 * 60 * 24);
+          if (days > 7) {
+            distData.breaches++;
+          }
+        }
+      }
+    }
+
+    return { stateMetricsMap: stateMap, districtMetricsMap: distMap };
+  }, [activePool]);
+
+  // Quick stats extraction (avoiding multiple array walks)
+  const highRiskPatients = useMemo(() => {
+    let count = 0;
+    const len = filteredPatients.length;
+    for (let i = 0; i < len; i++) {
+      if (!filteredPatients[i].referral_date) {
+        count++;
+      }
+    }
+    return count;
+  }, [filteredPatients]);
   
-  // Get districts for selected state
-  const districtsForState = selectedState 
-    ? [...new Set(activePool.filter((p: any) => p.screening_state === selectedState).map((p: any) => p.screening_district))]
-    : [];
+  // Calculate topDistricts, uniqueStates and districtsForState with full-dataset SWR support
+  const topDistricts = useMemo(() => {
+    if (choroplethData?.districts) {
+      return Object.values(choroplethData.districts)
+        .sort((a: any, b: any) => b.screened - a.screened)
+        .slice(0, 6)
+        .map((d: any) => d.name);
+    }
+    return Array.from(districtMetricsMap.values())
+      .sort((a, b) => b.screened - a.screened)
+      .slice(0, 6)
+      .map(d => d.name);
+  }, [choroplethData, districtMetricsMap]);
+
+  const uniqueStates = useMemo(() => {
+    if (choroplethData?.states) {
+      return Object.values(choroplethData.states)
+        .map((s: any) => s.name)
+        .filter(Boolean)
+        .sort();
+    }
+    return Array.from(stateMetricsMap.values())
+      .map(s => s.name)
+      .filter(Boolean)
+      .sort();
+  }, [choroplethData, stateMetricsMap]);
+
+  const districtsForState = useMemo(() => {
+    if (!selectedState) return [];
+    if (choroplethData?.districts) {
+      const targetStateKey = normalizeGeographicKey(selectedState);
+      return Object.values(choroplethData.districts)
+        .filter((d: any) => normalizeGeographicKey(d.state || '') === targetStateKey)
+        .map((d: any) => d.name)
+        .sort();
+    }
+    const targetStateKey = normalizeGeographicKey(selectedState);
+    return Array.from(districtMetricsMap.values())
+      .filter(d => d.state && normalizeGeographicKey(d.state) === targetStateKey)
+      .map(d => d.name)
+      .sort();
+  }, [selectedState, choroplethData, districtMetricsMap]);
 
   // Auto-scroll logic for Geography Matrix
   useEffect(() => {
@@ -325,24 +472,28 @@ export function CommandCenterLayout({
     setAiLoading(true);
     const timeout = setTimeout(async () => {
       try {
-        // Calculate district-level analytics
+        // Calculate district-level analytics (optimized O(1) lookups from districtMetricsMap)
         const districtAnalytics = topDistricts.map(dist => {
-          const distPatients = activePool.filter((p: any) => p.screening_district === dist);
-          const suspected = distPatients.filter((p: any) => p.xray_result === 'Suspected TB Case').length;
-          const breaches = distPatients.filter((p: any) => {
-            const screeningDate = p.screening_date ? new Date(p.screening_date) : null;
-            if (!screeningDate) return false;
-            const daysSince = (Date.now() - screeningDate.getTime()) / (1000 * 60 * 60 * 24);
-            return !p.referral_date && daysSince > 7;
-          }).length;
-          const diagnosed = distPatients.filter((p: any) => p.tb_diagnosed === 'Y').length;
-          const breachRate = distPatients.length > 0 ? (breaches / distPatients.length) * 100 : 0;
-          const suspectedRate = distPatients.length > 0 ? (suspected / distPatients.length) * 100 : 0;
-          const yieldRate = distPatients.length > 0 ? (diagnosed / distPatients.length) * 100 : 0;
+          const key = normalizeGeographicKey(dist);
+          const dData = districtMetricsMap.get(key) || {
+            screened: 0,
+            suspected: 0,
+            diagnosed: 0,
+            initiated: 0,
+            completed: 0,
+            breaches: 0,
+          };
+          const volume = dData.screened;
+          const suspected = dData.suspected;
+          const breaches = dData.breaches;
+          const diagnosed = dData.diagnosed;
+          const breachRate = volume > 0 ? (breaches / volume) * 100 : 0;
+          const suspectedRate = volume > 0 ? (suspected / volume) * 100 : 0;
+          const yieldRate = volume > 0 ? (diagnosed / volume) * 100 : 0;
           
           return {
             district: dist,
-            volume: distPatients.length,
+            volume,
             suspected,
             breaches,
             diagnosed,
@@ -535,16 +686,13 @@ export function CommandCenterLayout({
     
     // Add tactical analysis after intervention
     setTimeout(() => {
-      const districtPatients = activePool.filter((p: any) => p.screening_district === activeNode);
-      const breaches = districtPatients.filter((p: any) => {
-        const screeningDate = p.screening_date ? new Date(p.screening_date) : null;
-        if (!screeningDate) return false;
-        const daysSince = (Date.now() - screeningDate.getTime()) / (1000 * 60 * 60 * 24);
-        return !p.referral_date && daysSince > 7;
-      }).length;
+      const key = normalizeGeographicKey(activeNode);
+      const distData = districtMetricsMap.get(key);
+      const vol = distData ? distData.screened : 0;
+      const breaches = distData ? distData.breaches : 0;
       
       setAiInsights(prev => [...prev, {
-        insightText: `📊 TACTICAL ANALYSIS: ${activeNode.toUpperCase()} sector contains ${districtPatients.length} patients with ${breaches} SLA breaches detected. Review Geography Matrix for detailed metrics.`,
+        insightText: `📊 TACTICAL ANALYSIS: ${activeNode.toUpperCase()} sector contains ${vol} patients with ${breaches} SLA breaches detected. Review Geography Matrix for detailed metrics.`,
         activeNode: activeNode,
         timestamp: Date.now(),
         severity: 'INFO'
@@ -755,8 +903,11 @@ export function CommandCenterLayout({
                       className="grid grid-cols-2 gap-2"
                     >
                       {uniqueStates.map((state) => {
-                        const statePatients = activePool.filter((p: any) => p.screening_state === state);
                         const isSelected = filter.state === state;
+                        const stateKey = normalizeGeographicKey(state);
+                        const stateMetrics = choroplethData?.states[stateKey];
+                        const metricKey = activeMetric || 'screened';
+                        const count = stateMetrics ? (stateMetrics[metricKey] || 0) : (stateMetricsMap.get(stateKey)?.screened || 0);
                         
                         return (
                           <motion.button
@@ -775,7 +926,7 @@ export function CommandCenterLayout({
                             }`}
                           >
                             <p className="text-[9px] font-bold text-white/90 truncate">{state}</p>
-                            <p className="text-[7px] text-[#666] mt-1">{statePatients.length.toLocaleString()} patients</p>
+                            <p className="text-[7px] text-[#666] mt-1">{count.toLocaleString()} {metricKey}</p>
                           </motion.button>
                         );
                       })}
@@ -802,8 +953,11 @@ export function CommandCenterLayout({
                       </div>
                       
                       {districtsForState.map((district) => {
-                        const districtPatients = activePool.filter((p: any) => p.screening_district === district);
                         const isSelected = filter.district === district;
+                        const districtKey = normalizeGeographicKey(district);
+                        const districtMetrics = choroplethData?.districts[districtKey];
+                        const metricKey = activeMetric || 'screened';
+                        const count = districtMetrics ? (districtMetrics[metricKey] || 0) : (districtMetricsMap.get(districtKey)?.screened || 0);
                         
                         return (
                           <motion.button
@@ -818,7 +972,7 @@ export function CommandCenterLayout({
                             }`}
                           >
                             <p className="text-[8px] font-bold text-white/90 truncate">{district}</p>
-                            <p className="text-[6px] text-[#666] mt-0.5">{districtPatients.length.toLocaleString()} patients</p>
+                            <p className="text-[6px] text-[#666] mt-0.5">{count.toLocaleString()} {metricKey}</p>
                           </motion.button>
                         );
                       })}
@@ -828,7 +982,11 @@ export function CommandCenterLayout({
               </div>
             )}
             
-              <KPIRibbon filteredPatients={globalPatients || filteredPatients} compact />
+              <KPIRibbon 
+                filteredPatients={globalPatients || filteredPatients} 
+                compact 
+                choroplethDict={choroplethDict} 
+              />
             </div>
           </motion.div>
           )}
@@ -849,6 +1007,8 @@ export function CommandCenterLayout({
         {/* Premium Main Map Area */}
         <main className="flex-1 relative z-0 bg-gradient-to-br from-[#050505] to-[#0a0a0a]">
           {children}
+
+
 
           {/* Premium Floating Legend Control */}
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center gap-3">
@@ -879,14 +1039,6 @@ export function CommandCenterLayout({
       {/* ───────────────────────────────────────────────────────── */}
       {/* BOTTOM PANEL: PREMIUM NEURAL CONSOLE - Only shows when Geography Matrix is open */}
       {/* ───────────────────────────────────────────────────────── */}
-      
-      {/* Steering Wheel Button - Always visible, positioned at bottom-left */}
-      <div className="fixed bottom-6 left-6 z-[9999]">
-        <SteeringWheelButton
-          onClick={() => setIsGeographyMatrixOpen(!isGeographyMatrixOpen)}
-          isActive={isGeographyMatrixOpen}
-        />
-      </div>
 
       <AnimatePresence>
         {isGeographyMatrixOpen && (
@@ -951,15 +1103,16 @@ export function CommandCenterLayout({
               style={{ scrollBehavior: 'smooth' }}
             >
                {topDistricts.map((dist:any, i) => {
-                 const districtPatients = activePool.filter((p: any) => p.screening_district === dist);
-                 const vol = districtPatients.length;
+                 const distKey = normalizeGeographicKey(dist);
+                 const distData = districtMetricsMap.get(distKey);
+                 const vol = distData ? distData.screened : 0;
                  
                  // Detailed metrics
-                 const suspected = districtPatients.filter((p: any) => p.xray_result === 'Suspected TB Case').length;
+                 const suspected = distData ? distData.suspected : 0;
                  const notSuspected = vol - suspected;
-                 const diagnosed = districtPatients.filter((p: any) => p.tb_diagnosed === 'Y').length;
-                 const treatmentInitiated = districtPatients.filter((p: any) => p.att_start_date != null).length;
-                 const treated = districtPatients.filter((p: any) => p.att_completion_date != null).length;
+                 const diagnosed = distData ? distData.diagnosed : 0;
+                 const treatmentInitiated = distData ? distData.initiated : 0;
+                 const treated = distData ? distData.completed : 0;
                  
                  // Determine glow color based on suspected rate
                  const suspectedRate = vol > 0 ? (suspected / vol) * 100 : 0;

@@ -15,13 +15,14 @@ import { normalizeRole, Role } from '@/lib/constants/roles';
 import { getCachedWithMemory } from '@/lib/memory-cache';
 import { CacheNamespace, buildVersionedKey } from '@/lib/cache-version';
 import { prisma } from '@/lib/prisma';
+import { normalizeGeographicKey } from '@/lib/normalizeGeographicKey';
 
 export const maxDuration = 15;
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 function normalizeKey(str: string): string {
-  return (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return normalizeGeographicKey(str);
 }
 
 export async function GET(request: NextRequest) {
@@ -70,7 +71,9 @@ export async function GET(request: NextRequest) {
             TRIM(screening_state)           AS state_name,
             TRIM(screening_district)        AS district_name,
             COUNT(*)::integer               AS screened,
-            SUM(CASE WHEN tb_diagnosed = 'Y' THEN 1 ELSE 0 END)::integer AS diagnosed,
+            SUM(CASE WHEN tb_diagnosed = 'Y' OR tb_diagnosed = 'Yes' THEN 1 ELSE 0 END)::integer AS diagnosed,
+            SUM(CASE WHEN tb_diagnosed IS NULL OR (tb_diagnosed <> 'Yes' AND tb_diagnosed <> 'Y' AND tb_diagnosed <> 'No' AND tb_diagnosed <> 'N') THEN 1 ELSE 0 END)::integer AS suspected,
+            SUM(CASE WHEN tb_diagnosed = 'No' OR tb_diagnosed = 'N' THEN 1 ELSE 0 END)::integer AS normal,
             SUM(CASE WHEN att_start_date IS NOT NULL THEN 1 ELSE 0 END)::integer AS initiated,
             SUM(CASE WHEN att_completion_date IS NOT NULL THEN 1 ELSE 0 END)::integer AS completed,
             SUM(
@@ -87,16 +90,16 @@ export async function GET(request: NextRequest) {
 
         if (stateConstraint) {
           if (stateConstraint.toLowerCase() === 'maharashtra') {
-            queryStr += ` AND LOWER(screening_state) IN ('maharashtra', 'mumbai')`;
+            queryStr += ` AND LOWER(TRIM(screening_state)) IN ('maharashtra', 'mumbai')`;
           } else {
             params.push(stateConstraint);
-            queryStr += ` AND LOWER(screening_state) = LOWER($${params.length})`;
+            queryStr += ` AND LOWER(TRIM(screening_state)) = LOWER($${params.length})`;
           }
         }
 
         if (filterDistrict && filterDistrict !== 'all') {
           params.push(filterDistrict);
-          queryStr += ` AND LOWER(screening_district) = LOWER($${params.length})`;
+          queryStr += ` AND LOWER(TRIM(screening_district)) = LOWER($${params.length})`;
         }
 
         queryStr += `
@@ -119,8 +122,12 @@ export async function GET(request: NextRequest) {
           const sk = normalizeKey(row.state_key || row.state_name || '');
 
           const metrics = {
+            name:       row.district_name || '',
+            state:      row.state_name || '',
             screened:   Number(row.screened   || 0),
             diagnosed:  Number(row.diagnosed  || 0),
+            suspected:  Number(row.suspected  || 0),
+            normal:     Number(row.normal     || 0),
             initiated:  Number(row.initiated  || 0),
             completed:  Number(row.completed  || 0),
             breaches:   Number(row.breaches   || 0),
@@ -133,10 +140,21 @@ export async function GET(request: NextRequest) {
           // Accumulate state-level totals
           if (sk) {
             if (!states[sk]) {
-              states[sk] = { screened: 0, diagnosed: 0, initiated: 0, completed: 0, breaches: 0 };
+              states[sk] = {
+                name:       row.state_name || '',
+                screened:   0,
+                diagnosed:  0,
+                suspected:  0,
+                normal:     0,
+                initiated:  0,
+                completed:  0,
+                breaches:   0,
+              };
             }
             states[sk].screened   += metrics.screened;
             states[sk].diagnosed  += metrics.diagnosed;
+            states[sk].suspected  += metrics.suspected;
+            states[sk].normal     += metrics.normal;
             states[sk].initiated  += metrics.initiated;
             states[sk].completed  += metrics.completed;
             states[sk].breaches   += metrics.breaches;

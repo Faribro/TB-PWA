@@ -10,6 +10,7 @@ interface DepthSegmentedControlProps {
 }
 
 const DEPTH_OPTIONS = [
+  { value: 'auto' as const, label: 'Auto', icon: Layers },
   { value: 'state' as const, label: 'State', icon: Globe },
   { value: 'district' as const, label: 'District', icon: Building2 },
   { value: 'facility' as const, label: 'Facility', icon: Hospital },

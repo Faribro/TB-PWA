@@ -56,7 +56,7 @@ interface EntityStore {
     district: string | null;
     coordinator: string | null;
     phase: string | null;
-    status: 'All' | 'High Alert' | 'On Track';
+    status: 'All' | 'Suspected' | 'Normal' | 'High Alert' | 'On Track' | 'Diagnosed' | 'Initiated' | 'Completed' | 'Breach';
   };
   _lockedScope: SessionScope | null;
   sonicLanguage: SonicLanguage;

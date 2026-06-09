@@ -8,7 +8,7 @@ DROP MATERIALIZED VIEW IF EXISTS public.mv_daily_vertex_metrics CASCADE;
 -- Create materialized view
 CREATE MATERIALIZED VIEW public.mv_daily_vertex_metrics AS
 SELECT
-  created_at::date AS registration_date,
+  screening_date::date AS registration_date,
   COALESCE(screening_state, '') AS screening_state,
   COALESCE(screening_district, '') AS screening_district,
   COUNT(*)::integer AS screened_count,
@@ -17,7 +17,8 @@ SELECT
   COUNT(*) FILTER (WHERE att_start_date IS NOT NULL)::integer AS att_started_count,
   COUNT(*) FILTER (WHERE referral_date IS NOT NULL)::integer AS referred_count
 FROM public.patients
-GROUP BY created_at::date, COALESCE(screening_state, ''), COALESCE(screening_district, '')
+WHERE screening_date IS NOT NULL
+GROUP BY screening_date::date, COALESCE(screening_state, ''), COALESCE(screening_district, '')
 WITH DATA;
 
 -- Create unique index for concurrent refreshes and fast lookups
