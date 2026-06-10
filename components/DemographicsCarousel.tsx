@@ -591,7 +591,7 @@ export function DemographicsCarousel({
     <div className="flex flex-col w-full h-full relative overflow-hidden bg-slate-100/50">
       <motion.div
         initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
-        className="flex-1 overflow-y-auto px-3.5 py-3.5 pb-28 hide-scrollbar"
+        className="flex-1 overflow-y-auto px-3.5 py-3.5 pb-28 scrollbar-thin"
       >
         {/* ── CLINICAL WORKSPACE DOCUMENT ── */}
         <div className="bg-white border border-slate-200 shadow-md overflow-hidden rounded-xl">

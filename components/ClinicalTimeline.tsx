@@ -88,10 +88,10 @@ export function ClinicalTimeline({
     {
       id: 'xray',
       label: 'X-Ray / Symptoms',
-      sublabel: xrayResult || (symptoms10s === 'Yes' ? 'Symptomatic' : 'Screened'),
+      sublabel: xrayResult ? xrayResult.replace(/_/g, ' ') : (symptoms10s === 'Yes' ? 'Symptomatic' : 'Screened'),
       icon: <AlertCircle className="w-4 h-4" />,
       status: 'complete',
-      description: `Chest X-Ray / Clinical Symptoms: ${xrayResult || 'Recorded'}`
+      description: `Chest X-Ray / Clinical Symptoms: ${xrayResult ? xrayResult.replace(/_/g, ' ') : 'Recorded'}`
     },
     {
       id: 'referred',
@@ -100,7 +100,7 @@ export function ClinicalTimeline({
       icon: <ArrowRightCircle className="w-4 h-4" />,
       status: isReferralComplete ? 'complete' : isReferralActive ? 'active' : 'pending',
       description: referralDate 
-        ? `Referred for sputum test to: ${referredFacility || 'DMC'}` 
+        ? `Referred for sputum test to: ${referredFacility ? referredFacility.replace(/_/g, ' ') : 'DMC'}` 
         : 'Sputum microscopy or molecular test referral pending.'
     },
     {
@@ -109,14 +109,14 @@ export function ClinicalTimeline({
       sublabel: tbDiagnosed === 'Y' 
         ? (diagnosisDate ? `TB+ (${fmtDate(diagnosisDate)})` : 'TB Diagnosed') 
         : tbDiagnosed === 'N' 
-          ? (closureReason ? `Not TB (${closureReason})` : 'Not TB') 
+          ? (closureReason ? `Not TB (${closureReason.replace(/_/g, ' ')})` : 'Not TB') 
           : 'Pending',
       icon: <Activity className="w-4 h-4" />,
       status: isDiagnosisComplete ? 'complete' : isDiagnosisActive ? 'active' : 'pending',
       description: tbDiagnosed === 'Y' 
         ? 'TB Diagnosed (Positive Case confirmed by clinical evaluation).' 
         : tbDiagnosed === 'N' 
-          ? `Closed: Not TB (${closureReason || 'Alternative diagnosis'})` 
+          ? `Closed: Not TB (${closureReason ? closureReason.replace(/_/g, ' ') : 'Alternative diagnosis'})` 
           : 'Pending diagnostic confirmation.'
     },
     {
@@ -134,11 +134,11 @@ export function ClinicalTimeline({
     {
       id: 'nikshay',
       label: 'Nikshay ID',
-      sublabel: isNikshaySkipped ? 'N/A' : (nikshayId || 'Pending'),
+      sublabel: isNikshaySkipped ? 'N/A' : (nikshayId ? nikshayId.replace(/_/g, ' ') : 'Pending'),
       icon: <ClipboardList className="w-4 h-4" />,
       status: isNikshayComplete ? 'complete' : isNikshaySkipped ? 'skipped' : isNikshayActive ? 'active' : 'pending',
       description: nikshayId 
-        ? `Registered under Nikshay Portal ID: ${nikshayId}` 
+        ? `Registered under Nikshay Portal ID: ${nikshayId.replace(/_/g, ' ')}` 
         : isNikshaySkipped 
           ? 'Not applicable.' 
           : 'Waiting for official Nikshay ID registration.'
@@ -147,7 +147,7 @@ export function ClinicalTimeline({
       id: 'closure',
       label: 'Closure / Complete',
       sublabel: tbDiagnosed === 'N' 
-        ? 'Closed (Not TB)' 
+        ? (closureReason ? `Closed (${closureReason.replace(/_/g, ' ')})` : 'Closed (Not TB)') 
         : treatmentCompletionDate 
           ? `Completed (${fmtDate(treatmentCompletionDate)})` 
           : 'Ongoing Treatment',
@@ -156,7 +156,7 @@ export function ClinicalTimeline({
       description: treatmentCompletionDate 
         ? 'ATT Treatment successfully completed.' 
         : tbDiagnosed === 'N' 
-          ? 'Case closed safely (TB ruled out).' 
+          ? `Case closed safely: Not TB (${closureReason ? closureReason.replace(/_/g, ' ') : 'TB ruled out'}).` 
           : 'Ongoing medical follow-up and monitoring.'
     }
   ];
@@ -166,7 +166,7 @@ export function ClinicalTimeline({
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="w-full mt-3 mb-2 p-3.5 rounded-2xl border border-slate-100 bg-white/70 backdrop-blur-md shadow-sm"
+      className="w-full mt-3 mb-2 p-4 pb-6 rounded-2xl border border-slate-100 bg-white/70 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.03)]"
     >
       <div className="relative flex items-center justify-between w-full px-2 overflow-x-auto pb-1 scrollbar-thin">
         {/* Connecting Lines Container */}

@@ -82,6 +82,8 @@ export function HorizontalHoverAccordion({
     console.log(`Care cascade step clicked: ${title}`);
   }, [title]);
 
+  const shouldPulse = isCurrent || isAttentionRequired;
+
   return (
     <motion.div
       className="group relative flex-1 min-w-[100px] h-full rounded-3xl overflow-hidden cursor-pointer select-none"
@@ -250,26 +252,27 @@ export function HorizontalHoverAccordion({
         )}
       </AnimatePresence>
 
-      {/* Attention beacon - Award-winning pulse */}
-      {isAttentionRequired && (
-        <motion.div
-          className="absolute top-4 right-4 w-4 h-4 rounded-full z-40"
-          style={{ background: c.gradient }}
-          animate={{
-            scale: [1, 1.25, 1],
-            boxShadow: [
-              `0 0 0 0 ${c.primary}60`,
-              `0 0 12px 4px ${c.primary}40`,
-              `0 0 20px 8px ${c.primary}20`,
-              `0 0 0 0 ${c.primary}60`,
-            ],
-          }}
-          transition={{
-            scale: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
-            boxShadow: { duration: 2, repeat: Infinity, ease: 'easeOut' },
-          }}
-        />
-      )}
+      {/* Status indicator ball */}
+      <motion.div
+        className="absolute top-4 right-4 w-4 h-4 rounded-full z-40"
+        style={{ background: c.gradient }}
+        animate={shouldPulse ? {
+          scale: [1, 1.25, 1],
+          boxShadow: [
+            `0 0 0 0 ${c.primary}60`,
+            `0 0 12px 4px ${c.primary}40`,
+            `0 0 20px 8px ${c.primary}20`,
+            `0 0 0 0 ${c.primary}60`,
+          ],
+        } : {
+          scale: 1,
+          boxShadow: `0 2px 6px ${c.primary}40`,
+        }}
+        transition={{
+          scale: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
+          boxShadow: { duration: 2, repeat: Infinity, ease: 'easeOut' },
+        }}
+      />
     </motion.div>
   );
 }

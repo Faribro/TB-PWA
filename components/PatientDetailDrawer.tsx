@@ -1223,7 +1223,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
               <ScrollArea className="flex-1">
                 <div className="w-full h-full flex flex-col">
-                  <TabsContent value="clinical" className="mt-0 p-6 pb-0">
+                  <TabsContent value="clinical" className="mt-0 p-6 pb-6">
                     {!fetchedPatient ? (
                       <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-500 animate-pulse">
                         <Sparkles className="w-8 h-8 animate-spin text-slate-400" />
@@ -1338,7 +1338,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                       return (
                         <>
                           {/* ── Horizontal Hover Accordion sections ── */}
-                          <div className="flex gap-3 h-[280px] mt-4">
+                          <div className="flex gap-3 h-[260px] mt-4">
                             {clinicalSections.map((section, index) => (
                               <HorizontalHoverAccordion
                                 key={section.id}
