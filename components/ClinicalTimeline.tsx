@@ -166,38 +166,9 @@ export function ClinicalTimeline({
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="w-full mt-6 mb-4 p-5 rounded-2xl border border-slate-100 bg-white/70 backdrop-blur-md shadow-sm"
+      className="w-full mt-3 mb-2 p-3.5 rounded-2xl border border-slate-100 bg-white/70 backdrop-blur-md shadow-sm"
     >
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-            Care Pathway
-          </span>
-          <h4 className="text-[13px] font-bold text-slate-800">Clinical Timeline</h4>
-        </div>
-        <div className="flex items-center gap-4 text-[10px] font-bold text-slate-500">
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25" />
-            Complete
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/25 animate-pulse" />
-            Active
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-slate-300" />
-            Pending
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-slate-200 overflow-hidden relative border border-slate-300">
-              <span className="absolute inset-0 w-full h-[1px] bg-slate-400 rotate-45 transform origin-center" />
-            </span>
-            Skipped
-          </span>
-        </div>
-      </div>
-
-      <div className="relative flex items-center justify-between w-full px-2 overflow-x-auto pb-2 scrollbar-thin">
+      <div className="relative flex items-center justify-between w-full px-2 overflow-x-auto pb-1 scrollbar-thin">
         {/* Connecting Lines Container */}
         <div className="absolute left-10 right-10 top-[22px] h-[3px] bg-slate-100 pointer-events-none -z-10 rounded-full overflow-hidden">
           <div className="absolute inset-0 flex">
