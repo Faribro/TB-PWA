@@ -1242,7 +1242,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
               <ScrollArea className="flex-1">
                 <div className="w-full h-full flex flex-col">
-                  <TabsContent value="clinical" className="mt-0 p-6 pb-6">
+                  <TabsContent value="clinical" className="mt-0 p-6 pb-3">
                     {!fetchedPatient ? (
                       <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-500 animate-pulse">
                         <Sparkles className="w-8 h-8 animate-spin text-slate-400" />
