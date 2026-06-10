@@ -501,22 +501,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <SettingsLink isCollapsed={!sidebarOpen} isActive={isSettingsActive} />
 
             {/* User card */}
+            {/* User card */}
             <div
               className={`rounded-2xl transition-all duration-300 ${
                 sidebarOpen
-                  ? 'bg-white/70 border border-slate-200/50 shadow-[0_4px_16px_rgba(15,23,42,0.05)] px-3 py-3'
+                  ? 'bg-slate-50/50 border border-slate-200/60 shadow-[inset_0_1px_2px_rgba(255,255,255,0.95),_0_2px_8px_rgba(15,23,42,0.03)] px-3 py-3'
                   : 'bg-transparent px-0 py-0'
               }`}
             >
               <div className={`flex items-center gap-3 ${!sidebarOpen ? 'flex-col' : ''}`}>
                 {/* Avatar */}
                 <div className="relative flex-shrink-0">
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-black shadow-lg"
-                    style={{ background: 'linear-gradient(135deg,#1e293b,#334155)' }}
-                  >
-                    {session.user.name?.charAt(0).toUpperCase()}
-                  </div>
+                  {session.user.image ? (
+                    <div className="w-9 h-9 rounded-xl overflow-hidden shadow-md border border-slate-200/80">
+                      <Image
+                        src={session.user.image}
+                        alt={session.user.name ?? 'User Avatar'}
+                        width={36}
+                        height={36}
+                        className="w-full h-full object-cover"
+                        suppressHydrationWarning
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-black shadow-md border border-slate-200/80"
+                      style={{ background: 'linear-gradient(135deg,#1e293b,#334155)' }}
+                    >
+                      {session.user.name?.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full shadow-sm" />
                 </div>
 
@@ -542,7 +556,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <motion.button
                   whileHover={{ y: -1 }}
                   onClick={handleSignOut}
-                  className="mt-3 w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-500 bg-slate-50/80 hover:bg-rose-50 hover:text-rose-600 rounded-xl transition-all duration-200 border border-slate-200/50 hover:border-rose-200/70 group"
+                  className="mt-3 w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-600 bg-white/40 hover:bg-rose-500/[0.04] hover:text-rose-600 rounded-xl transition-all duration-200 border border-slate-200/60 hover:border-rose-200/60 group"
                   suppressHydrationWarning
                 >
                   <LogOut className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:text-rose-500" suppressHydrationWarning />
@@ -554,7 +568,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     whileHover={{ scale: 1.08 }}
                     whileTap={{ scale: 0.92 }}
                     onClick={handleSignOut}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-400 hover:text-rose-500 hover:border-rose-200 hover:bg-rose-50 transition-all"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/40 border border-slate-200/60 text-slate-500 hover:text-rose-600 hover:border-rose-200/60 hover:bg-rose-500/[0.04] transition-all"
                     aria-label="Sign out"
                     suppressHydrationWarning
                   >
