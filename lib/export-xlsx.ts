@@ -1,4 +1,5 @@
-import * as XLSX from 'xlsx';
+// @ts-ignore
+import XLSX from 'xlsx-js-style';
 
 export interface ExportOptions {
   filename?: string;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as XLSX from 'xlsx';
+// @ts-ignore
+import XLSX from 'xlsx-js-style';
 import { createClient } from '@supabase/supabase-js';
 
 // Create Supabase client lazily to avoid build-time errors
