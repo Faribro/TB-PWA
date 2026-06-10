@@ -327,6 +327,31 @@ function SettingsLink({ isCollapsed, isActive }: { isCollapsed: boolean; isActiv
 // ─── Main layout ─────────────────────────────────────────────────────────────
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (session?.user?.image) {
+      setAvatarUrl(session.user.image);
+    } else if (session?.user?.email) {
+      const email = session.user.email.trim().toLowerCase();
+      const msgUint8 = new TextEncoder().encode(email);
+      if (typeof window !== 'undefined' && window.crypto && window.crypto.subtle) {
+        window.crypto.subtle.digest('SHA-256', msgUint8).then(hashBuffer => {
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+          setAvatarUrl(`https://www.gravatar.com/avatar/${hashHex}?d=identicon`);
+        }).catch(err => {
+          console.error('Failed to generate gravatar hash:', err);
+          setAvatarUrl(null);
+        });
+      } else {
+        setAvatarUrl(null);
+      }
+    } else {
+      setAvatarUrl(null);
+    }
+  }, [session?.user?.image, session?.user?.email]);
+
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [duplicatePairs] = useState<any[]>([]);
@@ -512,15 +537,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className={`flex items-center gap-3 ${!sidebarOpen ? 'flex-col' : ''}`}>
                 {/* Avatar */}
                 <div className="relative flex-shrink-0">
-                  {session.user.image ? (
+                  {avatarUrl ? (
                     <div className="w-9 h-9 rounded-xl overflow-hidden shadow-md border border-slate-200/80">
-                      <Image
-                        src={session.user.image}
+                      <img
+                        src={avatarUrl}
                         alt={session.user.name ?? 'User Avatar'}
                         width={36}
                         height={36}
                         className="w-full h-full object-cover"
-                        suppressHydrationWarning
+                        onError={() => setAvatarUrl(null)}
                       />
                     </div>
                   ) : (

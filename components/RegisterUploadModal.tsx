@@ -13,6 +13,7 @@
 
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Upload, FileSpreadsheet, CheckCircle2, AlertCircle,
@@ -88,6 +89,7 @@ export function RegisterUploadModal({
   screeningDistrict,
   screeningState,
 }: RegisterUploadModalProps) {
+  const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -189,13 +191,14 @@ export function RegisterUploadModal({
       formData.append('useAI', useAI.toString());
       formData.append('useAINormalization', useAINormalization.toString());
 
-      const res = await fetch('/api/register-extract', {
+      // Target the new async upload endpoint
+      const res = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Extraction failed' }));
+        const err = await res.json().catch(() => ({ error: 'Upload and ingestion trigger failed' }));
         throw new Error(err.error || err.message || `HTTP ${res.status}`);
       }
 
@@ -204,12 +207,12 @@ export function RegisterUploadModal({
       setStep(3);
     } catch (error) {
       setExtractionError(
-        error instanceof Error ? error.message : 'Extraction failed',
+        error instanceof Error ? error.message : 'Upload failed',
       );
     } finally {
       setIsExtracting(false);
     }
-  }, [selectedFile, screeningDate, facilityName, screeningDistrict, screeningState, scopeMode]);
+  }, [selectedFile, screeningDate, facilityName, screeningDistrict, screeningState, scopeMode, useAI, useAINormalization]);
 
   // ═══════════════════════════════════════════════════════
   // Handoff to Reconciliation
@@ -593,110 +596,54 @@ export function RegisterUploadModal({
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="space-y-4"
+                  className="space-y-5 py-3"
                 >
                   {/* Success Header */}
-                  <div className="text-center space-y-2">
-                    <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
-                      <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                  <div className="text-center space-y-3">
+                    <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto shadow-sm">
+                      <CheckCircle2 className="w-7 h-7 text-emerald-500" />
                     </div>
-                    <h3 className="text-base font-bold text-slate-900">Register Parsed</h3>
-                    <p className="text-xs text-slate-500">
-                      {extractionResult.rowCount} rows matched against{' '}
-                      {formatDate(screeningDate)}{facilityName ? ` · ${facilityName}` : ''}
-                    </p>
-                    <p className="text-[10px] text-slate-400">
-                      {extractionResult.summary?.scopedCandidateCount ?? 0} existing patients in scope
-                    </p>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">File Uploaded Successfully</h3>
+                      <p className="text-xs text-slate-500 mt-1">
+                        The extraction agent is processing your register in the background.
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Summary Cards */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <Card className="p-3 text-center bg-emerald-50 border-emerald-100">
-                      <p className="text-2xl font-black text-emerald-700">
-                        {extractionResult.summary?.autoMatch ?? 0}
-                      </p>
-                      <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mt-0.5">
-                        Matched
-                      </p>
-                    </Card>
-                    <Card className="p-3 text-center bg-amber-50 border-amber-100">
-                      <p className="text-2xl font-black text-amber-700">
-                        {extractionResult.summary?.needsReview ?? 0}
-                      </p>
-                      <p className="text-[9px] font-bold text-amber-500 uppercase tracking-widest mt-0.5">
-                        Review
-                      </p>
-                    </Card>
-                    <Card className="p-3 text-center bg-blue-50 border-blue-100">
-                      <p className="text-2xl font-black text-blue-700">
-                        {extractionResult.summary?.newRecord ?? 0}
-                      </p>
-                      <p className="text-[9px] font-bold text-blue-500 uppercase tracking-widest mt-0.5">
-                        New
-                      </p>
-                    </Card>
-                  </div>
-
-                  {/* Scope mismatch warning */}
-                  {screeningState && screeningDistrict && (
-                    <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl">
-                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                      <div className="text-xs text-amber-700">
-                        <p className="font-bold">Scope Context Applied</p>
-                        <p className="mt-1">
-                          Matching is restricted to <strong>{screeningState}</strong> · <strong>{screeningDistrict}</strong>
-                          {facilityName && ` · ${facilityName}`}. If your uploaded data is from a different location, it will not match existing records.
+                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2.5">
+                    <div className="flex items-start gap-2.5 text-xs text-slate-600">
+                      <Sparkles className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-slate-700">What happens next?</p>
+                        <p className="mt-0.5 text-slate-500">
+                          The agent extracts data rows and reconciles them against existing records. Staged new entries and matching conflicts will appear in the staging terminal.
                         </p>
                       </div>
                     </div>
-                  )}
+                  </div>
 
-                  {/* Empty-scope warning */}
-                  {extractionResult.summary?.isEmptyScope && (
-                    <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl">
-                      <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                      <div className="text-xs text-blue-700">
-                        <p className="font-bold">No existing inmates found for this date and facility</p>
-                        <p className="mt-1">All {extractionResult.summary.newRecord} rows will be treated as new records. If you believe this data already exists, check the screening date and facility name.</p>
-                      </div>
+                  <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3 text-xs text-blue-800 flex gap-2.5">
+                    <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Automated Staging Active</p>
+                      <p className="mt-0.5 text-blue-600/80">
+                        Confirmations with confidence &ge;85% are automatically resolved. Conflicts and staged reviews remain in the quarantine terminal for manual review.
+                      </p>
                     </div>
-                  )}
+                  </div>
 
-                  {/* Duplicate warning */}
-                  {(extractionResult.summary?.duplicateInFile > 0 || extractionResult.summary?.duplicateInScope > 0) && (
-                    <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl">
-                      <FileWarning className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                      <div className="text-xs text-amber-700">
-                        {extractionResult.summary.duplicateInFile > 0 && (
-                          <p><strong>{extractionResult.summary.duplicateInFile}</strong> duplicate(s) found within uploaded file</p>
-                        )}
-                        {extractionResult.summary.duplicateInScope > 0 && (
-                          <p><strong>{extractionResult.summary.duplicateInScope}</strong> record(s) already exist in this scope</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Parse warnings */}
-                  {extractionResult.warnings?.length > 0 && (
-                    <div className="space-y-1">
-                      {extractionResult.warnings.map((w: string, i: number) => (
-                        <div key={i} className="flex items-center gap-2 text-xs text-slate-500">
-                          <AlertTriangle className="w-3 h-3 text-slate-400" />
-                          {w}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Proceed to Review */}
+                  {/* Proceed to Terminal */}
                   <Button
-                    onClick={handleProceedToReview}
-                    className="w-full h-12 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200/50"
+                    onClick={() => {
+                      handleClose();
+                      router.push('/dashboard/vertex/ingestion');
+                      onSuccess?.();
+                    }}
+                    className="w-full h-12 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200/50 transition-all flex items-center justify-center gap-2"
                   >
-                    Open Reconciliation Review
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    Open Reconciliation Terminal
+                    <ArrowRight className="w-4 h-4" />
                   </Button>
                 </motion.div>
               )}
