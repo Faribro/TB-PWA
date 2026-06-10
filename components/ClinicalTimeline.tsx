@@ -168,11 +168,11 @@ export function ClinicalTimeline({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="w-full mt-14 mb-0.5 p-1 px-3 pb-1 bg-transparent"
+      className="w-full mt-10 mb-0.5 p-1 px-3 pb-1 bg-transparent"
     >
-      <div className="relative flex items-center justify-between w-full px-1 overflow-x-auto pb-0.5 hide-scrollbar">
+      <div className="relative flex items-center justify-between w-full px-1 overflow-x-auto pt-3 pb-0.5 hide-scrollbar">
         {/* Connecting Lines Container */}
-        <div className="absolute left-8 right-8 top-[12px] h-[2px] bg-slate-100 pointer-events-none -z-10 rounded-full overflow-hidden">
+        <div className="absolute left-8 right-8 top-[24px] h-[2px] bg-slate-100 pointer-events-none -z-10 rounded-full overflow-hidden">
           <div className="absolute inset-0 flex">
             {nodes.map((n, idx) => {
               if (idx === nodes.length - 1) return null;
