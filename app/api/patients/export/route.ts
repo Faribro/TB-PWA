@@ -1,33 +1,91 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { createServerClient } from '@/lib/supabase-server-admin';
 import { normalizeRole, Role } from '@/lib/constants/roles';
+import { prisma } from '@/lib/prisma';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
-const EXPORT_COLUMNS = [
-  'id', 'unique_id', 'inmate_name', 'screening_date', 'submitted_on',
-  'screening_state', 'screening_district', 'facility_name', 'facility_type',
-  'xray_result', 'tb_diagnosed', 'tb_type', 'att_start_date', 'att_completion_date',
-  'referral_date', 'referred_facility', 'hiv_status', 'art_status', 'art_number',
-  'sex', 'age', 'date_of_birth', 'contact_number', 'address',
-  'father_husband_name', 'inmate_type', 'staff_name', 'symptoms_10s',
-  'tb_past_history', 'remarks', 'nikshay_abha_id', 'registration_date',
-  'tb_diagnosis_date', 'closure_reason', 'created_at', 'updated_at'
-].join(',');
+// All exportable columns aligned with the actual Prisma schema
+const EXPORT_SELECT = {
+  id: true,
+  unique_id: true,
+  kobo_uuid: true,
+  inmate_name: true,
+  father_husband_name: true,
+  date_of_birth: true,
+  age: true,
+  sex: true,
+  contact_number: true,
+  address: true,
+  inmate_type: true,
+  screening_date: true,
+  submitted_on: true,
+  screening_state: true,
+  screening_district: true,
+  facility_name: true,
+  facility_type: true,
+  staff_name: true,
+  symptoms_10s: true,
+  tb_past_history: true,
+  xray_result: true,
+  referral_date: true,
+  referred_facility: true,
+  tb_diagnosed: true,
+  tb_diagnosis_date: true,
+  tb_type: true,
+  att_start_date: true,
+  att_completion_date: true,
+  treatment_regimen: true,
+  hiv_status: true,
+  art_status: true,
+  art_number: true,
+  nikshay_abha_id: true,
+  registration_date: true,
+  closure_reason: true,
+  remarks: true,
+  ai_link_status: true,
+  other_facility_name: true,
+  created_at: true,
+  updated_at: true,
+} as const;
+
+function getPrismaStateConditions(state: string) {
+  const normalized = state.toLowerCase().replace(/[_\s]+/g, '');
+  switch (normalized) {
+    case 'maharashtra':
+    case 'mumbai':
+      return {
+        OR: [
+          { screening_state: { contains: 'maharashtra', mode: 'insensitive' as const } },
+          { screening_state: { contains: 'mumbai', mode: 'insensitive' as const } },
+        ],
+      };
+    case 'madhyapradesh':
+      return { screening_state: { equals: 'Madhya Pradesh' } };
+    case 'uttarakhand':
+    case 'uttaranchal':
+      return { screening_state: { equals: 'Uttarakhand' } };
+    case 'gujarat':
+      return { screening_state: { equals: 'Gujarat' } };
+    case 'chandigarh':
+      return { screening_state: { equals: 'Chandigarh' } };
+    default:
+      return { screening_state: { contains: state, mode: 'insensitive' as const } };
+  }
+}
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
-  
+
   try {
     const session = await auth();
-    
+
     if (!session?.user) {
-      return NextResponse.json({ 
-        error: 'Unauthorized',
-        message: 'Authentication required' 
-      }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized', message: 'Authentication required' },
+        { status: 401 }
+      );
     }
 
     const role = normalizeRole(session.user.role) ?? Role.ME_OFFICER;
@@ -35,134 +93,145 @@ export async function GET(request: NextRequest) {
       Role.ADMIN as string,
       Role.PROGRAM_MANAGER as string,
       Role.STATE_PROGRAM_MANAGER as string,
-      Role.ME_OFFICER as string
+      Role.ME_OFFICER as string,
     ].includes(role);
-    
+
     if (!canExport) {
-      return NextResponse.json({ 
-        error: 'Forbidden',
-        message: 'Export permission denied. Required: Admin, PM, SPM, or ME.' 
-      }, { status: 403 });
+      return NextResponse.json(
+        {
+          error: 'Forbidden',
+          message: 'Export permission denied. Required: Admin, PM, SPM, or ME.',
+        },
+        { status: 403 }
+      );
     }
 
     const { searchParams } = new URL(request.url);
-    
-    const filters = {
-      state: searchParams.get('state') || undefined,
-      district: searchParams.get('district') || undefined,
-      dateFrom: searchParams.get('dateFrom') || undefined,
-      dateTo: searchParams.get('dateTo') || undefined,
-    };
-    
-    const supabase = createServerClient();
+
+    const filterState      = searchParams.get('state')        || undefined;
+    const filterDistrict   = searchParams.get('district')     || undefined;
+    const filterDateFrom   = searchParams.get('dateFrom')     || undefined;
+    const filterDateTo     = searchParams.get('dateTo')       || undefined;
+    const filterFacility   = searchParams.get('facilityType') || undefined;
+    const filterSearch     = searchParams.get('search')       || undefined;
+    const filterSuspected  = searchParams.get('suspected')    || undefined;
+    const filterTbDiag     = searchParams.get('tbDiagnosed')  || undefined;
+
     const sessionState = session.user.state;
-    const staffName = (session.user as any).staffName;
+    const staffName    = (session.user as any).staffName;
 
-    console.log(`[patients/export] User: ${session.user.email}, Role: ${role}, Filters:`, filters);
+    console.log(`[patients/export] User: ${session.user.email}, Role: ${role}, Filters:`, {
+      filterState, filterDistrict, filterDateFrom, filterDateTo,
+      filterFacility, filterSearch, filterSuspected, filterTbDiag,
+    });
 
-    let query = supabase
-      .from('patients')
-      .select(EXPORT_COLUMNS)
-      .order('screening_date', { ascending: false, nullsFirst: false })
-      .order('id', { ascending: false });
+    // ── Build Prisma WHERE clause ─────────────────────────────────────────────
+    const where: any = { AND: [] };
 
+    // 1. RBAC scope enforcement
     if (role === Role.STATE_PROGRAM_MANAGER || role === Role.ME_OFFICER) {
       if (sessionState && sessionState !== 'All') {
-        if (sessionState === 'Maharashtra') {
-          query = query.in('screening_state', ['Maharashtra', 'Mumbai']);
-        } else {
-          query = query.eq('screening_state', sessionState);
-        }
+        where.AND.push(getPrismaStateConditions(sessionState));
       }
     } else if (role === Role.PRISON_COORDINATOR) {
       if (staffName) {
-        query = query.ilike('staff_name', staffName.trim());
+        where.AND.push({
+          staff_name: { equals: staffName.trim(), mode: 'insensitive' },
+        });
       }
     }
+    // ADMIN / PROGRAM_MANAGER: no additional RBAC filter
 
-    if (filters.state && filters.state !== 'all') {
-      if (filters.state === 'Maharashtra') {
-        query = query.in('screening_state', ['Maharashtra', 'Mumbai']);
+    // 2. User-applied filters
+    if (filterState && filterState !== 'all') {
+      where.AND.push(getPrismaStateConditions(filterState));
+    }
+    if (filterDistrict && filterDistrict !== 'all') {
+      where.AND.push({ screening_district: { equals: filterDistrict } });
+    }
+    if (filterDateFrom) {
+      where.AND.push({ screening_date: { gte: new Date(filterDateFrom) } });
+    }
+    if (filterDateTo) {
+      where.AND.push({ screening_date: { lte: new Date(filterDateTo) } });
+    }
+    if (filterFacility && filterFacility !== 'all') {
+      where.AND.push({ facility_type: { equals: filterFacility } });
+    }
+    if (filterSearch) {
+      const q = filterSearch.trim();
+      where.AND.push({
+        OR: [
+          { inmate_name: { contains: q, mode: 'insensitive' } },
+          { unique_id:   { contains: q, mode: 'insensitive' } },
+        ],
+      });
+    }
+    if (filterSuspected && filterSuspected !== 'all') {
+      if (filterSuspected === 'Yes') {
+        where.AND.push({
+          OR: [
+            { xray_result: { contains: 'abnormal',  mode: 'insensitive' } },
+            { xray_result: { contains: 'suspected', mode: 'insensitive' } },
+          ],
+        });
+      } else if (filterSuspected === 'No') {
+        where.AND.push({ xray_result: { contains: 'normal', mode: 'insensitive' } });
       } else {
-        query = query.eq('screening_state', filters.state);
+        where.AND.push({ xray_result: { equals: filterSuspected } });
       }
     }
-    
-    if (filters.district && filters.district !== 'all') {
-      query = query.eq('screening_district', filters.district);
-    }
-    
-    if (filters.dateFrom) {
-      query = query.gte('screening_date', filters.dateFrom);
-    }
-    
-    if (filters.dateTo) {
-      query = query.lte('screening_date', filters.dateTo);
-    }
-
-    const batchSize = 2000;
-    const maxRecords = 100000;
-    const allRecords: any[] = [];
-    let offset = 0;
-    let hasMore = true;
-    let batches = 0;
-
-    while (hasMore && batches < 50 && allRecords.length < maxRecords) {
-      const { data, error } = await query.range(offset, offset + batchSize - 1);
-      
-      if (error) {
-        console.error('[patients/export] Query error:', error);
-        return NextResponse.json({ 
-          error: 'Database query failed',
-          message: error.message
-        }, { status: 500 });
-      }
-
-      if (data && data.length > 0) {
-        allRecords.push(...data);
-        batches++;
-        offset += data.length;
-        hasMore = data.length === batchSize;
-        
-        console.log(`[patients/export] Batch ${batches}: fetched ${data.length} records (total: ${allRecords.length})`);
-        
-        if (allRecords.length >= maxRecords) {
-          console.warn(`[patients/export] Hit safety cap of ${maxRecords} records`);
-          break;
-        }
+    if (filterTbDiag && filterTbDiag !== 'all') {
+      if (filterTbDiag.toLowerCase() === 'pending') {
+        where.AND.push({ tb_diagnosed: null });
       } else {
-        hasMore = false;
+        where.AND.push({ tb_diagnosed: { equals: filterTbDiag } });
       }
     }
+
+    // Clean up empty AND array
+    if (where.AND.length === 0) delete where.AND;
+
+    // ── Single Prisma query (no range loops) ──────────────────────────────────
+    const records = await prisma.patients.findMany({
+      where,
+      select: EXPORT_SELECT,
+      orderBy: [{ screening_date: 'desc' }, { id: 'desc' }],
+    });
 
     const durationMs = Date.now() - startTime;
-    console.log(`[patients/export] ✅ Exported ${allRecords.length} records in ${batches} batches (${durationMs}ms)`);
+    console.log(
+      `[patients/export] ✅ Exported ${records.length} records via Prisma in ${durationMs}ms`
+    );
 
-    return NextResponse.json({
-      data: allRecords,
-      meta: {
-        total: allRecords.length,
-        batches,
-        durationMs,
-        role,
-        filters,
-        cappedAt: allRecords.length >= maxRecords ? maxRecords : undefined
+    return NextResponse.json(
+      {
+        data: records,
+        meta: {
+          total: records.length,
+          durationMs,
+          role,
+          filters: { filterState, filterDistrict, filterDateFrom, filterDateTo, filterFacility, filterSearch, filterSuspected, filterTbDiag },
+        },
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Total-Records': String(records.length),
+          'X-Duration-Ms': String(durationMs),
+        },
       }
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Total-Records': String(allRecords.length),
-        'X-Batches': String(batches),
-        'X-Duration-Ms': String(durationMs)
-      }
-    });
+    );
   } catch (error) {
     const durationMs = Date.now() - startTime;
     console.error('[patients/export] Exception:', error);
-    
-    return NextResponse.json({ 
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
   }
 }

@@ -215,7 +215,8 @@ export async function GET(request: NextRequest) {
     const fullDetails = searchParams.get('fullDetails') === 'true';
     
     // Generate cache key based on all parameters
-    const cacheKey = `patients:${scope.role}:${scope.sessionState || 'all'}:${cursor || 'first'}:${requestedLimit}:${JSON.stringify(filters)}:${fullDetails}`;
+    // Include staffName for PC-level RBAC isolation — prevents cross-user cache bleed
+    const cacheKey = `patients:${scope.role}:${scope.sessionState || 'all'}:${scope.staffName || 'all'}:${cursor || 'first'}:${requestedLimit}:${JSON.stringify(filters)}:${fullDetails}`;
     
     // Try cache first (30s TTL)
     const cachedResponse = await getCachedWithMemory<CursorPaginationResponse>(

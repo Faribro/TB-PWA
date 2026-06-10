@@ -82,7 +82,8 @@ export async function GET(request: NextRequest) {
     };
     
     // Generate cache key based on scope and filters
-    const cacheKey = `patients:bulk:${scope.role}:${scope.sessionState || 'all'}:${filters.state || 'all'}:${filters.district || 'all'}:${filters.dateFrom || 'all'}:${filters.dateTo || 'all'}`;
+    // Include staffName for PC-level RBAC isolation — prevents cross-user cache bleed
+    const cacheKey = `patients:bulk:${scope.role}:${scope.sessionState || 'all'}:${scope.staffName || 'all'}:${filters.state || 'all'}:${filters.district || 'all'}:${filters.dateFrom || 'all'}:${filters.dateTo || 'all'}`;
     
     console.log('[patients/bulk] Checking cache for key:', cacheKey);
     

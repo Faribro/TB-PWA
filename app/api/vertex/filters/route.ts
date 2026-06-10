@@ -50,10 +50,13 @@ export async function GET(request: NextRequest) {
     const staffName = (session.user as any).staffName;
 
     // Check Redis cache
+    // Include state/staffName for full RBAC session isolation
     const cacheKey = await buildVersionedKey(
       CacheNamespace.VERTEX_METRICS,
       'filters',
-      rawRole
+      rawRole,
+      state || 'all',
+      staffName || 'all'
     );
 
     const redis = getRedisClient();

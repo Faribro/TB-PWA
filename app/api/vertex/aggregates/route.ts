@@ -297,11 +297,11 @@ export async function GET(request: NextRequest) {
     const state = session.user.state;
     const staffName = (session.user as any).staffName;
 
-    // Build VERSIONED cache key
+    // Build VERSIONED cache key — includes state/staffName for full RBAC session isolation
     const namespace = type === 'heatmap' ? CacheNamespace.VERTEX_HEATMAP :
                       type === 'month' ? CacheNamespace.VERTEX_MONTH :
                       CacheNamespace.VERTEX_DAILY;
-    
+
     const cacheKey = await buildVersionedKey(
       namespace,
       String(year),
@@ -309,7 +309,9 @@ export async function GET(request: NextRequest) {
       date || 'none',
       filterState || 'all',
       filterDistrict || 'all',
-      rawRole
+      rawRole,
+      state || 'all',
+      staffName || 'all'
     );
 
     let cached: any = null;

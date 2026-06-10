@@ -255,13 +255,25 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
   });
 
   // Separate call for selected month totals panel
-  const { 
-    data: monthMetrics, 
+  const {
+    data: monthMetrics,
     error: monthMetricsError,
     isLoading: isLoadingMonthMetrics,
     mutate: mutateMonthMetrics
   } = useSWR(
-    `/api/vertex/metrics?year=${currentYear}&month=${currentMonth}&view=month&state=${selectedState || 'all'}&district=${selectedDistrict || 'all'}`,
+    (() => {
+      const p = new URLSearchParams({
+        year:    String(currentYear),
+        month:   String(currentMonth),
+        view:    'month',
+        state:   selectedState    || 'all',
+        district: selectedDistrict || 'all',
+      });
+      if (filters.facilityType && filters.facilityType !== 'all') p.set('facilityType', filters.facilityType);
+      if (filters.suspected    && filters.suspected    !== 'all') p.set('suspected',    filters.suspected);
+      if (filters.tbDiagnosed  && filters.tbDiagnosed  !== 'all') p.set('tbDiagnosed',  filters.tbDiagnosed);
+      return `/api/vertex/metrics?${p.toString()}`;
+    })(),
     fetcher,
     {
       dedupingInterval: 0, // Allow immediate refetch
@@ -491,22 +503,59 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
   };
 
   const handleExport = useCallback(async () => {
-    if (isExporting || filteredPatients.length === 0) return;
+    if (isExporting) return;
     setIsExporting(true);
     sounds.download();
     try {
-      exportPatientsToXLSX(
-        filteredPatients as unknown as Record<string, unknown>[],
-        {
-          filename: 'samadhaan-vertex',
-          includeMetrics: true,
-          districtFilter: filters.district || undefined,
-        }
-      );
+      // Build export URL with ALL active filters — API fetches every matching record
+      const params = new URLSearchParams();
+      if (filters.state)        params.set('state',       filters.state);
+      if (filters.district)     params.set('district',    filters.district);
+      if (filters.dateFrom)     params.set('dateFrom',    filters.dateFrom);
+      if (filters.dateTo)       params.set('dateTo',      filters.dateTo);
+      if (filters.facilityType) params.set('facilityType', filters.facilityType);
+      if (filters.search)       params.set('search',      filters.search);
+      if (filters.suspected !== 'all')       params.set('suspected',   filters.suspected);
+      if (filters.tbDiagnosed !== 'all')     params.set('tbDiagnosed', filters.tbDiagnosed);
+
+      const res = await fetch(`/api/patients/export?${params.toString()}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: 'Export failed' }));
+        throw new Error(err.message || `Export failed: ${res.status}`);
+      }
+
+      const json = await res.json();
+      const allRecords: Record<string, unknown>[] = json.data ?? [];
+
+      if (allRecords.length === 0) {
+        console.warn('[Vertex] Export returned 0 records for applied filters');
+        return;
+      }
+
+      exportPatientsToXLSX(allRecords, {
+        filename: 'samadhaan-vertex',
+        includeMetrics: true,
+        districtFilter: filters.district || undefined,
+        activeFilters: {
+          State: filters.state || 'all',
+          District: filters.district || 'all',
+          'Date From': filters.dateFrom || 'all',
+          'Date To': filters.dateTo || 'all',
+          'Facility Type': filters.facilityType || 'all',
+          'Suspected': filters.suspected || 'all',
+          'TB Diagnosed': filters.tbDiagnosed || 'all',
+          'Search': filters.search || 'all',
+        },
+      });
+
+      console.log(`[Vertex] ✅ Exported ${allRecords.length} records (${json.meta?.durationMs ?? '?'}ms)`);
+    } catch (err) {
+      console.error('[Vertex] Export error:', err);
+      alert(`Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setIsExporting(false);
     }
-  }, [filteredPatients, filters.district, isExporting]);
+  }, [filters, isExporting]);
 
   const handleDayClick = useCallback((date: string) => {
     if (selectedCalendarDate === date) {
@@ -690,7 +739,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
           {canExport && (
             <button
               onClick={handleExport}
-              disabled={isExporting || filteredPatients.length === 0}
+              disabled={isExporting}
               className="flex items-center gap-1 px-3 py-1.5 bg-[#437a22] text-white
                          rounded-md text-xs font-medium hover:bg-[#2e5c10]
                          transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
