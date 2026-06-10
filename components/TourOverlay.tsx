@@ -122,6 +122,7 @@ export default function TourOverlay() {
   const findTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const clickRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const selectDateClickInProgressRef = useRef(false)
+  const clickActionExecutedRef = useRef(false)
   const clinicalRecoveryRef = useRef({ facilityClicked: false, patientClicked: false })
   const confettiRef = useRef<HTMLDivElement>(null)
   const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
@@ -624,6 +625,7 @@ export default function TourOverlay() {
 
     // If this step requires a click, click the first matching target and then advance
     if (stepData.action === 'click' && stepData.target) {
+      clickActionExecutedRef.current = true
       const selectors = stepData.target.split(',').map(s => s.trim())
       const desiredPath = stepData.navigateTo || stepData.route
       const currentPath =
@@ -923,44 +925,46 @@ export default function TourOverlay() {
     nextStep()
   }, [activeTour, currentStep, completeTour, isLastStep, isRunning, nextStep, stopSpeech])
 
-  // ─── BUG 6 + BUG 2: findElement with navigation guard ─────────────────────
+  // ─── findElement with navigation guard ─────────────────────
   useEffect(() => {
     if (!activeTour || !isRunning || isMinimized) return
 
     const currentStepData = activeTour.steps[currentStep]
+    if (!currentStepData) return
+
+    // Prevent navigation check or element finding if click action is executed
+    if (clickActionExecutedRef.current) return
 
     // Prevent the normal element-finding effect from overriding the spotlight while
     // we are doing the select-date special click-through logic.
     if (currentStepData.id === 'select-date' && selectDateClickInProgressRef.current) return
 
-    // BUG 6: Center steps — skip element search entirely
-    if (!currentStepData.target || currentStepData.placement === 'center') {
-      clearFindTimer()
-      setTargetRect(null)
-      setTargetNotFound(false)
-      clearSpotlightZoom()
-      setIsNavigating(false)
-      return
-    }
-
-    // BUG 2 REFINED: Navigate if on wrong page (checks navigateTo OR route)
-    const targetPath = currentStepData.navigateTo || currentStepData.route
+    // Navigate if on wrong page (checks step's route)
+    const targetPath = currentStepData.route
     const currentNorm = normalizePath(pathname)
     const targetNorm = targetPath ? normalizePath(targetPath) : null
 
-    // Fixed: Use exact match instead of startsWith to prevent false positives
     if (targetNorm && currentNorm !== targetNorm) {
       clearFindTimer()
       setTargetRect(null)
       setTargetNotFound(false)
       clearSpotlightZoom()
       setIsNavigating(true)
-      router.push(targetPath!)
+      router.push(targetPath)
       return
     }
 
     // If still navigating, don't start search yet
     if (isNavigating) return
+
+    // Center steps — skip element search entirely
+    if (!currentStepData.target || currentStepData.placement === 'center') {
+      clearFindTimer()
+      setTargetRect(null)
+      setTargetNotFound(false)
+      clearSpotlightZoom()
+      return
+    }
 
     // BUG 1: findElement with not-found fallback
     clearFindTimer()
@@ -1143,17 +1147,17 @@ export default function TourOverlay() {
 
     return () => clearFindTimer()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep, activeTour?.id, isRunning, isMinimized, searchTrigger, clearSpotlightZoom])
+  }, [currentStep, activeTour?.id, isRunning, isMinimized, searchTrigger, clearSpotlightZoom, pathname, router])
 
-  // ─── BUG 2: pathname change or safety timeout → finish navigation ─────────
+  // Pathname change detection → finish navigation
   useEffect(() => {
     if (!isNavigating) return
 
-    // Pathname change detection - increased delay for page load
+    // Pathname change detection - 300ms delay for page transition/mount
     const timer = setTimeout(() => {
       setIsNavigating(false)
       setSearchTrigger((n) => n + 1)
-    }, 1200)
+    }, 300)
 
     // Safety watchdog: After 5 seconds, force navigation state to end 
     // to prevent the tour from being stuck if pathname doesn't change as expected.
@@ -1176,6 +1180,7 @@ export default function TourOverlay() {
     setTargetNotFound(false)
     clearSpotlightZoom()
     clinicalRecoveryRef.current = { facilityClicked: false, patientClicked: false }
+    clickActionExecutedRef.current = false
     // If we were navigating in the previous step, but the new step is already on the
     // current route, ensure we exit navigating mode so spotlight search can run.
     if (activeTour && isRunning) {

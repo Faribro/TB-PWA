@@ -55,12 +55,10 @@ type ContentBlock =
 
 const ARTICLE_TOUR_MAP: Record<string, string> = {
   'command-hub-page': 'command-hub-tour',
-  'how-to-triage': 'triage-ai-flag',
   'analytics-overview': 'generate-analytics-report',
   'user-roles-permissions': 'add-new-user',
   'map-overview': 'read-gis-map',
   'mne-overview': 'set-mne-targets',
-  'understanding-ltfu': 'mark-ltfu',
   'navigating-sidebar': 'first-time-user',
 }
 

@@ -36,7 +36,7 @@ export const ALL_TOURS: Tour[] = [
           'date to recording diagnosis and treatment outcomes.',
         target: null,
         placement: 'center',
-        route: '/dashboard/vertex',
+        route: '/dashboard/command-hub',
       },
       {
         id: 'navigate-to-vertex',
@@ -46,7 +46,7 @@ export const ALL_TOURS: Tour[] = [
           'your hub for patient screening activity.',
         target: '[data-tour-id="sidebar-vertex"]',
         placement: 'right',
-        route: '/dashboard/vertex',
+        route: '/dashboard/command-hub',
         navigateTo: '/dashboard/vertex',
         action: 'click',
       },
@@ -518,46 +518,6 @@ export const ALL_TOURS: Tour[] = [
   },
 
   // DISABLED TOURS (Follow-up Pipeline Removed)
-  
-  // TOUR [DISABLED]: "Triage an AI-Flagged Patient"
-  {
-    id: 'triage-ai-flag',
-    title: 'Triage an AI-Flagged Patient',
-    description: '[DISABLED] Follow-up Pipeline has been removed from navigation.',
-    category: 'pipeline',
-    estimatedMinutes: 4,
-    enabled: false,
-    steps: [
-      {
-        id: 'intro',
-        target: null,
-        route: '/dashboard/command-hub',
-        title: 'Tour Unavailable',
-        body: 'This tour is no longer available as the Follow-up Pipeline tab has been removed from the system.',
-        placement: 'center',
-      },
-    ],
-  },
-
-  // TOUR [DISABLED]: "Mark a Patient as LTFU"
-  {
-    id: 'mark-ltfu',
-    title: 'Mark a Patient as LTFU',
-    description: '[DISABLED] Follow-up Pipeline has been removed from navigation.',
-    category: 'pipeline',
-    estimatedMinutes: 3,
-    enabled: false,
-    steps: [
-      {
-        id: 'intro',
-        target: null,
-        route: '/dashboard/command-hub',
-        title: 'Tour Unavailable',
-        body: 'This tour is no longer available as the Follow-up Pipeline tab has been removed from the system.',
-        placement: 'center',
-      },
-    ],
-  },
 
   // TOUR [DISABLED]: "Export a Monthly Screening Report"
   {
