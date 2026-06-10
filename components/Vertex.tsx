@@ -723,6 +723,156 @@ export default function Vertex({
   };
 } = {}) {
 
+  // Canvas generative backdrop ref and state
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const waveColors = useMemo(() => [
+    'rgba(168, 85, 247, 0.22)',  // Violet
+    'rgba(99, 102, 241, 0.22)',   // Indigo
+    'rgba(6, 182, 212, 0.22)',    // Cyan
+    'rgba(244, 63, 94, 0.22)',    // Rose
+    'rgba(16, 185, 129, 0.22)',   // Emerald
+    'rgba(234, 179, 8, 0.22)',    // Amber
+  ], []);
+
+  const [colorIndex, setColorIndex] = useState(0);
+  const colorIndexRef = useRef(colorIndex);
+  useEffect(() => {
+    colorIndexRef.current = colorIndex;
+  }, [colorIndex]);
+
+  const cycleWaveColor = useCallback(() => {
+    setColorIndex((prev) => (prev + 1) % waveColors.length);
+  }, [waveColors.length]);
+
+  const handleParentPointerDown = useCallback((e: React.PointerEvent) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.tagName === 'INPUT' || 
+      target.tagName === 'BUTTON' || 
+      target.tagName === 'SELECT' || 
+      target.closest('button') || 
+      target.closest('a') ||
+      target.closest('.vertex-glass-tile') ||
+      target.closest('.vertex-filter-select') ||
+      target.closest('[role="combobox"]') ||
+      target.closest('[role="listbox"]')
+    ) {
+      return;
+    }
+    cycleWaveColor();
+  }, [cycleWaveColor]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationId: number;
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+
+    interface WavePoint {
+      nx: number;
+      ny: number;
+      x?: number;
+      y?: number;
+    }
+    interface WaveLine {
+      points: WavePoint[];
+      ran: number;
+    }
+    const lines: WaveLine[] = [];
+
+    const setup = () => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+
+      lines.length = 0;
+      const lineCount = Math.max(12, Math.floor(height / 28));
+      const pointCount = 14;
+      const spacingH = width / pointCount;
+      const spacingV = height / lineCount;
+
+      for (let v = 0; v < lineCount; v++) {
+        const line: WaveLine = {
+          points: [],
+          ran: 0.2 + Math.random() * 0.7,
+        };
+
+        for (let h = 0; h < pointCount; h++) {
+          line.points.push({
+            nx: h * spacingH,
+            ny: v * spacingV,
+          });
+        }
+        line.points.push({
+          nx: width + spacingH,
+          ny: v * spacingV,
+        });
+        lines.push(line);
+      }
+    };
+
+    setup();
+
+    // Debounced resize handler
+    let resizeTimeout: NodeJS.Timeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        setup();
+      }, 150);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    let step = 0;
+
+    const update = () => {
+      step += 0.4; // Slower, elegant animation flow
+
+      ctx.clearRect(0, 0, width, height);
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = waveColors[colorIndexRef.current];
+
+      lines.forEach((line) => {
+        line.points.forEach((point) => {
+          point.x = point.nx;
+          point.y =
+            point.ny +
+            Math.sin((point.x * line.ran + (step + point.ny)) / 40) *
+              (6 + (point.ny / height) * 34);
+        });
+
+        ctx.beginPath();
+        line.points.forEach((point, h) => {
+          const nextPoint = line.points[h + 1];
+          if (h === 0) {
+            ctx.moveTo(point.x!, point.y!);
+          } else if (nextPoint) {
+            const cpx = point.x! + (nextPoint.x! - point.x!) / 2;
+            const cpy = point.y! + (nextPoint.y! - point.y!) / 2;
+            ctx.quadraticCurveTo(point.x!, point.y!, cpx, cpy);
+          }
+        });
+        ctx.stroke();
+      });
+
+      animationId = requestAnimationFrame(update);
+    };
+
+    update();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationId);
+      clearTimeout(resizeTimeout);
+    };
+  }, [waveColors]);
 
   const now = useMemo(() => new Date(), []);
   const currentMonthStart = useMemo(
@@ -1394,9 +1544,15 @@ export default function Vertex({
   return (
     <>
       <GlassShatterOverlay />
-      <div className="relative w-full font-outfit">
+      <div className="relative w-full font-outfit" onPointerDown={handleParentPointerDown}>
       {/* Premium Background Decorative Elements / Synthwave Aurora */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        {/* Generative Interactive Canvas Backdrop */}
+        <canvas 
+          ref={canvasRef} 
+          className="absolute inset-0 w-full h-full pointer-events-none z-0" 
+          style={{ background: 'transparent' }} 
+        />
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[rgba(167,139,250,0.15)] blur-[120px] rounded-full mix-blend-screen" style={{ animation: 'vertex-aurora 15s ease-in-out infinite alternate' }} />
         <div className="absolute bottom-[-10%] right-[-5%] w-[60%] h-[60%] bg-[rgba(96,165,250,0.12)] blur-[140px] rounded-full mix-blend-screen" style={{ animation: 'vertex-aurora 20s ease-in-out infinite alternate-reverse' }} />
         <div className="absolute top-[40%] left-[30%] w-[40%] h-[40%] bg-[rgba(244,114,182,0.08)] blur-[100px] rounded-full mix-blend-screen" style={{ animation: 'vertex-aurora 18s ease-in-out infinite alternate' }} />
@@ -1411,8 +1567,10 @@ export default function Vertex({
            className="w-full lg:col-span-5 lg:sticky lg:top-2 lg:self-start min-w-0"
         >
           <div className="vertex-glass-card rounded-[24px] p-3 lg:p-4 flex flex-col relative min-h-0">
+            {/* Glass sweep layer */}
+            <div className="absolute inset-0 pointer-events-none vertex-glass-sweep-overlay z-0" />
 
-            <div className="overflow-hidden">
+            <div className="overflow-hidden relative z-10">
               <CalendarHeader 
                 currentDate={currentDate}
                 onPrevMonth={handlePrevMonth}
@@ -1513,7 +1671,7 @@ export default function Vertex({
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 1.02 }}
                   transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                  className="flex flex-col flex-1 min-h-0"
+                  className="flex flex-col flex-1 min-h-0 relative z-10"
                 >
                   {/* Header — Premium frosted glass */}
                   <div className="flex-shrink-0 flex items-center justify-between px-8 py-5 vertex-feed-header">
@@ -1761,7 +1919,7 @@ export default function Vertex({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="flex flex-col flex-1 min-h-0"
+                  className="flex flex-col flex-1 min-h-0 relative z-10"
                 >
                   {(() => {
                     // Apply state and district filters to ALL patients for the year (for bar chart)

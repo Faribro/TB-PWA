@@ -253,6 +253,16 @@ canvas[data-engine] {
   100% { opacity: 0.3; transform: scale(0.98); }
 }
 
+/* GPU-Accelerated Neon Glows for Cards */
+@keyframes neonPulse {
+  0% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1.0;
+  }
+}
+
 /* ── Vertex Glass Card ────────────────────────────────────── */
 .vertex-glass-card {
   background: linear-gradient(
@@ -274,11 +284,29 @@ canvas[data-engine] {
   overflow: hidden;
 }
 
-/* The light sweep overlay – applied as pseudo-element */
+/* Neon border & glowing shadow layer */
 .vertex-glass-card::before {
   content: '';
   position: absolute;
   inset: 0;
+  border-radius: inherit;
+  border: 1.5px solid rgba(168, 85, 247, 0.45);
+  box-shadow:
+    0 0 16px 2px rgba(168, 85, 247, 0.25),
+    0 0 32px 4px rgba(99, 102, 241, 0.15);
+  pointer-events: none;
+  z-index: 0;
+  will-change: opacity;
+  transform: translate3d(0, 0, 0);
+  animation: neonPulse 3s ease-in-out infinite alternate;
+}
+
+/* The light sweep overlay – applied as static overlay */
+.vertex-glass-sweep-overlay {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
   background: linear-gradient(
     105deg,
     transparent 30%,
@@ -314,6 +342,7 @@ canvas[data-engine] {
   animation: vertex-prismatic-border 6s ease-in-out infinite;
   z-index: 2;
 }
+
 
 /* ── Vertex Glass Tile (Calendar Day Cell) ────────────────── */
 .vertex-glass-tile {
@@ -1009,21 +1038,25 @@ html {
     0 12px 32px -4px rgba(15, 23, 42, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     inset 0 -1px 0 rgba(148, 163, 184, 0.08);
+  position: relative;
+  overflow: hidden;
 }
 
+/* Neon border & glowing shadow layer */
 .care-cascade-card::before {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 20px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.4) 0%,
-    rgba(255, 255, 255, 0.0) 50%,
-    rgba(148, 163, 184, 0.04) 100%
-  );
+  border-radius: inherit;
+  border: 1.5px solid rgba(168, 85, 247, 0.45);
+  box-shadow:
+    0 0 16px 2px rgba(168, 85, 247, 0.25),
+    0 0 32px 4px rgba(99, 102, 241, 0.15);
   pointer-events: none;
   z-index: 0;
+  will-change: opacity;
+  transform: translate3d(0, 0, 0);
+  animation: neonPulse 3s ease-in-out infinite alternate;
 }
 
 .cascade-donut-zone {
