@@ -37,6 +37,7 @@ export function HorizontalHoverAccordion({
   const colors = {
     complete: {
       primary: '#10B981',
+      darkText: '#065F46', // Emerald-800
       gradient: 'linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%)',
       glass: 'linear-gradient(145deg, rgba(16,185,129,0.12) 0%, rgba(5,150,105,0.20) 50%, rgba(4,120,87,0.08) 100%)',
       shimmer: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
@@ -46,6 +47,7 @@ export function HorizontalHoverAccordion({
     },
     current: {
       primary: '#F59E0B',
+      darkText: '#92400E', // Amber-800
       gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 50%, #B45309 100%)',
       glass: 'linear-gradient(145deg, rgba(245,158,11,0.15) 0%, rgba(217,119,6,0.25) 50%, rgba(180,83,9,0.10) 100%)',
       shimmer: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)',
@@ -55,6 +57,7 @@ export function HorizontalHoverAccordion({
     },
     pending: {
       primary: '#EF4444',
+      darkText: '#991B1B', // Rose-800
       gradient: 'linear-gradient(135deg, #EF4444 0%, #DC2626 50%, #B91C1C 100%)',
       glass: 'linear-gradient(145deg, rgba(239,68,68,0.12) 0%, rgba(220,38,38,0.20) 50%, rgba(185,28,28,0.08) 100%)',
       shimmer: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
@@ -62,6 +65,12 @@ export function HorizontalHoverAccordion({
       orb1: 'radial-gradient(circle at 20% 80%, rgba(239,68,68,0.55) 0%, transparent 50%)',
       orb2: 'radial-gradient(circle at 80% 20%, rgba(220,38,38,0.4) 0%, transparent 50%)',
     },
+  };
+
+  const iconColors = {
+    complete: 'text-emerald-500',
+    current: 'text-amber-500',
+    pending: 'text-rose-500',
   };
 
   const c = colors[colorState];
@@ -128,20 +137,20 @@ export function HorizontalHoverAccordion({
       >
         {/* Premium icon with glassmorphism */}
         <div
-          className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-2xl border"
+          className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-2xl border animate-none"
           style={{
             background: `linear-gradient(145deg, ${c.primary}20, ${c.primary}10)`,
             borderColor: `${c.primary}40`,
             boxShadow: `0 8px 32px ${c.primary}30, inset 0 1px 0 rgba(255,255,255,0.6)`,
           }}
         >
-          <StatusIcon size={20} className={`text-${c.primary === '#10B981' ? 'emerald' : c.primary === '#F59E0B' ? 'amber' : 'rose'}-400 drop-shadow-sm`} />
+          <StatusIcon size={20} className={`${iconColors[colorState]} drop-shadow-sm`} />
         </div>
 
         {/* Compact title */}
         <motion.p
-          className="text-xs font-black uppercase tracking-[0.3em] text-center leading-tight"
-          style={{ color: `${c.primary}CC`, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
+          className="text-xs font-extrabold uppercase tracking-[0.15em] text-center leading-tight"
+          style={{ color: c.darkText, textShadow: '0 1px 1px rgba(255,255,255,0.3)' }}
           animate={{ y: [0, -1, 1, 0] }}
           transition={{ 
             duration: 2, 
@@ -175,7 +184,7 @@ export function HorizontalHoverAccordion({
               pathLength={0.3}
             />
           </svg>
-          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: `${c.primary}CC` }}>
+          <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: c.darkText }}>
             {statusLabel}
           </span>
         </div>
@@ -244,14 +253,14 @@ export function HorizontalHoverAccordion({
       {/* Attention beacon - Award-winning pulse */}
       {isAttentionRequired && (
         <motion.div
-          className="absolute -top-3 -right-3 w-6 h-6 rounded-full z-40"
+          className="absolute top-4 right-4 w-4 h-4 rounded-full z-40"
           style={{ background: c.gradient }}
           animate={{
-            scale: [1, 1.4, 1],
+            scale: [1, 1.25, 1],
             boxShadow: [
               `0 0 0 0 ${c.primary}60`,
-              `0 0 20px 0 ${c.primary}80`,
-              `0 0 40px 0 ${c.primary}60`,
+              `0 0 12px 4px ${c.primary}40`,
+              `0 0 20px 8px ${c.primary}20`,
               `0 0 0 0 ${c.primary}60`,
             ],
           }}

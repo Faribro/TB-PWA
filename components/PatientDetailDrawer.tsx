@@ -9,6 +9,7 @@ import { HorizontalHoverAccordion } from './ui/HorizontalHoverAccordion';
 import { type PatientFormData } from '@/lib/schemas';
 import { calculatePatientPhase } from '@/lib/phase-engine';
 import PatientHistory from './PatientHistory';
+import { ClinicalTimeline } from './ClinicalTimeline';
 import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { VoiceInput } from './VoiceInput';
@@ -195,6 +196,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const watchedHivStatus = watch('HIV Status (Positive/Negative/Unknown)');
   const watchedNikshay = watch('NIKSHAY/ABHA ID');
   const watchedArtStatus = watch('Status at the time of referral (Pre ART/On ART)');
+  const watchedAttCompletion = watch('Date of Treatment Completion (dd/mm/yyyy)');
 
   // Clear invalid clinical dependent fields automatically when parent fields transition
   useEffect(() => {
@@ -1492,6 +1494,20 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                               </HorizontalHoverAccordion>
                             ))}
                           </div>
+                          
+                          <ClinicalTimeline
+                            screeningDate={localPatient?.screening_date}
+                            xrayResult={localPatient?.xray_result || localPatient?.chest_x_ray_result}
+                            symptoms10s={localPatient?.symptoms_10s || localPatient?.symptoms_present}
+                            referralDate={watchedReferralDate}
+                            referredFacility={watchedFacility}
+                            tbDiagnosed={watchedTbDiagnosed}
+                            diagnosisDate={watchedDiagnosisDate}
+                            attStartDate={watchedAttStart}
+                            nikshayId={watchedNikshay}
+                            treatmentCompletionDate={watchedAttCompletion}
+                            closureReason={localPatient?.closure_reason}
+                          />
                         </>
                       );
                     })())}
