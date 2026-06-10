@@ -105,13 +105,14 @@ export function HorizontalHoverAccordion({
       className="group relative flex-1 min-w-[100px] h-full rounded-3xl overflow-hidden cursor-pointer select-none transform-gpu will-change-[transform,box-shadow]"
       style={{
         background: c.glass,
-        boxShadow: activeExpanded 
-          ? `inset 0 1px 0 0 rgba(255,255,255,0.45), ${c.glow}` 
-          : `inset 0 1px 0 0 rgba(255,255,255,0.45), 0 8px 32px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.05)`,
+        border: `1px solid rgba(${c.rgb}, 0.18)`,
         backdropFilter: 'blur(12px) saturate(210%) brightness(102%)',
       }}
       animate={{
-        flex: activeExpanded ? 3.5 : 1,
+        flex: activeExpanded ? 2.0 : 1,
+        border: activeExpanded 
+          ? `1.5px solid rgba(${c.rgb}, 0.45)` 
+          : `1px solid rgba(${c.rgb}, 0.18)`,
         boxShadow: isCurrent && !activeExpanded
           ? [
               `inset 0 1px 0 0 rgba(255,255,255,0.45), 0 8px 32px rgba(0,0,0,0.12), 0 0 20px -10px rgba(${c.rgb}, 0.25)`,
@@ -128,7 +129,8 @@ export function HorizontalHoverAccordion({
         damping: 30,
         boxShadow: isCurrent && !activeExpanded
           ? { type: 'tween', duration: 3.5, repeat: Infinity, ease: 'easeInOut' }
-          : { type: 'tween', duration: 0.4, ease: 'easeInOut' }
+          : { type: 'tween', duration: 0.4, ease: 'easeInOut' },
+        border: { type: 'tween', duration: 0.3, ease: 'easeInOut' }
       }}
       onMouseEnter={() => {
         setIsHovered(true);

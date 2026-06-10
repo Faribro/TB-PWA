@@ -168,7 +168,7 @@ export function ClinicalTimeline({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="w-full mt-8 mb-0.5 p-1 px-3 pb-1 bg-transparent"
+      className="w-full mt-14 mb-0.5 p-1 px-3 pb-1 bg-transparent"
     >
       <div className="relative flex items-center justify-between w-full px-1 overflow-x-auto pb-0.5 hide-scrollbar">
         {/* Connecting Lines Container */}
@@ -251,12 +251,7 @@ export function ClinicalTimeline({
                 isClickable ? 'cursor-pointer' : ''
               }`}
             >
-              {/* Tooltip Card on Hover using elastic spring bezier */}
-              <div className="absolute bottom-[30px] w-48 opacity-0 translate-y-3 scale-95 group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 transition-all duration-400 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] origin-bottom bg-slate-900/95 backdrop-blur-md text-white rounded-xl p-3 shadow-xl border border-slate-800 z-50 text-left pointer-events-none">
-                <p className="text-[11px] font-black uppercase tracking-wider text-cyan-400 mb-0.5">{node.label}</p>
-                <p className="text-[10px] font-medium leading-relaxed text-slate-350">{node.description}</p>
-                <div className="absolute bottom-[-5px] left-1/2 -translate-x-1/2 w-2.5 h-2.5 rotate-45 bg-slate-900 border-r border-b border-slate-800" />
-              </div>
+
 
               {/* Node Circle */}
               <div className="relative">
