@@ -1316,6 +1316,241 @@ const HeaderStats = memo(function HeaderStats({ displayPatients }: HeaderStatsPr
   );
 });
 
+// Status-based styling configuration
+const statusStyles = {
+  normal: {
+    border: 'border-l-emerald-500',
+    bg: 'bg-emerald-50/50',
+    borderColor: 'border-emerald-200',
+  },
+  suspected: {
+    border: 'border-l-amber-400',
+    bg: 'bg-amber-50',
+    borderColor: 'border-amber-200',
+  },
+  tbDiagnosed: {
+    border: 'border-l-red-500',
+    bg: 'bg-red-50',
+    borderColor: 'border-red-200',
+  },
+  attInitiated: {
+    border: 'border-l-blue-400',
+    bg: 'bg-blue-50',
+    borderColor: 'border-blue-200',
+  },
+  attCompleted: {
+    border: 'border-l-violet-400',
+    bg: 'bg-violet-50',
+    borderColor: 'border-violet-200',
+  },
+  default: {
+    border: 'border-l-gray-300',
+    bg: 'bg-white',
+    borderColor: 'border-gray-200',
+  },
+};
+
+// Helper function to determine patient status with priority
+const getPatientStatus = (
+  patient: Patient,
+  isSuspectedTB: (p: Patient) => boolean
+): 'normal' | 'suspected' | 'tbDiagnosed' | 'attInitiated' | 'attCompleted' | 'default' => {
+  if (isATTCompleted(patient)) return 'attCompleted';
+  if (isATTInitiated(patient)) return 'attInitiated';
+  if (isTBDiagnosed(patient)) return 'tbDiagnosed';
+  if (isSuspectedTB(patient)) return 'suspected';
+  return 'normal';
+};
+
+const MiniCard = memo(function MiniCard({ 
+  patient, 
+  cardIndex, 
+  hasStatusTint,
+  onPatientClick,
+  isSuspectedTB
+}: { 
+  patient: Patient; 
+  cardIndex: number; 
+  hasStatusTint: boolean;
+  onPatientClick?: (patient: Patient) => void;
+  isSuspectedTB: (p: Patient) => boolean;
+}) {
+  const status = getPatientStatus(patient, isSuspectedTB);
+  const styles = statusStyles[status];
+  const isTb = status === 'tbDiagnosed' || status === 'suspected';
+  
+  // Alternating background for normal cards only
+  const isEven = cardIndex % 2 === 1;
+  const alternatingBg = !hasStatusTint && isEven ? 'bg-gray-50/60' : '';
+  
+  // Determine hover background based on alternating state
+  const hoverBg = alternatingBg ? 'hover:bg-white' : 'hover:bg-gray-50';
+  
+  // Status glow color
+  const statusGlowColor = {
+    normal: 'rgba(16,185,129,0.15)',
+    suspected: 'rgba(245,158,11,0.25)',
+    tbDiagnosed: 'rgba(244,63,94,0.3)',
+    attInitiated: 'rgba(59,130,246,0.2)',
+    attCompleted: 'rgba(139,92,246,0.2)',
+    default: 'rgba(0,0,0,0.05)',
+  }[status];
+  
+  return (
+    <motion.div
+      onClick={() => onPatientClick?.(patient)}
+      className={`group relative px-3 py-2 cursor-pointer gpu-accelerated ${styles.bg} ${alternatingBg} ${hoverBg}`}
+      style={{
+        borderRadius: '4px 8px 8px 4px',
+        background: 'rgba(255,255,255,0.95)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.6)',
+        boxShadow: `
+          0 1px 2px rgba(0,0,0,0.04),
+          0 2px 4px rgba(0,0,0,0.03),
+          0 4px 8px rgba(0,0,0,0.02),
+          inset 0 1px 0 rgba(255,255,255,0.8),
+          0 0 0 1px rgba(0,0,0,0.08)
+        `,
+        willChange: 'transform',
+        contain: 'layout paint',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = `
+          0 2px 4px rgba(0,0,0,0.05),
+          0 4px 8px rgba(0,0,0,0.04),
+          0 8px 16px rgba(0,0,0,0.03),
+          0 16px 32px ${statusGlowColor},
+          inset 0 1px 0 rgba(255,255,255,0.9),
+          0 0 0 1px rgba(0,0,0,0.12),
+          0 0 20px ${statusGlowColor}
+        `;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = `
+          0 1px 2px rgba(0,0,0,0.04),
+          0 2px 4px rgba(0,0,0,0.03),
+          0 4px 8px rgba(0,0,0,0.02),
+          inset 0 1px 0 rgba(255,255,255,0.8),
+          0 0 0 1px rgba(0,0,0,0.08)
+        `;
+      }}
+      whileTap={{ scale: 0.98 }}
+      layout={false}
+    >
+      {/* Status indicator line with glow */}
+      <div 
+        className={`absolute left-0 top-0 bottom-0 w-1 ${styles.border}`}
+        style={{ 
+          borderRadius: '4px 0 0 4px',
+          boxShadow: `0 0 8px ${statusGlowColor}, 0 0 16px ${statusGlowColor}`,
+        }}
+      />
+      
+      <div className="flex items-center justify-between gap-2 pl-2.5">
+        <div className="flex-1 min-w-0">
+          <h4 className="text-[13px] font-semibold text-gray-900 leading-tight truncate" style={{ color: '#111827' }}>
+            {patient.inmate_name || 'No Name'}
+          </h4>
+          <p className="text-[10px] font-medium uppercase tracking-wide truncate" style={{ letterSpacing: '0.04em', color: '#9ca3af' }}>
+            {patient.facility_name || 'SJ'}
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          {isTb && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200 uppercase">
+              TB
+            </span>
+          )}
+          <span className="text-[11px] tabular-nums" style={{ letterSpacing: '0', color: '#6b7280' }}>
+            {(() => {
+              const mostRecentDate = getMostRecentClinicalDate(patient);
+              return mostRecentDate ? 
+                mostRecentDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 
+                '02 May';
+            })()}
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  );
+});
+
+const PipelineColumn = memo(function PipelineColumn({ 
+  title, 
+  patients, 
+  count, 
+  index: columnIndex,
+  onPatientClick,
+  isSuspectedTB,
+}: { 
+  title: string; 
+  patients: Patient[]; 
+  count: number; 
+  index: number;
+  onPatientClick?: (patient: Patient) => void;
+  isSuspectedTB: (p: Patient) => boolean;
+}) {
+  return (
+    <div 
+      className={`flex flex-col min-w-0 h-full ${columnIndex < 6 ? 'border-r' : ''}`}
+      style={{ borderRightColor: columnIndex < 6 ? 'rgba(0,0,0,0.15)' : undefined }}
+    >
+      {/* Column Header - Sticky with Glassmorphism */}
+      <div 
+        className="px-3 py-2.5 sticky top-0 z-10"
+        style={{ 
+          background: 'rgba(255,255,255,0.85)',
+          backdropFilter: 'blur(12px) saturate(180%)',
+          borderBottom: '1px solid rgba(0,0,0,0.08)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04), inset 0 -1px 0 rgba(255,255,255,0.5)',
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <span 
+            className="text-[11px] font-semibold uppercase tracking-wider"
+            style={{ 
+              color: '#374151',
+              letterSpacing: '0.06em',
+              textShadow: '0 1px 0 rgba(255,255,255,0.8)',
+            }}
+          >
+            Col {columnIndex + 1}
+          </span>
+          <span 
+            className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+            style={{ 
+              color: '#6b7280',
+              background: 'rgba(0,0,0,0.04)',
+              letterSpacing: '0.02em',
+            }}
+          >
+            {count}
+          </span>
+        </div>
+      </div>
+      
+      {/* Cards container - no scroll, shares parent scroll */}
+      <div className="px-2 py-2 space-y-2 cards-container">
+        {patients.map((patient, idx) => {
+          const status = getPatientStatus(patient, isSuspectedTB);
+          const hasStatusTint = status !== 'normal' && status !== 'default';
+          return (
+            <MiniCard 
+              key={`${title}-${patient.id}-${idx}`} 
+              patient={patient} 
+              cardIndex={idx}
+              hasStatusTint={hasStatusTint}
+              onPatientClick={onPatientClick}
+              isSuspectedTB={isSuspectedTB}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+
 function SevenColumnListView({ patients, onPatientClick, isSuspectedTB }: TwoColumnListViewProps) {
   // Memoize column split calculations
   const columns = useMemo(() => {
@@ -1332,224 +1567,6 @@ function SevenColumnListView({ patients, onPatientClick, isSuspectedTB }: TwoCol
   }, [patients]);
   
   const { col1, col2, col3, col4, col5, col6, col7 } = columns;
-
-  // Column refs for potential future scroll features
-  const col1Ref = useRef<HTMLDivElement>(null);
-  const col2Ref = useRef<HTMLDivElement>(null);
-  const col3Ref = useRef<HTMLDivElement>(null);
-  const col4Ref = useRef<HTMLDivElement>(null);
-  const col5Ref = useRef<HTMLDivElement>(null);
-  const col6Ref = useRef<HTMLDivElement>(null);
-  const col7Ref = useRef<HTMLDivElement>(null);
-
-  // Helper function to determine patient status with priority
-  const getPatientStatus = (patient: Patient): 'normal' | 'suspected' | 'tbDiagnosed' | 'attInitiated' | 'attCompleted' | 'default' => {
-    if (isATTCompleted(patient)) return 'attCompleted';
-    if (isATTInitiated(patient)) return 'attInitiated';
-    if (isTBDiagnosed(patient)) return 'tbDiagnosed';
-    if (isSuspectedTB(patient)) return 'suspected';
-    return 'normal';
-  };
-
-  // Status-based styling configuration
-  const statusStyles = {
-    normal: {
-      border: 'border-l-emerald-500',
-      bg: 'bg-emerald-50/50',
-      borderColor: 'border-emerald-200',
-    },
-    suspected: {
-      border: 'border-l-amber-400',
-      bg: 'bg-amber-50',
-      borderColor: 'border-amber-200',
-    },
-    tbDiagnosed: {
-      border: 'border-l-red-500',
-      bg: 'bg-red-50',
-      borderColor: 'border-red-200',
-    },
-    attInitiated: {
-      border: 'border-l-blue-400',
-      bg: 'bg-blue-50',
-      borderColor: 'border-blue-200',
-    },
-    attCompleted: {
-      border: 'border-l-violet-400',
-      bg: 'bg-violet-50',
-      borderColor: 'border-violet-200',
-    },
-    default: {
-      border: 'border-l-gray-300',
-      bg: 'bg-white',
-      borderColor: 'border-gray-200',
-    },
-  };
-
-  const MiniCard = memo(function MiniCard({ patient, cardIndex, hasStatusTint }: { patient: Patient; cardIndex: number; hasStatusTint: boolean }) {
-    const status = getPatientStatus(patient);
-    const styles = statusStyles[status];
-    const isTb = status === 'tbDiagnosed' || status === 'suspected';
-    
-    // Alternating background for normal cards only
-    const isEven = cardIndex % 2 === 1;
-    const alternatingBg = !hasStatusTint && isEven ? 'bg-gray-50/60' : '';
-    
-    // Determine hover background based on alternating state
-    const hoverBg = alternatingBg ? 'hover:bg-white' : 'hover:bg-gray-50';
-    
-    // Status glow color
-    const statusGlowColor = {
-      normal: 'rgba(16,185,129,0.15)',
-      suspected: 'rgba(245,158,11,0.25)',
-      tbDiagnosed: 'rgba(244,63,94,0.3)',
-      attInitiated: 'rgba(59,130,246,0.2)',
-      attCompleted: 'rgba(139,92,246,0.2)',
-      default: 'rgba(0,0,0,0.05)',
-    }[status];
-    
-    return (
-      <motion.div
-        onClick={() => onPatientClick?.(patient)}
-        className={`group relative px-3 py-2 cursor-pointer gpu-accelerated ${styles.bg} ${alternatingBg} ${hoverBg}`}
-        style={{
-          borderRadius: '4px 8px 8px 4px',
-          background: 'rgba(255,255,255,0.95)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255,255,255,0.6)',
-          boxShadow: `
-            0 1px 2px rgba(0,0,0,0.04),
-            0 2px 4px rgba(0,0,0,0.03),
-            0 4px 8px rgba(0,0,0,0.02),
-            inset 0 1px 0 rgba(255,255,255,0.8),
-            0 0 0 1px rgba(0,0,0,0.08)
-          `,
-          willChange: 'transform',
-          contain: 'layout paint',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = `
-            0 2px 4px rgba(0,0,0,0.05),
-            0 4px 8px rgba(0,0,0,0.04),
-            0 8px 16px rgba(0,0,0,0.03),
-            0 16px 32px ${statusGlowColor},
-            inset 0 1px 0 rgba(255,255,255,0.9),
-            0 0 0 1px rgba(0,0,0,0.12),
-            0 0 20px ${statusGlowColor}
-          `;
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = `
-            0 1px 2px rgba(0,0,0,0.04),
-            0 2px 4px rgba(0,0,0,0.03),
-            0 4px 8px rgba(0,0,0,0.02),
-            inset 0 1px 0 rgba(255,255,255,0.8),
-            0 0 0 1px rgba(0,0,0,0.08)
-          `;
-        }}
-        whileTap={{ scale: 0.98 }}
-        layout={false}
-      >
-        {/* Status indicator line with glow */}
-        <div 
-          className={`absolute left-0 top-0 bottom-0 w-1 ${styles.border}`}
-          style={{ 
-            borderRadius: '4px 0 0 4px',
-            boxShadow: `0 0 8px ${statusGlowColor}, 0 0 16px ${statusGlowColor}`,
-          }}
-        />
-        
-        <div className="flex items-center justify-between gap-2 pl-2.5">
-          <div className="flex-1 min-w-0">
-            <h4 className="text-[13px] font-semibold text-gray-900 leading-tight truncate" style={{ color: '#111827' }}>
-              {patient.inmate_name || 'No Name'}
-            </h4>
-            <p className="text-[10px] font-medium uppercase tracking-wide truncate" style={{ letterSpacing: '0.04em', color: '#9ca3af' }}>
-              {patient.facility_name || 'SJ'}
-            </p>
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            {isTb && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200 uppercase">
-                TB
-              </span>
-            )}
-            <span className="text-[11px] tabular-nums" style={{ letterSpacing: '0', color: '#6b7280' }}>
-              {(() => {
-                const mostRecentDate = getMostRecentClinicalDate(patient);
-                return mostRecentDate ? 
-                  mostRecentDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 
-                  '02 May';
-              })()}
-            </span>
-          </div>
-        </div>
-      </motion.div>
-    );
-  });
-
-  const Column = ({ title, patients, count, index: columnIndex }: { 
-    title: string; 
-    patients: Patient[]; 
-    count: number; 
-    index: number;
-  }) => {
-    return (
-      <div 
-        className={`flex flex-col min-w-0 h-full ${columnIndex < 6 ? 'border-r' : ''}`}
-        style={{ borderRightColor: columnIndex < 6 ? 'rgba(0,0,0,0.15)' : undefined }}
-      >
-        {/* Column Header - Sticky with Glassmorphism */}
-        <div 
-          className="px-3 py-2.5 sticky top-0 z-10"
-          style={{ 
-            background: 'rgba(255,255,255,0.85)',
-            backdropFilter: 'blur(12px) saturate(180%)',
-            borderBottom: '1px solid rgba(0,0,0,0.08)',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04), inset 0 -1px 0 rgba(255,255,255,0.5)',
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <span 
-              className="text-[11px] font-semibold uppercase tracking-wider"
-              style={{ 
-                color: '#374151',
-                letterSpacing: '0.06em',
-                textShadow: '0 1px 0 rgba(255,255,255,0.8)',
-              }}
-            >
-              Col {columnIndex + 1}
-            </span>
-            <span 
-              className="text-[11px] font-medium px-2 py-0.5 rounded-full"
-              style={{ 
-                color: '#6b7280',
-                background: 'rgba(0,0,0,0.04)',
-                letterSpacing: '0.02em',
-              }}
-            >
-              {count}
-            </span>
-          </div>
-        </div>
-        
-        {/* Cards container - no scroll, shares parent scroll */}
-        <div className="px-2 py-2 space-y-2 cards-container">
-          {patients.map((patient, idx) => {
-            const status = getPatientStatus(patient);
-            const hasStatusTint = status !== 'normal' && status !== 'default';
-            return (
-              <MiniCard 
-                key={`${title}-${patient.id}-${idx}`} 
-                patient={patient} 
-                cardIndex={idx}
-                hasStatusTint={hasStatusTint}
-              />
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <>
@@ -1608,13 +1625,13 @@ function SevenColumnListView({ patients, onPatientClick, isSuspectedTB }: TwoCol
           overscrollBehavior: 'contain',
         }}
       >
-        <Column title="C1" patients={col1} count={col1.length} index={0} />
-        <Column title="C2" patients={col2} count={col2.length} index={1} />
-        <Column title="C3" patients={col3} count={col3.length} index={2} />
-        <Column title="C4" patients={col4} count={col4.length} index={3} />
-        <Column title="C5" patients={col5} count={col5.length} index={4} />
-        <Column title="C6" patients={col6} count={col6.length} index={5} />
-        <Column title="C7" patients={col7} count={col7.length} index={6} />
+        <PipelineColumn title="C1" patients={col1} count={col1.length} index={0} onPatientClick={onPatientClick} isSuspectedTB={isSuspectedTB} />
+        <PipelineColumn title="C2" patients={col2} count={col2.length} index={1} onPatientClick={onPatientClick} isSuspectedTB={isSuspectedTB} />
+        <PipelineColumn title="C3" patients={col3} count={col3.length} index={2} onPatientClick={onPatientClick} isSuspectedTB={isSuspectedTB} />
+        <PipelineColumn title="C4" patients={col4} count={col4.length} index={3} onPatientClick={onPatientClick} isSuspectedTB={isSuspectedTB} />
+        <PipelineColumn title="C5" patients={col5} count={col5.length} index={4} onPatientClick={onPatientClick} isSuspectedTB={isSuspectedTB} />
+        <PipelineColumn title="C6" patients={col6} count={col6.length} index={5} onPatientClick={onPatientClick} isSuspectedTB={isSuspectedTB} />
+        <PipelineColumn title="C7" patients={col7} count={col7.length} index={6} onPatientClick={onPatientClick} isSuspectedTB={isSuspectedTB} />
       </div>
     </>
   );

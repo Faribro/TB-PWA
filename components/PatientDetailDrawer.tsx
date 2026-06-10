@@ -360,6 +360,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
         console.error('[PatientDetailDrawer] ❌ Fresh fetch failed, falling back to prop:', err);
         // Fallback: use the patient prop so form is not permanently blank
         setFetchedPatient(patient);
+        setLocalPatient(patient);
       });
   }, [patient?.id, isOpen]);
   
