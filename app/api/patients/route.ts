@@ -160,8 +160,8 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
     
-    // Parse limit with validation (defaults to 50)
-    let requestedLimit = 50;
+    // Parse limit with validation (defaults to DEFAULT_LIMIT)
+    let requestedLimit = DEFAULT_LIMIT;
     const rawLimit = limitParam || pageSizeParam;
     if (rawLimit) {
       const parsed = parseInt(rawLimit, 10);
@@ -170,8 +170,8 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    // Validate and cap limit - strictly cap/enforce 50-row limit
-    requestedLimit = Math.min(requestedLimit, 50);
+    // Validate and cap limit
+    requestedLimit = Math.min(requestedLimit, MAX_LIMIT);
     
     // Validate and sanitize filters
     let filters: PatientFilters;
