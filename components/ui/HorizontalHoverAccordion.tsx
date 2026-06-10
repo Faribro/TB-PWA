@@ -15,6 +15,10 @@ export interface HorizontalHoverAccordionProps {
   currentLabel?: string;
   children: React.ReactNode;
   progress?: number; // 0-100 for care cascade visualization
+  isExpanded?: boolean; // Forced expanded state from parent
+  onClick?: () => void; // Click callback to trigger expansion from parent
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 export function HorizontalHoverAccordion({
@@ -28,6 +32,10 @@ export function HorizontalHoverAccordion({
   currentLabel = 'In Progress',
   children,
   progress = 0,
+  isExpanded,
+  onClick,
+  onMouseEnter,
+  onMouseLeave,
 }: HorizontalHoverAccordionProps) {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -37,6 +45,7 @@ export function HorizontalHoverAccordion({
   const colors = {
     complete: {
       primary: '#10B981',
+      rgb: '16, 185, 129',
       darkText: '#065F46', // Emerald-800
       gradient: 'linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%)',
       glass: 'linear-gradient(145deg, rgba(16,185,129,0.12) 0%, rgba(5,150,105,0.20) 50%, rgba(4,120,87,0.08) 100%)',
@@ -47,6 +56,7 @@ export function HorizontalHoverAccordion({
     },
     current: {
       primary: '#F59E0B',
+      rgb: '245, 158, 11',
       darkText: '#92400E', // Amber-800
       gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 50%, #B45309 100%)',
       glass: 'linear-gradient(145deg, rgba(245,158,11,0.15) 0%, rgba(217,119,6,0.25) 50%, rgba(180,83,9,0.10) 100%)',
@@ -57,6 +67,7 @@ export function HorizontalHoverAccordion({
     },
     pending: {
       primary: '#EF4444',
+      rgb: '239, 68, 68',
       darkText: '#991B1B', // Rose-800
       gradient: 'linear-gradient(135deg, #EF4444 0%, #DC2626 50%, #B91C1C 100%)',
       glass: 'linear-gradient(145deg, rgba(239,68,68,0.12) 0%, rgba(220,38,38,0.20) 50%, rgba(185,28,28,0.08) 100%)',
@@ -78,26 +89,56 @@ export function HorizontalHoverAccordion({
   const StatusIcon = isComplete ? CheckCircle : isCurrent ? Clock : AlertCircle;
 
   const handleClick = useCallback(() => {
-    // Add your click handler here for cascade navigation
+    if (onClick) {
+      onClick();
+    }
     console.log(`Care cascade step clicked: ${title}`);
-  }, [title]);
+  }, [onClick, title]);
 
   const shouldPulse = isCurrent || isAttentionRequired;
+  
+  // Unify hover state and forced expanded state from props
+  const activeExpanded = isExpanded !== undefined ? (isExpanded || isHovered) : isHovered;
 
   return (
     <motion.div
-      className="group relative flex-1 min-w-[100px] h-full rounded-3xl overflow-hidden cursor-pointer select-none"
+      className="group relative flex-1 min-w-[100px] h-full rounded-3xl overflow-hidden cursor-pointer select-none transform-gpu will-change-[transform,box-shadow]"
       style={{
         background: c.glass,
-        boxShadow: isHovered ? c.glow : '0 8px 32px rgba(0,0,0,0.12)',
-        backdropFilter: 'blur(20px) saturate(180%)',
+        boxShadow: activeExpanded 
+          ? `inset 0 1px 0 0 rgba(255,255,255,0.45), ${c.glow}` 
+          : `inset 0 1px 0 0 rgba(255,255,255,0.45), 0 8px 32px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.05)`,
+        backdropFilter: 'blur(12px) saturate(210%) brightness(102%)',
       }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      animate={{
+        flex: activeExpanded ? 3.5 : 1,
+        boxShadow: isCurrent && !activeExpanded
+          ? [
+              `inset 0 1px 0 0 rgba(255,255,255,0.45), 0 8px 32px rgba(0,0,0,0.12), 0 0 20px -10px rgba(${c.rgb}, 0.25)`,
+              `inset 0 1px 0 0 rgba(255,255,255,0.45), 0 8px 32px rgba(0,0,0,0.12), 0 0 40px -10px rgba(${c.rgb}, 0.4)`,
+              `inset 0 1px 0 0 rgba(255,255,255,0.45), 0 8px 32px rgba(0,0,0,0.12), 0 0 20px -10px rgba(${c.rgb}, 0.25)`,
+            ]
+          : activeExpanded
+            ? `inset 0 1px 0 0 rgba(255,255,255,0.45), ${c.glow}`
+            : `inset 0 1px 0 0 rgba(255,255,255,0.45), 0 8px 32px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.05)`
+      }}
+      transition={{
+        type: 'spring',
+        stiffness: 400,
+        damping: 30,
+        boxShadow: isCurrent && !activeExpanded
+          ? { type: 'tween', duration: 3.5, repeat: Infinity, ease: 'easeInOut' }
+          : { type: 'tween', duration: 0.4, ease: 'easeInOut' }
+      }}
+      onMouseEnter={() => {
+        setIsHovered(true);
+        if (onMouseEnter) onMouseEnter();
+      }}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        if (onMouseLeave) onMouseLeave();
+      }}
       onClick={handleClick}
-      whileHover={{ flex: 7.5 }}
-      initial={{ flex: 1 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
     >
       {/* Premium animated background orbs */}
       <div
@@ -132,8 +173,8 @@ export function HorizontalHoverAccordion({
         className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 z-20 p-3"
         initial={{ opacity: 1, scale: 1 }}
         animate={{ 
-          opacity: isHovered ? 0 : 1, 
-          scale: isHovered ? 0.95 : 1 
+          opacity: activeExpanded ? 0 : 1, 
+          scale: activeExpanded ? 0.95 : 1 
         }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
       >
@@ -194,7 +235,7 @@ export function HorizontalHoverAccordion({
 
       {/* Expanded state - Award-winning content panel */}
       <AnimatePresence mode="wait">
-        {isHovered && (
+        {activeExpanded && (
           <motion.div
             className="absolute inset-0 p-6 flex flex-col z-30"
             initial={{ opacity: 0, y: 20 }}
@@ -269,8 +310,12 @@ export function HorizontalHoverAccordion({
           boxShadow: `0 2px 6px ${c.primary}40`,
         }}
         transition={{
-          scale: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
-          boxShadow: { duration: 2, repeat: Infinity, ease: 'easeOut' },
+          scale: shouldPulse
+            ? { type: 'tween', duration: 2, repeat: Infinity, ease: 'easeInOut' }
+            : { type: 'spring', stiffness: 300, damping: 20 },
+          boxShadow: shouldPulse
+            ? { type: 'tween', duration: 2, repeat: Infinity, ease: 'easeOut' }
+            : { type: 'tween', duration: 0.4, ease: 'easeOut' }
         }}
       />
     </motion.div>

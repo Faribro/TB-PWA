@@ -161,6 +161,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
   const [isSavingDemographics, setIsSavingDemographics] = useState(false);
   const [internalOpen, setInternalOpen] = useState(isOpen);
   const [activeTab, setActiveTab] = useState('clinical');
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [hoveredSection, setHoveredSection] = useState<string | null>(null);
   // Tracks whether the canonical fresh fetch has completed for the current patient
   const [fetchedPatient, setFetchedPatient] = useState<any>(null);
 
@@ -401,6 +403,49 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
 
     reset(resetValues, { keepDefaultValues: false });
   }, [fetchedPatient, internalOpen, reset]);
+
+  // Set default active section based on patient status when canonical patient data is fetched
+  useEffect(() => {
+    if (!fetchedPatient || !internalOpen) return;
+    
+    const referralComplete = Boolean(fetchedPatient.referral_date);
+    const diagnosisComplete = Boolean(fetchedPatient.tb_diagnosed === 'Y' || fetchedPatient.tb_diagnosed === 'N');
+    
+    let defaultSection = 'sputum';
+    if (referralComplete && !diagnosisComplete) {
+      defaultSection = 'diagnosis';
+    } else if (diagnosisComplete) {
+      if (fetchedPatient.tb_diagnosed === 'Y') {
+        const attStart = fetchedPatient.att_start_date;
+        if (!attStart) {
+          defaultSection = 'treatment';
+        } else {
+          const nikshay = fetchedPatient.nikshay_abha_id;
+          if (!nikshay) {
+            defaultSection = 'nikshay';
+          } else {
+            defaultSection = 'treatment';
+          }
+        }
+      } else {
+        defaultSection = 'diagnosis'; // TB ruled out, keep on diagnosis
+      }
+    }
+    setActiveSection(defaultSection);
+  }, [fetchedPatient, internalOpen]);
+
+  const handleTimelineNodeClick = useCallback((nodeId: string) => {
+    const mapping: Record<string, string> = {
+      referred: 'sputum',
+      diagnosed: 'diagnosis',
+      att: 'treatment',
+      nikshay: 'nikshay',
+    };
+    const targetSection = mapping[nodeId];
+    if (targetSection) {
+      setActiveSection(targetSection);
+    }
+  }, []);
   
   // Form will be re-initialized when localPatient or internalOpen changes
 
@@ -1350,6 +1395,10 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                                 completionLabel={section.completionLabel}
                                 pendingLabel={section.pendingLabel}
                                 currentLabel={section.currentLabel}
+                                isExpanded={hoveredSection !== null ? (hoveredSection === section.id) : (activeSection === section.id)}
+                                onClick={() => setActiveSection(section.id)}
+                                onMouseEnter={() => setHoveredSection(section.id)}
+                                onMouseLeave={() => setHoveredSection(null)}
                               >
                                 {section.id === 'sputum' && (
                                   <div data-tour-id="sputum-referral-section" className="space-y-3">
@@ -1507,6 +1556,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
                             nikshayId={watchedNikshay}
                             treatmentCompletionDate={watchedAttCompletion}
                             closureReason={localPatient?.closure_reason}
+                            onNodeClick={handleTimelineNodeClick}
                           />
                         </>
                       );
