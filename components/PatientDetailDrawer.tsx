@@ -325,6 +325,8 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
       // Drawer just closed - clear fetch flag and canonical patient
       hasFetchedRef.current = false;
       setFetchedPatient(null);
+      setActiveSection(null);
+      setHoveredSection(null);
       // DO NOT clear justSavedTimestampRef - keep it to prevent overwriting saved data on re-open
     }
     setInternalOpen(isOpen);
@@ -404,35 +406,7 @@ export function PatientDetailDrawer({ patient, isOpen, onClose, onUpdate }: Pati
     reset(resetValues, { keepDefaultValues: false });
   }, [fetchedPatient, internalOpen, reset]);
 
-  // Set default active section based on patient status when canonical patient data is fetched
-  useEffect(() => {
-    if (!fetchedPatient || !internalOpen) return;
-    
-    const referralComplete = Boolean(fetchedPatient.referral_date);
-    const diagnosisComplete = Boolean(fetchedPatient.tb_diagnosed === 'Y' || fetchedPatient.tb_diagnosed === 'N');
-    
-    let defaultSection = 'sputum';
-    if (referralComplete && !diagnosisComplete) {
-      defaultSection = 'diagnosis';
-    } else if (diagnosisComplete) {
-      if (fetchedPatient.tb_diagnosed === 'Y') {
-        const attStart = fetchedPatient.att_start_date;
-        if (!attStart) {
-          defaultSection = 'treatment';
-        } else {
-          const nikshay = fetchedPatient.nikshay_abha_id;
-          if (!nikshay) {
-            defaultSection = 'nikshay';
-          } else {
-            defaultSection = 'treatment';
-          }
-        }
-      } else {
-        defaultSection = 'diagnosis'; // TB ruled out, keep on diagnosis
-      }
-    }
-    setActiveSection(defaultSection);
-  }, [fetchedPatient, internalOpen]);
+
 
   const handleTimelineNodeClick = useCallback((nodeId: string) => {
     const mapping: Record<string, string> = {
