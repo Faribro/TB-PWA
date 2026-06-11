@@ -65,26 +65,31 @@ const NAV_NEON: Record<string, {
 
 const DEFAULT_NEON = { glow: '0 0 18px 4px rgba(99,102,241,0.7), 0 0 40px 8px rgba(99,102,241,0.35)', ring: 'rgba(99,102,241,0.5)', iconBg: 'linear-gradient(135deg,#4338ca,#6366f1)', textColor: '#6366f1', pulseColor: 'rgba(99,102,241,0.25)' };
 
+// ─── Shared icon styles ───────────────────────────────────────────────────
+const IconDefs = () => (
+  <defs>
+    <linearGradient id="metalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#787878" />
+      <stop offset="30%" stopColor="#9a9a9a" />
+      <stop offset="60%" stopColor="#5a5a5a" />
+      <stop offset="100%" stopColor="#3a3a3a" />
+    </linearGradient>
+    <radialGradient id="metalHighlight" cx="30%" cy="30%" r="50%">
+      <stop offset="0%" stopColor="white" stopOpacity="0.3" />
+      <stop offset="100%" stopColor="white" stopOpacity="0" />
+    </radialGradient>
+    <filter id="iconDropShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0.5" dy="0.5" stdDeviation="0.5" floodColor="#000" floodOpacity="0.4"/>
+    </filter>
+  </defs>
+);
+
 // ─── 3D Gear SVG (settings icon) ───────────────────────────────────────────
-function GearIcon3D({ size = 20, color = 'currentColor' }: { size?: number; color?: string }) {
+function GearIcon3D({ size = 20, color }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="metalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#787878" />
-          <stop offset="30%" stopColor="#9a9a9a" />
-          <stop offset="60%" stopColor="#5a5a5a" />
-          <stop offset="100%" stopColor="#3a3a3a" />
-        </linearGradient>
-        <radialGradient id="metalHighlight" cx="30%" cy="30%" r="50%">
-          <stop offset="0%" stopColor="white" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="white" stopOpacity="0" />
-        </radialGradient>
-        <filter id="gearDropShadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0.5" dy="0.5" stdDeviation="0.5" floodColor="#000" floodOpacity="0.4"/>
-        </filter>
-      </defs>
-      <g filter="url(#gearDropShadow)">
+      <IconDefs />
+      <g filter="url(#iconDropShadow)">
         <path
           fill="url(#metalGrad)"
           d="M12 15.5A3.5 3.5 0 018.5 12 3.5 3.5 0 0112 8.5a3.5 3.5 0 013.5 3.5 3.5 3.5 0 01-3.5 3.5m7.43-2.92c.04-.36.07-.73.07-1.08s-.03-.73-.07-1.08l2.37-1.84a.56.56 0 00.13-.71l-2.25-3.89a.55.55 0 00-.68-.24l-2.8 1.13a8.06 8.06 0 00-1.86-1.08l-.42-2.98A.547.547 0 0013.5 1h-4.5a.547.547 0 00-.54.46l-.42 2.98c-.68.28-1.3.67-1.86 1.08L3.38 4.39a.55.55 0 00-.68.24L.45 8.52a.549.549 0 00.13.71l2.37 1.84C2.91 11.45 2.88 11.73 2.88 12s.03.73.07 1.08l-2.37 1.84a.56.56 0 00-.13.71l2.25 3.89c.14.24.42.32.68.24l2.8-1.13c.56.41 1.18.8 1.86 1.08l.42 2.98c.07.28.28.46.54.46h4.5c.26 0 .47-.18.54-.46l.42-2.98c.68-.28 1.3-.67 1.86-1.08l2.8 1.13c.26.08.54 0 .68-.24l2.25-3.89a.55.55 0 00-.13-.71l-2.37-1.84z"
@@ -100,17 +105,145 @@ function GearIcon3D({ size = 20, color = 'currentColor' }: { size?: number; colo
   );
 }
 
+// ─── Home (Layout Dashboard) Icon ──────────────────────────────────────────
+function HomeIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <IconDefs />
+      <g filter="url(#iconDropShadow)">
+        <path
+          fill="url(#metalGrad)"
+          d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-4v-6H8v6H4a1 1 0 0 1-1-1V9.5z"
+        />
+        <path
+          fill="url(#metalHighlight)"
+          d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-4v-6H8v6H4a1 1 0 0 1-1-1V9.5z"
+        />
+      </g>
+    </svg>
+  );
+}
+
+// ─── Vertex (Network) Icon ─────────────────────────────────────────────────
+function VertexIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <IconDefs />
+      <g filter="url(#iconDropShadow)">
+        <circle fill="url(#metalGrad)" cx="12" cy="6" r="3" />
+        <circle fill="url(#metalGrad)" cx="6" cy="18" r="3" />
+        <circle fill="url(#metalGrad)" cx="18" cy="18" r="3" />
+        <path fill="url(#metalGrad)" d="M9.5 16l2.5-7.5 2.5 7.5" strokeWidth="2" stroke="#5a5a5a" />
+        <path fill="url(#metalHighlight)" d="M12 6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
+      </g>
+    </svg>
+  );
+}
+
+// ─── M&E Tools (BarChart3) Icon ─────────────────────────────────────────────
+function BarChartIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <IconDefs />
+      <g filter="url(#iconDropShadow)">
+        <rect fill="url(#metalGrad)" x="4" y="14" width="3" height="6" rx="1" />
+        <rect fill="url(#metalGrad)" x="10" y="10" width="3" height="10" rx="1" />
+        <rect fill="url(#metalGrad)" x="16" y="6" width="3" height="14" rx="1" />
+        <path fill="url(#metalHighlight)" d="M4 14h3v6H4v-6zm6-4h3v10h-3V10zm6-4h3v14h-3V6z" />
+      </g>
+    </svg>
+  );
+}
+
+// ─── GIS Map Icon ───────────────────────────────────────────────────────────
+function MapIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <IconDefs />
+      <g filter="url(#iconDropShadow)">
+        <path fill="url(#metalGrad)" d="M9 3l6 2 4-2v15l-6 2-6-2-4 2V3l6 2z" />
+        <path fill="url(#metalHighlight)" d="M9 3l6 2 4-2v15l-6 2-6-2-4 2V3l6 2z" />
+      </g>
+    </svg>
+  );
+}
+
+// ─── Calendar Icon ─────────────────────────────────────────────────────────
+function CalendarIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <IconDefs />
+      <g filter="url(#iconDropShadow)">
+        <rect fill="url(#metalGrad)" x="3" y="4" width="18" height="16" rx="2" />
+        <path fill="url(#metalGrad)" d="M8 2v4M16 2v4M3 10h18" stroke="#5a5a5a" strokeWidth="2" />
+        <path fill="url(#metalHighlight)" d="M5 8h14v10H5V8z" />
+      </g>
+    </svg>
+  );
+}
+
+// ─── File Plus (New Screening) Icon ─────────────────────────────────────────
+function FilePlusIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <IconDefs />
+      <g filter="url(#iconDropShadow)">
+        <path fill="url(#metalGrad)" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
+        <path fill="url(#metalGrad)" d="M14 2v6h6" stroke="#5a5a5a" strokeWidth="2" />
+        <path fill="url(#metalGrad)" d="M12 11v6M9 14h6" stroke="#5a5a5a" strokeWidth="2" />
+        <path fill="url(#metalHighlight)" d="M6 4h6l6 6v12H6V4z" />
+      </g>
+    </svg>
+  );
+}
+
+// ─── Quick Slot Icon Variants ───────────────────────────────────────────────
+function QuickSlotIcon({ type, size = 20 }: { type: 'clock' | 'check' | 'alert'; size?: number }) {
+  if (type === 'clock') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <IconDefs />
+        <g filter="url(#iconDropShadow)">
+          <circle fill="url(#metalGrad)" cx="12" cy="12" r="9" />
+          <path fill="url(#metalGrad)" d="M12 7v5l3 3" stroke="#5a5a5a" strokeWidth="2" />
+          <path fill="url(#metalHighlight)" d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z" />
+        </g>
+      </svg>
+    );
+  }
+  if (type === 'check') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <IconDefs />
+        <g filter="url(#iconDropShadow)">
+          <path fill="url(#metalGrad)" d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+          <path fill="url(#metalHighlight)" d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z" />
+        </g>
+      </svg>
+    );
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <IconDefs />
+      <g filter="url(#iconDropShadow)">
+        <path fill="url(#metalGrad)" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        <path fill="url(#metalHighlight)" d="M12 3l10.5 15H1.5L12 3z" />
+      </g>
+    </svg>
+  );
+}
+
 // ─── Tab config ──────────────────────────────────────────────────────────────
 const TAB_CONFIG = [
-  { id: 'home',   path: '/dashboard/command-hub', icon: LayoutDashboard, label: 'Home',     description: 'Unified Hub',          roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER, Role.PRISON_COORDINATOR], dataTourId: 'sidebar-home' },
-  { id: 'vertex', path: '/dashboard/vertex',      icon: Network,          label: 'Vertex',   description: 'Neural overview',      roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER], dataTourId: 'sidebar-vertex' },
-  { id: 'mande',  path: '/dashboard/mande',       icon: BarChart3,        label: 'M&E Tools',description: 'Monitoring & eval',    roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER], dataTourId: 'sidebar-mne' },
-  { id: 'gis',    path: '/dashboard/gis',         icon: Map,              label: 'GIS Map',  description: 'Spatial intelligence', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER], dataTourId: 'sidebar-gis' },
+  { id: 'home',   path: '/dashboard/command-hub', icon: HomeIcon,     label: 'Home',     description: 'Unified Hub',          roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER, Role.PRISON_COORDINATOR], dataTourId: 'sidebar-home' },
+  { id: 'vertex', path: '/dashboard/vertex',      icon: VertexIcon,   label: 'Vertex',   description: 'Neural overview',      roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER], dataTourId: 'sidebar-vertex' },
+  { id: 'mande',  path: '/dashboard/mande',       icon: BarChartIcon, label: 'M&E Tools',description: 'Monitoring & eval',    roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER], dataTourId: 'sidebar-mne' },
+  { id: 'gis',    path: '/dashboard/gis',         icon: MapIcon,      label: 'GIS Map',  description: 'Spatial intelligence', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER, Role.ME_OFFICER], dataTourId: 'sidebar-gis' },
 ];
 
 const PC_TAB_CONFIG = [
-  { id: 'my-submissions', path: '/dashboard/my-submissions', icon: Calendar, label: 'My Calendar',   description: 'View submissions', roles: [Role.PRISON_COORDINATOR], dataTourId: 'sidebar-my-submissions' },
-  { id: 'submit-new',     path: '/dashboard/submit-new',     icon: FilePlus,  label: 'New Screening', description: 'Submit record',    roles: [Role.PRISON_COORDINATOR], dataTourId: 'sidebar-submit-new' },
+  { id: 'my-submissions', path: '/dashboard/my-submissions', icon: CalendarIcon, label: 'My Calendar',   description: 'View submissions', roles: [Role.PRISON_COORDINATOR], dataTourId: 'sidebar-my-submissions' },
+  { id: 'submit-new',     path: '/dashboard/submit-new',     icon: FilePlusIcon,  label: 'New Screening', description: 'Submit record',    roles: [Role.PRISON_COORDINATOR], dataTourId: 'sidebar-submit-new' },
 ];
 
 // ─── NavItem ─────────────────────────────────────────────────────────────────
@@ -150,11 +283,7 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
           suppressHydrationWarning
         >
           <div className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 bg-slate-100/80 group-hover:bg-slate-100">
-            <Icon
-              className="w-[22px] h-[22px] transition-all duration-300"
-              style={{ color: isActive ? neon.textColor : '#94a3b8' }}
-              suppressHydrationWarning
-            />
+            <Icon size={22} />
           </div>
 
           {/* Tooltip in collapsed mode */}
@@ -375,9 +504,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [userRole]);
 
   const quickSlotTab = useMemo(() => {
-    if (userRole === Role.PRISON_COORDINATOR) return { id: 'quick-slot', path: '/dashboard/my-submissions', icon: Clock3, label: 'Today Queue', description: 'Submissions due', roles: [Role.PRISON_COORDINATOR], dataTourId: 'sidebar-quick-slot' };
-    if (userRole === Role.ME_OFFICER) return { id: 'quick-slot', path: '/dashboard/mande', icon: ClipboardCheck, label: 'Pending Reviews', description: 'Clinical checks', roles: [Role.ME_OFFICER], dataTourId: 'sidebar-quick-slot' };
-    return { id: 'quick-slot', path: '/dashboard/command-hub', icon: AlertTriangle, label: 'Critical Queue', description: 'Escalations & SLA', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER], dataTourId: 'sidebar-quick-slot' };
+    if (userRole === Role.PRISON_COORDINATOR) return { id: 'quick-slot', path: '/dashboard/my-submissions', icon: (props: any) => <QuickSlotIcon type="clock" size={props.size} />, label: 'Today Queue', description: 'Submissions due', roles: [Role.PRISON_COORDINATOR], dataTourId: 'sidebar-quick-slot' };
+    if (userRole === Role.ME_OFFICER) return { id: 'quick-slot', path: '/dashboard/mande', icon: (props: any) => <QuickSlotIcon type="check" size={props.size} />, label: 'Pending Reviews', description: 'Clinical checks', roles: [Role.ME_OFFICER], dataTourId: 'sidebar-quick-slot' };
+    return { id: 'quick-slot', path: '/dashboard/command-hub', icon: (props: any) => <QuickSlotIcon type="alert" size={props.size} />, label: 'Critical Queue', description: 'Escalations & SLA', roles: [Role.ADMIN, Role.PROGRAM_MANAGER, Role.STATE_PROGRAM_MANAGER], dataTourId: 'sidebar-quick-slot' };
   }, [userRole]);
 
   const sidebarTabs = useMemo(() => {
