@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
 import crypto from 'crypto';
 import { Redis } from '@upstash/redis';
 import { REDIS_KEYS } from '../../../lib/redis-keys';
@@ -16,28 +15,37 @@ const redis = new Redis({
 });
 
 export async function POST(req: Request) {
-  let filePath = '';
   let fileHash = '';
 
   try {
     const payload = await req.json();
-    filePath = payload.filePath;
     fileHash = payload.fileHash;
     const fileName = payload.fileName || '';
     const fileType = payload.fileType || '';
+    const fileSize = payload.fileSize || 0;
     const screeningDate = payload.screeningDate;
     const facilityName = payload.facilityName;
     const screeningDistrict = payload.screeningDistrict;
     const screeningState = payload.screeningState;
 
-    if (!filePath || !fs.existsSync(filePath)) {
-      throw new Error(`Temporary file path not found: ${filePath}`);
+    // Step 1: Retrieve file buffer from Redis
+    const fileStorageKey = `${REDIS_KEYS.UPLOAD_FILE_PREFIX}${fileHash}`;
+    const base64Data = await redis.get<string>(fileStorageKey);
+
+    if (!base64Data) {
+      throw new Error(`File not found in storage: ${fileHash}. It may have expired.`);
     }
 
-    const buffer = fs.readFileSync(filePath);
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Verify buffer integrity
+    if (fileSize > 0 && buffer.length !== fileSize) {
+      console.warn(`[Worker] File size mismatch: expected ${fileSize}, got ${buffer.length}`);
+    }
+
     let extractedRows: any[] = [];
 
-    // Step 1: Route to appropriate parser lane
+    // Step 2: Route to appropriate parser lane
     const lowerName = fileName.toLowerCase();
     if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls') || fileType.includes('spreadsheet') || fileType.includes('excel')) {
       console.log(`[Worker] Route: Excel parser lane for ${fileName}`);
@@ -46,9 +54,9 @@ export async function POST(req: Request) {
       console.log(`[Worker] Route: PDF parser lane for ${fileName}`);
       extractedRows = await parsePdfBuffer(buffer);
     } else if (
-      lowerName.endsWith('.png') || 
-      lowerName.endsWith('.jpg') || 
-      lowerName.endsWith('.jpeg') || 
+      lowerName.endsWith('.png') ||
+      lowerName.endsWith('.jpg') ||
+      lowerName.endsWith('.jpeg') ||
       lowerName.endsWith('.webp') ||
       fileType.startsWith('image/')
     ) {
@@ -60,7 +68,7 @@ export async function POST(req: Request) {
 
     console.log(`[Worker] Extracted ${extractedRows.length} patient rows successfully.`);
 
-    // Step 2: Fetch current sheet rows (utilize Redis cache for 5 minutes)
+    // Step 3: Fetch current sheet rows (utilize Redis cache for 5 minutes)
     const sheetsWebhookUrl = process.env.GOOGLE_SCRIPT_WEBHOOK_URL || process.env.GOOGLE_APPSCRIPT_URL;
     let existingPatients: any[] = [];
 
@@ -107,7 +115,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // Step 3: Run Iterative Probabilistic Record Linkage Matcher
+    // Step 4: Run Iterative Probabilistic Record Linkage Matcher
     const stagedRecords: Record<string, string> = {};
 
     for (const extracted of extractedRows) {
@@ -150,32 +158,25 @@ export async function POST(req: Request) {
       stagedRecords[recordId] = JSON.stringify(quarantineRecord);
     }
 
-    // Step 4: Write all staged records atomically into the Redis Hash
+    // Step 5: Write all staged records atomically into the Redis Hash
     if (Object.keys(stagedRecords).length > 0) {
       await redis.hset(REDIS_KEYS.QUARANTINE_HASH, stagedRecords);
       console.log(`[Worker] Quarantine Hash updated successfully with ${Object.keys(stagedRecords).length} records.`);
     }
 
-    // Clean up temporary workspace file
-    if (filePath && fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      console.log(`[Worker] Cleaned up temporary upload file.`);
-    }
+    // Clean up file from Redis storage
+    await redis.del(fileStorageKey);
+    await redis.del(`${REDIS_KEYS.UPLOAD_LOCK_PREFIX}${fileHash}`);
+    console.log(`[Worker] Cleaned up Redis storage for ${fileHash}.`);
 
     return NextResponse.json({ success: true, processedCount: Object.keys(stagedRecords).length });
   } catch (error: any) {
     console.error('[Worker API] Process error:', error);
     
-    // Clean up temporary workspace file on crash
-    if (filePath && fs.existsSync(filePath)) {
-      try {
-        fs.unlinkSync(filePath);
-      } catch {}
-    }
-
     // Release upload lock to allow retry
     if (fileHash) {
       try {
+        await redis.del(`${REDIS_KEYS.UPLOAD_FILE_PREFIX}${fileHash}`);
         await redis.del(`${REDIS_KEYS.UPLOAD_LOCK_PREFIX}${fileHash}`);
       } catch {}
     }

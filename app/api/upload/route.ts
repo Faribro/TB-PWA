@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
 import { Redis } from '@upstash/redis';
 import { REDIS_KEYS } from '../../../lib/redis-keys';
 
@@ -23,9 +21,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
+    // Step 1: Get file buffer and calculate MD5 hash
     const buffer = Buffer.from(await file.arrayBuffer());
-    
-    // Step 1: Calculate MD5 binary file hash to prevent dual-upload triggers
     const md5Hash = crypto.createHash('md5').update(buffer).digest('hex');
     const lockKey = `${REDIS_KEYS.UPLOAD_LOCK_PREFIX}${md5Hash}`;
 
@@ -33,28 +30,27 @@ export async function POST(req: Request) {
     const acquiredLock = await redis.set(lockKey, 'processing', { nx: true, ex: 600 });
     if (!acquiredLock) {
       return NextResponse.json(
-        { error: 'This file is already being processed. Please wait.' }, 
+        { error: 'This file is already being processed. Please wait.' },
         { status: 409 }
       );
     }
 
-    // Step 3: Write file buffer to workspace temp directory
-    const tempDir = path.join(process.cwd(), 'tmp', 'uploads');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
+    // Step 3: Store file buffer in Redis for worker pickup (max 10MB)
+    if (buffer.length > 10 * 1024 * 1024) {
+      await redis.del(lockKey);
+      return NextResponse.json({ error: 'File too large. Maximum 10MB.' }, { status: 400 });
     }
-    
-    const safeFileName = `${md5Hash}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-    const tempFilePath = path.join(tempDir, safeFileName);
-    fs.writeFileSync(tempFilePath, buffer);
 
-    // Step 4: Dispatch execution to background worker asynchronously
+    const fileStorageKey = `${REDIS_KEYS.UPLOAD_FILE_PREFIX}${md5Hash}`;
+    await redis.set(fileStorageKey, buffer.toString('base64'), { ex: 3600 }); // 1 hour TTL
+
+    // Step 4: Dispatch execution to background worker with file hash reference
     const workerUrl = `${new URL(req.url).origin}/api/agent-worker`;
     const payload = {
-      filePath: tempFilePath,
       fileHash: md5Hash,
       fileName: file.name,
       fileType: file.type,
+      fileSize: buffer.length,
       screeningDate,
       facilityName,
       screeningDistrict,
