@@ -71,17 +71,17 @@ function GearIcon3D({ size = 20, color = 'currentColor' }: { size?: number; colo
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="metalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#e0e0e0" />
-          <stop offset="30%" stopColor="#ffffff" />
-          <stop offset="60%" stopColor="#a8a8a8" />
-          <stop offset="100%" stopColor="#888888" />
+          <stop offset="0%" stopColor="#787878" />
+          <stop offset="30%" stopColor="#9a9a9a" />
+          <stop offset="60%" stopColor="#5a5a5a" />
+          <stop offset="100%" stopColor="#3a3a3a" />
         </linearGradient>
         <radialGradient id="metalHighlight" cx="30%" cy="30%" r="50%">
-          <stop offset="0%" stopColor="white" stopOpacity="0.8" />
+          <stop offset="0%" stopColor="white" stopOpacity="0.3" />
           <stop offset="100%" stopColor="white" stopOpacity="0" />
         </radialGradient>
         <filter id="gearDropShadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0.5" dy="0.5" stdDeviation="0.5" floodColor="#000" floodOpacity="0.3"/>
+          <feDropShadow dx="0.5" dy="0.5" stdDeviation="0.5" floodColor="#000" floodOpacity="0.4"/>
         </filter>
       </defs>
       <g filter="url(#gearDropShadow)">
@@ -93,8 +93,8 @@ function GearIcon3D({ size = 20, color = 'currentColor' }: { size?: number; colo
           fill="url(#metalHighlight)"
           d="M12 15.5A3.5 3.5 0 018.5 12 3.5 3.5 0 0112 8.5a3.5 3.5 0 013.5 3.5 3.5 3.5 0 01-3.5 3.5m7.43-2.92c.04-.36.07-.73.07-1.08s-.03-.73-.07-1.08l2.37-1.84a.56.56 0 00.13-.71l-2.25-3.89a.55.55 0 00-.68-.24l-2.8 1.13a8.06 8.06 0 00-1.86-1.08l-.42-2.98A.547.547 0 0013.5 1h-4.5a.547.547 0 00-.54.46l-.42 2.98c-.68.28-1.3.67-1.86 1.08L3.38 4.39a.55.55 0 00-.68.24L.45 8.52a.549.549 0 00.13.71l2.37 1.84C2.91 11.45 2.88 11.73 2.88 12s.03.73.07 1.08l-2.37 1.84a.56.56 0 00-.13.71l2.25 3.89c.14.24.42.32.68.24l2.8-1.13c.56.41 1.18.8 1.86 1.08l.42 2.98c.07.28.28.46.54.46h4.5c.26 0 .47-.18.54-.46l.42-2.98c.68-.28 1.3-.67 1.86-1.08l2.8 1.13c.26.08.54 0 .68-.24l2.25-3.89a.55.55 0 00-.13-.71l-2.37-1.84z"
         />
-        <circle cx="12" cy="12" r="2" fill="#666666"/>
-        <circle cx="12" cy="11.3" r="1.3" fill="#999999"/>
+        <circle cx="12" cy="12" r="2" fill="#222222"/>
+        <circle cx="12" cy="11.4" r="1.2" fill="#444444"/>
       </g>
     </svg>
   );
