@@ -60,7 +60,7 @@ const NAV_NEON: Record<string, {
   gis:            { glow: '0 0 18px 4px rgba(16,185,129,0.7), 0 0 40px 8px rgba(16,185,129,0.35), 0 0 80px 16px rgba(16,185,129,0.15)', ring: 'rgba(16,185,129,0.5)', iconBg: 'linear-gradient(135deg,#065f46,#10b981)', textColor: '#10b981', pulseColor: 'rgba(16,185,129,0.25)' },
   'my-submissions': { glow: '0 0 18px 4px rgba(251,146,60,0.7), 0 0 40px 8px rgba(251,146,60,0.35), 0 0 80px 16px rgba(251,146,60,0.15)', ring: 'rgba(251,146,60,0.5)', iconBg: 'linear-gradient(135deg,#c2410c,#fb923c)', textColor: '#fb923c', pulseColor: 'rgba(251,146,60,0.25)' },
   'submit-new':   { glow: '0 0 18px 4px rgba(244,63,94,0.7), 0 0 40px 8px rgba(244,63,94,0.35), 0 0 80px 16px rgba(244,63,94,0.15)', ring: 'rgba(244,63,94,0.5)', iconBg: 'linear-gradient(135deg,#be123c,#f43f5e)', textColor: '#f43f5e', pulseColor: 'rgba(244,63,94,0.25)' },
-  'quick-slot':   { glow: '0 0 18px 4px rgba(234,179,8,0.7), 0 0 40px 8px rgba(234,179,8,0.35), 0 0 80px 16px rgba(234,179,8,0.15)', ring: 'rgba(234,179,8,0.5)', iconBg: 'linear-gradient(135deg,#a16207,#eab308)', textColor: '#eab308', pulseColor: 'rgba(234,179,8,0.25)' },
+  'quick-slot':   { glow: '0 0 18px 4px rgba(14,165,233,0.7), 0 0 40px 8px rgba(14,165,233,0.35), 0 0 80px 16px rgba(14,165,233,0.15)', ring: 'rgba(14,165,233,0.5)', iconBg: 'linear-gradient(135deg,#0369a1,#0ea5e9)', textColor: '#0ea5e9', pulseColor: 'rgba(14,165,233,0.25)' },
 };
 
 const DEFAULT_NEON = { glow: '0 0 18px 4px rgba(99,102,241,0.7), 0 0 40px 8px rgba(99,102,241,0.35)', ring: 'rgba(99,102,241,0.5)', iconBg: 'linear-gradient(135deg,#4338ca,#6366f1)', textColor: '#6366f1', pulseColor: 'rgba(99,102,241,0.25)' };
@@ -125,59 +125,22 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
         ${isActive ? '' : 'hover:bg-slate-50/80'}
       `}
     >
-      {/* Active background with neon-tinted glow */}
-      {isActive && (
-        <motion.div
-          layoutId="nav-active-bg"
-          className="absolute inset-0 rounded-2xl"
-          style={{
-            background: `linear-gradient(135deg, ${neon.pulseColor}, transparent 60%)`,
-            border: `1px solid ${neon.ring}`,
-          }}
-          transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-        />
-      )}
-
-      {/* Left accent pill */}
-      {isActive && (
-        <motion.div
-          layoutId="sidebar-active-pill"
-          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-7 rounded-full"
-          style={{ background: neon.textColor, boxShadow: `0 0 8px 2px ${neon.ring}` }}
-          transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-        />
-      )}
-
       <div className="flex items-center gap-3.5 relative z-10">
-        {/* Icon container — diamond glow when active */}
+        {/* Icon container */}
         <motion.div
           animate={isActive ? {
-            boxShadow: neon.glow,
             scale: 1.05,
           } : {
-            boxShadow: '0 0 0px 0px transparent',
             scale: 1,
           }}
           transition={{ duration: 0.4, ease: 'easeOut' }}
           className="relative flex-shrink-0 w-10 h-10 min-w-10 min-h-10 rounded-xl flex items-center justify-center transition-all duration-300"
-          style={isActive ? { background: neon.iconBg } : {}}
           suppressHydrationWarning
         >
-          {/* Inner shimmer highlight when active */}
-          {isActive && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="absolute inset-0 rounded-xl overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 right-0 h-1/2 bg-white/20 rounded-t-xl" />
-            </motion.div>
-          )}
-
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${!isActive ? 'bg-slate-100/80 group-hover:bg-slate-100' : ''}`}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 bg-slate-100/80 group-hover:bg-slate-100">
             <Icon
-              className="w-[18px] h-[18px] transition-all duration-300"
-              style={{ color: isActive ? '#fff' : '#94a3b8' }}
+              className="w-[22px] h-[22px] transition-all duration-300"
+              style={{ color: isActive ? neon.textColor : '#94a3b8' }}
               suppressHydrationWarning
             />
           </div>
@@ -225,66 +188,43 @@ function NavItem({ tab, isActive, isCollapsed, delay, dataTourId }: {
 function SettingsLink({ isCollapsed, isActive }: { isCollapsed: boolean; isActive: boolean }) {
   const [hovered, setHovered] = useState(false);
   const settingsNeon = {
-    glow: '0 0 16px 4px rgba(251,191,36,0.65), 0 0 36px 8px rgba(251,191,36,0.3), 0 0 70px 14px rgba(251,191,36,0.12)',
-    ring: 'rgba(251,191,36,0.5)',
-    iconBg: 'linear-gradient(135deg,#b45309,#f59e0b)',
-    textColor: '#f59e0b',
-    pulseColor: 'rgba(251,191,36,0.15)',
+    glow: '0 0 16px 4px rgba(14,165,233,0.65), 0 0 36px 8px rgba(14,165,233,0.3), 0 0 70px 14px rgba(14,165,233,0.12)',
+    ring: 'rgba(14,165,233,0.5)',
+    iconBg: 'linear-gradient(135deg,#0369a1,#0ea5e9)',
+    textColor: '#0ea5e9',
+    pulseColor: 'rgba(14,165,233,0.15)',
   };
 
   return (
     <Link
       href="/dashboard/settings"
       className={`flex items-center gap-3.5 group relative w-full rounded-2xl transition-all duration-300
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50
         ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}
         ${isActive ? '' : 'hover:bg-slate-50/80'}
       `}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Active bg */}
-      {isActive && (
-        <motion.div
-          className="absolute inset-0 rounded-2xl"
-          style={{
-            background: `linear-gradient(135deg, ${settingsNeon.pulseColor}, transparent 60%)`,
-            border: `1px solid ${settingsNeon.ring}`,
-          }}
-        />
-      )}
-      {isActive && (
-        <div
-          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-7 rounded-full"
-          style={{ background: settingsNeon.textColor, boxShadow: `0 0 8px 2px ${settingsNeon.ring}` }}
-        />
-      )}
-
-      {/* 3D Gear icon — no border, no bg box, just the gear */}
+      {/* 3D Gear icon */}
       <motion.div
         animate={{
           rotate: hovered || isActive ? 180 : 0,
-          boxShadow: isActive ? settingsNeon.glow : '0 0 0 transparent',
           scale: isActive ? 1.05 : 1,
         }}
         transition={{
           rotate: { duration: hovered ? 0.6 : 0.4, ease: 'easeInOut' },
-          boxShadow: { duration: 0.4 },
           scale: { duration: 0.3 },
         }}
         className="relative flex-shrink-0 w-10 h-10 min-w-10 rounded-xl flex items-center justify-center"
-        style={isActive ? { background: settingsNeon.iconBg } : { background: 'rgba(241,245,249,0.8)' }}
         suppressHydrationWarning
       >
-        {isActive && (
-          <div className="absolute inset-0 rounded-xl overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-1/2 bg-white/20 rounded-t-xl" />
-          </div>
-        )}
-        <GearIcon3D
-          size={20}
-          color={isActive ? '#fff' : (hovered ? settingsNeon.textColor : '#94a3b8')}
-        />
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 bg-slate-100/80 group-hover:bg-slate-100">
+          <GearIcon3D
+            size={22}
+            color={isActive ? settingsNeon.textColor : (hovered ? settingsNeon.textColor : '#94a3b8')}
+          />
+        </div>
 
         {/* Tooltip */}
         {isCollapsed && (
@@ -293,7 +233,7 @@ function SettingsLink({ isCollapsed, isActive }: { isCollapsed: boolean; isActiv
             style={{ background: settingsNeon.iconBg, boxShadow: settingsNeon.glow }}
           >
             Settings
-            <div className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent" style={{ borderRightColor: '#f59e0b' }} />
+            <div className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent" style={{ borderRightColor: settingsNeon.textColor }} />
           </div>
         )}
       </motion.div>

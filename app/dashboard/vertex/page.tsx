@@ -589,8 +589,8 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
       </AnimatePresence>
       
       {/* Single compact header */}
-      <div className="flex-shrink-0 sticky top-0 z-20 bg-[#f6ebd5]/95
-                      backdrop-blur-sm border-b border-black/[0.06]">
+      <div className="flex-shrink-0 sticky top-0 z-20 bg-[#f8fafc]/95
+                      backdrop-blur-sm border-b border-slate-200">
         <div className="flex flex-wrap items-center gap-2 px-4 py-2 min-h-12">
           
           {/* Search */}
