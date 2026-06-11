@@ -7,11 +7,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { key } = body;
 
+    console.log('[PROFILES_API] Checking key validity...');
     const isKeyValid = await verifyOverrideKey(key);
     if (!isKeyValid) {
+      console.log('[PROFILES_API] Invalid key');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
+    console.log('[PROFILES_API] Key valid, fetching profiles...');
     const supabase = getSupabaseClient();
 
     let allUsers: any[] = [];
@@ -23,11 +26,15 @@ export async function POST(request: NextRequest) {
       const { data, error } = await supabase
         .from('profiles')
         .select('email, staff_name, role, state, district')
-        .eq('is_active', true)
         .order('staff_name')
         .range(from, from + pageSize - 1);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[PROFILES_API] Error fetching profiles:', error);
+        throw error;
+      }
+
+      console.log(`[PROFILES_API] Fetched ${data?.length || 0} profiles`);
 
       if (data && data.length > 0) {
         allUsers = [...allUsers, ...data];
@@ -38,8 +45,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log('[PROFILES_API] Total profiles:', allUsers.length);
+
     return NextResponse.json({ success: true, profiles: allUsers });
   } catch (error: any) {
+    console.error('[PROFILES_API] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

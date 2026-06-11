@@ -164,6 +164,7 @@ export default function LoginPage() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
+  const [profilesError, setProfilesError] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -183,18 +184,27 @@ export default function LoginPage() {
 
   const fetchProfiles = async (key: string) => {
     setIsLoadingProfiles(true);
+    setProfilesError(null);
     try {
+      console.log('[LOGIN] Fetching profiles with key...');
       const res = await fetch('/api/auth/profiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key }),
       });
+      console.log('[LOGIN] Profiles API response status:', res.status);
       const data = await res.json();
+      console.log('[LOGIN] Profiles API response data:', data);
       if (data.success) {
         setProfiles(data.profiles);
+        console.log('[LOGIN] Loaded profiles:', data.profiles.length);
+      } else {
+        console.error('[LOGIN] Failed to fetch profiles:', data.error);
+        setProfilesError(data.error || 'Failed to load profiles');
       }
     } catch (error) {
-      console.error('Failed to fetch profiles:', error);
+      console.error('[LOGIN] Error fetching profiles:', error);
+      setProfilesError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setIsLoadingProfiles(false);
     }
@@ -488,29 +498,37 @@ export default function LoginPage() {
                       <label className="block text-[#33ff99]/80 text-xs mb-2">TARGET_USER:</label>
                       {isLoadingProfiles ? (
                         <div className="text-[#33ff99]/60 text-xs animate-pulse">LOADING_PROFILES...</div>
+                      ) : profilesError ? (
+                        <div className="text-red-400 text-xs">ERROR: {profilesError}</div>
                       ) : (
-                        <select
-                          value={overrideEmail}
-                          onChange={(e) => {
-                            setOverrideEmail(e.target.value);
-                            if (e.target.value) {
-                              const selectedProfile = profiles.find(p => p.email === e.target.value);
-                              if (selectedProfile) {
-                                setOverrideRole(selectedProfile.role || 'PM');
-                                setOverrideState(selectedProfile.state || '');
-                                setOverrideDistrict(selectedProfile.district || '');
-                              }
-                            }
-                          }}
-                          className="w-full bg-black border border-[#33ff99]/30 text-[#33ff99] p-2 text-xs outline-none focus:border-[#33ff99] mb-2"
-                        >
-                          <option value="">-- SELECT_A_USER --</option>
-                          {profiles.map(profile => (
-                            <option key={profile.email} value={profile.email}>
-                              {profile.staff_name || profile.email} ({profile.role})
-                            </option>
-                          ))}
-                        </select>
+                        <>
+                          {profiles.length === 0 ? (
+                            <div className="text-[#33ff99]/60 text-xs">NO_PROFILES_FOUND</div>
+                          ) : (
+                            <select
+                              value={overrideEmail}
+                              onChange={(e) => {
+                                setOverrideEmail(e.target.value);
+                                if (e.target.value) {
+                                  const selectedProfile = profiles.find(p => p.email === e.target.value);
+                                  if (selectedProfile) {
+                                    setOverrideRole(selectedProfile.role || 'PM');
+                                    setOverrideState(selectedProfile.state || '');
+                                    setOverrideDistrict(selectedProfile.district || '');
+                                  }
+                                }
+                              }}
+                              className="w-full bg-black border border-[#33ff99]/30 text-[#33ff99] p-2 text-xs outline-none focus:border-[#33ff99] mb-2"
+                            >
+                              <option value="">-- SELECT_A_USER --</option>
+                              {profiles.map(profile => (
+                                <option key={profile.email} value={profile.email}>
+                                  {profile.staff_name || profile.email} ({profile.role})
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </>
                       )}
                     </div>
 
