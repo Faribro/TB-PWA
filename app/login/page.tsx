@@ -141,7 +141,8 @@ const Masthead = memo(function Masthead() {
 
 interface Profile {
   email: string;
-  staff_name: string;
+  name?: string;
+  staff_name?: string;
   role: string;
   state: string | null;
   district: string | null;
@@ -523,7 +524,7 @@ export default function LoginPage() {
                               <option value="">-- SELECT_A_USER --</option>
                               {profiles.map(profile => (
                                 <option key={profile.email} value={profile.email}>
-                                  {profile.staff_name || profile.email} ({profile.role})
+                                  {profile.name || profile.staff_name || profile.email} ({profile.role})
                                 </option>
                               ))}
                             </select>

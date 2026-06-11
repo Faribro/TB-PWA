@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
     while (hasMore) {
       const { data, error } = await supabase
         .from('profiles')
-        .select('email, staff_name, role, state, district')
-        .order('staff_name')
+        .select('email, name, staff_name, role, state, district')
+        .order('name')
         .range(from, from + pageSize - 1);
 
       if (error) {

@@ -51,7 +51,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const supabase = getSupabaseClient();
           const { data: profile, error } = await supabase
             .from('profiles')
-            .select('email, role, state, district, staff_name')
+            .select('email, role, state, district, name, staff_name')
             .eq('email', overrideData.email.toLowerCase())
             .single();
 
@@ -64,7 +64,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               role: profile.role,
               state: profile.state,
               district: profile.district,
-              name: profile.staff_name || user.name,
+              name: profile.name || profile.staff_name || user.name,
             };
             setCachedProfile(profile.email, profileData);
             (user as any).profileData = profileData;
@@ -86,7 +86,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             const supabase = getSupabaseClient();
             const { data: profile, error } = await supabase
               .from('profiles')
-              .select('email, role, state, district, staff_name')
+              .select('email, role, state, district, name, staff_name')
               .eq('email', email)
               .single();
 
@@ -100,7 +100,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               role: profile.role,
               state: profile.state,
               district: profile.district,
-              name: profile.staff_name || user.name,
+              name: profile.name || profile.staff_name || user.name,
             };
             setCachedProfile(email, baseData);
           } catch (err) {
@@ -132,7 +132,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const supabase = getSupabaseClient();
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('email, role, state, district, staff_name')
+          .select('email, role, state, district, name, staff_name')
           .eq('email', email)
           .single();
 
@@ -146,7 +146,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           role: profile.role,
           state: profile.state,
           district: profile.district,
-          name: profile.staff_name || user.name,
+          name: profile.name || profile.staff_name || user.name,
         };
 
         setCachedProfile(email, profileData);
