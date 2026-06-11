@@ -26,7 +26,46 @@ export function ScreeningFrequencyTimeline({
   isLoading,
   error
 }: ScreeningFrequencyTimelineProps) {
-  
+  // Shooting Stars State & Interval trigger (2-4 stars every 30 seconds)
+  const [stars, setStars] = React.useState<Array<{
+    id: number;
+    top: number;
+    left: number;
+    delay: number;
+    scale: number;
+  }>>([]);
+
+  React.useEffect(() => {
+    const triggerStars = () => {
+      const count = Math.floor(Math.random() * 3) + 2; // 2 to 4 stars
+      const newStars = Array.from({ length: count }).map((_, idx) => {
+        const top = Math.random() * 60 - 20; // -20% to 40% (allows starting high up)
+        const left = Math.random() * 50 + 10; // 10% to 60%
+        const delay = Math.random() * 2000;
+        const scale = Math.random() * 0.5 + 0.6; // 0.6 to 1.1 scale
+        return {
+          id: Math.random() + idx,
+          top,
+          left,
+          delay,
+          scale
+        };
+      });
+      setStars(newStars);
+
+      // Reset stars after their animations finish (3s duration + max 2s delay + buffer)
+      const cleanupTimer = setTimeout(() => {
+        setStars([]);
+      }, 6000);
+
+      return () => clearTimeout(cleanupTimer);
+    };
+
+    triggerStars();
+    const interval = setInterval(triggerStars, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Data Aggregation — prefers server-provided breakdown over raw scan
   const monthlyData = useMemo(() => {
     // If server breakdown is provided, use it directly (accurate full-dataset counts)
@@ -168,6 +207,21 @@ export function ScreeningFrequencyTimeline({
   return (
     <div className="w-full max-w-full relative flex flex-col h-full overflow-hidden">
       <div className="relative h-full w-full max-w-full min-w-0">
+        {/* Shooting Stars animation layer */}
+        <div className="night">
+          {stars.map((star) => (
+            <div
+              key={star.id}
+              className="shooting_star"
+              style={{
+                top: `${star.top}%`,
+                left: `${star.left}%`,
+                transform: `scale(${star.scale})`,
+                '--delay': `${star.delay}ms`
+              } as React.CSSProperties}
+            />
+          ))}
+        </div>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart 
             data={chartData} 
