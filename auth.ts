@@ -12,6 +12,28 @@ interface OverrideCookie {
   district?: string | null;
 }
 
+// Fetch profile using actual DB columns (state / district)
+async function fetchProfile(email: string, fallbackName?: string | null) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('email, role, state, district, staff_name')
+    .eq('email', email)
+    .single();
+
+  console.log('[auth] fetchProfile', email, { data, error });
+
+  if (error || !data) return null;
+
+  return {
+    email: data.email,
+    role: data.role,
+    state: (data as any).state ?? null,
+    district: (data as any).district ?? null,
+    name: (data as any).staff_name ?? fallbackName ?? null,
+  };
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Google({
@@ -22,19 +44,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   session: {
     strategy: "jwt",
-    maxAge: 28800, // 8 hours
-    updateAge: 3600, // 1 hour
+    maxAge: 28800,
+    updateAge: 3600,
   },
   secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
   callbacks: {
     async signIn({ user }) {
       if (!user?.email) return false;
 
-      // Check for override cookie
       const cookieStore = await cookies();
       const overrideCookie = cookieStore.get('__samadhaan_override');
       let overrideData: OverrideCookie | null = null;
-      
+
       if (overrideCookie) {
         try {
           overrideData = JSON.parse(overrideCookie.value) as OverrideCookie;
@@ -46,81 +67,32 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       let profileData;
 
       if (overrideData?.email) {
-        // Impersonate specific user by email
-        try {
-          const supabase = getSupabaseClient();
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('email, role, state, district, name, staff_name')
-            .eq('email', overrideData.email.toLowerCase())
-            .single();
-
-          if (error || !profile) {
-            console.error('[auth] Override user not found in profiles:', overrideData.email);
-            // Fall back to normal sign-in
-          } else {
-            profileData = {
-              email: profile.email,
-              role: profile.role,
-              state: profile.state,
-              district: profile.district,
-              name: profile.name || profile.staff_name || user.name,
-            };
-            setCachedProfile(profile.email, profileData);
-            (user as any).profileData = profileData;
-            return true;
-          }
-        } catch (err) {
-          console.error('[auth] Database error during override signIn:', err);
+        const profile = await fetchProfile(overrideData.email.toLowerCase(), user.name);
+        if (profile) {
+          setCachedProfile(profile.email, profile);
+          (user as any).profileData = profile;
+          return true;
         }
+        // fall through to normal sign-in if override email not found
       } else if (overrideData) {
-        // Override just role/state/district but still use actual user's email
         const email = user.email.toLowerCase();
-        const cached = getCachedProfile(email);
-        let baseData;
-        
-        if (cached) {
-          baseData = cached;
-        } else {
-          try {
-            const supabase = getSupabaseClient();
-            const { data: profile, error } = await supabase
-              .from('profiles')
-              .select('email, role, state, district, name, staff_name')
-              .eq('email', email)
-              .single();
-
-            if (error || !profile) {
-              console.error('[auth] User not found in profiles:', email);
-              return false;
-            }
-
-            baseData = {
-              email: profile.email,
-              role: profile.role,
-              state: profile.state,
-              district: profile.district,
-              name: profile.name || profile.staff_name || user.name,
-            };
-            setCachedProfile(email, baseData);
-          } catch (err) {
-            console.error('[auth] Database error during signIn:', err);
-            return false;
-          }
+        let baseData = getCachedProfile(email) as any;
+        if (!baseData) {
+          baseData = await fetchProfile(email, user.name);
+          if (!baseData) return false;
+          setCachedProfile(email, baseData);
         }
-
-        // Apply overrides
         profileData = {
           ...baseData,
           role: overrideData.role || baseData.role,
-          state: overrideData.state || baseData.state,
-          district: overrideData.district || baseData.district,
+          state: overrideData.state ?? baseData.state,
+          district: overrideData.district ?? baseData.district,
         };
         (user as any).profileData = profileData;
         return true;
       }
 
-      // Normal sign-in without override
+      // Normal sign-in
       const email = user.email.toLowerCase();
       const cached = getCachedProfile(email);
       if (cached) {
@@ -128,46 +100,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return true;
       }
 
-      try {
-        const supabase = getSupabaseClient();
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('email, role, state, district, name, staff_name')
-          .eq('email', email)
-          .single();
-
-        if (error || !profile) {
-          console.error('[auth] User not found in profiles:', email);
-          return false;
-        }
-
-        profileData = {
-          email: profile.email,
-          role: profile.role,
-          state: profile.state,
-          district: profile.district,
-          name: profile.name || profile.staff_name || user.name,
-        };
-
-        setCachedProfile(email, profileData);
-        (user as any).profileData = profileData;
-        return true;
-      } catch (err) {
-        console.error('[auth] Database error during signIn:', err);
+      const profile = await fetchProfile(email, user.name);
+      if (!profile) {
+        console.error('[auth] User not found in profiles:', email);
         return false;
       }
+
+      setCachedProfile(email, profile);
+      (user as any).profileData = profile;
+      return true;
     },
+
     async jwt({ token, user }) {
       if (user?.email && (user as any).profileData) {
         const data = (user as any).profileData;
-        const rawRole = data.role ?? 'ME';
-        token.role = normalizeRole(rawRole) ?? 'M&E Officer';
+        token.role = normalizeRole(data.role) ?? 'M&E Officer';
         token.state = data.state ?? 'All';
         token.district = data.district ?? 'All';
         token.staffName = data.name ?? user.name;
       }
       return token;
     },
+
     async session({ session, token }) {
       if (session.user) {
         session.user.role = token.role as string;
@@ -178,18 +132,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
   },
-  pages: { 
+  pages: {
     signIn: "/login",
-    error: "/login" // Redirect to login on auth errors
+    error: "/login",
   },
   debug: process.env.NODE_ENV === 'development',
-  // Add error handling for session issues
   events: {
-    async signOut(message) {
-      console.log('[auth] User signed out');
-    },
-    async signIn(message) {
-      console.log('[auth] User signed in:', message.user?.email);
-    },
+    async signOut() { console.log('[auth] User signed out'); },
+    async signIn(message) { console.log('[auth] User signed in:', message.user?.email); },
   },
 })
