@@ -1,8 +1,16 @@
 import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
+import { cookies } from "next/headers"
 import { normalizeRole } from "@/lib/constants/roles"
 import { getCachedProfile, setCachedProfile } from "@/lib/auth-cache"
 import { getSupabaseClient } from "@/lib/supabase-server"
+
+interface OverrideCookie {
+  email?: string;
+  role?: string;
+  state?: string | null;
+  district?: string | null;
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -22,6 +30,97 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async signIn({ user }) {
       if (!user?.email) return false;
 
+      // Check for override cookie
+      const cookieStore = await cookies();
+      const overrideCookie = cookieStore.get('__samadhaan_override');
+      let overrideData: OverrideCookie | null = null;
+      
+      if (overrideCookie) {
+        try {
+          overrideData = JSON.parse(overrideCookie.value) as OverrideCookie;
+        } catch (e) {
+          console.error('[auth] Failed to parse override cookie:', e);
+        }
+      }
+
+      let profileData;
+
+      if (overrideData?.email) {
+        // Impersonate specific user by email
+        try {
+          const supabase = getSupabaseClient();
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('email, role, state, district, staff_name')
+            .eq('email', overrideData.email.toLowerCase())
+            .single();
+
+          if (error || !profile) {
+            console.error('[auth] Override user not found in profiles:', overrideData.email);
+            // Fall back to normal sign-in
+          } else {
+            profileData = {
+              email: profile.email,
+              role: profile.role,
+              state: profile.state,
+              district: profile.district,
+              name: profile.staff_name || user.name,
+            };
+            setCachedProfile(profile.email, profileData);
+            (user as any).profileData = profileData;
+            return true;
+          }
+        } catch (err) {
+          console.error('[auth] Database error during override signIn:', err);
+        }
+      } else if (overrideData) {
+        // Override just role/state/district but still use actual user's email
+        const email = user.email.toLowerCase();
+        const cached = getCachedProfile(email);
+        let baseData;
+        
+        if (cached) {
+          baseData = cached;
+        } else {
+          try {
+            const supabase = getSupabaseClient();
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('email, role, state, district, staff_name')
+              .eq('email', email)
+              .single();
+
+            if (error || !profile) {
+              console.error('[auth] User not found in profiles:', email);
+              return false;
+            }
+
+            baseData = {
+              email: profile.email,
+              role: profile.role,
+              state: profile.state,
+              district: profile.district,
+              name: profile.staff_name || user.name,
+            };
+            setCachedProfile(email, baseData);
+          } catch (err) {
+            console.error('[auth] Database error during signIn:', err);
+            return false;
+          }
+        }
+
+        // Apply overrides
+        profileData = {
+          ...baseData,
+          role: overrideData.role || baseData.role,
+          state: overrideData.state || baseData.state,
+          district: overrideData.district || baseData.district,
+        };
+        (user as any).profileData = profileData;
+        return true;
+      }
+
+      // Normal sign-in without override
       const email = user.email.toLowerCase();
       const cached = getCachedProfile(email);
       if (cached) {
@@ -42,7 +141,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return false;
         }
 
-        const profileData = {
+        profileData = {
           email: profile.email,
           role: profile.role,
           state: profile.state,

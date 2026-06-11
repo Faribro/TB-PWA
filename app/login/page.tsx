@@ -139,6 +139,14 @@ const Masthead = memo(function Masthead() {
   );
 });
 
+interface Profile {
+  email: string;
+  staff_name: string;
+  role: string;
+  state: string | null;
+  district: string | null;
+}
+
 export default function LoginPage() {
   const [isHovering, setIsHovering] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -149,10 +157,13 @@ export default function LoginPage() {
   const [overrideRole, setOverrideRole] = useState<string>('PM');
   const [overrideState, setOverrideState] = useState<string>('');
   const [overrideDistrict, setOverrideDistrict] = useState<string>('');
+  const [overrideEmail, setOverrideEmail] = useState<string>('');
   const [masterKey, setMasterKey] = useState<string>('');
   const [keyStatus, setKeyStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -170,10 +181,30 @@ export default function LoginPage() {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [showOverrideModal]);
 
+  const fetchProfiles = async (key: string) => {
+    setIsLoadingProfiles(true);
+    try {
+      const res = await fetch('/api/auth/profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setProfiles(data.profiles);
+      }
+    } catch (error) {
+      console.error('Failed to fetch profiles:', error);
+    } finally {
+      setIsLoadingProfiles(false);
+    }
+  };
+
   useEffect(() => {
     if (masterKey.length < 5) {
       setKeyStatus('idle');
       setIsUnlocked(false);
+      setProfiles([]);
       return;
     }
     const timer = setTimeout(async () => {
@@ -181,6 +212,9 @@ export default function LoginPage() {
       const valid = await verifyOverrideKey(masterKey);
       setKeyStatus(valid ? 'valid' : 'invalid');
       setIsUnlocked(valid);
+      if (valid) {
+        fetchProfiles(masterKey);
+      }
     }, 400);
     return () => clearTimeout(timer);
   }, [masterKey]);
@@ -218,16 +252,19 @@ export default function LoginPage() {
     if (isSigningIn) return;
     setIsSigningIn(true);
     sounds.breachAccess();
-    const override = {
-      role: overrideRole,
-      state: overrideState || null,
-      district: overrideDistrict || null,
-    };
+    const override: any = {};
+    if (overrideEmail) {
+      override.email = overrideEmail;
+    } else {
+      override.role = overrideRole;
+      override.state = overrideState || null;
+      override.district = overrideDistrict || null;
+    }
     document.cookie = `__samadhaan_override=${JSON.stringify(override)}; path=/; max-age=60; SameSite=Lax`;
     setTimeout(() => {
       signIn("google", { callbackUrl: "/dashboard" });
     }, 1200);
-  }, [overrideRole, overrideState, overrideDistrict, isSigningIn]);
+  }, [overrideEmail, overrideRole, overrideState, overrideDistrict, isSigningIn]);
 
   return (
     <div className="min-h-screen relative flex flex-col items-center justify-start overflow-hidden font-outfit bg-slate-50 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px]">
@@ -424,42 +461,89 @@ export default function LoginPage() {
                       <div className="text-[10px] text-[#33ff99]/60 leading-tight space-y-1">
                         <div>&gt; BYPASSING_SUPABASE_AUTH_GATES... <span className="text-[#33ff99]">DONE</span></div>
                         <div>&gt; INJECTING_OVERRIDE_COOKIE... <span className="text-[#33ff99]">ACTIVE</span></div>
-                        <div>&gt; TARGET_ROLE: <span className="text-white font-bold">[{overrideRole}]</span></div>
-                        {overrideState && <div>&gt; TARGET_STATE: <span className="text-white font-bold">[{overrideState}]</span></div>}
-                        {overrideDistrict && <div>&gt; TARGET_DISTRICT: <span className="text-white font-bold">[{overrideDistrict}]</span></div>}
+                        {overrideEmail ? (
+                          <>
+                            <div>&gt; TARGET_USER: <span className="text-white font-bold">[{overrideEmail}]</span></div>
+                            <div>&gt; TARGET_ROLE: <span className="text-white font-bold">[{overrideRole}]</span></div>
+                            {overrideState && <div>&gt; TARGET_STATE: <span className="text-white font-bold">[{overrideState}]</span></div>}
+                            {overrideDistrict && <div>&gt; TARGET_DISTRICT: <span className="text-white font-bold">[{overrideDistrict}]</span></div>}
+                          </>
+                        ) : (
+                          <>
+                            <div>&gt; TARGET_ROLE: <span className="text-white font-bold">[{overrideRole}]</span></div>
+                            {overrideState && <div>&gt; TARGET_STATE: <span className="text-white font-bold">[{overrideState}]</span></div>}
+                            {overrideDistrict && <div>&gt; TARGET_DISTRICT: <span className="text-white font-bold">[{overrideDistrict}]</span></div>}
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
 
                   {/* Quadrant 2: Override Parameters */}
-                  <div className="bg-[#0c130c] p-6 border border-[#33ff99]/20">
+                  <div className="bg-[#0c130c] p-6 border border-[#33ff99]/20 overflow-y-auto max-h-[400px]">
                     <h3 className="text-[#33ff99] text-sm mb-4 tracking-tighter terminal-glow">SELECT_OVERRIDE_PARAMETERS:</h3>
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                      {['PM', 'SPM', 'ME', 'PC'].map((role) => (
-                        <button
-                          key={role}
-                          onClick={() => setOverrideRole(role)}
-                          className={`py-2 text-xs border transition-all ${overrideRole === role
-                              ? 'bg-[#33ff99] text-black border-[#33ff99] shadow-[0_0_10px_rgba(51,255,153,0.5)]'
-                              : 'border-[#33ff99]/30 text-[#33ff99] hover:bg-[#33ff99]/10'
-                            }`}
+                    
+                    {/* User Selection */}
+                    <div className="mb-4">
+                      <label className="block text-[#33ff99]/80 text-xs mb-2">TARGET_USER:</label>
+                      {isLoadingProfiles ? (
+                        <div className="text-[#33ff99]/60 text-xs animate-pulse">LOADING_PROFILES...</div>
+                      ) : (
+                        <select
+                          value={overrideEmail}
+                          onChange={(e) => {
+                            setOverrideEmail(e.target.value);
+                            if (e.target.value) {
+                              const selectedProfile = profiles.find(p => p.email === e.target.value);
+                              if (selectedProfile) {
+                                setOverrideRole(selectedProfile.role || 'PM');
+                                setOverrideState(selectedProfile.state || '');
+                                setOverrideDistrict(selectedProfile.district || '');
+                              }
+                            }
+                          }}
+                          className="w-full bg-black border border-[#33ff99]/30 text-[#33ff99] p-2 text-xs outline-none focus:border-[#33ff99] mb-2"
                         >
-                          :: {role}
-                        </button>
-                      ))}
+                          <option value="">-- SELECT_A_USER --</option>
+                          {profiles.map(profile => (
+                            <option key={profile.email} value={profile.email}>
+                              {profile.staff_name || profile.email} ({profile.role})
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </div>
-                    <input
-                      placeholder="[--override-state]"
-                      className="w-full bg-black border-b border-[#33ff99]/30 text-[#33ff99] p-2 text-xs outline-none focus:border-[#33ff99] mb-2 placeholder:text-[#33ff99]/30"
-                      value={overrideState}
-                      onChange={(e) => setOverrideState(e.target.value)}
-                    />
-                    <input
-                      placeholder="[--override-district]"
-                      className="w-full bg-black border-b border-[#33ff99]/30 text-[#33ff99] p-2 text-xs outline-none focus:border-[#33ff99] placeholder:text-[#33ff99]/30"
-                      value={overrideDistrict}
-                      onChange={(e) => setOverrideDistrict(e.target.value)}
-                    />
+
+                    {/* Manual Overrides */}
+                    <div className="mb-4">
+                      <h4 className="text-[#33ff99]/70 text-xs mb-2">MANUAL_OVERRIDES (IF_NO_USER_SELECTED):</h4>
+                      <div className="grid grid-cols-2 gap-2 mb-4">
+                        {['PM', 'SPM', 'ME', 'PC'].map((role) => (
+                          <button
+                            key={role}
+                            onClick={() => setOverrideRole(role)}
+                            className={`py-2 text-xs border transition-all ${overrideRole === role
+                                ? 'bg-[#33ff99] text-black border-[#33ff99] shadow-[0_0_10px_rgba(51,255,153,0.5)]'
+                                : 'border-[#33ff99]/30 text-[#33ff99] hover:bg-[#33ff99]/10'
+                              }`}
+                          >
+                            :: {role}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        placeholder="[--override-state]"
+                        className="w-full bg-black border-b border-[#33ff99]/30 text-[#33ff99] p-2 text-xs outline-none focus:border-[#33ff99] mb-2 placeholder:text-[#33ff99]/30"
+                        value={overrideState}
+                        onChange={(e) => setOverrideState(e.target.value)}
+                      />
+                      <input
+                        placeholder="[--override-district]"
+                        className="w-full bg-black border-b border-[#33ff99]/30 text-[#33ff99] p-2 text-xs outline-none focus:border-[#33ff99] placeholder:text-[#33ff99]/30"
+                        value={overrideDistrict}
+                        onChange={(e) => setOverrideDistrict(e.target.value)}
+                      />
+                    </div>
                   </div>
 
                   {/* Quadrant 3 & 4: System Log + Execute (Combined) */}
