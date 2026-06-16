@@ -720,11 +720,11 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
           )}
 
           {/* View toggle */}
-          <div className="flex rounded-md border border-black/[0.08] overflow-hidden">
+          <div className="flex rounded-md border border-black/[0.08]">
             <button
               onClick={() => { sounds.toggle(); setView('table'); }}
               className={cn(
-                'px-2.5 py-1.5 text-xs font-medium transition-colors flex items-center gap-1',
+                'px-2.5 py-1.5 text-xs font-medium transition-colors flex items-center gap-1 rounded-l-md',
                 view === 'table'
                   ? 'bg-[#01696f] text-white'
                   : 'bg-white text-[#7a7974] hover:bg-[#f3f0ec]'
@@ -735,7 +735,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
             <button
               onClick={() => { sounds.toggle(); setView('calendar'); }}
               className={cn(
-                'px-2.5 py-1.5 text-xs font-medium transition-colors flex items-center gap-1',
+                'px-2.5 py-1.5 text-xs font-medium transition-colors flex items-center gap-1 border-l border-black/[0.08]',
                 view === 'calendar'
                   ? 'bg-[#01696f] text-white'
                   : 'bg-white text-[#7a7974] hover:bg-[#f3f0ec]'
@@ -750,7 +750,7 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
                 setHasBeenOpened(true);
               }}
               className={cn(
-                'px-2.5 py-1.5 text-xs font-medium transition-colors flex items-center gap-1',
+                'px-2.5 py-1.5 text-xs font-medium transition-colors flex items-center gap-1 rounded-r-md border-l border-black/[0.08]',
                 view === 'spreadsheet'
                   ? 'bg-green-600 text-white'
                   : 'bg-white text-[#7a7974] hover:bg-[#f3f0ec]'
