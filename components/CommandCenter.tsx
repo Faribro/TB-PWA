@@ -1,0 +1,888 @@
+'use client';
+
+import { useState, useMemo, useCallback, memo } from 'react';
+import useSWR from 'swr';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AlertTriangle, Activity, Calendar, CheckCircle, MapPin, Search, Check, X, ChevronRight, Clock, Filter, CheckSquare, Square, Grid3X3, List, Edit3, ChevronUp, ChevronDown } from 'lucide-react';
+import { PatientDetailDrawer } from './PatientDetailDrawer';
+import { PhaseCell } from './PhaseCell';
+import AnalyticsOverview from './AnalyticsOverview';
+import { calculatePatientPhase } from '@/lib/phase-engine';
+import { Button } from './ui/button';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useSWRAllPatients } from '@/hooks/useSWRPatients';
+import { useSWRConfig } from 'swr';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
+import { LinesAndDotsLoader } from './LinesAndDotsLoader';
+import { Z_INDEX } from '@/lib/zIndex';
+import { VirtualTable } from './VirtualTable';
+import { useSessionScope } from '@/hooks/useSessionScope';
+import { usePatientRealtime } from '@/hooks/usePatientRealtime';
+
+const supabase = getSupabaseBrowserClient();
+
+interface Patient {
+  id: string;
+  unique_id: string;
+  inmate_name: string;
+  screening_state: string;
+  screening_district: string;
+  facility_name: string;
+  facility_type: string;
+  screening_date: string;
+  submitted_on?: string;
+  xray_result: string;
+  chest_x_ray_result?: string;
+  symptoms_present?: string;
+  kobo_uuid?: string;
+  referral_date: string | null;
+  referred_facility?: string | null;
+  tb_diagnosed: string | null;
+  tb_diagnosis_date?: string | null;
+  tb_type?: string | null;
+  att_start_date: string | null;
+  att_completion_date?: string | null;
+  hiv_status: string | null;
+  art_status?: string | null;
+  art_number?: string | null;
+  nikshay_abha_id?: string | null;
+  nikshay_registration_date?: string | null;
+  other_facility_name?: string | null;
+  treatment_regimen?: string | null;
+  closure_reason?: string | null;
+  risk_score: number;
+  age: number;
+  sex: string;
+  created_at: string;
+  updated_at?: string;
+  current_phase?: string;
+  [key: string]: any;
+}
+
+const PHASES = [
+  { id: 1, name: 'Screening', icon: AlertTriangle, color: 'amber' },
+  { id: 2, name: 'Sputum Test', icon: Activity, color: 'blue' },
+  { id: 3, name: 'Diagnosis', icon: Calendar, color: 'purple' },
+  { id: 4, name: 'ATT Initiation', icon: CheckCircle, color: 'green' },
+  { id: 5, name: 'Closed', icon: CheckCircle, color: 'gray' }
+];
+
+interface FilterState {
+  facilityType: string;
+  state: string;
+  district: string;
+  phase: string;
+  overdueOnly: boolean;
+  tbDiagnosed: string;
+  hivStatus: string;
+  dateFrom: string;
+  dateTo: string;
+}
+
+interface FilterMetadata {
+  states: string[];
+  locationMap: Map<string, string[]>;
+  facilityTypes: string[];
+}
+
+interface CommandCenterProps {
+  globalPatients?: any[];
+  isLoading?: boolean;
+  initialFilter?: any;
+}
+
+function CommandCenter({ globalPatients, isLoading = false, initialFilter }: CommandCenterProps) {
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [triageIds, setTriageIds] = useState<string[]>([]);
+  const [isTriaging, setIsTriaging] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebounce(searchTerm, 400);
+  
+  // CRITICAL: Initialize state ONCE and never let it reset from props
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [showDashboard, setShowDashboard] = useState(true);
+  
+  const [filters, setFilters] = useState<FilterState>({
+    facilityType: '',
+    state: '',
+    district: '',
+    phase: '',
+    overdueOnly: false,
+    tbDiagnosed: '',
+    hivStatus: '',
+    dateFrom: '',
+    dateTo: ''
+  });
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [sortBy, setSortBy] = useState('submitted_on');
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
+  
+  // Stable handlers - NEVER recreate these
+  const handleViewModeChange = useCallback((mode: 'table' | 'grid') => {
+    console.log('[CommandCenter] Changing view mode to:', mode);
+    setViewMode(mode);
+  }, []);
+  
+  const handleDashboardToggle = useCallback(() => {
+    console.log('[CommandCenter] Toggling dashboard');
+    setShowDashboard(prev => !prev);
+  }, []);
+
+  const scope = useSessionScope();
+  const isFetchingInternally = !globalPatients;
+
+  const {
+    patients: fetchedPatients = [],
+    isLoading: fetchedLoading,
+    total: fetchedTotalCount,
+    mutate: localMutate,
+    loadMore,
+    hasMore,
+    isLoadingMore
+  } = useSWRAllPatients(isFetchingInternally ? scope : null, {
+    limit: 50,
+    filters: {
+      state: filters.state || undefined,
+      district: filters.district || undefined,
+      dateFrom: filters.dateFrom || undefined,
+      dateTo: filters.dateTo || undefined,
+      search: debouncedSearch || undefined,
+      facilityType: filters.facilityType || undefined,
+      tbDiagnosed: filters.tbDiagnosed || undefined
+    }
+  });
+
+  const patientsData = isFetchingInternally ? fetchedPatients : (globalPatients || []);
+  const isPatientsLoading = isFetchingInternally ? fetchedLoading : isLoading;
+
+  // Subscribe to real-time patient updates in-place!
+  usePatientRealtime((payload) => {
+    if (!isFetchingInternally) return;
+    
+    console.log('[CommandCenter] Patient change detected, mutating in-place:', payload.eventType);
+    
+    localMutate((currentData: any) => {
+      if (!currentData) return currentData;
+      
+      const newData = currentData.map((page: any) => ({
+        ...page,
+        data: [...page.data]
+      }));
+      
+      const { eventType, new: newRecord, old: oldRecord } = payload;
+      
+      if (eventType === 'INSERT') {
+        if (newData.length > 0) {
+          // Verify if the new record matches the current state/district/search filters before adding
+          let matches = true;
+          if (filters.state && newRecord.screening_state !== filters.state) matches = false;
+          if (filters.district && newRecord.screening_district !== filters.district) matches = false;
+          if (debouncedSearch) {
+            const searchLower = debouncedSearch.toLowerCase();
+            const nameMatch = newRecord.inmate_name?.toLowerCase().includes(searchLower);
+            const idMatch = newRecord.unique_id?.toLowerCase().includes(searchLower);
+            if (!nameMatch && !idMatch) matches = false;
+          }
+          
+          if (matches) {
+            newData[0].data = [newRecord, ...newData[0].data];
+          }
+        } else {
+          newData.push({
+            data: [newRecord],
+            nextCursor: null,
+            hasMore: false,
+            meta: { returned: 1, requestedLimit: 50, role: '', durationMs: 0, mode: 'cursor' }
+          });
+        }
+      } else if (eventType === 'UPDATE') {
+        let updated = false;
+        for (const page of newData) {
+          const index = page.data.findIndex((p: any) => p.id === newRecord.id);
+          if (index !== -1) {
+            page.data[index] = { ...page.data[index], ...newRecord };
+            updated = true;
+            break;
+          }
+        }
+      } else if (eventType === 'DELETE') {
+        for (const page of newData) {
+          const index = page.data.findIndex((p: any) => p.id === oldRecord.id);
+          if (index !== -1) {
+            page.data.splice(index, 1);
+            break;
+          }
+        }
+      }
+      
+      return newData;
+    }, false); // false = do not revalidate
+  }, scope, isFetchingInternally);
+
+  // Mock user session - replace with actual auth
+  const userRole = 'State M&E';
+  const userState = undefined; // Set to 'Maharashtra' to test state filtering
+
+  // SWR hooks with state-based security
+  const { data: filterMetadata } = useSWR(
+    userState ? `/api/filter-metadata?state=${userState}` : '/api/filter-metadata',
+    (url: string) => fetch(url).then(r => r.json()),
+    { revalidateOnFocus: false, dedupingInterval: 300000 }
+  );
+
+  // SWR config for cache revalidation
+  const { mutate: globalMutate } = useSWRConfig();
+  const totalCount = isFetchingInternally ? fetchedTotalCount : patientsData.length;
+
+  // Define isSLABreach before using it
+  const isSLABreach = useCallback((patient: Patient): boolean => {
+    const submittedDate = patient.submitted_on || patient.screening_date;
+    if (!submittedDate) return false;
+    const daysSince = (Date.now() - new Date(submittedDate).getTime()) / (1000 * 60 * 60 * 24);
+    const phase = (patient.current_phase || '').toLowerCase();
+    return daysSince > 7 && !phase.includes('treatment') && !phase.includes('closed');
+  }, []);
+
+  // Client-side filters with Spark filter logic
+  const patients = useMemo(() => {
+    let filtered = patientsData;
+    
+    // Apply Spark filter (actionType)
+    if (initialFilter?.actionType) {
+      filtered = filtered.filter(p => {
+        switch (initialFilter.actionType) {
+          case 'sputum':
+            return !p.referral_date;
+          case 'diagnosis':
+            return p.referral_date && !p.tb_diagnosed;
+          case 'treatment':
+            return p.tb_diagnosed === 'Y' && !p.att_start_date;
+          case 'admin':
+            return true;
+          default:
+            return true;
+        }
+      });
+    }
+    
+    // Apply search filter (only if not fetching internally)
+    if (debouncedSearch && !isFetchingInternally) {
+      const searchLower = debouncedSearch.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.inmate_name?.toLowerCase().includes(searchLower) ||
+        p.unique_id?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Apply other filters
+    filtered = filtered.filter(p => {
+      if (!isFetchingInternally) {
+        if (filters.state && p.screening_state !== filters.state) return false;
+        if (filters.district && p.screening_district !== filters.district) return false;
+        if (filters.facilityType && p.facility_type !== filters.facilityType) return false;
+        if (filters.tbDiagnosed && p.tb_diagnosed !== filters.tbDiagnosed) return false;
+      }
+      if (filters.hivStatus && p.hiv_status !== filters.hivStatus) return false;
+      if (filters.phase && calculatePatientPhase(p).phase !== filters.phase) return false;
+      if (filters.overdueOnly && !isSLABreach(p)) return false;
+      return true;
+    });
+    
+    return filtered;
+  }, [patientsData, debouncedSearch, filters, isSLABreach, initialFilter, isFetchingInternally]);
+
+  const updatePatient = async (id: string, updates: Partial<Patient>) => {
+    const patient = patients.find(p => p.id === id);
+    if (!patient) return;
+
+    console.log('[CommandCenter.updatePatient] 🔄 Starting update for patient:', id);
+    console.log('[CommandCenter.updatePatient] 📝 Updates:', updates);
+
+    const response = await fetch('/api/patient-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        patientId: patient.id,
+        koboUuid: patient.kobo_uuid,
+        updates
+      })
+    });
+
+    if (response.ok) {
+      const responseData = await response.json();
+      
+      console.log('[CommandCenter.updatePatient] ✅ API response:', responseData);
+      console.log('[CommandCenter.updatePatient] 🔍 Response patient updated_at:', responseData.patient?.updated_at);
+      
+      // CRITICAL FIX: Update selectedPatient with full server-confirmed patient object
+      // This ensures all fields including updated_at timestamp are current
+      if (responseData.patient && selectedPatient?.id === id) {
+        console.log('[CommandCenter.updatePatient] 🔄 Updating selectedPatient with server response');
+        console.log('[CommandCenter.updatePatient] 📊 Before:', {
+          id: selectedPatient.id,
+          updated_at: selectedPatient.updated_at,
+          referred_facility: selectedPatient.referred_facility
+        });
+        setSelectedPatient(responseData.patient);
+        console.log('[CommandCenter.updatePatient] 📊 After:', {
+          id: responseData.patient.id,
+          updated_at: responseData.patient.updated_at,
+          referred_facility: responseData.patient.referred_facility
+        });
+      } else {
+        console.warn('[CommandCenter.updatePatient] ⚠️ Not updating selectedPatient:', {
+          hasPatient: !!responseData.patient,
+          selectedPatientId: selectedPatient?.id,
+          updateId: id,
+          match: selectedPatient?.id === id
+        });
+      }
+      
+      // Refresh SWR cache
+      if (isFetchingInternally) {
+        localMutate();
+      } else {
+        globalMutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+      }
+    } else {
+      console.error('[CommandCenter.updatePatient] ❌ API error:', response.status);
+    }
+  };
+
+  const bulkUpdate = async (updates: Partial<Patient>) => {
+    const ids = Array.from(selectedIds);
+    await Promise.all(ids.map(id => supabase.from('patients').update(updates).eq('id', id)));
+    if (isFetchingInternally) {
+      localMutate();
+    } else {
+      globalMutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+    }
+    setSelectedIds(new Set());
+  };
+
+  const filteredPatients = patients;
+  const displayTotalCount = totalCount;
+
+  const canSelectForTriage = useCallback((patient: Patient): boolean => {
+    const xrayResult = (patient.chest_x_ray_result || patient.xray_result || '').toLowerCase();
+    const symptomsText = (patient.symptoms_present || '').toLowerCase();
+    
+    const isNormalXray = xrayResult.includes('normal') || 
+                         xrayResult.includes('not-detected') || 
+                         xrayResult.includes('latent') || 
+                         xrayResult === 'l';
+    
+    const noSymptoms = !symptomsText || 
+                       symptomsText === '' || 
+                       symptomsText.includes('no symptoms') || 
+                       symptomsText === 'none';
+    
+    const canSelect = isNormalXray && noSymptoms;
+    return canSelect;
+  }, []);
+
+  const eligibleCount = useMemo(() => {
+    return filteredPatients.filter(p => canSelectForTriage(p)).length;
+  }, [filteredPatients, canSelectForTriage]);
+
+  const toggleTriageSelect = (id: string) => {
+    setTriageIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllEligible = () => {
+    const eligibleIds = filteredPatients
+      .filter(p => canSelectForTriage(p))
+      .map(p => p.id);
+    
+    if (triageIds.length === eligibleIds.length && eligibleIds.length > 0) {
+      setTriageIds([]);
+    } else {
+      setTriageIds(eligibleIds);
+    }
+  };
+
+  const handleBulkTriage = async () => {
+    setIsTriaging(true);
+    const selectedPatients = patients.filter(p => triageIds.includes(p.id));
+    const uuidsToSync = selectedPatients.map(p => p.kobo_uuid).filter(Boolean);
+    
+    try {
+      await Promise.all([
+        supabase
+          .from('patients')
+          .update({ 
+            tb_diagnosed: 'No',
+            current_phase: 'Closed (Not TB)',
+            is_active: false
+          })
+          .in('id', triageIds),
+        
+        fetch('/api/triage-sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'bulk_triage',
+            uuids: uuidsToSync
+          })
+        })
+      ]);
+      
+      setTriageIds([]);
+      if (isFetchingInternally) {
+        localMutate();
+      } else {
+        globalMutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+      }
+    } finally {
+      setIsTriaging(false);
+    }
+  };
+
+
+
+  const closeLoop = async (id: string, reason: string) => {
+    await updatePatient(id, { tb_diagnosed: 'No', referral_date: new Date().toISOString(), att_start_date: null });
+  };
+
+  const getPhase = (p: Patient): number => {
+    const { phaseIndex } = calculatePatientPhase(p);
+    return phaseIndex + 1; // Convert 0-4 to 1-5 for UI compatibility
+  };
+
+  const getDaysInPhase = (p: Patient): number => {
+    const date = p.submitted_on || p.referral_date || p.screening_date;
+    if (!date) return 0;
+    return Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  const isOverdue = (p: Patient): boolean => {
+    const screeningDate = p.screening_date ? new Date(p.screening_date) : null;
+    const daysSinceScreening = screeningDate ? 
+      Math.floor((Date.now() - screeningDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+    return !p.referral_date && daysSinceScreening > 30;
+  };
+
+  const availableDistricts = filters.state 
+    ? filterMetadata?.locationMap.get(filters.state) || [] 
+    : [];
+
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds);
+    newSet.has(id) ? newSet.delete(id) : newSet.add(id);
+    setSelectedIds(newSet);
+  };
+
+  if (isLoading && globalPatients.length === 0) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-linear-to-br from-slate-50 to-slate-100">
+        <LinesAndDotsLoader progress={75} />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="h-screen flex flex-col relative z-10">
+      {/* Header */}
+      <motion.header initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+        className="glass-light border-b border-white shadow-lg px-6 py-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">
+              Inmate Track <span className="text-blue-600">&</span> Chase
+            </h1>
+            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mt-1">
+              Monitoring {totalCount.toLocaleString()} patients • Showing {displayTotalCount.toLocaleString()} {initialFilter?.actionType && ` • Filter: ${initialFilter.actionType}`}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 bg-white/50 rounded-2xl p-1.5 border border-white shadow-inner">
+              <button
+                onClick={() => handleViewModeChange('table')}
+                aria-label="Switch to table view"
+                className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+                  viewMode === 'table' 
+                    ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/10' 
+                    : 'text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                <List className="w-4 h-4" />
+                <span>List</span>
+              </button>
+              <button
+                onClick={() => handleViewModeChange('grid')}
+                aria-label="Switch to grid view"
+                className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+                  viewMode === 'grid' 
+                    ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/10' 
+                    : 'text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                <Grid3X3 className="w-4 h-4" />
+                <span>Grid</span>
+              </button>
+            </div>
+            <Button
+              onClick={handleDashboardToggle}
+              variant="outline"
+              size="sm"
+              className="bg-white border-2 border-slate-300 text-slate-900 hover:bg-slate-100 hover:border-slate-400 shadow-lg font-bold"
+            >
+              {showDashboard ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
+              {showDashboard ? 'Hide' : 'Show'} Dashboard
+            </Button>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-full">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-green-700 text-sm font-medium">Live Sync</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+            <input type="text" 
+              placeholder="Search by name or ID..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Search patients by name or ID"
+              className="w-full pl-12 pr-4 py-3 bg-white/50 border-2 border-slate-100 text-slate-900 placeholder-slate-400 rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all shadow-sm font-medium" />
+          </div>
+          
+          <Button
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            variant="outline"
+            className={`transition-all border-2 ${
+              showAdvancedFilters 
+                ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-md' 
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Filters
+            {Object.values(filters).filter(v => v && v !== false).length > 0 && (
+              <span className="ml-2 px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">
+                {Object.values(filters).filter(v => v && v !== false).length}
+              </span>
+            )}
+          </Button>
+          
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="px-3 py-2 bg-white border-2 border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all"
+          >
+            <option value="submitted_on">Sort: Submitted Date</option>
+            <option value="screening_date">Sort: Screening Date</option>
+            <option value="inmate_name">Sort: Name</option>
+          </select>
+        </div>
+        
+        {showAdvancedFilters && (
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <select value={filters.state} onChange={e => setFilters(f => ({ ...f, state: e.target.value, district: '' }))}
+              className="px-3 py-2 bg-white border-2 border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all">
+              <option value="">All States</option>
+              {(filterMetadata?.states || []).map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select value={filters.district} onChange={e => setFilters(f => ({ ...f, district: e.target.value }))}
+              className="px-3 py-2 bg-white border-2 border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all">
+              <option value="">All Districts</option>
+              {availableDistricts.map((d: string) => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <select value={filters.facilityType} onChange={e => setFilters(f => ({ ...f, facilityType: e.target.value }))}
+              className="px-3 py-2 bg-white border-2 border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all">
+              <option value="">All Facility Types</option>
+              {(filterMetadata?.facilityTypes || []).map(ft => <option key={ft} value={ft}>{ft}</option>)}
+            </select>
+            <select value={filters.tbDiagnosed} onChange={e => setFilters(f => ({ ...f, tbDiagnosed: e.target.value }))}
+              className="px-3 py-2 bg-white border-2 border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all">
+              <option value="">TB Status: All</option>
+              <option value="Y">TB Positive</option>
+              <option value="N">TB Negative</option>
+            </select>
+            <select value={filters.hivStatus} onChange={e => setFilters(f => ({ ...f, hivStatus: e.target.value }))}
+              className="px-3 py-2 bg-white border-2 border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all">
+              <option value="">HIV Status: All</option>
+              <option value="Positive">HIV Positive</option>
+              <option value="Negative">HIV Negative</option>
+            </select>
+            <input type="date" value={filters.dateFrom} onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
+              className="px-3 py-2 bg-white border-2 border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all" />
+            <input type="date" value={filters.dateTo} onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))}
+              className="px-3 py-2 bg-white border-2 border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all" />
+            <label className="flex items-center gap-2 px-3 py-2 bg-white border-2 border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-all">
+              <input type="checkbox" checked={filters.overdueOnly} onChange={e => setFilters(f => ({ ...f, overdueOnly: e.target.checked }))}
+                className="w-4 h-4 rounded border-slate-300 text-blue-600" />
+              <span className="text-sm font-medium text-slate-700">Overdue Only</span>
+            </label>
+          </div>
+        )}
+      </motion.header>
+
+      {showDashboard && (
+        <div className="px-6" style={{ willChange: 'auto' }}>
+          <AnalyticsOverview patients={globalPatients} totalCount={globalPatients.length || totalCount} isSLABreach={isSLABreach} />
+        </div>
+      )}
+
+      {/* Bulk Action Bar */}
+      <AnimatePresence>
+        {selectedIds.size > 0 && (
+          <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }}
+            className="bg-blue-500 text-white px-6 py-3 flex items-center justify-between shadow-lg">
+            <span className="font-medium">{selectedIds.size} patients selected</span>
+            <div className="flex gap-2">
+              <button onClick={() => bulkUpdate({ xray_result: 'Normal - Not Suspected' })}
+                className="px-4 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-all">
+                Mark CXR Normal
+              </button>
+              <button onClick={() => bulkUpdate({ referral_date: new Date().toISOString() })}
+                className="px-4 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-all">
+                Refer for Sputum
+              </button>
+              <button onClick={() => { selectedIds.forEach(id => closeLoop(id, 'Bulk closure')); }}
+                className="px-4 py-1.5 bg-red-500 hover:bg-red-600 rounded-lg text-sm font-medium transition-all">
+                Close Loop (Not TB)
+              </button>
+              <button onClick={() => setSelectedIds(new Set())}
+                className="px-4 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-all">
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Patient List */}
+        <div 
+          onScroll={(e) => {
+            if (viewMode !== 'grid') return;
+            const target = e.currentTarget;
+            const scrollHeight = target.scrollHeight;
+            const scrollTop = target.scrollTop;
+            const clientHeight = target.clientHeight;
+            if (scrollHeight - scrollTop - clientHeight < 100 || (scrollTop + clientHeight) / scrollHeight >= 0.8) {
+              loadMore?.();
+            }
+          }}
+          className="flex-1 overflow-y-auto p-6 max-h-[calc(100vh-180px)]"
+        >
+          {viewMode === 'grid' ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredPatients.map((patient) => (
+                  <motion.div
+                    key={patient.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                    transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                    onClick={() => setSelectedPatient(patient)}
+                    className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(0,74,153,0.12)] hover:-translate-y-1 transition-all duration-300 group cursor-pointer flex flex-col justify-between min-h-[160px]"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                          {patient.inmate_name || 'Unknown Patient'}
+                        </h3>
+                        <span className="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded-md mt-1 inline-block">
+                          {patient.kobo_uuid?.substring(0, 8) || patient.unique_id?.substring(0, 8)}
+                        </span>
+                      </div>
+                      {canSelectForTriage(patient) && (
+                        <input
+                          type="checkbox"
+                          checked={triageIds.includes(patient.id)}
+                          onChange={(e) => { e.stopPropagation(); toggleTriageSelect(patient.id); }}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center">
+                          <MapPin className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="truncate">{patient.facility_name}, {patient.screening_district}</span>
+                      </div>
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase shadow-sm ${
+                          calculatePatientPhase(patient).phase === 'Sputum Test' ? 'bg-amber-50 text-amber-700 border border-amber-200/50' :
+                          calculatePatientPhase(patient).phase === 'Diagnosis' ? 'bg-blue-50 text-blue-700 border border-blue-200/50' :
+                          calculatePatientPhase(patient).phase === 'ATT Initiation' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/50' :
+                          'bg-slate-50 text-slate-700 border border-slate-200/50'
+                        }`}>
+                          {calculatePatientPhase(patient).phase}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-500">
+                          {getDaysInPhase(patient)}d Active
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+              {isLoadingMore && (
+                <div className="flex justify-center items-center py-6">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                    <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                    Loading more...
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="glass-light rounded-4xl border border-white shadow-2xl overflow-hidden flex flex-col h-[calc(100vh-320px)]">
+              {/* Flex Header Row to match VirtualTable columns */}
+              <div className="flex items-center px-4 py-3 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase select-none">
+                <div className="w-12 flex-shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={triageIds.length > 0 && triageIds.length === eligibleCount && eligibleCount > 0}
+                    onChange={toggleSelectAllEligible}
+                    disabled={eligibleCount === 0}
+                    aria-label={eligibleCount === 0 ? 'No eligible patients for bulk triage' : `Select all ${eligibleCount} eligible patients`}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                    title={eligibleCount === 0 ? 'No eligible patients for bulk triage' : `Select all ${eligibleCount} eligible patients`}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">Patient</div>
+                <div className="w-32 flex-shrink-0">State</div>
+                <div className="w-32 flex-shrink-0">District</div>
+                <div className="w-48 flex-shrink-0">Facility</div>
+                <div className="w-24 flex-shrink-0">Submitted On</div>
+                <div className="w-32 flex-shrink-0">Phase</div>
+                <div className="w-16 flex-shrink-0">Days</div>
+                <div className="w-32 flex-shrink-0">Status</div>
+              </div>
+
+              {/* Scrollable VirtualTable container */}
+              <div className="flex-1 min-h-0 relative">
+                <VirtualTable
+                  patients={patients}
+                  onPatientClick={setSelectedPatient}
+                  selectedPatientId={selectedPatient?.id}
+                  triageIds={triageIds}
+                  onTriageToggle={toggleTriageSelect}
+                  canSelectForTriage={canSelectForTriage}
+                  getPhase={getPhase}
+                  getDaysInPhase={getDaysInPhase}
+                  isOverdue={isOverdue}
+                  onScrollThresholdReached={loadMore}
+                />
+                {isLoadingMore && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-4 py-2 rounded-full border border-slate-200 shadow-xl flex items-center gap-2 text-xs font-semibold text-slate-700 z-50">
+                    <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                    Loading more...
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Patient Detail Drawer */}
+        {selectedPatient && (
+          <PatientDetailDrawer
+            key={selectedPatient.id || selectedPatient.kobo_uuid}
+            patient={selectedPatient}
+            isOpen={!!selectedPatient}
+            onClose={() => setSelectedPatient(null)}
+            onUpdate={async () => {
+              // Refresh the list cache
+               if (isFetchingInternally) {
+                 localMutate();
+               } else {
+                 globalMutate((key: any) => Array.isArray(key) && (key[0] === 'patients' || key[0] === 'allPatients'));
+               }
+              
+              // Also refresh the selected patient from the list cache
+              // This ensures selectedPatient has the latest data including updated_at
+              if (selectedPatient?.id) {
+                const patientFromList = patients.find(p => p.id === selectedPatient.id);
+                if (patientFromList) {
+                  setSelectedPatient(patientFromList);
+                }
+              }
+            }}
+          />
+        )}
+      </div>
+
+      {/* Floating Triage Action Bar */}
+      <AnimatePresence>
+        {triageIds.length > 0 && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2"
+            style={{ zIndex: Z_INDEX.modal }}
+          >
+            <div className="bg-white/90 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-2xl px-6 py-4">
+              {isTriaging ? (
+                <div className="flex items-center gap-3">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                  >
+                    <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  </motion.div>
+                  <div className="text-sm font-medium text-slate-700">
+                    Syncing {triageIds.length} patients to Master Database...
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-4">
+                  <div className="text-sm font-medium text-slate-700">
+                    {triageIds.length} patient{triageIds.length > 1 ? 's' : ''} selected
+                  </div>
+                  <Button
+                    onClick={handleBulkTriage}
+                    disabled={isTriaging}
+                    className="bg-linear-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg"
+                  >
+                    Mark as Not TB ({triageIds.length} Patient{triageIds.length > 1 ? 's' : ''})
+                  </Button>
+                  <Button
+                    onClick={() => setTriageIds([])}
+                    variant="ghost"
+                    disabled={isTriaging}
+                    className="text-slate-600 hover:text-slate-900"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+    </>
+  );
+}
+
+// Custom comparison to prevent re-mount when only data length changes
+function arePropsEqual(prevProps: CommandCenterProps, nextProps: CommandCenterProps) {
+  // Only re-render if loading state changes or patient count changes significantly
+  return (
+    prevProps.isLoading === nextProps.isLoading &&
+    prevProps.globalPatients?.length === nextProps.globalPatients?.length &&
+    prevProps.initialFilter === nextProps.initialFilter
+  );
+}
+
+export default memo(CommandCenter, arePropsEqual);

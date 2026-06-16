@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "Sentry": {
+      "url": "https://mcp.sentry.dev/mcp/newton-school-il/alliance-spatial-os",
+      "type": "http"
+    }
+  }
+}

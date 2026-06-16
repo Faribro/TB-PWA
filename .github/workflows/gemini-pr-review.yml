@@ -1,0 +1,122 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Gemini Automated PR Review
+# Triggers on every new pull request and on new commits pushed to open PRs.
+# Gemini reviews the diff for correctness, security, RBAC issues, and
+# Next.js / Supabase best practices specific to this codebase.
+# ─────────────────────────────────────────────────────────────────────────────
+name: "🤖 Gemini — Automated PR Review"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    # Focus review on meaningful source changes only
+    paths:
+      - "app/**"
+      - "components/**"
+      - "lib/**"
+      - "hooks/**"
+      - "stores/**"
+      - "types/**"
+      - "utils/**"
+      - "middleware.ts"
+      - "auth.ts"
+      - "prisma/schema.prisma"
+      - "next.config.mjs"
+      - "vercel.json"
+      - ".github/workflows/**"
+
+# Cancel any in-flight review run for this PR when a new commit is pushed.
+# Different PRs get independent concurrency groups and never block each other.
+concurrency:
+  group: gemini-pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-review:
+    name: Review Pull Request
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read           # to read code and GEMINI.md
+      pull-requests: write     # to post review comments
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0       # full history needed for accurate diffs
+
+      - name: Get PR diff
+        id: diff
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          DIFF=$(git diff origin/${{ github.base_ref }}...HEAD -- \
+            'app/**' 'components/**' 'lib/**' 'hooks/**' 'stores/**' \
+            'middleware.ts' 'auth.ts' 'prisma/schema.prisma' \
+            | head -c 12000)
+          echo "diff<<EOF" >> $GITHUB_OUTPUT
+          echo "$DIFF" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Review PR with Gemini CLI
+        uses: google-github-actions/run-gemini-cli@v0
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          prompt: |
+            You are a senior engineer reviewing a pull request for SAMADHAAN — 
+            a Next.js 15 TB surveillance PWA. Read GEMINI.md for full project context.
+
+            PR Details:
+            - Title: ${{ github.event.pull_request.title }}
+            - Author: ${{ github.event.pull_request.user.login }}
+            - Branch: ${{ github.event.pull_request.head.ref }} → ${{ github.base_ref }}
+            - Description: ${{ github.event.pull_request.body }}
+
+            Diff (first ~12k chars):
+            ```diff
+            ${{ steps.diff.outputs.diff }}
+            ```
+
+            Review this PR with focus on SAMADHAAN-specific concerns:
+
+            **CRITICAL checks (fail the review if found):**
+            - [ ] `'use client'` pages that call `createClient()` MUST export `export const dynamic = 'force-dynamic'`
+            - [ ] Service-role Supabase client must NEVER be used in client components
+            - [ ] Supabase `ANON_KEY` or `SERVICE_ROLE_KEY` must not be hardcoded
+            - [ ] `middleware.ts` route protection changes must preserve all RBAC rules
+            - [ ] Patient record mutations must be auditable (no silent deletes)
+
+            **Standard checks:**
+            - [ ] TypeScript correctness — proper typing, no `any` abuse
+            - [ ] Zod validation on all API route inputs
+            - [ ] Supabase RLS assumptions — does new code respect geographic scope?
+            - [ ] Heavy imports (Three.js, ECharts, Deck.gl) should be dynamically imported in client components
+            - [ ] No broken `export const dynamic` placement (must be at module scope, not inside functions)
+            - [ ] Prisma schema changes — backward compatibility, migration needed?
+            - [ ] Next.js 15 App Router patterns — server vs client component boundaries correct?
+            - [ ] Environment variable usage — `NEXT_PUBLIC_` prefix only for public vars
+
+            **Output format:**
+            Post a PR review comment using `gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }}` with:
+
+            ## 🤖 Gemini Code Review
+
+            ### Summary
+            [2-3 sentence summary of what this PR does]
+
+            ### ✅ Looks Good
+            [List what's done well]
+
+            ### ⚠️ Concerns
+            [List issues with severity: CRITICAL / WARNING / SUGGESTION, with file:line if possible]
+
+            ### 🔒 Security & RBAC
+            [Any security or RBAC findings, or "No issues found"]
+
+            ### 💡 Suggestions
+            [Optional improvements, performance tips, refactoring ideas]
+
+            ---
+            *Reviewed by Gemini CLI · [SAMADHAAN TB Platform]*

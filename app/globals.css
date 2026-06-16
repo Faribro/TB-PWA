@@ -1,0 +1,1164 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "system-ui", "sans-serif";
+  --font-outfit: var(--font-outfit);
+  --font-share-tech-mono: var(--font-share-tech-mono);
+  --font-syncopate: var(--font-syncopate);
+}
+
+
+
+/* ═══════════════════════════════════════════════════════════════
+   R3F CANVAS TRANSPARENCY FIX
+═══════════════════════════════════════════════════════════════ */
+canvas {
+  background: transparent !important;
+  outline: none;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+}
+
+canvas[data-engine] {
+  background: transparent !important;
+  mix-blend-mode: normal;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ANIMATIONS - AWWWARDS DIAMOND STANDARD
+═══════════════════════════════════════════════════════════════ */
+@keyframes speedLine {
+  from { transform: translateX(0); opacity: 0.8; }
+  to { transform: translateX(40px); opacity: 0; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(1.1); }
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.1); }
+}
+
+@keyframes accordion-down {
+  from { height: 0; }
+  to { height: var(--radix-accordion-content-height); }
+}
+
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); }
+  to { height: 0; }
+}
+
+@keyframes cube-rotate {
+  0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+  100% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+}
+
+@keyframes cube-glow {
+  0%, 100% { box-shadow: 0 0 30px rgba(6, 182, 212, 0.4), inset 0 0 30px rgba(6, 182, 212, 0.15); }
+  50% { box-shadow: 0 0 60px rgba(6, 182, 212, 0.6), inset 0 0 40px rgba(6, 182, 212, 0.25); }
+}
+
+/* Shimmer loading animation */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes shimmerBar {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(150%); }
+  100% { transform: translateX(400%); }
+}
+
+/* Ripple effect animation */
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.animate-breathe {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   3D OLED CUBE
+═══════════════════════════════════════════════════════════════ */
+.oled-cube-container {
+  perspective: 1200px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.oled-cube {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  animation: cube-rotate 15s ease-in-out infinite;
+}
+
+.oled-cube-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  border: 2px solid rgba(6, 182, 212, 0.4);
+  backface-visibility: hidden;
+  box-shadow: inset 0 0 30px rgba(6, 182, 212, 0.15);
+}
+
+.oled-cube-face.front {
+  transform: translateZ(60px);
+  background: rgba(0, 0, 0, 0.98);
+  border: 2px solid rgba(6, 182, 212, 0.6);
+  z-index: 10;
+  box-shadow: 0 0 40px rgba(6, 182, 212, 0.3), inset 0 0 30px rgba(6, 182, 212, 0.2);
+}
+
+.oled-cube-face.back,
+.oled-cube-face.right,
+.oled-cube-face.left,
+.oled-cube-face.top,
+.oled-cube-face.bottom {
+  opacity: 0;
+  display: none;
+}
+
+.oled-cube-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.oled-cube-glow {
+  animation: cube-glow 3s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   UTILITIES - AWWWARDS DIAMOND STANDARD
+═══════════════════════════════════════════════════════════════ */
+.glass-light {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 10px 15px -3px rgba(0, 0, 0, 0.03),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+.glass-card-light {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 
+    0 1px 3px 0 rgba(0, 0, 0, 0.05),
+    0 1px 2px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* Magnetic scroll snap */
+.scroll-snap-x {
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scroll-snap-y {
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scroll-snap-center {
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+
+/* Multi-layer glassmorphism */
+.glass-depth-1 {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(8px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-depth-2 {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.glass-depth-3 {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   VERTEX SYNTHWAVE GLASSMORPHISM – Premium Light-Through-Glass
+═══════════════════════════════════════════════════════════════ */
+
+/* Sweeping light reflection that moves across glass surfaces */
+@keyframes vertex-glass-sweep {
+  0%   { transform: translateX(-120%) rotate(-15deg); opacity: 0; }
+  15%  { opacity: 0.7; }
+  60%  { opacity: 0.3; }
+  100% { transform: translateX(220%) rotate(-15deg); opacity: 0; }
+}
+
+/* Prismatic refraction shimmer on glass borders */
+@keyframes vertex-prismatic-border {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Soft aurora-like glow behind glass */
+@keyframes vertex-aurora {
+  0%   { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 0.15; }
+  25%  { transform: translate(5%, -3%) rotate(15deg) scale(1.05); opacity: 0.22; }
+  50%  { transform: translate(-3%, 5%) rotate(-10deg) scale(0.98); opacity: 0.18; }
+  75%  { transform: translate(4%, 2%) rotate(5deg) scale(1.03); opacity: 0.25; }
+  100% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 0.15; }
+}
+
+/* Glowing dot pulse for active tiles */
+@keyframes vertex-dot-glow {
+  0%, 100% { box-shadow: 0 0 4px currentColor, 0 0 8px currentColor; transform: scale(1); }
+  50%      { box-shadow: 0 0 8px currentColor, 0 0 16px currentColor; transform: scale(1.2); }
+}
+
+/* Glass tile selected ring animation */
+@keyframes vertex-selected-ring {
+  0%   { opacity: 0.3; transform: scale(0.98); }
+  50%  { opacity: 0.6; transform: scale(1.02); }
+  100% { opacity: 0.3; transform: scale(0.98); }
+}
+
+/* GPU-Accelerated Neon Glows for Cards */
+@keyframes neonPulse {
+  0% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1.0;
+  }
+}
+
+/* ── Vertex Glass Card ────────────────────────────────────── */
+.vertex-glass-card {
+  background: linear-gradient(
+    145deg,
+    rgba(253, 244, 255, 0.85) 0%,
+    rgba(245, 243, 255, 0.75) 40%,
+    rgba(238, 230, 253, 0.68) 100%
+  );
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow:
+    0 1px 1px rgba(255, 255, 255, 0.9),
+    0 8px 32px rgba(99, 102, 241, 0.06),
+    0 24px 64px rgba(99, 102, 241, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -1px 0 rgba(148, 163, 184, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Neon border & glowing shadow layer */
+.vertex-glass-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1.5px solid rgba(168, 85, 247, 0.45);
+  box-shadow:
+    0 0 16px 2px rgba(168, 85, 247, 0.25),
+    0 0 32px 4px rgba(99, 102, 241, 0.15);
+  pointer-events: none;
+  z-index: 0;
+  will-change: opacity;
+  transform: translate3d(0, 0, 0);
+  animation: neonPulse 3s ease-in-out infinite alternate;
+}
+
+/* The light sweep overlay – applied as static overlay */
+.vertex-glass-sweep-overlay {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.45) 45%,
+    rgba(200, 210, 255, 0.20) 50%,
+    rgba(255, 255, 255, 0.35) 55%,
+    transparent 70%
+  );
+  animation: vertex-glass-sweep 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Prismatic top edge refraction */
+.vertex-glass-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(167, 139, 250, 0.4) 15%,
+    rgba(96, 165, 250, 0.5) 30%,
+    rgba(52, 211, 153, 0.3) 50%,
+    rgba(251, 191, 36, 0.3) 70%,
+    rgba(244, 114, 182, 0.4) 85%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: vertex-prismatic-border 6s ease-in-out infinite;
+  z-index: 2;
+}
+
+
+/* ── Vertex Glass Tile (Calendar Day Cell) ────────────────── */
+.vertex-glass-tile {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.88) 0%,
+    rgba(253, 250, 255, 0.72) 60%,
+    rgba(248, 243, 255, 0.62) 100%
+  );
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  border: 1px solid rgba(168, 85, 247, 0.18);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95),
+    0 4px 12px rgba(168, 85, 247, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 0 0 1px rgba(168, 85, 247, 0.06);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.vertex-glass-tile::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -30%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 40%,
+    rgba(210, 220, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.2) 60%,
+    transparent 100%
+  );
+  transform: skewX(-15deg);
+  transition: left 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.vertex-glass-tile:hover::before {
+  left: 110%;
+}
+
+.vertex-glass-tile:hover {
+  border-color: rgba(99, 102, 241, 0.55);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95),
+    0 8px 24px rgba(99, 102, 241, 0.12),
+    0 2px 8px rgba(167, 139, 250, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 0 0 1px rgba(99, 102, 241, 0.15);
+}
+
+/* ── Selected Tile – Deep Synthwave Glass ──────────────────── */
+.vertex-glass-tile-selected {
+  background: linear-gradient(
+    160deg,
+    rgba(30, 27, 75, 0.95) 0%,
+    rgba(49, 46, 129, 0.92) 40%,
+    rgba(67, 56, 202, 0.88) 100%
+  );
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  border: 1px solid rgba(167, 139, 250, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(139, 92, 246, 0.35),
+    0 8px 24px rgba(99, 102, 241, 0.35),
+    0 2px 8px rgba(139, 92, 246, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.30);
+}
+
+.vertex-glass-tile-selected::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from 0deg,
+    rgba(167, 139, 250, 0.3),
+    rgba(96, 165, 250, 0.2),
+    rgba(52, 211, 153, 0.15),
+    rgba(251, 191, 36, 0.15),
+    rgba(244, 114, 182, 0.2),
+    rgba(167, 139, 250, 0.3)
+  );
+  z-index: -1;
+  animation: vertex-selected-ring 3s ease-in-out infinite;
+  filter: blur(6px);
+}
+
+/* Breach-mode highlighted tile */
+.vertex-glass-tile-breach {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 241, 242, 0.85) 0%,
+    rgba(254, 226, 226, 0.70) 100%
+  );
+  border-color: rgba(244, 63, 94, 0.48);
+  box-shadow:
+    0 4px 12px rgba(244, 63, 94, 0.10),
+    0 0 0 1px rgba(244, 63, 94, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+/* High-volume tile */
+.vertex-glass-tile-high {
+  background: linear-gradient(
+    160deg,
+    rgba(239, 246, 255, 0.90) 0%,
+    rgba(219, 234, 254, 0.72) 100%
+  );
+  border-color: rgba(96, 165, 250, 0.48);
+  box-shadow:
+    0 4px 12px rgba(96, 165, 250, 0.08),
+    0 0 0 1px rgba(96, 165, 250, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+/* ── Vertex Activity Dot ──────────────────────────────────── */
+.vertex-activity-dot {
+  animation: vertex-dot-glow 2.5s ease-in-out infinite;
+}
+
+/* ── Vertex Header Icon ───────────────────────────────────── */
+.vertex-header-icon {
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.12) 0%,
+    rgba(167, 139, 250, 0.10) 50%,
+    rgba(96, 165, 250, 0.12) 100%
+  );
+  border: 1px solid rgba(99, 102, 241, 0.22) !important;
+  box-shadow:
+    0 4px 14px rgba(99, 102, 241, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  position: relative;
+  overflow: hidden;
+}
+
+.vertex-header-icon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: vertex-glass-sweep 5s ease-in-out infinite;
+}
+
+/* ── Vertex Nav Button ────────────────────────────────────── */
+.vertex-nav-btn {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.80) 0%,
+    rgba(248, 250, 255, 0.60) 100%
+  );
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid rgba(148, 163, 184, 0.25) !important;
+  box-shadow:
+    0 2px 8px rgba(99, 102, 241, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.vertex-nav-btn:hover {
+  border-color: rgba(99, 102, 241, 0.5) !important;
+  box-shadow:
+    0 4px 16px rgba(99, 102, 241, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transform: translateY(-1px);
+}
+
+/* ── Vertex Filter Select ─────────────────────────────────── */
+.vertex-filter-select {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(248, 250, 255, 0.40) 100%
+  );
+  backdrop-filter: blur(10px) saturate(130%);
+  -webkit-backdrop-filter: blur(10px) saturate(130%);
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  box-shadow:
+    0 2px 6px rgba(99, 102, 241, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.vertex-filter-select:hover {
+  border-color: rgba(99, 102, 241, 0.4) !important;
+  box-shadow:
+    0 4px 12px rgba(99, 102, 241, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* ── Vertex Pulse Console (Bottom Metric Bar) ──────────── */
+.vertex-pulse-console {
+  background: linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(248, 250, 255, 0.35) 100%
+  );
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border-top: 1px solid rgba(255, 255, 255, 0.50);
+  position: relative;
+}
+
+.vertex-pulse-console::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(167, 139, 250, 0.25) 20%,
+    rgba(96, 165, 250, 0.35) 50%,
+    rgba(167, 139, 250, 0.25) 80%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: vertex-prismatic-border 5s ease-in-out infinite;
+}
+
+/* ── Vertex Tab Toggle ───────────────────────────────────── */
+.vertex-tab-active {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.90) 0%,
+    rgba(248, 250, 255, 0.80) 100%
+  );
+  box-shadow:
+    0 2px 8px rgba(99, 102, 241, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* CRT Terminal Effects */
+.terminal-glow {
+  text-shadow: 0 0 5px rgba(51, 255, 153, 0.7), 0 0 10px rgba(51, 255, 153, 0.5);
+}
+
+.crt-overlay::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+              linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  z-index: 2;
+  background-size: 100% 3px, 3px 100%;
+  pointer-events: none;
+}
+
+.matrix-bg {
+  background: linear-gradient(180deg, rgba(10, 15, 10, 0.9) 0%, rgba(5, 10, 5, 1) 100%);
+}
+
+@keyframes flicker {
+  0% { opacity: 0.97; }
+  5% { opacity: 0.95; }
+  10% { opacity: 0.9; }
+  15% { opacity: 0.95; }
+  25% { opacity: 0.95; }
+  30% { opacity: 0.9; }
+  100% { opacity: 1; }
+}
+
+.animate-flicker {
+  animation: flicker 0.15s infinite;
+}
+
+.glow-cyan-lg {
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.2), 0 0 40px rgba(6, 182, 212, 0.1);
+}
+
+.text-gradient-cyan {
+  background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCROLLBAR
+═══════════════════════════════════════════════════════════════ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.3) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: linear-gradient(to right, 
+    rgba(241, 245, 249, 0.3) 0%, 
+    rgba(226, 232, 240, 0.4) 50%, 
+    rgba(241, 245, 249, 0.3) 100%);
+  border-radius: 100px;
+  margin: 4px 0;
+  border: 1px solid rgba(226, 232, 240, 0.3);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.7) 0%,
+    rgba(147, 51, 234, 0.6) 50%,
+    rgba(236, 72, 153, 0.7) 100%);
+  border-radius: 100px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.9) 0%,
+    rgba(147, 51, 234, 0.8) 50%,
+    rgba(236, 72, 153, 0.9) 100%);
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.6);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   NEURAL THEME
+═══════════════════════════════════════════════════════════════ */
+.neural-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 35%, rgba(0,0,8,0.85) 100%);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.neural-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 3px,
+    rgba(0, 0, 0, 0.07) 3px,
+    rgba(0, 0, 0, 0.07) 4px
+  );
+  opacity: 0.35;
+}
+
+.neural-border-wrap {
+  position: relative;
+  padding: 0;
+  border-radius: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.neural-border-wrap::before {
+  display: none;
+}
+
+.neural-glass-inner {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-radius: 3px;
+  padding: 0;
+  border: none;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   ANIMATED STATISTICS SENTENCE
+═══════════════════════════════════════════════════════════════ */
+.text-holder-stats {
+  position: relative;
+  width: 100%;
+}
+
+.stats-typer {
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.6;
+  position: relative;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.stats-typer span {
+  display: inline-block;
+  position: relative;
+  font-weight: 800;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Date highlight - Blue */
+.date-highlight {
+  color: #3b82f6;
+  padding: 0 0.25rem;
+}
+
+.date-highlight::before {
+  position: absolute;
+  content: '';
+  display: block;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(96, 165, 250, 0.1));
+  left: -0.25rem;
+  top: -10%;
+  height: 120%;
+  width: 0;
+  z-index: -1;
+  border-radius: 0.375rem;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.stats-typer:hover .date-highlight::before {
+  width: calc(100% + 0.5rem);
+}
+
+/* Location highlight - Indigo */
+.location-highlight {
+  color: #6366f1;
+  padding: 0 0.25rem;
+}
+
+.location-highlight::before {
+  position: absolute;
+  content: '';
+  display: block;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(129, 140, 248, 0.1));
+  left: -0.25rem;
+  top: -10%;
+  height: 120%;
+  width: 0;
+  z-index: -1;
+  border-radius: 0.375rem;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: 0.1s;
+}
+
+.stats-typer:hover .location-highlight::before {
+  width: calc(100% + 0.5rem);
+}
+
+/* Count highlight - Emerald */
+.count-highlight {
+  color: #10b981;
+  padding: 0 0.25rem;
+  font-size: 1.125rem;
+}
+
+.count-highlight::before {
+  position: absolute;
+  content: '';
+  display: block;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(52, 211, 153, 0.1));
+  left: -0.25rem;
+  top: -10%;
+  height: 120%;
+  width: 0;
+  z-index: -1;
+  border-radius: 0.375rem;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: 0.2s;
+}
+
+.stats-typer:hover .count-highlight::before {
+  width: calc(100% + 0.5rem);
+}
+
+/* Diagnosed highlight - Rose */
+.diagnosed-highlight {
+  color: #f43f5e;
+  padding: 0 0.25rem;
+  font-size: 1.125rem;
+}
+
+.diagnosed-highlight::before {
+  position: absolute;
+  content: '';
+  display: block;
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.15), rgba(251, 113, 133, 0.1));
+  left: -0.25rem;
+  top: -10%;
+  height: 120%;
+  width: 0;
+  z-index: -1;
+  border-radius: 0.375rem;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: 0.3s;
+}
+
+.stats-typer:hover .diagnosed-highlight::before {
+  width: calc(100% + 0.5rem);
+}
+
+/* Pending highlight - Amber */
+.pending-highlight {
+  color: #f59e0b;
+  padding: 0 0.25rem;
+  font-size: 1.125rem;
+}
+
+.pending-highlight::before {
+  position: absolute;
+  content: '';
+  display: block;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(251, 191, 36, 0.1));
+  left: -0.25rem;
+  top: -10%;
+  height: 120%;
+  width: 0;
+  z-index: -1;
+  border-radius: 0.375rem;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: 0.4s;
+}
+
+.stats-typer:hover .pending-highlight::before {
+  width: calc(100% + 0.5rem);
+}
+
+/* Pulse animation for numbers */
+@keyframes stats-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.count-highlight,
+.diagnosed-highlight,
+.pending-highlight {
+  animation: stats-pulse 2s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   VERTEX RIGHT PANEL — Premium Glass Card
+═══════════════════════════════════════════════════════════════ */
+
+/* The main right-side card — elevated premium treatment */
+.vertex-right-panel {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(250, 251, 255, 0.96) 50%,
+    rgba(245, 247, 255, 0.94) 100%
+  );
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.8) inset,
+    0 1px 2px rgba(255, 255, 255, 0.95) inset,
+    0 4px 24px rgba(99, 102, 241, 0.04),
+    0 16px 48px rgba(99, 102, 241, 0.03),
+    0 1px 1px rgba(0, 0, 0, 0.03);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.vertex-right-panel:hover {
+  border-color: rgba(199, 210, 254, 0.65);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.9) inset,
+    0 1px 2px rgba(255, 255, 255, 0.95) inset,
+    0 4px 32px rgba(99, 102, 241, 0.07),
+    0 16px 64px rgba(99, 102, 241, 0.05),
+    0 1px 1px rgba(0, 0, 0, 0.03);
+}
+
+/* Prismatic top-edge shimmer — ultra-subtle rainbow refraction */
+.vertex-right-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(167, 139, 250, 0.35) 15%,
+    rgba(96, 165, 250, 0.45) 35%,
+    rgba(52, 211, 153, 0.25) 55%,
+    rgba(251, 191, 36, 0.25) 72%,
+    rgba(244, 114, 182, 0.35) 88%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: vertex-prismatic-border 8s ease-in-out infinite;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Daily summary header — premium frosted glass bar */
+.vertex-feed-header {
+  background: linear-gradient(
+    to bottom,
+    rgba(253, 244, 255, 0.90) 0%,
+    rgba(245, 243, 255, 0.82) 100%
+  );
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-bottom: 1px solid rgba(168, 85, 247, 0.12);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+/* Stage section label — subtle left accent bar */
+.vertex-stage-label {
+  position: relative;
+  padding-left: 10px;
+}
+
+.vertex-stage-label::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+/* Pulse console metric divider */
+.vertex-metric-divider {
+  width: 1px;
+  height: 32px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(148, 163, 184, 0.3) 30%,
+    rgba(148, 163, 184, 0.3) 70%,
+    transparent 100%
+  );
+  flex-shrink: 0;
+}
+
+/* Geo card inner container */
+.vertex-geo-card {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(250, 251, 255, 0.98) 100%
+  );
+  border: 1px solid rgba(226, 232, 240, 0.55);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 2px 12px rgba(99, 102, 241, 0.03),
+    0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.care-cascade-card {
+  background: linear-gradient(
+    145deg,
+    rgba(253, 244, 255, 0.85) 0%,
+    rgba(245, 243, 255, 0.75) 40%,
+    rgba(238, 230, 253, 0.68) 100%
+  );
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 0 0 1px rgba(148, 163, 184, 0.10),
+    0 4px 6px -1px rgba(15, 23, 42, 0.04),
+    0 12px 32px -4px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(148, 163, 184, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Neon border & glowing shadow layer */
+.care-cascade-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1.5px solid rgba(168, 85, 247, 0.45);
+  box-shadow:
+    0 0 16px 2px rgba(168, 85, 247, 0.25),
+    0 0 32px 4px rgba(99, 102, 241, 0.15);
+  pointer-events: none;
+  z-index: 0;
+  will-change: opacity;
+  transform: translate3d(0, 0, 0);
+  animation: neonPulse 3s ease-in-out infinite alternate;
+}
+
+.cascade-donut-zone {
+  background:
+    radial-gradient(ellipse at 30% 40%, rgba(139, 92, 246, 0.04) 0%, transparent 60%),
+    radial-gradient(ellipse at 70% 60%, rgba(99, 102, 241, 0.03) 0%, transparent 60%),
+    rgba(249, 250, 251, 0.6);
+  border-radius: 14px;
+  border: 1px solid rgba(224, 231, 255, 0.6);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SHOOTING STARS EFFECT (Care Cascade Timeline)
+   ═══════════════════════════════════════════════════════════════ */
+.night {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  transform: rotateZ(40deg);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.shooting_star {
+  position: absolute;
+  height: 2px;
+  background: linear-gradient(-45deg, rgba(168, 85, 247, 1), rgba(99, 102, 241, 0.4), rgba(99, 102, 241, 0));
+  border-radius: 999px;
+  filter: drop-shadow(0 0 6px rgba(168, 85, 247, 0.7));
+  animation:
+    tail 3000ms ease-in-out,
+    shooting 3000ms ease-in-out;
+  animation-delay: var(--delay, 0ms);
+}
+
+.shooting_star::before {
+  content: '';
+  position: absolute;
+  top: calc(50% - 1px);
+  right: 0;
+  height: 2px;
+  background: linear-gradient(-45deg, rgba(99, 102, 241, 0), rgba(168, 85, 247, 1), rgba(99, 102, 241, 0));
+  transform: translateX(50%) rotateZ(45deg);
+  border-radius: 100%;
+  animation: shining 3000ms ease-in-out;
+  animation-delay: var(--delay, 0ms);
+}
+
+.shooting_star::after {
+  content: '';
+  position: absolute;
+  top: calc(50% - 1px);
+  right: 0;
+  height: 2px;
+  background: linear-gradient(-45deg, rgba(99, 102, 241, 0), rgba(168, 85, 247, 1), rgba(99, 102, 241, 0));
+  transform: translateX(50%) rotateZ(-45deg);
+  border-radius: 100%;
+  animation: shining 3000ms ease-in-out;
+  animation-delay: var(--delay, 0ms);
+}
+
+@keyframes tail {
+  0% {
+    width: 0;
+  }
+  30% {
+    width: 80px;
+  }
+  100% {
+    width: 0;
+  }
+}
+
+@keyframes shining {
+  0% {
+    width: 0;
+  }
+  50% {
+    width: 24px;
+  }
+  100% {
+    width: 0;
+  }
+}
+
+@keyframes shooting {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(250px);
+  }
+}
+
+

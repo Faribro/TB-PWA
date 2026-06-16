@@ -1,0 +1,103 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Force rebuild: 2025-01-22-16:00
+
+generator client {
+  provider   = "prisma-client-js"
+  output     = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model patients {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  unique_id              String?
+  kobo_uuid              String?   @unique
+  inmate_name            String?
+  age                    Int?
+  sex                    String?
+  date_of_birth          DateTime? @db.Date
+  contact_number         String?
+  address                String?
+  father_husband_name    String?
+  
+  // Facility
+  facility_name          String?
+  facility_type          String?
+  screening_state        String?
+  screening_district     String?
+  staff_name             String?
+  inmate_type            String?
+  
+  // Screening
+  screening_date         DateTime? @db.Date
+  submitted_on           DateTime? @db.Timestamptz(6)
+  symptoms_10s           String?
+  symptoms_present       String?
+  tb_past_history        String?
+  xray_result            String?
+  chest_x_ray_result     String?
+  
+  // Clinical
+  referral_date          DateTime? @db.Date
+  referred_facility      String?
+  other_facility_name    String?
+  tb_diagnosed           String?
+  tb_diagnosis_date      DateTime? @db.Date
+  tb_type                String?
+  
+  // Treatment
+  att_start_date         DateTime? @db.Date
+  att_completion_date    DateTime? @db.Date
+  treatment_regimen      String?
+  hiv_status             String?
+  art_status             String?
+  art_number             String?
+  nikshay_abha_id        String?
+  registration_date      DateTime? @db.Date
+  
+  // Closure
+  closure_reason         String?
+  remarks                String?
+  
+  // Data Quality
+  date_corrected         Boolean?  @default(false)
+  
+  // Sync
+  ai_link_status         String?
+  synced_to_sheets       Boolean?  @default(false)
+  sheets_sync_attempts   Int?      @default(0)
+  sheets_synced_at       DateTime? @db.Timestamptz(6)
+  
+  // Timestamps
+  created_at             DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime? @default(now()) @db.Timestamptz(6)
+  serial_number          Int?      @map("serial_number")
+
+  @@index([screening_state])
+  @@index([screening_district])
+  @@index([screening_date(sort: Desc)])
+  @@index([kobo_uuid])
+  @@index([unique_id])
+  @@index([tb_diagnosed])
+  @@index([updated_at(sort: Desc)])
+  @@index([date_corrected], map: "idx_patients_date_corrected")
+}
+
+
+model profiles {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email      String    @unique
+  role       String?
+  state      String?
+  district   String?
+  staff_name String?
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([email])
+  @@index([role])
+  @@index([state])
+}

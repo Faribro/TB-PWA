@@ -1,0 +1,132 @@
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 320" class="os-logo">
+  <defs>
+    <!-- Master Color Palette -->
+    <linearGradient id="c1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00B1F0"/><stop offset="60%" stop-color="#00B1F0"/><stop offset="100%" stop-color="#F37021"/>
+    </linearGradient>
+    <linearGradient id="c2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8EC63F"/><stop offset="50%" stop-color="#F37021"/><stop offset="100%" stop-color="#00B1F0"/>
+    </linearGradient>
+    <linearGradient id="c3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#EE4135"/><stop offset="50%" stop-color="#FFC20E"/><stop offset="100%" stop-color="#8EC63F"/>
+    </linearGradient>
+
+    <!-- Global Glass Shimmers -->
+    <linearGradient id="shimmerFast" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="white" stop-opacity="0"/><stop offset="50%" stop-color="white" stop-opacity="0.8"/><stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+    
+    <!-- Architectural Micro-Grid Pattern -->
+    <pattern id="hexGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M20 0L40 10V30L20 40L0 30V10Z" fill="none" stroke="#64748B" stroke-width="0.3" opacity="0.1" />
+    </pattern>
+
+    <mask id="letterMask">
+      <use href="#samadhaan-core" fill="white" />
+    </mask>
+
+    <!-- Depth Blur Filters -->
+    <filter id="bgBlur"><feGaussianBlur stdDeviation="3" /></filter>
+    <filter id="midBlur"><feGaussianBlur stdDeviation="1.5" /></filter>
+    <filter id="neonPulse" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <style type="text/css">
+    @keyframes drawFill {
+      0% { stroke-dasharray: 0 1600; fill-opacity: 0; stroke-width: 4px; filter: drop-shadow(2px 0 2px #00B1F0); }
+      100% { stroke-dasharray: 1600 1600; fill-opacity: 1; stroke-width: 0px; filter: none; }
+    }
+
+    /* Spatial Parallax Animations */
+    @keyframes driftSlow { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(-20px, 15px); } }
+    @keyframes driftMed { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(30px, -20px); } }
+    @keyframes driftFast { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(-40px, 10px); } }
+
+    /* Biometric Scanline */
+    @keyframes scanline { 0% { transform: translateY(-100px); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translateY(400px); opacity: 0; } }
+
+    @keyframes shimmerSweep { 0% { transform: translateX(-1500px); } 100% { transform: translateX(1200px); } }
+    @keyframes gridPulse { 0%, 100% { opacity: 0.05; } 50% { opacity: 0.2; } }
+
+    .word-path { fill-opacity: 0; }
+    .w1 { fill: url(#c1); stroke: #00B1F0; animation: drawFill 2.5s ease-out forwards 0s; }
+    .w2 { fill: url(#c2); stroke: #F37021; animation: drawFill 2.5s ease-out forwards 0.1s; }
+    .w3 { fill: url(#c3); stroke: #8EC63F; animation: drawFill 2.5s ease-out forwards 0.2s; }
+    .w4 { fill: url(#c1); stroke: #00B1F0; animation: drawFill 2.5s ease-out forwards 0.3s; }
+    .w5 { fill: url(#c2); stroke: #F37021; animation: drawFill 2.5s ease-out forwards 0.4s; }
+    .w6 { fill: url(#c3); stroke: #8EC63F; animation: drawFill 2.5s ease-out forwards 0.5s; }
+    .w7 { fill: url(#c1); stroke: #00B1F0; animation: drawFill 2.5s ease-out forwards 0.6s; }
+    .w8 { fill: url(#c2); stroke: #F37021; animation: drawFill 2.5s ease-out forwards 0.7s; }
+    .w9 { fill: url(#c3); stroke: #8EC63F; animation: drawFill 2.5s ease-out forwards 0.8s; }
+
+    .scan-beam { fill: none; stroke: #00B1F0; stroke-width: 0.5; opacity: 0; animation: scanline 12s infinite linear; }
+    .grid-layer { fill: url(#hexGrid); animation: gridPulse 8s infinite ease-in-out; }
+
+    @keyframes pulseH {
+      0%, 100% { filter: drop-shadow(0 0 2px #00B0F0); transform: scale(1); }
+      50% { filter: drop-shadow(0 0 12px #00B1F0); transform: scale(1.04); }
+    }
+    
+    #heartbeat { stroke-dasharray: 350; animation: drawBeat 3s infinite linear 0.5s; }
+    @keyframes drawBeat { 0% { stroke-dashoffset: 350; opacity: 0; } 15%, 85% { opacity: 1; } 100% { stroke-dashoffset: -350; opacity: 0; } }
+
+    .tagline-group { opacity: 0; animation: fUp 1s ease-out forwards 1.8s; }
+    @keyframes fUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+  </style>
+
+  <!-- BACKGROUND: SPATIAL DATA CHAMBER -->
+  <rect width="1100" height="320" class="grid-layer" />
+  
+  <!-- Layer 1: Blurred Deep Particles -->
+  <g filter="url(#bgBlur)" style="animation: driftSlow 20s infinite ease-in-out;">
+    <circle cx="200" cy="50" r="4" fill="#00B1F0" opacity="0.1" />
+    <circle cx="900" cy="280" r="6" fill="#F37021" opacity="0.1" />
+    <circle cx="500" cy="300" r="5" fill="#8EC63F" opacity="0.1" />
+  </g>
+
+  <!-- Layer 2: Medium Ambient Nodes -->
+  <g filter="url(#midBlur)" style="animation: driftMed 15s infinite ease-in-out;">
+    <circle cx="100" cy="150" r="3" fill="#00B1F0" opacity="0.3" />
+    <circle cx="1000" cy="100" r="2.5" fill="#8EC63F" opacity="0.3" />
+    <circle cx="600" cy="40" r="3" fill="#F37021" opacity="0.3" />
+  </g>
+
+  <!-- MAIN SCANLINE BEAM -->
+  <rect x="0" width="1100" height="1" class="scan-beam" />
+
+  <!-- CORE LOGO COMPONENTS -->
+  <g id="samadhaan-core" transform="translate(265, 95)">
+    <path class="word-path w1" d="M10,100 C10,70 50,65 50,50 C50,35 10,30 10,10 C10,0 20,0 28,0 C46,0 55,12 55,25 L45,25 C45,16 39,10 28,10 C20,10 20,18 20,22 C20,48 58,52 58,72 C58,90 44,100 28,100 C12,100 0,90 0,75 L10,75 C10,88 18,95 28,95 C40,95 10,112 10,100 Z"/>
+    <g transform="translate(-2, 0)"><path class="word-path w2" d="M75,100 L95,0 L105,0 L125,100 L115,100 L100,15 L85,100 Z M83,65 L117,65 L115,75 L85,75 Z"/></g>
+    <g transform="translate(138, 0)"><path class="word-path w3" d="M0,100 L0,0 L15,0 L35,70 L55,0 L70,0 L70,100 L60,100 L60,20 L40,90 L30,90 L10,20 L10,100 Z"/></g>
+    <g transform="translate(148, 0)"><path class="word-path w4" d="M75,100 L95,0 L105,0 L125,100 L115,100 L100,15 L85,100 Z M83,65 L117,65 L115,75 L85,75 Z"/></g>
+    <g transform="translate(288, 0)"><path class="word-path w5" d="M0,0 L25,0 C50,0 65,20 65,50 C65,80 50,100 25,100 L0,100 Z M10,10 L10,90 L25,90 C44,90 55,74 55,50 C55,26 44,10 25,10 Z"/></g>
+    <g transform="translate(368, 0)"><path class="word-path w6" d="M0,0 L10,0 L10,45 L45,45 L45,0 L55,0 L55,100 L45,100 L45,55 L10,55 L10,100 L0,100 Z"/></g>
+    <g transform="translate(363, 0)"><path class="word-path w7" d="M75,100 L95,0 L105,0 L125,100 L115,100 L100,15 L85,100 Z M83,65 L117,65 L115,75 L85,75 Z"/></g>
+    <g transform="translate(428, 0)"><path class="word-path w8" d="M75,100 L95,0 L105,0 L125,100 L115,100 L100,15 L85,100 Z M83,65 L117,65 L115,75 L85,75 Z"/></g>
+    <g transform="translate(568, 0)"><path class="word-path w9" d="M0,0 L10,0 L45,80 L45,0 L55,0 L55,100 L45,100 L10,20 L10,100 L0,100 Z"/></g>
+  </g>
+
+  <!-- ICON MARK WITH BIO-PULSE -->
+  <g transform="translate(40, 60)" style="animation: pulseH 3s infinite; transform-origin: 110px 110px;">
+    <circle cx="110" cy="110" r="105" fill="none" stroke="#E2E8F0" stroke-width="1" opacity="0.2"/>
+    <circle cx="110" cy="110" r="100" fill="none" stroke="#94A3B8" stroke-width="3" stroke-linecap="round" opacity="0.3"/>
+    <path d="M 110 10 A 100 100 0 0 1 210 110" fill="none" stroke="#F37021" stroke-width="6" stroke-linecap="round" filter="url(#neonPulse)"/>
+    <polyline id="heartbeat" points="40,110 70,110 85,80 100,150 115,70 130,120 145,110 180,110" fill="none" stroke="#00B1F0" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- RE-USING CORE FOR MAIN RENDER -->
+  <use href="#samadhaan-core" />
+
+  <!-- FINAL LAYER: SPATIAL SHIMMER -->
+  <rect class="shimmer-fast" x="0" y="0" width="1100" height="320" mask="url(#letterMask)" />
+  
+  <!-- TAGLINE INTEGRATION -->
+  <g class="tagline-group" transform="translate(265, 240)">
+    <text font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="24" letter-spacing="10" fill="#0F172A">NATIONAL INTEGRATED HEALTH OS</text>
+    <rect y="12" width="80" height="3" rx="1.5" fill="#00B0F0" opacity="0.8"/>
+  </g>
+</svg>

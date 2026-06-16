@@ -1,0 +1,247 @@
+'use client';
+
+// PAGE STRUCTURE (TOP TO BOTTOM):
+// 1. <ScrollProgressBar />        ← fixed, z-9999
+// 2. Ambient Background Layer     ← fixed, z-[-1]
+// 3. <Header />
+// 4. <UnifiedCommandCenter />     ← New Premium Central Dashboard
+// 5. <PipelineDashboardEmbed />
+// 6. <ProgramMission /> wrapper
+// 7. <StatsTicker />
+// 8. <SectionDivider />
+// 9. Maze Grid container
+// 10. <SectionDivider />
+// 11. <InmateJourney />
+// 12. <PatientTimelineMermaid />
+
+import { memo, useMemo, useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useSession } from 'next-auth/react';
+import useSWR, { mutate } from 'swr';
+import { FeatureShowcase } from '@/components/FeatureShowcase';
+import ProgramMission from '@/components/ProgramMission';
+import InmateJourney from '@/components/InmateJourney';
+import PatientTimelineMermaid from '@/components/PatientTimelineMermaid';
+import ScrollProgressBar from '@/components/ScrollProgressBar';
+import SectionDivider from '@/components/SectionDivider';
+import StatsTicker from '@/components/StatsTicker';
+import PipelineDashboardEmbed from '@/components/PipelineDashboardEmbed';
+import CommandFooter from '@/components/CommandFooter';
+import UnifiedCommandCenter from '@/components/UnifiedCommandCenter';
+import CommandFilterDrawer, { CommandCenterFilters, DEFAULT_COMMAND_FILTERS } from '@/components/CommandFilterDrawer';
+import { useSessionScope } from '@/hooks/useSessionScope';
+import { usePatientRealtime } from '@/hooks/usePatientRealtime';
+
+const BackgroundGrid = memo(() => (
+  <div 
+    className="fixed inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none"
+    style={{
+      maskImage: 'radial-gradient(ellipse 60% 60% at 50% 50%, #000 70%, transparent 100%)',
+      WebkitMaskImage: 'radial-gradient(ellipse 60% 60% at 50% 50%, #000 70%, transparent 100%)'
+    }}
+    aria-hidden="true"
+  />
+));
+
+BackgroundGrid.displayName = 'BackgroundGrid';
+
+interface HeaderProps {
+  readonly firstName: string;
+  readonly userRole: string;
+}
+
+const Header = memo<HeaderProps>(({ firstName, userRole }) => {
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  if (!mounted) return null;
+
+  return (
+    <motion.header
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      className="flex items-center justify-between mb-8 relative z-50 w-full"
+    >
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.8, delay: 0.1, type: 'spring' }}
+        className="relative h-[52px]"
+      >
+        <Image
+          src="/Images/Logo/samadhaan_os_final.svg"
+          alt="SAMADHAAN OS Logo"
+          width={300}
+          height={110}
+          className="h-full w-auto object-contain drop-shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all duration-300 hover:drop-shadow-[0_0_25px_rgba(139,92,246,0.5)]"
+          priority
+          unoptimized
+        />
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        className="relative group"
+      >
+        <div className="absolute -inset-[1px] bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 rounded-xl opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500" />
+        <div className="relative bg-white/95 backdrop-blur-md border border-slate-200/60 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] px-5 py-2.5 flex items-center gap-2.5 group-hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-500">
+          <div className="flex items-center gap-2">
+            <span className="text-[13px] font-medium text-slate-500 tracking-tight">Welcome,</span>
+            <span className="text-[13px] font-semibold text-slate-900 tracking-tight">{firstName}</span>
+          </div>
+          <div className="h-3.5 w-[0.5px] bg-gradient-to-b from-transparent via-slate-300 to-transparent" />
+          <div className="flex items-center gap-2.5">
+            <span className="text-[12px] font-medium text-slate-500 tracking-tight">you&apos;re Logged in as an </span>
+            <div className="relative">
+              <div className="absolute inset-0 bg-slate-900 rounded-md blur-[2px] opacity-20" />
+              <div className="relative px-2.5 py-0.5 rounded-md bg-slate-900 text-white text-[11px] font-semibold uppercase tracking-[0.1em]">{userRole}</div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </motion.header>
+  );
+});
+
+Header.displayName = 'Header';
+
+const fetcher = (url: string) => fetch(url).then(r => r.json());
+
+export default function CommandHubPage() {
+  const { data: session, status } = useSession();
+  const scope = useSessionScope();
+
+  // Command Center Global State
+  const [filters, setFilters] = useState<CommandCenterFilters>(DEFAULT_COMMAND_FILTERS);
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+
+  // Build query string natively mapped to the expanded backend predicates
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value && value !== 'all') {
+        params.append(key, value);
+      }
+    });
+    return params.toString();
+  }, [filters]);
+
+  // Fetch summary metrics (server-computed aggregates including Today's metrics)
+  const { data: summaryData, isValidating } = useSWR(
+    scope ? `/api/patients/summary?${queryString}` : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 2000, // Reduced to 2s to make filter 'Apply' feel more responsive
+    }
+  );
+
+  // Subscribe to real-time patient updates
+  usePatientRealtime(() => {
+    console.log('[CommandHub] Patient change detected, refreshing summary...');
+    mutate(`/api/patients/summary?${queryString}`);
+  });
+
+  const firstName = useMemo(
+    () => session?.user?.name?.split(' ')[0] || 'Officer',
+    [session?.user?.name]
+  );
+  
+  const userRole = session?.user?.role || 'User';
+
+  const activeFilterCount = Object.keys(filters).filter((k) => {
+    const key = k as keyof CommandCenterFilters;
+    return filters[key] && filters[key] !== "all";
+  }).length;
+
+  // Show loading state while session is loading
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-slate-300 border-t-slate-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-600 text-sm">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen w-full bg-slate-50 relative overflow-hidden">
+      <ScrollProgressBar />
+      
+      <div aria-hidden="true" className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden">
+        <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full bg-indigo-100/50 blur-[120px]" />
+        <div className="absolute -bottom-32 -right-32 w-[600px] h-[600px] rounded-full bg-purple-100/40 blur-[140px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-full bg-blue-50/30 blur-[100px]" />
+      </div>
+      
+      <BackgroundGrid />
+      
+      <div className="relative z-10 min-h-screen pt-6 pb-16 px-6">
+        <Header firstName={firstName} userRole={userRole} />
+
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="w-full max-w-[1400px] mx-auto px-6 mt-2 mb-8"
+          data-tour-id="kpi-dashboard-bar"
+        >
+          {/* THE NEW UNIFIED COMMAND CENTER */}
+          <UnifiedCommandCenter 
+            summaryData={summaryData} 
+            activeFilterCount={activeFilterCount}
+            onOpenFilters={() => setIsFilterDrawerOpen(true)} 
+            isLoading={isValidating}
+          />
+        </motion.section>
+        
+
+        <div className="w-full max-w-[1400px] mx-auto px-6 mt-6 mb-8" data-tour-id="program-mission">
+          <ProgramMission />
+        </div>
+        
+        <StatsTicker />
+        
+        <SectionDivider />
+        
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          data-tour-id="maze-grid"
+        >
+          <FeatureShowcase />
+        </motion.div>
+        
+        <SectionDivider />
+      </div>
+      
+      <div className="relative z-10" data-tour-id="journey-cube">
+        <InmateJourney />
+      </div>
+      <div className="relative z-10 border-t border-white/40" data-tour-id="patient-timeline">
+        <PatientTimelineMermaid />
+      </div>
+      
+      <CommandFooter data-tour-id="command-footer" />
+
+      {/* FILTER DRAWER OVERLAY */}
+      <CommandFilterDrawer
+        isOpen={isFilterDrawerOpen}
+        onClose={() => setIsFilterDrawerOpen(false)}
+        activeFilters={filters}
+        onApply={setFilters}
+      />
+    </div>
+  );
+}
