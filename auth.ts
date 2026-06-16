@@ -34,6 +34,16 @@ async function fetchProfile(email: string, fallbackName?: string | null) {
   };
 }
 
+// Resolve the auth secret once. A missing secret causes next-auth v5 to fail
+// during the build's "Collecting page data" step with an opaque
+// "Maximum call stack size exceeded" error, so fail loudly with a clear message.
+const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+if (!AUTH_SECRET && process.env.NODE_ENV === "production") {
+  throw new Error(
+    "[auth] Missing AUTH_SECRET (or NEXTAUTH_SECRET). Set it in your environment. Generate one with: openssl rand -base64 32"
+  );
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Google({
@@ -47,7 +57,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     maxAge: 28800,
     updateAge: 3600,
   },
-  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
+  secret: AUTH_SECRET,
   callbacks: {
     async signIn({ user }) {
       if (!user?.email) return false;
