@@ -12,7 +12,7 @@ import { exportPatientsToXLSX } from '@/lib/export-xlsx';
 import { cn } from '@/lib/utils';
 import { sounds } from '@/lib/sound';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, X } from 'lucide-react';
+import { Search, Filter, X, Table2, CalendarDays, Download } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { LinesAndDotsLoader } from '@/components/LinesAndDotsLoader';
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
@@ -589,9 +589,11 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
       </AnimatePresence>
       
       {/* Single compact header */}
-      <div className="flex-shrink-0 sticky top-0 z-20 bg-[#f8fafc]/95
-                      backdrop-blur-sm border-b border-slate-200">
-        <div className="flex flex-wrap items-center gap-2 px-4 py-2 min-h-12">
+      <div className="flex-shrink-0 sticky top-0 z-20 bg-white/90
+                      backdrop-blur-md border border-black/[0.08] border-t-0
+                      rounded-b-xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]
+                      mx-2">
+        <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 min-h-12">
           
           {/* Search */}
           <div className="relative w-52 max-w-full">
@@ -709,29 +711,36 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
             </>
           )}
 
+          {/* Divider */}
+          <div className="w-px h-6 bg-black/[0.08]" />
+
           {/* View toggle */}
-          <div className="flex rounded-md border border-black/[0.08] overflow-hidden">
+          <div className="flex rounded-lg border border-black/[0.08] overflow-hidden bg-[#f3f0ec]/60 p-0.5 gap-0.5">
             <button
               onClick={() => { sounds.toggle(); setView('table'); }}
+              aria-pressed={view === 'table'}
               className={cn(
-                'px-2.5 py-1.5 text-xs font-medium transition-colors flex items-center gap-1',
+                'px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5',
                 view === 'table'
-                  ? 'bg-[#01696f] text-white'
-                  : 'bg-white text-[#7a7974] hover:bg-[#f3f0ec]'
+                  ? 'bg-[#01696f] text-white shadow-sm'
+                  : 'text-[#7a7974] hover:text-[#28251d] hover:bg-white/70'
               )}
             >
-              ⊞ Table
+              <Table2 size={13} />
+              Table
             </button>
             <button
               onClick={() => { sounds.toggle(); setView('calendar'); }}
+              aria-pressed={view === 'calendar'}
               className={cn(
-                'px-2.5 py-1.5 text-xs font-medium transition-colors flex items-center gap-1',
+                'px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5',
                 view === 'calendar'
-                  ? 'bg-[#01696f] text-white'
-                  : 'bg-white text-[#7a7974] hover:bg-[#f3f0ec]'
+                  ? 'bg-[#01696f] text-white shadow-sm'
+                  : 'text-[#7a7974] hover:text-[#28251d] hover:bg-white/70'
               )}
             >
-              📅 Calendar
+              <CalendarDays size={13} />
+              Calendar
             </button>
           </div>
 
@@ -740,22 +749,17 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
             <button
               onClick={handleExport}
               disabled={isExporting}
-              className="flex items-center gap-1 px-3 py-1.5 bg-[#437a22] text-white
-                         rounded-md text-xs font-medium hover:bg-[#2e5c10]
-                         transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#437a22] text-white
+                         rounded-lg text-xs font-medium hover:bg-[#2e5c10] active:bg-[#1e3f0a]
+                         shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isExporting ? (
                 <span className="w-3 h-3 border border-white/30 border-t-white
                                 rounded-full animate-spin" />
               ) : (
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
+                <Download size={13} />
               )}
-              Export XLSX
+              {isExporting ? 'Exporting…' : 'Export XLSX'}
             </button>
           )}
 
