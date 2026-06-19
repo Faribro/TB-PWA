@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 /**
  * POST /api/reconcile/stream
  *
