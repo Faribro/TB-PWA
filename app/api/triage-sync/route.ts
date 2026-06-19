@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+
+import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getSessionScope } from '@/lib/session-scope';
 

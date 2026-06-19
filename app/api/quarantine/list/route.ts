@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
 import { REDIS_KEYS } from '../../../../lib/redis-keys';

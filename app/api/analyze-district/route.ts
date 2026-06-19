@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+
+import { NextRequest, NextResponse } from 'next/server';
 import { analyzeDistrictWithGemini } from '@/lib/geminiMapAnalyzer';
 import { sanitizeForAI, validateSanitization } from '@/utils/dataSanitizer';
 import { auth } from '@/auth';

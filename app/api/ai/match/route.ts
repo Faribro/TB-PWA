@@ -1,4 +1,8 @@
 /**
+
+export const dynamic = 'force-dynamic';
+
+/**
  * app/api/ai/match/route.ts
  *
  * API endpoint for AI-powered patient matching using OpenRouter.

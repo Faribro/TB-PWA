@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 // @ts-ignore
 import XLSX from 'xlsx-js-style';

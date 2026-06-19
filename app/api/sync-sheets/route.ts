@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { google } from 'googleapis';
 import { NextRequest, NextResponse } from 'next/server';
 

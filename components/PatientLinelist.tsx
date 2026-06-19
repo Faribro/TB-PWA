@@ -1863,7 +1863,7 @@ export default function PatientLinelist({
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'x' && !editingCell) {
-        e.preventDefault();
+        e.preventDefault()i;
         handleClipboardCopy('cut');
       }
 

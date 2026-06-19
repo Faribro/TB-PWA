@@ -1,4 +1,8 @@
 /**
+
+export const dynamic = 'force-dynamic';
+
+/**
  * POST /api/register-extract
  *
  * Receives a file upload + reconciliation session context.

@@ -1,4 +1,8 @@
 /**
+
+export const dynamic = 'force-dynamic';
+
+/**
  * app/api/ai/normalize/route.ts
  *
  * API endpoint for AI-powered name normalization using OpenRouter.

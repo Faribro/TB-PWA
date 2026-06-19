@@ -1,4 +1,8 @@
 /**
+
+export const dynamic = 'force-dynamic';
+
+/**
  * POST /api/register-reconcile
  *
  * Receives the M&E officer's review decisions for an extraction.
