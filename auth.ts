@@ -34,21 +34,22 @@ async function fetchProfile(email: string, fallbackName?: string | null) {
   };
 }
 
-// Resolve the auth secret once. A missing secret causes next-auth v5 to fail
-// during the build's "Collecting page data" step with an opaque
-// "Maximum call stack size exceeded" error, so fail loudly with a clear message.
-const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
-if (!AUTH_SECRET && process.env.NODE_ENV === "production") {
-  throw new Error(
-    "[auth] Missing AUTH_SECRET (or NEXTAUTH_SECRET). Set it in your environment. Generate one with: openssl rand -base64 32"
-  );
-}
+// Resolve the auth secret. AUTH_SECRET is a Vercel runtime secret — it is NOT
+// available during `next build`. Never throw at module-initialisation time;
+// doing so crashes the build-phase "Collecting page data" step because webpack
+// must require() every route module to read its `dynamic` export.
+// At runtime Vercel injects the real secret; the placeholder below is never
+// used to sign tokens in production.
+const AUTH_SECRET =
+  process.env.AUTH_SECRET ||
+  process.env.NEXTAUTH_SECRET ||
+  (process.env.NODE_ENV !== "production" ? "dev-placeholder-secret" : undefined);
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
     }),
   ],
   trustHost: true,
