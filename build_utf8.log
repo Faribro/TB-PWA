@@ -1,0 +1,120 @@
+﻿   Γû▓ Next.js 15.5.13
+   - Environments: .env.production.local, .env.local, .env.production
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully in 18.7s
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+   Generating static pages (0/61) ...
+[Sidebar] Computing visibleTabs for role: M&E Officer
+[Sidebar] Filtered tabs: [ 'Home', 'Vertex', 'M&E Tools', 'GIS Map', 'Knowledge', 'Settings' ]
+[Sidebar] Computing visibleTabs for role: M&E Officer
+[Sidebar] Filtered tabs: [ 'Home', 'Vertex', 'M&E Tools', 'GIS Map', 'Knowledge', 'Settings' ]
+[Sidebar] Computing visibleTabs for role: M&E Officer
+[Sidebar] Filtered tabs: [ 'Home', 'Vertex', 'M&E Tools', 'GIS Map', 'Knowledge', 'Settings' ]
+[Sidebar] Computing visibleTabs for role: M&E Officer
+[Sidebar] Filtered tabs: [ 'Home', 'Vertex', 'M&E Tools', 'GIS Map', 'Knowledge', 'Settings' ]
+[Sidebar] Computing visibleTabs for role: M&E Officer
+[Sidebar] Filtered tabs: [ 'Home', 'Vertex', 'M&E Tools', 'GIS Map', 'Knowledge', 'Settings' ]
+[Sidebar] Computing visibleTabs for role: M&E Officer
+[Sidebar] Filtered tabs: [ 'Home', 'Vertex', 'M&E Tools', 'GIS Map', 'Knowledge', 'Settings' ]
+[Sidebar] Computing visibleTabs for role: M&E Officer
+[Sidebar] Filtered tabs: [ 'Home', 'Vertex', 'M&E Tools', 'GIS Map', 'Knowledge', 'Settings' ]
+[Sidebar] Computing visibleTabs for role: M&E Officer
+[Sidebar] Filtered tabs: [ 'Home', 'Vertex', 'M&E Tools', 'GIS Map', 'Knowledge', 'Settings' ]
+[Sidebar] Computing visibleTabs for role: M&E Officer
+[Sidebar] Filtered tabs: [ 'Home', 'Vertex', 'M&E Tools', 'GIS Map', 'Knowledge', 'Settings' ]
+[Sidebar] Computing visibleTabs for role: M&E Officer
+[Sidebar] Filtered tabs: [ 'Home', 'Vertex', 'M&E Tools', 'GIS Map', 'Knowledge', 'Settings' ]
+[Sidebar] Computing visibleTabs for role: M&E Officer
+[Sidebar] Filtered tabs: [ 'Home', 'Vertex', 'M&E Tools', 'GIS Map', 'Knowledge', 'Settings' ]
+[Sidebar] Computing visibleTabs for role: M&E Officer
+[Sidebar] Filtered tabs: [ 'Home', 'Vertex', 'M&E Tools', 'GIS Map', 'Knowledge', 'Settings' ]
+[Sidebar] Computing visibleTabs for role: M&E Officer
+[Sidebar] Filtered tabs: [ 'Home', 'Vertex', 'M&E Tools', 'GIS Map', 'Knowledge', 'Settings' ]
+M&E Page - Patients loaded: 0
+[Sidebar] Computing visibleTabs for role: M&E Officer
+[Sidebar] Filtered tabs: [ 'Home', 'Vertex', 'M&E Tools', 'GIS Map', 'Knowledge', 'Settings' ]
+   Generating static pages (15/61) 
+   Generating static pages (30/61) 
+   Generating static pages (45/61) 
+ Γ£ô Generating static pages (61/61)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+Γöî Γùï /                                      613 B         107 kB
+Γö£ Γùï /_not-found                             1 kB         104 kB
+Γö£ Γùï /admin/etl                           4.61 kB         116 kB
+Γö£ Γùï /admin/users                         6.55 kB         162 kB
+Γö£ ╞Æ /api/actions/export                    235 B         103 kB
+Γö£ ╞Æ /api/actions/gmail/draft               235 B         103 kB
+Γö£ ╞Æ /api/admin/users                       235 B         103 kB
+Γö£ ╞Æ /api/ai/command                        235 B         103 kB
+Γö£ ╞Æ /api/ai/pdf-chat                       235 B         103 kB
+Γö£ ╞Æ /api/ai/stream                         235 B         103 kB
+Γö£ ╞Æ /api/ai/translate                      235 B         103 kB
+Γö£ ╞Æ /api/ai/translate-guide                235 B         103 kB
+Γö£ ╞Æ /api/analyze-district                  235 B         103 kB
+Γö£ ╞Æ /api/analyze-districts                 235 B         103 kB
+Γö£ ╞Æ /api/auth/[...auth]                    235 B         103 kB
+Γö£ ╞Æ /api/bulk-upload                       484 B         160 kB
+Γö£ ╞Æ /api/debug-columns                     235 B         103 kB
+Γö£ ╞Æ /api/debug-jwt                         235 B         103 kB
+Γö£ ╞Æ /api/debug-profile                     235 B         103 kB
+Γö£ ╞Æ /api/debug-supabase                    235 B         103 kB
+Γö£ ╞Æ /api/etl/kobo-sync                     235 B         103 kB
+Γö£ ╞Æ /api/generate-image                    235 B         103 kB
+Γö£ ╞Æ /api/generate-text                     235 B         103 kB
+Γö£ ╞Æ /api/generate-video/start              235 B         103 kB
+Γö£ ╞Æ /api/generate-video/status/[jobId]     235 B         103 kB
+Γö£ ╞Æ /api/health                            235 B         103 kB
+Γö£ ╞Æ /api/link-file                         235 B         103 kB
+Γö£ ╞Æ /api/me                                235 B         103 kB
+Γö£ ╞Æ /api/metrics                           235 B         103 kB
+Γö£ ╞Æ /api/monitoring                        235 B         103 kB
+Γö£ ╞Æ /api/patient-sync                      235 B         103 kB
+Γö£ ╞Æ /api/patients                          235 B         103 kB
+Γö£ ╞Æ /api/reconcile/stream                  235 B         103 kB
+Γö£ ╞Æ /api/register-extract                  235 B         103 kB
+Γö£ ╞Æ /api/register-reconcile                235 B         103 kB
+Γö£ ╞Æ /api/retry-sheet-sync                  235 B         103 kB
+Γö£ ╞Æ /api/sync-sheets                       235 B         103 kB
+Γö£ ╞Æ /api/sync/existing-uuids               235 B         103 kB
+Γö£ ╞Æ /api/sync/sheets-to-supabase           235 B         103 kB
+Γö£ ╞Æ /api/triage-sync                       235 B         103 kB
+Γö£ ╞Æ /api/upload-pdf                        235 B         103 kB
+Γö£ ╞Æ /api/vapi/tool                         235 B         103 kB
+Γö£ ╞Æ /api/vector-engine                     235 B         103 kB
+Γö£ ╞Æ /api/webhook/kobo                      235 B         103 kB
+Γö£ Γùï /auth-test                             775 B         107 kB
+Γö£ Γùï /auth/login                            953 B         156 kB
+Γö£ Γùï /button-showcase                     8.16 kB         119 kB
+Γö£ Γùï /dashboard                             291 B         185 kB
+Γö£ Γùï /dashboard/breaches                    558 B         147 kB
+Γö£ Γùï /dashboard/calendar                    550 B         147 kB
+Γö£ Γùï /dashboard/command-hub               65.6 kB         323 kB
+Γö£ Γùï /dashboard/debug-auth                  824 B         107 kB
+Γö£ Γùï /dashboard/follow-up                 1.94 kB         204 kB
+Γö£ Γùï /dashboard/gis                       7.74 kB         254 kB
+Γö£ Γùï /dashboard/mande                     2.11 kB         205 kB
+Γö£ Γùï /dashboard/my-submissions            7.02 kB         237 kB
+Γö£ Γùï /dashboard/settings                    289 B         185 kB
+Γö£ Γùï /dashboard/submit-new                49.1 kB         268 kB
+Γö£ Γùï /dashboard/vertex                    8.93 kB         409 kB
+Γö£ Γùï /dashboard/vertex/bulk-upload         5.5 kB         299 kB
+Γö£ Γùï /dashboard/video-generation          3.36 kB         158 kB
+Γö£ Γùï /docs                                30.2 kB         261 kB
+Γö£ Γùï /login                               12.2 kB         176 kB
+Γö£ Γùï /neural-dashboard                    60.7 kB         337 kB
+Γöö Γùï /unauthorized                          235 B         103 kB
++ First Load JS shared by all             103 kB
+  Γö£ chunks/1255-2b0862232030f2d7.js      45.7 kB
+  Γö£ chunks/4bd1b696-100b9d70ed4e49c1.js  54.2 kB
+  Γöö other shared chunks (total)          3.06 kB
+
+
+Γùï  (Static)   prerendered as static content
+╞Æ  (Dynamic)  server-rendered on demand
+
