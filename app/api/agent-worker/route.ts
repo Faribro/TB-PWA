@@ -129,7 +129,7 @@ export async function POST(req: Request) {
         extracted.facility_name = facilityName;
       }
 
-      const matchInfo = matchAndReconcileRow(
+      const matchInfo = await matchAndReconcileRow(
         extracted, 
         existingPatients, 
         screeningState, 
@@ -147,6 +147,8 @@ export async function POST(req: Request) {
         quarantine_status: matchInfo.status,
         conflict_reason: matchInfo.conflict_reason,
         candidate_match: matchInfo.candidate_match,
+        match_stage: matchInfo.match_stage,
+        possible_matches: matchInfo.possible_matches,
         extracted_details: {
           ...extracted.raw_details,
           xray_result: extracted.status,

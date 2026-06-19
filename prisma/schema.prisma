@@ -74,6 +74,7 @@ model patients {
   // Timestamps
   created_at             DateTime? @default(now()) @db.Timestamptz(6)
   updated_at             DateTime? @default(now()) @db.Timestamptz(6)
+  serial_number          Int?      @map("serial_number")
 
   @@index([screening_state])
   @@index([screening_district])

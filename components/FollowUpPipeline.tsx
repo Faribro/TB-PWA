@@ -72,6 +72,7 @@ interface FollowUpPipelineProps {
   isLoading?: boolean;
   onPatientClick?: (patient: Patient) => void;
   onUploadRegister?: () => void;
+  extraHeaderButtons?: React.ReactNode;
 }
 
 // Helper function to get the most recent clinical date for display
@@ -244,7 +245,7 @@ const PatientCard = ({ patient, onClick, canSelect, triageIds, toggleTriageSelec
   );
 };
 
-export function FollowUpPipeline({ patients: initialPatients, globalPatients, isLoading = false, onPatientClick, onUploadRegister }: FollowUpPipelineProps) {
+export function FollowUpPipeline({ patients: initialPatients, globalPatients, isLoading = false, onPatientClick, onUploadRegister, extraHeaderButtons }: FollowUpPipelineProps) {
   const { filter: treeFilter, clearFilter: clearTreeFilter } = useTreeFilter();
   const activeFilters = useEntityStore(s => s.activeFilters);
   const [triageIds, setTriageIds] = useState<number[]>([]);
@@ -827,6 +828,7 @@ export function FollowUpPipeline({ patients: initialPatients, globalPatients, is
                 Upload Register
               </motion.button>
             )}
+            {extraHeaderButtons}
             <div 
               className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-xl p-0.5 h-10"
               style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}

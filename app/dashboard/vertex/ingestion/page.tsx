@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import useSWR from 'swr';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,11 +33,53 @@ import { useSessionScope } from '@/hooks/useSessionScope';
 import { toast } from 'sonner';
 import { QuarantineRecord, QuarantineStatus } from '@/types/ingestion';
 import Link from 'next/link';
+import PatientLinelist, { COLUMN_DEFS } from '@/components/PatientLinelist';
+import { SpreadsheetProvider } from '@/contexts/SpreadsheetContext';
+import { ErrorBoundary } from 'react-error-boundary';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 export default function IngestionReconciliationTerminal() {
   const scope = useSessionScope();
+
+  const [backUrl, setBackUrl] = useState('/dashboard/vertex');
+  const [facilityName, setFacilityName] = useState('');
+  const [screeningDate, setScreeningDate] = useState('');
+  const [screeningState, setScreeningState] = useState('');
+  const [screeningDistrict, setScreeningDistrict] = useState('');
+  const [showLinelist, setShowLinelist] = useState(false);
+  const [hasBeenOpened, setHasBeenOpened] = useState(false);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    const initialWidths: Record<string, number> = {};
+    COLUMN_DEFS.forEach(c => {
+      initialWidths[c.key as string] = c.width;
+    });
+    return initialWidths;
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const backDate = params.get('date') || '';
+      const backFacility = params.get('facility') || '';
+      const backState = params.get('state') || '';
+      const backDistrict = params.get('district') || '';
+      
+      setFacilityName(backFacility);
+      setScreeningDate(backDate);
+      setScreeningState(backState);
+      setScreeningDistrict(backDistrict);
+      
+      if (backFacility) {
+        setBackUrl(
+          `/dashboard/vertex?date=${encodeURIComponent(backDate)}` +
+          `&facility=${encodeURIComponent(backFacility)}` +
+          `&state=${encodeURIComponent(backState)}` +
+          `&district=${encodeURIComponent(backDistrict)}`
+        );
+      }
+    }
+  }, []);
   
   // Canvas generative backdrop ref
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -191,12 +235,12 @@ export default function IngestionReconciliationTerminal() {
     fetcher
   );
 
-  const [activeTab, setActiveTab] = useState<'staged' | 'conflict' | 'resolved'>('staged');
+  const [activeTab, setActiveTab] = useState<'staged' | 'conflict' | 'resolved' | 'failed'>('staged');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedConflict, setSelectedConflict] = useState<QuarantineRecord | null>(null);
   const [isResolving, setIsResolving] = useState(false);
 
-  const handleTabChange = (tab: 'staged' | 'conflict' | 'resolved') => {
+  const handleTabChange = (tab: 'staged' | 'conflict' | 'resolved' | 'failed') => {
     setActiveTab(tab);
     setSelectedIds(new Set());
     sounds.navTab();
@@ -206,20 +250,51 @@ export default function IngestionReconciliationTerminal() {
 
   // Group records into Buckets
   const bucketA = useMemo(() => {
-    return records.filter(
-      r => r.quarantine_status !== 'SYNCHRONIZED' && r.quarantine_status !== 'REJECTED' && r.confidence_score === 'low'
+    return records.filter(r =>
+      r.confidence_score === 'low' &&
+      r.quarantine_status !== 'FAILED_RETRY' &&
+      r.quarantine_status !== 'EXTRACTION_FAILED'
     );
   }, [records]);
 
   const bucketB = useMemo(() => {
-    return records.filter(
-      r => r.quarantine_status !== 'SYNCHRONIZED' && r.quarantine_status !== 'REJECTED' && r.confidence_score === 'medium'
+    return records.filter(r =>
+      r.confidence_score === 'medium' &&
+      r.quarantine_status !== 'FAILED_RETRY' &&
+      r.quarantine_status !== 'EXTRACTION_FAILED'
     );
   }, [records]);
 
   const bucketC = useMemo(() => {
-    return records.filter(r => r.quarantine_status === 'SYNCHRONIZED' || r.quarantine_status === 'FAILED_RETRY');
+    return records.filter(r =>
+      r.confidence_score === 'high' &&
+      r.quarantine_status !== 'FAILED_RETRY' &&
+      r.quarantine_status !== 'EXTRACTION_FAILED'
+    );
   }, [records]);
+
+  const bucketD = useMemo(() => {
+    return records.filter(r =>
+      r.quarantine_status === 'FAILED_RETRY'
+    );
+  }, [records]);
+
+  const bucketUnreadable = useMemo(() => {
+    return records.filter(r =>
+      r.quarantine_status === 'EXTRACTION_FAILED'
+    );
+  }, [records]);
+
+  const bucketAFinal = useMemo(() => {
+    return [
+      ...bucketA,
+      ...records.filter(r =>
+        !['low','medium','high'].includes(r.confidence_score ?? '') &&
+        r.quarantine_status !== 'FAILED_RETRY' &&
+        r.quarantine_status !== 'EXTRACTION_FAILED'
+      )
+    ];
+  }, [bucketA, records]);
 
   // Checkbox toggles
   const handleToggleSelect = (id: string) => {
@@ -237,10 +312,10 @@ export default function IngestionReconciliationTerminal() {
 
   const handleToggleSelectAllBucketA = () => {
     sounds.toggle();
-    if (selectedIds.size === bucketA.length) {
+    if (selectedIds.size === bucketAFinal.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(bucketA.map(r => r.id)));
+      setSelectedIds(new Set(bucketAFinal.map(r => r.id)));
     }
   };
 
@@ -375,6 +450,25 @@ export default function IngestionReconciliationTerminal() {
     handleResolveBatch(batch as any);
   };
 
+  const retrySync = (record: QuarantineRecord) => {
+    // TODO: Implement RETRY_SYNC action properly in resolve/route.ts.
+    // For now, use MERGE_CANDIDATE with the existing candidate_match.id as a workaround.
+    if (record.candidate_match) {
+      handleResolveBatch([
+        { id: record.id, action: 'MERGE_CANDIDATE', candidateId: record.candidate_match.id }
+      ]);
+    } else {
+      handleResolveBatch([
+        { id: record.id, action: 'APPROVE_NEW' }
+      ]);
+    }
+  };
+
+  const dismissRecord = (record: QuarantineRecord) => {
+    sounds.deleteConfirm();
+    handleResolveBatch([{ id: record.id, action: 'REJECT' }]);
+  };
+
   return (
     <div
       onPointerDown={handlePointerDown}
@@ -394,7 +488,7 @@ export default function IngestionReconciliationTerminal() {
           <div className="space-y-1.5">
             <div className="flex items-center gap-3">
               <Link
-                href="/dashboard/vertex"
+                href={backUrl}
                 className="interactive-control p-2 bg-white hover:bg-slate-100 border border-slate-200/80 rounded-xl text-slate-600 transition-colors shadow-sm"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -424,6 +518,22 @@ export default function IngestionReconciliationTerminal() {
             <button
               onClick={() => {
                 sounds.buttonClick();
+                setShowLinelist(!showLinelist);
+                setHasBeenOpened(true);
+              }}
+              className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 shrink-0 ${
+                showLinelist
+                  ? 'bg-green-600 border-green-600 text-white hover:bg-green-700'
+                  : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+              }`}
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>{showLinelist ? 'Exit Spreadsheet' : 'Spreadsheet View'}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                sounds.buttonClick();
                 mutate();
               }}
               disabled={isLoading || isResolving}
@@ -434,10 +544,11 @@ export default function IngestionReconciliationTerminal() {
           </div>
         </header>
 
-        {/* Overview Stats Row */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div style={{ display: showLinelist ? 'none' : 'flex' }} className="flex flex-col gap-6 flex-1 min-h-0">
+          {/* Overview Stats Row */}
+          <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div className="vertex-glass-card rounded-[20px] p-4 flex flex-col gap-1 shadow-sm">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Total Staged</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Total Records</span>
             <span className="text-2xl font-black text-slate-950">{records.length}</span>
             <div className="w-full bg-slate-100 h-1 rounded-full mt-2 overflow-hidden">
               <div className="bg-slate-800 h-full" style={{ width: `${records.length > 0 ? 100 : 0}%` }} />
@@ -445,15 +556,15 @@ export default function IngestionReconciliationTerminal() {
           </div>
           
           <div className="vertex-glass-card rounded-[20px] p-4 flex flex-col gap-1 shadow-sm">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-500">Staged New Entries</span>
-            <span className="text-2xl font-black text-indigo-950">{bucketA.length}</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-blue-500">New Entries</span>
+            <span className="text-2xl font-black text-blue-950">{bucketAFinal.length}</span>
             <div className="w-full bg-slate-100 h-1 rounded-full mt-2 overflow-hidden">
-              <div className="bg-indigo-500 h-full" style={{ width: `${records.length > 0 ? (bucketA.length / records.length) * 100 : 0}%` }} />
+              <div className="bg-blue-500 h-full" style={{ width: `${records.length > 0 ? (bucketAFinal.length / records.length) * 100 : 0}%` }} />
             </div>
           </div>
 
           <div className="vertex-glass-card rounded-[20px] p-4 flex flex-col gap-1 shadow-sm">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-amber-500">Ambiguous Conflicts</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-amber-500">Conflicts</span>
             <span className="text-2xl font-black text-amber-950">{bucketB.length}</span>
             <div className="w-full bg-slate-100 h-1 rounded-full mt-2 overflow-hidden">
               <div className="bg-amber-500 h-full" style={{ width: `${records.length > 0 ? (bucketB.length / records.length) * 100 : 0}%` }} />
@@ -461,51 +572,89 @@ export default function IngestionReconciliationTerminal() {
           </div>
 
           <div className="vertex-glass-card rounded-[20px] p-4 flex flex-col gap-1 shadow-sm">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-500">Auto-Resolved Log</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-500">Existing Entries</span>
             <span className="text-2xl font-black text-emerald-950">{bucketC.length}</span>
             <div className="w-full bg-slate-100 h-1 rounded-full mt-2 overflow-hidden">
               <div className="bg-emerald-500 h-full" style={{ width: `${records.length > 0 ? (bucketC.length / records.length) * 100 : 0}%` }} />
             </div>
           </div>
+
+          <div className="vertex-glass-card rounded-[20px] p-4 flex flex-col gap-1 shadow-sm border border-red-100">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-red-500">Sync Failures</span>
+            <span className="text-2xl font-black text-red-950">{bucketD.length}</span>
+            <div className="w-full bg-slate-100 h-1 rounded-full mt-2 overflow-hidden">
+              <div className="bg-red-500 h-full" style={{ width: `${records.length > 0 ? (bucketD.length / records.length) * 100 : 0}%` }} />
+            </div>
+          </div>
+
+          <div className="vertex-glass-card rounded-[20px] p-4 flex flex-col gap-1 shadow-sm border border-amber-100 bg-amber-50/10">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-amber-600 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3 text-amber-500" />
+              Unreadable
+            </span>
+            <span className="text-2xl font-black text-amber-950">{bucketUnreadable.length}</span>
+            <div className="w-full bg-slate-100 h-1 rounded-full mt-2 overflow-hidden">
+              <div className="bg-amber-400 h-full" style={{ width: `${records.length > 0 ? (bucketUnreadable.length / records.length) * 100 : 0}%` }} />
+            </div>
+          </div>
         </section>
 
         {/* Tab Controls */}
-        <nav className="flex border-b border-slate-200/50 pb-0.5 gap-2 interactive-control">
-          <button
-            onClick={() => handleTabChange('staged')}
-            className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider rounded-t-xl transition-all border-b-2 flex items-center gap-2 ${
-              activeTab === 'staged'
-                ? 'border-indigo-500 text-indigo-600 bg-indigo-50/40'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'
-            }`}
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            Bucket A: New Entries ({bucketA.length})
-          </button>
-          
-          <button
-            onClick={() => handleTabChange('conflict')}
-            className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider rounded-t-xl transition-all border-b-2 flex items-center gap-2 ${
-              activeTab === 'conflict'
-                ? 'border-amber-500 text-amber-600 bg-amber-50/40'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'
-            }`}
-          >
-            <AlertTriangle className="w-4 h-4" />
-            Bucket B: Conflicts ({bucketB.length})
-          </button>
-          
-          <button
-            onClick={() => handleTabChange('resolved')}
-            className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider rounded-t-xl transition-all border-b-2 flex items-center gap-2 ${
-              activeTab === 'resolved'
-                ? 'border-emerald-500 text-emerald-600 bg-emerald-50/40'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'
-            }`}
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            Bucket C: Auto-Resolved ({bucketC.length})
-          </button>
+        <nav className="flex border-b border-slate-200/50 pb-0.5 gap-2 interactive-control items-center justify-between">
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleTabChange('staged')}
+              className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider rounded-t-xl transition-all border-b-2 flex items-center gap-2 ${
+                activeTab === 'staged'
+                  ? 'border-blue-500 text-blue-600 bg-blue-50/40'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'
+              }`}
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              New Entries ({bucketAFinal.length})
+            </button>
+            
+            <button
+              onClick={() => handleTabChange('conflict')}
+              className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider rounded-t-xl transition-all border-b-2 flex items-center gap-2 ${
+                activeTab === 'conflict'
+                  ? 'border-amber-500 text-amber-600 bg-amber-50/40'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'
+              }`}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              Conflicts ({bucketB.length})
+            </button>
+            
+            <button
+              onClick={() => handleTabChange('resolved')}
+              className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider rounded-t-xl transition-all border-b-2 flex items-center gap-2 ${
+                activeTab === 'resolved'
+                  ? 'border-emerald-500 text-emerald-600 bg-emerald-50/40'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Existing Entries ({bucketC.length})
+            </button>
+
+            <button
+              onClick={() => handleTabChange('failed')}
+              className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider rounded-t-xl transition-all border-b-2 flex items-center gap-2 ${
+                activeTab === 'failed'
+                  ? 'border-red-500 text-red-600 bg-red-50/40'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'
+              }`}
+            >
+              <AlertCircle className="w-4 h-4" />
+              Sync Failures ({bucketD.length})
+            </button>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold shadow-sm">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+            Unreadable: {bucketUnreadable.length}
+          </div>
         </nav>
 
         {/* Main Content Area */}
@@ -522,17 +671,17 @@ export default function IngestionReconciliationTerminal() {
           {activeTab === 'staged' && (
             <div className="flex flex-col h-full gap-4">
               {/* Batch Actions Header */}
-              {bucketA.length > 0 && (
+              {bucketAFinal.length > 0 && (
                 <div className="flex items-center justify-between bg-white border border-slate-200/60 px-4 py-3 rounded-2xl shadow-sm interactive-control">
                   <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
-                      checked={selectedIds.size === bucketA.length && bucketA.length > 0}
+                      checked={selectedIds.size === bucketAFinal.length && bucketAFinal.length > 0}
                       onChange={handleToggleSelectAllBucketA}
                       className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                     />
                     <span className="text-xs font-bold text-slate-600">
-                      {selectedIds.size} of {bucketA.length} selected
+                      {selectedIds.size} of {bucketAFinal.length} selected
                     </span>
                   </div>
                   
@@ -560,19 +709,19 @@ export default function IngestionReconciliationTerminal() {
                 </div>
               )}
 
-              {bucketA.length === 0 ? (
+              {bucketAFinal.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-12 bg-white/60 border border-slate-100 rounded-3xl text-center shadow-sm">
                   <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-3 text-indigo-500">
                     <CheckCircle2 className="w-6 h-6" />
                   </div>
-                  <h3 className="text-sm font-bold text-slate-900">No New Staged Records</h3>
+                  <h3 className="text-sm font-bold text-slate-900">No New Entries records</h3>
                   <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
                     All extracted patient files have been processed or resolved. Upload another register file to initiate staging.
                   </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {bucketA.map(record => (
+                  {bucketAFinal.map(record => (
                     <div
                       key={record.id}
                       className={`vertex-glass-card rounded-[22px] p-4 flex flex-col gap-3 shadow-sm border transition-all ${
@@ -649,7 +798,7 @@ export default function IngestionReconciliationTerminal() {
                   <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-3 text-indigo-500">
                     <ShieldCheck className="w-6 h-6" />
                   </div>
-                  <h3 className="text-sm font-bold text-slate-900">Zero Ambiguous Discrepancies</h3>
+                  <h3 className="text-sm font-bold text-slate-900">No Conflicts records</h3>
                   <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
                     No matching records fall within the ambiguous gray-zone threshold (65% to 85% similarity).
                   </p>
@@ -769,7 +918,7 @@ export default function IngestionReconciliationTerminal() {
                   <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-3 text-indigo-500">
                     <CheckCircle2 className="w-6 h-6" />
                   </div>
-                  <h3 className="text-sm font-bold text-slate-900">Auto-Resolved Queue Empty</h3>
+                  <h3 className="text-sm font-bold text-slate-900">No Existing Entries records</h3>
                   <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
                     There are no high-confidence matching records queued for database synchronization.
                   </p>
@@ -777,17 +926,13 @@ export default function IngestionReconciliationTerminal() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {bucketC.map(record => {
-                    const isFailedSync = record.quarantine_status === 'FAILED_RETRY';
-                    
                     return (
                       <div
                         key={record.id}
                         className={`vertex-glass-card rounded-[22px] p-4 flex flex-col gap-3 shadow-sm border transition-all ${
-                          isFailedSync 
-                            ? 'border-red-200 bg-red-50/5' 
-                            : selectedIds.has(record.id)
-                              ? 'ring-2 ring-emerald-500 border-emerald-500' 
-                              : ''
+                          selectedIds.has(record.id)
+                            ? 'ring-2 ring-emerald-500 border-emerald-500' 
+                            : ''
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3">
@@ -811,17 +956,10 @@ export default function IngestionReconciliationTerminal() {
                             </div>
                           </div>
 
-                          {isFailedSync ? (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] uppercase font-bold bg-red-100 border border-red-200 text-red-700 flex items-center gap-1">
-                              <AlertCircle className="w-3 h-3" />
-                              Sync Failed
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] uppercase font-bold bg-emerald-100 border border-emerald-200 text-emerald-700 flex items-center gap-1">
-                              <Check className="w-3 h-3" />
-                              Resolved
-                            </span>
-                          )}
+                          <span className="px-2 py-0.5 rounded-full text-[9px] uppercase font-bold bg-emerald-100 border border-emerald-200 text-emerald-700 flex items-center gap-1">
+                            <Check className="w-3 h-3" />
+                            Resolved
+                          </span>
                         </div>
 
                         {record.candidate_match ? (
@@ -887,8 +1025,136 @@ export default function IngestionReconciliationTerminal() {
             </div>
           )}
 
+          {/* TAB 4: BUCKET D (SYNC FAILURES) */}
+          {activeTab === 'failed' && (
+            <div className="flex flex-col h-full gap-4">
+              {bucketD.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-12 bg-white/60 border border-slate-100 rounded-3xl text-center shadow-sm">
+                  <div className="w-12 h-12 rounded-2xl bg-green-50 border border-green-100 flex items-center justify-center mb-3 text-green-500">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-900">No Sync Failures records</h3>
+                  <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                    All records have successfully synced or been resolved. There are no synchronization errors in the queue.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {bucketD.map(record => (
+                    <div
+                      key={record.id}
+                      className="vertex-glass-card rounded-[22px] p-4 flex flex-col gap-3 shadow-sm border border-red-200 bg-red-50/5 relative overflow-hidden"
+                    >
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/5 rounded-full blur-2xl pointer-events-none" />
+
+                      <div className="flex items-start justify-between gap-3 relative z-10">
+                        <div className="space-y-0.5">
+                          <h4 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5 text-slate-400" />
+                            {record.patient_name}
+                          </h4>
+                          <span className="text-[10px] text-slate-400 uppercase font-semibold flex items-center gap-1">
+                            <Building className="w-3 h-3 text-slate-300" />
+                            {record.facility_name}
+                          </span>
+                        </div>
+
+                        <span className="px-2 py-0.5 rounded-full text-[9px] uppercase font-bold bg-red-100 border border-red-200 text-red-700 flex items-center gap-1 shrink-0">
+                          <AlertCircle className="w-3 h-3" />
+                          Sync Failed
+                        </span>
+                      </div>
+
+                      <div className="bg-red-50/60 border border-red-100/80 rounded-xl p-2.5 text-[11px] text-red-800 leading-normal flex gap-2 relative z-10">
+                        <Info className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-bold">Error Info:</span>
+                          <p className="text-red-700/90 mt-0.5">Google Sheets synchronization failed. This record needs a retry.</p>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-slate-100 pt-2.5 flex items-center justify-between text-[11px] text-slate-500 relative z-10">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-slate-400" />
+                          Date: {record.screening_date}
+                        </span>
+
+                        <span className="text-[10px] text-slate-400">
+                          ID: {record.id.slice(0, 8)}...
+                        </span>
+                      </div>
+
+                      <div className="border-t border-slate-100 pt-3 flex items-center gap-2 interactive-control relative z-10">
+                        <button
+                          onClick={() => dismissRecord(record)}
+                          disabled={isResolving}
+                          className="px-3 py-1.5 hover:bg-rose-50 border border-rose-100 text-rose-600 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 flex-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Dismiss
+                        </button>
+                        
+                        <button
+                          onClick={() => retrySync(record)}
+                          disabled={isResolving}
+                          className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 flex-1 shadow-md shadow-red-100"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isResolving ? 'animate-spin' : ''}`} />
+                          Retry Sync
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
         </main>
       </div>
+
+      {/* Spreadsheet Component Wrapper */}
+      <div style={{ display: showLinelist ? 'block' : 'none' }} className="flex-1 min-h-0">
+        <ErrorBoundary
+          fallback={
+            <div className="flex flex-col items-center justify-center p-12 bg-white border border-red-200 rounded-3xl text-center shadow-md">
+              <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mb-3 text-red-500">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-black text-slate-900">Spreadsheet Rendering Error</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                The live linelist spreadsheet encountered an unexpected rendering crash.
+              </p>
+              <div className="flex gap-2.5 mt-4">
+                <button
+                  onClick={() => setShowLinelist(false)}
+                  className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-xs"
+                >
+                  Return to Bucket View
+                </button>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs"
+                >
+                  Reload Page
+                </button>
+              </div>
+            </div>
+          }
+          onError={(error) => console.error('[PatientLinelist crash]', error)}
+        >
+          <SpreadsheetProvider>
+            <PatientLinelist
+              facilityName={facilityName || undefined}
+              screeningDate={screeningDate || undefined}
+              screeningState={screeningState || undefined}
+              screeningDistrict={screeningDistrict || undefined}
+              onClose={() => setShowLinelist(false)}
+            />
+          </SpreadsheetProvider>
+        </ErrorBoundary>
+      </div>
+    </div>
 
       {/* DISCREPANCY COMPARISON DRAWER */}
       <AnimatePresence>

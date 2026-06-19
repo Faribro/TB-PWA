@@ -1,141 +1,254 @@
-import { distance } from 'fastest-levenshtein';
-import { differenceInDays, parseISO, isValid } from 'date-fns';
 import { normalizeDate } from './normalize-date';
-import { QuarantineRecord, CandidateMatch } from '../../../types/ingestion';
+import { CandidateMatch } from '../../../types/ingestion';
+import { prisma } from '../../../lib/prisma';
 
-export function calculateStringSimilarity(s1: string, s2: string): number {
-  const str1 = s1.trim().toLowerCase();
-  const str2 = s2.trim().toLowerCase();
-  
-  if (!str1 && !str2) return 1.0;
-  if (!str1 || !str2) return 0.0;
-  if (str1 === str2) return 1.0;
-
-  const maxLength = Math.max(str1.length, str2.length);
-  const levDistance = distance(str1, str2);
-  
-  return (maxLength - levDistance) / maxLength;
+function mapPatientToCandidate(patient: any, score: number): CandidateMatch {
+  return {
+    id: patient.id,
+    kobo_uuid: patient.kobo_uuid || null,
+    patient_name: patient.inmate_name || patient.patient_name || '',
+    screening_date: normalizeDate(patient.screening_date || patient.submitted_on),
+    facility_name: patient.facility_name || '',
+    status: patient.xray_result || patient.chest_x_ray_result || patient.status || '',
+    similarity_score: Number(score.toFixed(3))
+  };
 }
 
-export function matchAndReconcileRow(
+export async function matchAndReconcileRow(
   extractedRow: any,
-  existingPatients: any[], // Mapped objects containing patient details
+  existingPatients: any[] = [], // Kept for interface compatibility
   targetState: string | null = 'All',
   targetDistrict: string | null = 'All'
-): {
+): Promise<{
   status: 'PENDING' | 'SYNCHRONIZED';
   confidence_score: 'high' | 'medium' | 'low';
-  conflict_reason?: string;
+  score: number;
   candidate_match: CandidateMatch | null;
-} {
-  const normExtractedDate = normalizeDate(extractedRow.screening_date);
-  const name = extractedRow.patient_name || 'Unknown Name';
+  possible_matches?: CandidateMatch[];
+  match_stage: 'EXACT_ID' | 'EXACT_NIKSHAY' | 'FUZZY_NAME' | 
+               'SCREENING_DATE_FALLBACK' | 'AMBIGUOUS_MATCH' | 'NO_MATCH';
+  flags?: string[];
+  conflict_reason?: string;
+}> {
+  const inmateName = extractedRow.inmate_name || extractedRow.patient_name || '';
+  const fatherName = extractedRow.father_name || extractedRow.father_husband_name || '';
+  const dob = extractedRow.date_of_birth || extractedRow.dob || null;
+  const age = extractedRow.age ? parseInt(String(extractedRow.age), 10) : null;
+  const contact = extractedRow.contact || extractedRow.contact_number || '';
+  const sex = extractedRow.sex || extractedRow.gender || '';
   const facility = extractedRow.facility_name || '';
+  const screeningDate = extractedRow.screening_date || '';
 
-  let bestMatch: any = null;
-  let bestScore = 0;
-
-  // Pass 1: Deterministic Match by unique ID or exact composite parameters
-  if (extractedRow.id) {
-    const directMatch = existingPatients.find(
-      p => p.id === extractedRow.id || p.nikshay_abha_id === extractedRow.id || p.kobo_uuid === extractedRow.id
-    );
-    if (directMatch) {
+  // STAGE 1 & 2: Exact ID match (check first, cheapest)
+  if (extractedRow.kobo_uuid) {
+    const match = await prisma.patients.findFirst({
+      where: {
+        facility_name: facility,
+        kobo_uuid: extractedRow.kobo_uuid
+      }
+    });
+    if (match) {
       return {
-        status: 'SYNCHRONIZED', // Exact ID match can be automatically synchronized
+        status: 'SYNCHRONIZED',
         confidence_score: 'high',
-        candidate_match: {
-          id: directMatch.id,
-          patient_name: directMatch.inmate_name || directMatch.patient_name || '',
-          screening_date: normalizeDate(directMatch.screening_date || directMatch.submitted_on),
-          facility_name: directMatch.facility_name || '',
-          status: directMatch.status || directMatch.xray_result || '',
-          similarity_score: 1.0
-        }
+        score: 1.0,
+        match_stage: 'EXACT_ID',
+        candidate_match: mapPatientToCandidate(match, 1.0)
       };
     }
   }
 
-  // Pass 2: Probabilistic match (sliding window ±2 days)
-  const extractedDateObj = normExtractedDate !== 'INVALID_DATE' ? parseISO(normExtractedDate) : null;
-
-  for (const patient of existingPatients) {
-    // Apply geographic filtering scope if specified
-    const pState = patient.screening_state || patient.state || '';
-    const pDistrict = patient.screening_district || patient.district || '';
-    
-    if (targetState && targetState !== 'All' && pState !== targetState) continue;
-    if (targetDistrict && targetDistrict !== 'All' && pDistrict !== targetDistrict) continue;
-
-    const patientDateStr = normalizeDate(patient.screening_date || patient.submitted_on);
-    const patientDateObj = patientDateStr !== 'INVALID_DATE' ? parseISO(patientDateStr) : null;
-
-    let dateMatch = false;
-    if (extractedDateObj && patientDateObj && isValid(extractedDateObj) && isValid(patientDateObj)) {
-      const dayDiff = Math.abs(differenceInDays(extractedDateObj, patientDateObj));
-      if (dayDiff <= 2) {
-        dateMatch = true;
+  if (extractedRow.nikshay_abha_id && String(extractedRow.nikshay_abha_id).trim().length > 0) {
+    const match = await prisma.patients.findFirst({
+      where: {
+        facility_name: facility,
+        nikshay_abha_id: String(extractedRow.nikshay_abha_id).trim()
       }
-    } else if (normExtractedDate === 'INVALID_DATE' && patientDateStr === 'INVALID_DATE') {
-      // If both lack dates, allow a match based purely on text details
-      dateMatch = true;
-    }
-
-    if (!dateMatch) continue;
-
-    // Evaluate text similarities
-    const pName = patient.inmate_name || patient.patient_name || '';
-    const pFacility = patient.facility_name || '';
-
-    const nameSim = calculateStringSimilarity(name, pName);
-    const facilitySim = calculateStringSimilarity(facility, pFacility);
-
-    // Dynamic weight combination: 70% Name, 30% Facility
-    const combinedScore = (nameSim * 0.70) + (facilitySim * 0.30);
-
-    if (combinedScore > bestScore) {
-      bestScore = combinedScore;
-      bestMatch = patient;
+    });
+    if (match) {
+      return {
+        status: 'SYNCHRONIZED',
+        confidence_score: 'high',
+        score: 1.0,
+        match_stage: 'EXACT_NIKSHAY',
+        candidate_match: mapPatientToCandidate(match, 1.0)
+      };
     }
   }
 
-  // Evaluate final matching confidence scores
-  if (bestScore >= 0.85) {
-    // Confirmed merge (deterministic probability)
-    return {
-      status: 'SYNCHRONIZED',
-      confidence_score: 'high',
-      candidate_match: {
-        id: bestMatch.id,
-        patient_name: bestMatch.inmate_name || bestMatch.patient_name || '',
-        screening_date: normalizeDate(bestMatch.screening_date || bestMatch.submitted_on),
-        facility_name: bestMatch.facility_name || '',
-        status: bestMatch.status || bestMatch.xray_result || '',
-        similarity_score: Number(bestScore.toFixed(3))
+  if (extractedRow.unique_id) {
+    const match = await prisma.patients.findFirst({
+      where: {
+        facility_name: facility,
+        unique_id: extractedRow.unique_id
       }
-    };
-  } else if (bestScore >= 0.65) {
-    // Gray zone conflict
-    return {
-      status: 'PENDING',
-      confidence_score: 'medium',
-      conflict_reason: `Ambiguous match found (${Math.round(bestScore * 100)}% similarity).`,
-      candidate_match: {
-        id: bestMatch.id,
-        patient_name: bestMatch.inmate_name || bestMatch.patient_name || '',
-        screening_date: normalizeDate(bestMatch.screening_date || bestMatch.submitted_on),
-        facility_name: bestMatch.facility_name || '',
-        status: bestMatch.status || bestMatch.xray_result || '',
-        similarity_score: Number(bestScore.toFixed(3))
-      }
-    };
-  } else {
-    // Staged new entry
-    return {
-      status: 'PENDING',
-      confidence_score: 'low',
-      conflict_reason: 'No matching candidate found in current date scope.',
-      candidate_match: null
-    };
+    });
+    if (match) {
+      return {
+        status: 'SYNCHRONIZED',
+        confidence_score: 'high',
+        score: 1.0,
+        match_stage: 'EXACT_ID',
+        candidate_match: mapPatientToCandidate(match, 1.0)
+      };
+    }
   }
+
+  // STAGE 3: Weighted fuzzy match
+  // Query Supabase using pg_trgm GIN indexes, scoped by facility
+  let candidates: any[] = [];
+  if (inmateName && facility) {
+    candidates = await prisma.$queryRaw`
+      SELECT *, 
+        similarity(inmate_name, ${inmateName}) AS name_sim,
+        similarity(father_husband_name, ${fatherName}) AS father_sim
+      FROM patients
+      WHERE facility_name = ${facility}
+        AND similarity(inmate_name, ${inmateName}) > 0.45
+      ORDER BY (
+        similarity(inmate_name, ${inmateName}) * 0.35 +
+        similarity(father_husband_name, ${fatherName}) * 0.25
+      ) DESC
+      LIMIT 5
+    `;
+  }
+
+  let bestCandidate: any = null;
+  let bestScore = 0;
+
+  for (const candidate of candidates) {
+    let score = 0;
+    const nameSim = Number(candidate.name_sim || 0);
+    const fatherSim = Number(candidate.father_sim || 0);
+
+    // Name signals (always available)
+    if (nameSim >= 0.75) score += nameSim * 0.35;
+    if (fatherSim >= 0.75) score += fatherSim * 0.25;
+
+    // Date signal — use DOB if available, age if not
+    if (dob && candidate.date_of_birth) {
+      const extDate = normalizeDate(dob);
+      const candDate = normalizeDate(candidate.date_of_birth);
+      if (extDate !== 'INVALID_DATE' && candDate !== 'INVALID_DATE' && extDate === candDate) {
+        score += 0.20;
+      }
+    } else if (age !== null && candidate.age !== null) {
+      if (Math.abs(age - Number(candidate.age)) <= 2) {
+        score += 0.15;
+      }
+    }
+
+    // Contact signal — sparse but high precision
+    if (contact && candidate.contact_number) {
+      const clean = (n: string) => n.replace(/[^0-9]/g, '').slice(-10);
+      const extClean = clean(String(contact));
+      const candClean = clean(String(candidate.contact_number));
+      if (extClean && candClean && extClean === candClean) {
+        score += 0.15;
+        score = Math.max(score, 0.55); // Contact match boosts score to at least 0.55
+      }
+    }
+
+    // Sex filter — not a score signal, a hard filter
+    if (sex && candidate.sex) {
+      if (String(sex).toLowerCase().trim() !== String(candidate.sex).toLowerCase().trim()) {
+        score = 0; // different sex = discard candidate
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestCandidate = { ...candidate, computed_score: score };
+    }
+  }
+
+  if (candidates.length > 0 && bestCandidate) {
+    const nameSim = Number(bestCandidate.name_sim || 0);
+    const score = bestCandidate.computed_score;
+
+    if (score >= 0.80 && nameSim >= 0.75) {
+      return {
+        status: 'SYNCHRONIZED',
+        confidence_score: 'high',
+        score,
+        match_stage: 'FUZZY_NAME',
+        candidate_match: mapPatientToCandidate(bestCandidate, score)
+      };
+    } else if (score >= 0.55) {
+      return {
+        status: 'PENDING',
+        confidence_score: 'medium',
+        score,
+        match_stage: 'FUZZY_NAME',
+        conflict_reason: `Ambiguous match found (${Math.round(score * 100)}% similarity score).`,
+        candidate_match: mapPatientToCandidate(bestCandidate, score)
+      };
+    } else {
+      return {
+        status: 'PENDING',
+        confidence_score: 'low',
+        score,
+        match_stage: 'NO_MATCH',
+        conflict_reason: 'No matching candidate found with sufficient confidence.',
+        candidate_match: null
+      };
+    }
+  }
+
+  // STAGE 4: Screening date scoped fallback (last resort)
+  const normScreeningDate = normalizeDate(screeningDate);
+  if (normScreeningDate !== 'INVALID_DATE' && facility) {
+    const screeningDateObj = new Date(normScreeningDate);
+
+    const fallbackPatients = await prisma.patients.findMany({
+      where: {
+        facility_name: facility,
+        screening_date: {
+          equals: screeningDateObj
+        }
+      },
+      take: 20
+    });
+
+    let filtered = [...fallbackPatients];
+
+    if (sex) {
+      filtered = filtered.filter(p => p.sex && p.sex.toLowerCase().trim() === sex.toLowerCase().trim());
+    }
+
+    if (age !== null) {
+      filtered = filtered.filter(p => p.age !== null && Math.abs(Number(p.age) - age) <= 3);
+    }
+
+    if (filtered.length === 1) {
+      const best = filtered[0];
+      return {
+        status: 'PENDING',
+        confidence_score: 'medium',
+        score: 0.50,
+        match_stage: 'SCREENING_DATE_FALLBACK',
+        flags: ['SCREENING_DATE_FALLBACK'],
+        candidate_match: mapPatientToCandidate(best, 0.50)
+      };
+    } else if (filtered.length >= 2 && filtered.length <= 3) {
+      return {
+        status: 'PENDING',
+        confidence_score: 'low',
+        score: 0.35,
+        match_stage: 'AMBIGUOUS_MATCH',
+        flags: ['AMBIGUOUS_MATCH'],
+        candidate_match: mapPatientToCandidate(filtered[0], 0.35),
+        possible_matches: filtered.map(p => mapPatientToCandidate(p, 0.35))
+      };
+    }
+  }
+
+  return {
+    status: 'PENDING',
+    confidence_score: 'low',
+    score: 0.0,
+    match_stage: 'NO_MATCH',
+    conflict_reason: 'No matching candidate found in active scope.',
+    candidate_match: null
+  };
 }

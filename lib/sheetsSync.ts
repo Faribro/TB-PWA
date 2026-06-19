@@ -236,3 +236,72 @@ export async function updatePatientInSheets(patient: PatientRecord): Promise<Syn
   syncToSheetsAsync(patient, 'update');
   return { success: true, message: 'Queued for batch sync' };
 }
+
+/**
+ * Synchronous batch sync for Linelist spreadsheet view
+ * Chunks rows in groups of 100 to avoid Apps Script timeouts
+ */
+export async function syncLinelist(rows: PatientRecord[]): Promise<SyncResult> {
+  const webhookUrl = process.env.GOOGLE_APPSCRIPT_URL || process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
+  if (!webhookUrl) {
+    return { success: false, error: 'Missing webhook URL configuration' };
+  }
+
+  try {
+    const CHUNK_SIZE = 100;
+    const results = [];
+    
+    for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+      const chunk = rows.slice(i, i + CHUNK_SIZE);
+      const batchId = `linelist-${Date.now()}-${i}`;
+      
+      // Map patient fields and ensure kobo_uuid is populated
+      const batchData = chunk.map(r => {
+        const mapped: PatientRecord = { ...r };
+        if (!mapped.kobo_uuid) {
+          mapped.kobo_uuid = r.id; // Fallback to Postgres ID
+        }
+        return mapped;
+      });
+
+      const payload = {
+        batch: batchData,
+        batch_id: batchId,
+        count: batchData.length
+      };
+
+      console.log(`[sheetsSync] 📤 Syncing chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(rows.length / CHUNK_SIZE)} of ${batchData.length} records to Sheets (ID: ${batchId})`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout for Apps Script
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'SAMADHAAN-Sheets-Sync/2.0'
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+        redirect: 'follow',
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'No response body');
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const resJson = await response.json();
+      console.log(`[sheetsSync] ✅ Chunk ${Math.floor(i / CHUNK_SIZE) + 1} synced successfully:`, resJson);
+      results.push(resJson);
+    }
+
+    return { success: true, message: `Synced ${rows.length} rows in ${results.length} chunks` };
+  } catch (error: any) {
+    console.error('[sheetsSync] ❌ syncLinelist failed:', error);
+    return { success: false, error: error.message || 'Unknown sync error' };
+  }
+}

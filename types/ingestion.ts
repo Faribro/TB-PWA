@@ -1,7 +1,8 @@
-export type QuarantineStatus = 'PENDING' | 'DISPATCHING' | 'SYNCHRONIZED' | 'FAILED_RETRY' | 'REJECTED';
+export type QuarantineStatus = 'PENDING' | 'DISPATCHING' | 'SYNCHRONIZED' | 'FAILED_RETRY' | 'REJECTED' | 'EXTRACTION_FAILED';
 
 export interface CandidateMatch {
   id: string;
+  kobo_uuid?: string | null;
   patient_name: string;
   screening_date: string;
   facility_name: string;
@@ -19,6 +20,8 @@ export interface QuarantineRecord {
   quarantine_status: QuarantineStatus;
   conflict_reason?: string;
   candidate_match?: CandidateMatch | null;
+  match_stage?: string;
+  possible_matches?: CandidateMatch[];
   extracted_details: {
     inmate_name?: string;
     screening_date?: string;

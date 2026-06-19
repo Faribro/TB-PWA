@@ -46,6 +46,9 @@ export async function POST(req: Request) {
       // Format payload in standard structure mapped to Apps Script's IngestionBatchHandler
       recordsToSync.push({
         id: res.action === 'MERGE_CANDIDATE' ? (res.candidateId || record.candidate_match?.id) : record.id,
+        kobo_uuid: res.action === 'MERGE_CANDIDATE'
+          ? (record.candidate_match?.kobo_uuid ?? record.candidate_match?.id ?? record.id)
+          : record.id,
         inmate_name: record.patient_name,
         screening_date: record.screening_date,
         facility_name: record.facility_name,

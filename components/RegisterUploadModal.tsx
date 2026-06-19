@@ -637,7 +637,13 @@ export function RegisterUploadModal({
                   <Button
                     onClick={() => {
                       handleClose();
-                      router.push('/dashboard/vertex/ingestion');
+                      router.push(
+                        `/dashboard/vertex/ingestion` +
+                        `?date=${encodeURIComponent(screeningDate || '')}` +
+                        `&facility=${encodeURIComponent(facilityName || '')}` +
+                        `&state=${encodeURIComponent(screeningState || '')}` +
+                        `&district=${encodeURIComponent(screeningDistrict || '')}`
+                      );
                       onSuccess?.();
                     }}
                     className="w-full h-12 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200/50 transition-all flex items-center justify-center gap-2"

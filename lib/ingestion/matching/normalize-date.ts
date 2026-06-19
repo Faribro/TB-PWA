@@ -1,7 +1,15 @@
 import { parse, format, isValid } from 'date-fns';
 
-export function normalizeDate(dateInput: string | number | null | undefined): string {
+export function normalizeDate(dateInput: any): string {
   if (dateInput === null || dateInput === undefined) return 'INVALID_DATE';
+
+  // Handle native Date objects
+  if (dateInput instanceof Date) {
+    if (isValid(dateInput)) {
+      return format(dateInput, 'yyyy-MM-dd');
+    }
+    return 'INVALID_DATE';
+  }
 
   // Handle Excel numeric serial dates (days since 1900-01-01)
   if (typeof dateInput === 'number') {

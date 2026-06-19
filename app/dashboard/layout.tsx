@@ -18,6 +18,7 @@ import { EntityDataSync } from '@/components/EntityDataSync';
 import { SyncStatusFeed } from '@/components/SyncStatusFeed';
 import { PatientRealtimeNotification } from '@/components/PatientRealtimeNotification';
 import { useEntityStore } from '@/stores/useEntityStore';
+import { SpreadsheetProvider } from '@/contexts/SpreadsheetContext';
 // Sound module loaded dynamically to avoid chunk errors
 let sounds: any = null;
 let soundInitPromise: Promise<any> | null = null;
@@ -696,7 +697,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             transition={{ duration: 0.15, ease: 'easeOut' }}
             className="flex-1 h-full w-full relative"
           >
-            {children}
+            <SpreadsheetProvider>
+              {children}
+            </SpreadsheetProvider>
           </motion.div>
         </DashboardErrorBoundary>
       </main>

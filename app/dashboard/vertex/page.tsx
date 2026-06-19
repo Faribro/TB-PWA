@@ -12,11 +12,13 @@ import { exportPatientsToXLSX } from '@/lib/export-xlsx';
 import { cn } from '@/lib/utils';
 import { sounds } from '@/lib/sound';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, X, Table2, CalendarDays, Download } from 'lucide-react';
+import { Search, Filter, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { LinesAndDotsLoader } from '@/components/LinesAndDotsLoader';
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { useRealtimeCalendar } from '@/lib/useRealtimeCalendar';
+import PatientLinelist, { COLUMN_DEFS } from '@/components/PatientLinelist';
+import { ErrorBoundary } from 'react-error-boundary';
 
 // Simple fetcher for SWR
 const fetcher = (url: string) => fetch(url).then(r => r.json());
@@ -68,7 +70,7 @@ export default function VertexPage() {
 
 // Separated so the scope is guaranteed non-null inside this component
 function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSessionScope>> }) {
-  const [view, setView] = useState<'table' | 'calendar'>('table');
+  const [view, setView] = useState<'table' | 'calendar' | 'spreadsheet'>('table');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
@@ -79,6 +81,14 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
   const [countPulse, setCountPulse] = useState(false);
   const national = isSuperuser(scope);
   const setFilter = useEntityStore(s => s.setGlobalFilter);
+  const [hasBeenOpened, setHasBeenOpened] = useState(false);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    const initialWidths: Record<string, number> = {};
+    COLUMN_DEFS.forEach(c => {
+      initialWidths[c.key as string] = c.width;
+    });
+    return initialWidths;
+  });
 
   // State/district filters for query
   const [filters, setFilters] = useState<VertexFilters>(DEFAULT_FILTERS);
@@ -589,11 +599,9 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
       </AnimatePresence>
       
       {/* Single compact header */}
-      <div className="flex-shrink-0 sticky top-0 z-20 bg-white/90
-                      backdrop-blur-md border border-black/[0.08] border-t-0
-                      rounded-b-xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]
-                      mx-2">
-        <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 min-h-12">
+      <div className="flex-shrink-0 sticky top-0 z-20 bg-[#f8fafc]/95
+                      backdrop-blur-sm border-b border-slate-200">
+        <div className="flex flex-wrap items-center gap-2 px-4 py-2 min-h-12">
           
           {/* Search */}
           <div className="relative w-52 max-w-full">
@@ -711,36 +719,47 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
             </>
           )}
 
-          {/* Divider */}
-          <div className="w-px h-6 bg-black/[0.08]" />
-
           {/* View toggle */}
-          <div className="flex rounded-lg border border-black/[0.08] overflow-hidden bg-[#f3f0ec]/60 p-0.5 gap-0.5">
+          <div className="flex rounded-md border border-black/[0.08]">
             <button
               onClick={() => { sounds.toggle(); setView('table'); }}
-              aria-pressed={view === 'table'}
               className={cn(
-                'px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5',
+                'px-2.5 py-1.5 text-xs font-medium transition-colors flex items-center gap-1 rounded-l-md',
                 view === 'table'
-                  ? 'bg-[#01696f] text-white shadow-sm'
-                  : 'text-[#7a7974] hover:text-[#28251d] hover:bg-white/70'
+                  ? 'bg-[#01696f] text-white'
+                  : 'bg-white text-[#7a7974] hover:bg-[#f3f0ec]'
               )}
             >
-              <Table2 size={13} />
-              Table
+              ⊞ Table
             </button>
             <button
               onClick={() => { sounds.toggle(); setView('calendar'); }}
-              aria-pressed={view === 'calendar'}
               className={cn(
-                'px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5',
+                'px-2.5 py-1.5 text-xs font-medium transition-colors flex items-center gap-1 border-l border-black/[0.08]',
                 view === 'calendar'
-                  ? 'bg-[#01696f] text-white shadow-sm'
-                  : 'text-[#7a7974] hover:text-[#28251d] hover:bg-white/70'
+                  ? 'bg-[#01696f] text-white'
+                  : 'bg-white text-[#7a7974] hover:bg-[#f3f0ec]'
               )}
             >
-              <CalendarDays size={13} />
-              Calendar
+              📅 Calendar
+            </button>
+            <button
+              onClick={() => {
+                sounds.toggle();
+                setView('spreadsheet');
+                setHasBeenOpened(true);
+              }}
+              className={cn(
+                'px-2.5 py-1.5 text-xs font-medium transition-colors flex items-center gap-1 rounded-r-md border-l border-black/[0.08]',
+                view === 'spreadsheet'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-white text-[#7a7974] hover:bg-[#f3f0ec]'
+              )}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              Spreadsheet
             </button>
           </div>
 
@@ -749,17 +768,22 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
             <button
               onClick={handleExport}
               disabled={isExporting}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#437a22] text-white
-                         rounded-lg text-xs font-medium hover:bg-[#2e5c10] active:bg-[#1e3f0a]
-                         shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1 px-3 py-1.5 bg-[#437a22] text-white
+                         rounded-md text-xs font-medium hover:bg-[#2e5c10]
+                         transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isExporting ? (
                 <span className="w-3 h-3 border border-white/30 border-t-white
                                 rounded-full animate-spin" />
               ) : (
-                <Download size={13} />
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
               )}
-              {isExporting ? 'Exporting…' : 'Export XLSX'}
+              Export XLSX
             </button>
           )}
 
@@ -917,6 +941,44 @@ function VertexContent({ scope }: { scope: NonNullable<ReturnType<typeof useSess
               />
             )}
           </>
+        ) : view === 'spreadsheet' ? (
+          <div className="h-full">
+            <ErrorBoundary
+              fallback={
+                <div className="flex flex-col items-center justify-center p-12 bg-white border border-red-200 rounded-3xl text-center shadow-md">
+                  <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mb-3 text-red-500">
+                    <X className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-base font-black text-slate-900">Spreadsheet Rendering Error</h3>
+                  <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                    The live linelist spreadsheet encountered an unexpected rendering crash.
+                  </p>
+                  <div className="flex gap-2.5 mt-4">
+                    <button
+                      onClick={() => setView('table')}
+                      className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-xs"
+                    >
+                      Return to Table View
+                    </button>
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs"
+                    >
+                      Reload Page
+                    </button>
+                  </div>
+                </div>
+              }
+              onError={(error) => console.error('[PatientLinelist crash]', error)}
+            >
+              <PatientLinelist
+                screeningDate={selectedCalendarDate || undefined}
+                screeningState={selectedState}
+                screeningDistrict={selectedDistrict}
+                onClose={() => setView('table')}
+              />
+            </ErrorBoundary>
+          </div>
         ) : (
           <div className="h-full">
             <NeuralDashboard

@@ -43,6 +43,8 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { sounds } from '@/lib/sound';
 import { FollowUpPipeline } from '@/components/FollowUpPipeline';
+import PatientLinelist from '@/components/PatientLinelist';
+import { FileSpreadsheet } from 'lucide-react';
 import { PatientDetailDrawer } from '@/components/PatientDetailDrawer';
 import { VertexChart } from '@/components/VertexChart';
 import { ScreeningFrequencyChart } from '@/components/ScreeningFrequencyChart';
@@ -924,6 +926,7 @@ export default function Vertex({
   const [geographyKey, setGeographyKey] = useState(0);
   const [selectedFacility, setSelectedFacility] = useState<{ name: string; state: string; district: string } | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [showSpreadsheet, setShowSpreadsheet] = useState(false);
   const [showAttChart, setShowAttChart] = useState(true);
   const sessionScope = useSessionScope();
   const canEdit = ['PM', 'admin', 'SPM'].includes(sessionScope?.role ?? '');
@@ -1223,6 +1226,24 @@ export default function Vertex({
       hasAutoJumpedRef.current = true; // ✅ Mark as complete if no jump needed
     }
   }, [heatmapData, selectedDate]); // ⚠️ REMOVED currentDate and clampToCurrentMonth from dependencies
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const date     = params.get('date');
+    const facility = params.get('facility');
+    const state    = params.get('state');
+    const district = params.get('district');
+    
+    if (facility && date) {
+      setSelectedFacility({
+        name: decodeURIComponent(facility),
+        state: decodeURIComponent(state || ''),
+        district: decodeURIComponent(district || ''),
+      });
+      setSelectedDate(decodeURIComponent(date));
+    }
+  }, []);
 
   // Use server-provided patients for selected date when available, fall back to client-side
   const patientsForSelectedDate = useMemo(() => {
@@ -2032,7 +2053,7 @@ export default function Vertex({
           onClick={() => { if (!selectedPatient) setSelectedFacility(null); }}
         />
       )}
-      <Sheet open={!!selectedFacility} onOpenChange={(open) => { if (!open) setSelectedFacility(null); }} modal={false}>
+      <Sheet open={!!selectedFacility} onOpenChange={(open) => { if (!open) { setSelectedFacility(null); setShowSpreadsheet(false); } }} modal={false}>
         <SheetContent
           data-tour-id="patient-list-panel"
           hideOverlay
@@ -2052,12 +2073,32 @@ export default function Vertex({
             
             {/* INTERNAL LAYOUT SAFETY - Allow full width for cards */}
             <div className="flex-1 p-0 bg-white/10" style={{ overflow: 'hidden' }}>
-              <FollowUpPipeline 
-                patients={selectedFacility ? sortedFacilityPatients : patientsForSelectedDate}
-                isLoading={false}
-                onPatientClick={handleOpenPatientDrawer}
-                onUploadRegister={canEdit ? () => setIsUploadModalOpen(true) : undefined}
-              />
+              {showSpreadsheet ? (
+                <PatientLinelist
+                  facilityName={selectedFacility?.name}
+                  screeningDate={selectedDate || undefined}
+                  screeningState={selectedFacility?.state}
+                  screeningDistrict={selectedFacility?.district}
+                  onClose={() => setShowSpreadsheet(false)}
+                />
+              ) : (
+                <FollowUpPipeline 
+                  patients={selectedFacility ? sortedFacilityPatients : patientsForSelectedDate}
+                  isLoading={false}
+                  onPatientClick={handleOpenPatientDrawer}
+                  onUploadRegister={canEdit ? () => setIsUploadModalOpen(true) : undefined}
+                  extraHeaderButtons={
+                    <button
+                      onClick={() => setShowSpreadsheet(true)}
+                      className="h-10 flex items-center gap-1.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold text-xs transition-all duration-300 shadow-sm"
+                      title="Spreadsheet View"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-green-600" />
+                      <span>Spreadsheet View</span>
+                    </button>
+                  }
+                />
+              )}
             </div>
           </div>
         </SheetContent>
