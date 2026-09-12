@@ -458,5 +458,5 @@ SELECT policyname, qual::text FROM pg_policies WHERE tablename = 'patients';
 ---
 
 **Last Updated:** 2025-01-22  
-**Author:** Amazon Q Developer  
+**Author:** Engineering Team  
 **Status:** Ready for Production Deployment

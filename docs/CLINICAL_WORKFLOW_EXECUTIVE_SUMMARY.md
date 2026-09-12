@@ -164,7 +164,7 @@ reset(apiResponse.data, { keepDefaultValues: false });
 
 ##  Sign-Off
 
-**Developer:** Amazon Q  
+**Developer:** Engineering Team  
 **Date:** 2025-01-21  
 **Status:** Ready for Production  
 **Confidence:** HIGH

@@ -459,7 +459,7 @@ const frequency = unknownInputs.reduce((acc, entry) => {
 
 ## Credits
 
-**Author**: Amazon Q Developer  
+**Author**: Engineering Team  
 **Date**: 2025-01-23  
 **Version**: 1.0.0  
 **License**: MIT  

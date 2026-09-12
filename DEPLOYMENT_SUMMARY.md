@@ -285,7 +285,7 @@ If issues occur:
 
 ## Contact & Support
 
-**Deployment Engineer:** Amazon Q  
+**Deployment Engineer:** Engineering Team  
 **Date:** 2025-01-26  
 **Status:**  PRODUCTION READY
 

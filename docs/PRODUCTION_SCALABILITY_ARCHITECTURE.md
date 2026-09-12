@@ -719,4 +719,4 @@ export function VirtualizedPatientList({
 
 **Document Version:** 1.0  
 **Last Updated:** 2025-01-21  
-**Author:** Amazon Q Developer
+**Author:** Engineering Team

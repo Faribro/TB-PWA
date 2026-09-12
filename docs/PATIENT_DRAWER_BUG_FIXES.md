@@ -408,5 +408,5 @@ If issues persist:
 ---
 
 **Last Updated**: 2025-01-21  
-**Author**: Amazon Q Developer  
+**Author**: Engineering Team  
 **Version**: 1.0.0
