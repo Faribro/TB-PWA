@@ -180,11 +180,11 @@ className="bg-gradient-to-br from-yellow-500 via-amber-600 to-orange-600 shadow-
 ## Files to Update
 
 ### High Priority (User-Facing)
-1. ✅ `app/admin/users/page.tsx` - Admin user management (COMPLETED)
-2. ✅ `app/dashboard/submit-new/page.tsx` - Form submissions (COMPLETED)
+1.  `app/admin/users/page.tsx` - Admin user management (COMPLETED)
+2.  `app/dashboard/submit-new/page.tsx` - Form submissions (COMPLETED)
 3. `app/dashboard/vertex/bulk-upload/page.tsx` - Bulk operations
-4. ✅ `components/PatientDetailDrawer.tsx` - Patient actions (COMPLETED)
-5. ✅ `components/FollowUpPipeline.tsx` - Pipeline actions (COMPLETED)
+4.  `components/PatientDetailDrawer.tsx` - Patient actions (COMPLETED)
+5.  `components/FollowUpPipeline.tsx` - Pipeline actions (COMPLETED)
 6. `components/MandEHub.tsx` - M&E actions
 7. `components/CommandCenter.tsx` - Command center actions
 

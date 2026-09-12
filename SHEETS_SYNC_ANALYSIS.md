@@ -1,9 +1,9 @@
 # Google Sheets Sync Timeout - Root Cause Analysis
 
-## 🔴 Critical Issue
+##  Critical Issue
 Google Sheets sync consistently timing out after 15-30 seconds, causing data sync failures.
 
-## 🔍 Deep Analysis
+##  Deep Analysis
 
 ### Root Cause #1: Wrong Environment Variable Name
 **Problem:** Code expects `GOOGLE_SCRIPT_WEBHOOK_URL` but `.env.production` has `GOOGLE_APPSCRIPT_URL`
@@ -64,20 +64,20 @@ AKfycby3f0PRiH-Gp8dPVegdbptNKSa2qDqwONH-MLq0wdl37pu5GC6jthXNIYpQ7AaObx2I
    - Rate limiting on Sheets API
 
 ### Root Cause #4: Network Latency
-**Problem:** Round-trip time from Vercel → Google Apps Script → Google Sheets
+**Problem:** Round-trip time from Vercel  Google Apps Script  Google Sheets
 
 **Typical Flow:**
 ```
 Next.js API (Vercel US)
-  ↓ 100-200ms
+   100-200ms
 Google Apps Script (Google Cloud)
-  ↓ 500-1000ms
+   500-1000ms
 Google Sheets API
-  ↓ 500-1000ms
+   500-1000ms
 Write to Sheet
-  ↓ 500-1000ms
+   500-1000ms
 Return response
-  ↓ 100-200ms
+   100-200ms
 Back to Next.js
 
 Total: 1.7s - 3.4s (best case)
@@ -85,7 +85,7 @@ Cold start: +5-10s
 Large dataset: +5-15s
 ```
 
-## 📊 Timeline Analysis
+##  Timeline Analysis
 
 From production logs:
 ```
@@ -100,7 +100,7 @@ From production logs:
 
 **Total time wasted:** 49 seconds per save operation
 
-## ✅ Solution Implemented
+##  Solution Implemented
 
 ### Fix #1: Correct Environment Variable
 ```bash
@@ -127,24 +127,24 @@ const maxRetries = 1;
 
 ### Fix #4: Better Error Logging
 ```typescript
-console.error(`[sheetsSync] ⏱️ Timeout on attempt ${attempt + 1}/${maxRetries + 1} (30s limit)`);
+console.error(`[sheetsSync]  Timeout on attempt ${attempt + 1}/${maxRetries + 1} (30s limit)`);
 ```
 
-## 🎯 Expected Outcome
+##  Expected Outcome
 
 **Before:**
-- ❌ 100% timeout rate
-- ❌ 49s wasted per save
-- ❌ No data synced to Sheets
-- ❌ Wrong webhook URL
+-  100% timeout rate
+-  49s wasted per save
+-  No data synced to Sheets
+-  Wrong webhook URL
 
 **After:**
-- ✅ 90%+ success rate (with correct URL)
-- ✅ 2-5s average sync time
-- ✅ 30s max wait (acceptable for background sync)
-- ✅ Correct production webhook
+-  90%+ success rate (with correct URL)
+-  2-5s average sync time
+-  30s max wait (acceptable for background sync)
+-  Correct production webhook
 
-## 🔧 Verification Steps
+##  Verification Steps
 
 1. **Check environment variable in Vercel:**
    ```bash
@@ -161,14 +161,14 @@ console.error(`[sheetsSync] ⏱️ Timeout on attempt ${attempt + 1}/${maxRetrie
 
 3. **Monitor production logs:**
    ```
-   [sheetsSync] ✅ Mirror sync update: <kobo_uuid>
+   [sheetsSync]  Mirror sync update: <kobo_uuid>
    ```
 
 4. **Check Google Sheets:**
    - Open sheet: https://docs.google.com/spreadsheets/d/1fxIkpJokvzUR9_IPEzyGbivEXpNgS5JbzWopLhCYaTs
    - Verify recent updates appear
 
-## 🚨 If Still Timing Out
+##  If Still Timing Out
 
 ### Option A: Optimize Google Apps Script
 ```javascript
@@ -207,7 +207,7 @@ if (!webhookUrl || process.env.DISABLE_SHEETS_SYNC === 'true') {
 }
 ```
 
-## 📈 Performance Metrics to Monitor
+##  Performance Metrics to Monitor
 
 1. **Success Rate:** Target >95%
 2. **Average Latency:** Target <5s
@@ -215,14 +215,14 @@ if (!webhookUrl || process.env.DISABLE_SHEETS_SYNC === 'true') {
 4. **P99 Latency:** Target <30s
 5. **Timeout Rate:** Target <5%
 
-## 🔗 Related Files
+##  Related Files
 
 - `lib/sheetsSync.ts` - Sync implementation
 - `.env.production` - Production environment variables
 - `app/api/patient-sync/route.ts` - API that calls sync
 - `google-apps-script/` - Apps Script source code
 
-## 📝 Action Items
+##  Action Items
 
 - [x] Add correct `GOOGLE_SCRIPT_WEBHOOK_URL` to `.env.production`
 - [x] Increase timeout to 30s

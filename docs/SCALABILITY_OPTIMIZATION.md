@@ -21,10 +21,10 @@
 **File**: `supabase/migrations/20250104_metrics_materialized_view.sql`
 
 **Benefits**:
-- ✅ Precomputes daily aggregations at database level
-- ✅ Reduces 50k row fetch to 365 rows (year view)
-- ✅ 10,000× faster than client-side aggregation
-- ✅ Automatic refresh every 5 minutes
+-  Precomputes daily aggregations at database level
+-  Reduces 50k row fetch to 365 rows (year view)
+-  10,000× faster than client-side aggregation
+-  Automatic refresh every 5 minutes
 
 **Usage**:
 ```sql
@@ -44,10 +44,10 @@ REFRESH MATERIALIZED VIEW CONCURRENTLY daily_metrics;
 **File**: `app/api/patients/paginated/route.ts`
 
 **Benefits**:
-- ✅ O(1) performance (no offset calculation)
-- ✅ Consistent performance at any page depth
-- ✅ Supports infinite scroll UX
-- ✅ Configurable page size (100-1000 records)
+-  O(1) performance (no offset calculation)
+-  Consistent performance at any page depth
+-  Supports infinite scroll UX
+-  Configurable page size (100-1000 records)
 
 **Usage**:
 ```typescript
@@ -94,7 +94,7 @@ GET /api/patients/paginated?limit=100&state=Maharashtra&dateFrom=2025-01-01
 6. **Full-text search**: GIN index on `inmate_name`
 
 **Impact**:
-- Query time: 5000ms → 50ms (100× faster)
+- Query time: 5000ms  50ms (100× faster)
 - Index-only scans (no table access)
 - Supports all RBAC filter combinations
 
@@ -108,9 +108,9 @@ psql -h <host> -U postgres -d postgres -f supabase/migrations/20250104_performan
 ## 4. Caching Strategy
 
 ### Current Issues
-- ❌ 30s TTL too aggressive (low hit rate)
-- ❌ Cache invalidation on every request
-- ❌ No stale-while-revalidate
+-  30s TTL too aggressive (low hit rate)
+-  Cache invalidation on every request
+-  No stale-while-revalidate
 
 ### Optimized Strategy
 ```typescript
@@ -313,10 +313,10 @@ LIMIT 20;
 ## Summary
 
 **Immediate Actions**:
-1. ✅ Run database migrations (materialized views + indexes)
-2. ✅ Deploy optimized API endpoints
-3. ✅ Update frontend to use new endpoints
-4. ✅ Monitor performance metrics
+1.  Run database migrations (materialized views + indexes)
+2.  Deploy optimized API endpoints
+3.  Update frontend to use new endpoints
+4.  Monitor performance metrics
 
 **Expected Results**:
 - 300× faster metrics queries

@@ -1,8 +1,8 @@
-# 🚨 TB-PWA Emergency Fixes - Quick Reference
+#  TB-PWA Emergency Fixes - Quick Reference
 
 ## Critical Issues & Solutions
 
-### 1. Multiple GoTrueClient Instances ✅ FIXED
+### 1. Multiple GoTrueClient Instances  FIXED
 
 **Symptom:** Console shows 3+ "GoTrueClient initialized" warnings
 
@@ -27,7 +27,7 @@ export function getSupabaseBrowserClient() {
 
 ---
 
-### 2. Patients API 500 Error ✅ FIXED
+### 2. Patients API 500 Error  FIXED
 
 **Symptom:** `/api/patients?page=1&pageSize=5000` returns 500 "Count error"
 
@@ -55,7 +55,7 @@ curl "http://localhost:3000/api/patients?page=1&pageSize=100"
 
 ---
 
-### 3. Vertex Metrics 522 Timeout ✅ FIXED
+### 3. Vertex Metrics 522 Timeout  FIXED
 
 **Symptom:** `/api/vertex/metrics` returns HTML error page (Supabase 522)
 
@@ -86,7 +86,7 @@ curl "http://localhost:3000/api/vertex/metrics?view=month"
 
 ---
 
-### 4. RLS Blocking Service Role ✅ FIXED
+### 4. RLS Blocking Service Role  FIXED
 
 **Symptom:** Service role queries fail with permission errors
 
@@ -111,7 +111,7 @@ AND roles @> ARRAY['service_role'];
 
 ---
 
-### 5. Vercel Function Timeout ✅ FIXED
+### 5. Vercel Function Timeout  FIXED
 
 **Symptom:** Functions exceed 10s limit and crash
 
@@ -153,19 +153,19 @@ bun run dev
 ### Check Supabase Connection
 ```bash
 bun run test:supabase
-# Should show: ✅ RLS BYPASS CONFIRMED
+# Should show:  RLS BYPASS CONFIRMED
 ```
 
 ### Test API Endpoints
 ```bash
 bun run test:stabilization
-# Should show: ✅ ALL TESTS PASSED
+# Should show:  ALL TESTS PASSED
 ```
 
 ### Load Test
 ```bash
 CONCURRENT_USERS=100 bun run load:test
-# Should show: ✅ PASSED: Error rate < 5%
+# Should show:  PASSED: Error rate < 5%
 ```
 
 ### Fix RLS (Admin only)
@@ -180,10 +180,10 @@ curl -X POST https://hhxr-tb-engine.vercel.app/api/admin/fix-rls \
 
 | Endpoint | Target | Status |
 |----------|--------|--------|
-| `/api/patients` | <1s | ✅ 800ms |
-| `/api/vertex/metrics` | <1s | ✅ 600ms |
-| Dashboard load | <2s | ✅ 1.2s |
-| Patient save | <1s | ✅ 500ms |
+| `/api/patients` | <1s |  800ms |
+| `/api/vertex/metrics` | <1s |  600ms |
+| Dashboard load | <2s |  1.2s |
+| Patient save | <1s |  500ms |
 
 ---
 

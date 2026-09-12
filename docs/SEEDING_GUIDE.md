@@ -11,11 +11,11 @@ bun run seed:knowledge
 ## What It Does
 
 The seeding script:
-1. ✅ Connects to Supabase using service role key
-2. ✅ Checks for existing articles (prevents duplicates)
-3. ✅ Generates professional content for each article
-4. ✅ Inserts articles with proper metadata
-5. ✅ Reports success/failure for each article
+1.  Connects to Supabase using service role key
+2.  Checks for existing articles (prevents duplicates)
+3.  Generates professional content for each article
+4.  Inserts articles with proper metadata
+5.  Reports success/failure for each article
 
 ## Prerequisites
 
@@ -30,88 +30,88 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 
 ```
 ═══════════════════════════════════════════════════════════════════════════
-📚 KNOWLEDGE ARTICLES DATABASE SEEDER
+ KNOWLEDGE ARTICLES DATABASE SEEDER
 ═══════════════════════════════════════════════════════════════════════════
-🔗 Supabase URL: https://wwcgybgvfulotflitogu.supabase.co
+ Supabase URL: https://wwcgybgvfulotflitogu.supabase.co
 
-📁 Collection: Getting Started
-  📂 Section: Platform Overview
-    ✅ What Is Samadhaan
-    ✅ System Architecture
-    ✅ Role Guide
-  📂 Section: Your First Day
-    ✅ Logging In
-    ✅ Command Hub Overview
-    ✅ Navigating Sidebar
+ Collection: Getting Started
+   Section: Platform Overview
+     What Is Samadhaan
+     System Architecture
+     Role Guide
+   Section: Your First Day
+     Logging In
+     Command Hub Overview
+     Navigating Sidebar
 
-📁 Collection: Module Guides
-  📂 Section: Command Hub
-    ✅ Command Hub Page
-    ✅ Reading Kpi Dashboard
-    ✅ Screening Journey Cube
-    ✅ Patient Timeline
-  📂 Section: Follow-Up Pipeline
-    ✅ Pipeline Overview
-    ✅ How To Triage
-    ✅ Initiated Completed Workflow
-    ✅ Understanding Ltfu
-  📂 Section: Analytics
-    ✅ Analytics Overview
-    ✅ Screening Velocity
-    ✅ Ai Confidence Score
-    ✅ Exporting Reports
-  📂 Section: GIS Intelligence
-    ✅ Map Overview
-    ✅ Hotspot Overlays
-    ✅ District Drill Down
-  📂 Section: M&E Tools
-    ✅ Mne Overview
-    ✅ Targets And Progress
-    ✅ Mne Reports
-  📂 Section: Identity Bureau
-    ✅ User Roles Permissions
-    ✅ Creating Managing Users
-    ✅ State District Assignments
+ Collection: Module Guides
+   Section: Command Hub
+     Command Hub Page
+     Reading Kpi Dashboard
+     Screening Journey Cube
+     Patient Timeline
+   Section: Follow-Up Pipeline
+     Pipeline Overview
+     How To Triage
+     Initiated Completed Workflow
+     Understanding Ltfu
+   Section: Analytics
+     Analytics Overview
+     Screening Velocity
+     Ai Confidence Score
+     Exporting Reports
+   Section: GIS Intelligence
+     Map Overview
+     Hotspot Overlays
+     District Drill Down
+   Section: M&E Tools
+     Mne Overview
+     Targets And Progress
+     Mne Reports
+   Section: Identity Bureau
+     User Roles Permissions
+     Creating Managing Users
+     State District Assignments
 
-📁 Collection: Clinical Protocols
-  📂 Section: TB Screening Protocol
-    ✅ Five Day Pathway
-    ✅ Barrack Deployment Sop
-    ✅ Xray Capture Standards
-    ✅ Ai Flagging Thresholds
-  📂 Section: Confirmatory Testing
-    ✅ Cbnaat Truenat Protocol
-    ✅ Sputum Collection
-    ✅ Result Interpretation
-  📂 Section: Treatment & Enrollment
-    ✅ Rntcp Enrollment
-    ✅ Dots Therapy
-    ✅ Nikshay Notification
+ Collection: Clinical Protocols
+   Section: TB Screening Protocol
+     Five Day Pathway
+     Barrack Deployment Sop
+     Xray Capture Standards
+     Ai Flagging Thresholds
+   Section: Confirmatory Testing
+     Cbnaat Truenat Protocol
+     Sputum Collection
+     Result Interpretation
+   Section: Treatment & Enrollment
+     Rntcp Enrollment
+     Dots Therapy
+     Nikshay Notification
 
-📁 Collection: Technical Reference
-  📂 Section: Data & Sync
-    ✅ Live Sync
-    ✅ Data Quality Indicators
-    ✅ Offline Mode
-  📂 Section: AI Engine
-    ✅ How Ai Works
-    ✅ Confidence Bands
-    ✅ Model Limitations
-  📂 Section: Integrations
-    ✅ Kobo Integration
-    ✅ Azure Architecture
-    ✅ Google Sheets Sync
+ Collection: Technical Reference
+   Section: Data & Sync
+     Live Sync
+     Data Quality Indicators
+     Offline Mode
+   Section: AI Engine
+     How Ai Works
+     Confidence Bands
+     Model Limitations
+   Section: Integrations
+     Kobo Integration
+     Azure Architecture
+     Google Sheets Sync
 
 ═══════════════════════════════════════════════════════════════════════════
-📊 SEEDING SUMMARY
+ SEEDING SUMMARY
 ═══════════════════════════════════════════════════════════════════════════
 Total Articles:  42
-✅ Created:      42
-⏭️  Skipped:      0
-❌ Errors:       0
+ Created:      42
+  Skipped:      0
+ Errors:       0
 Success Rate:    100.0%
 
-🎉 All articles seeded successfully!
+ All articles seeded successfully!
 ```
 
 ## Running Multiple Times
@@ -129,11 +129,11 @@ bun run seed:knowledge
 Output on second run:
 ```
 Total Articles:  42
-✅ Created:      0
-⏭️  Skipped:      42
-❌ Errors:       0
+ Created:      0
+  Skipped:      42
+ Errors:       0
 
-ℹ️  All articles already exist in database
+ℹ  All articles already exist in database
 ```
 
 ## Troubleshooting

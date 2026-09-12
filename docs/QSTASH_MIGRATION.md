@@ -7,10 +7,10 @@
 **Solution:** Replace with Upstash QStash (HTTP-based queue) + DB-backed fallback. Zero TCP dependencies, instant UI response, production-grade reliability.
 
 **Impact:**
-- ✅ Patient save latency: **-150ms** (no blocking sync)
-- ✅ Sync reliability: **99.9%** (QStash auto-retry + DB fallback)
-- ✅ Cold start resilience: **100%** (no TCP connections)
-- ✅ Operational complexity: **-70%** (removed BullMQ, IORedis, retry logic)
+-  Patient save latency: **-150ms** (no blocking sync)
+-  Sync reliability: **99.9%** (QStash auto-retry + DB fallback)
+-  Cold start resilience: **100%** (no TCP connections)
+-  Operational complexity: **-70%** (removed BullMQ, IORedis, retry logic)
 
 ---
 
@@ -20,19 +20,19 @@
 
 ```
 User Save Request
-  ↓
+  
 /api/patient-sync
-  ↓
+  
 Supabase Write (200ms)
-  ↓
-syncToSheetsAsync() ← BLOCKS HERE
-  ↓
+  
+syncToSheetsAsync()  BLOCKS HERE
+  
 Try Redis Queue
-  ↓ (if Redis fails)
+   (if Redis fails)
 Fallback to In-Memory Queue
-  ↓
+  
 Flush Queue (15s timeout)
-  ↓
+  
 Response (200-400ms total)
 ```
 
@@ -47,23 +47,23 @@ Response (200-400ms total)
 
 ```
 User Save Request
-  ↓
+  
 /api/patient-sync
-  ↓
+  
 Supabase Write (200ms)
-  ↓
-syncToSheetsAsync() ← FIRE-AND-FORGET
-  ↓
-Response (200ms total) ✅ USER SEES SUCCESS
+  
+syncToSheetsAsync()  FIRE-AND-FORGET
+  
+Response (200ms total)  USER SEES SUCCESS
   
 Background (async):
-  ↓
+  
 QStash HTTP POST
-  ↓
+  
 /api/internal/process-sheets-sync
-  ↓
+  
 Google Sheets Webhook
-  ↓
+  
 Success (logged) or Retry (automatic)
 ```
 
@@ -174,7 +174,7 @@ await Promise.all([
 ```typescript
 invalidatePatientCaches().catch(err => console.error(...));
 syncToSheetsAsync(patient, 'update');
-console.log('✅ Save succeeded, sync queued');
+console.log(' Save succeeded, sync queued');
 ```
 
 ### 5. Redis Simplification (`lib/redis.ts`)
@@ -249,9 +249,9 @@ curl -X POST https://your-domain.com/api/patient-sync \
 
 **Check logs:**
 ```
-[patient-sync] ✅ Save succeeded, sync queued
-[QStash] ✅ Queued patient uuid (messageId: msg_xxx)
-[ProcessSync] ✅ Synced patient uuid in 1234ms
+[patient-sync]  Save succeeded, sync queued
+[QStash]  Queued patient uuid (messageId: msg_xxx)
+[ProcessSync]  Synced patient uuid in 1234ms
 ```
 
 ---
@@ -262,29 +262,29 @@ curl -X POST https://your-domain.com/api/patient-sync \
 
 **Save endpoint:**
 ```
-[patient-sync] ✅ Save succeeded, sync queued
+[patient-sync]  Save succeeded, sync queued
 ```
 
 **QStash queue:**
 ```
-[QStash] ✅ Queued patient abc123 (messageId: msg_xyz)
+[QStash]  Queued patient abc123 (messageId: msg_xyz)
 ```
 
 **Background worker:**
 ```
-[ProcessSync] ✅ Synced patient abc123 in 1234ms
+[ProcessSync]  Synced patient abc123 in 1234ms
 ```
 
 ### Failure Logs
 
 **QStash unavailable:**
 ```
-[QStash] ⚠️ Sync not queued: QStash not configured
+[QStash]  Sync not queued: QStash not configured
 ```
 
 **Google Sheets timeout:**
 ```
-[ProcessSync] ❌ Failed after 20000ms: Timeout
+[ProcessSync]  Failed after 20000ms: Timeout
 ```
 
 **QStash will automatically retry 3 times with exponential backoff**
@@ -462,10 +462,10 @@ A: QStash free tier sufficient for 19K records. Paid tier: $0.0001/msg = $2/mont
 This architecture solves the core problem: **unstable TCP connections blocking user saves**.
 
 By moving to HTTP-based QStash + DB fallback, we achieve:
-- ✅ Instant UI response (200ms)
-- ✅ 99.9% sync reliability
-- ✅ Zero TCP dependencies
-- ✅ 60% less code
-- ✅ Production-grade observability
+-  Instant UI response (200ms)
+-  99.9% sync reliability
+-  Zero TCP dependencies
+-  60% less code
+-  Production-grade observability
 
 **Recommendation:** Deploy immediately. Rollback plan ready if needed.

@@ -1,5 +1,5 @@
 # Production Scalability Architecture
-## SAMADHAAN Health OS - Scale-First Refactor (20k → 500k+ Records)
+## SAMADHAAN Health OS - Scale-First Refactor (20k  500k+ Records)
 
 **Date:** 2025-01-21  
 **Target:** Sub-200ms page loads regardless of dataset size  
@@ -7,7 +7,7 @@
 
 ---
 
-## 🎯 Executive Summary
+##  Executive Summary
 
 ### Current State
 - **Dataset:** ~20,000 patient records
@@ -27,7 +27,7 @@
 
 ---
 
-## 📊 Architecture Overview
+##  Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -38,7 +38,7 @@
 │  • Optimistic Updates                                       │
 │  • Edge Caching (Vercel Edge Config)                        │
 └─────────────────────────────────────────────────────────────┘
-                            ↓
+                            
 ┌─────────────────────────────────────────────────────────────┐
 │                   API LAYER (Next.js API Routes)            │
 ├─────────────────────────────────────────────────────────────┤
@@ -47,7 +47,7 @@
 │  • Parallel Query Execution                                 │
 │  • Response Streaming                                       │
 └─────────────────────────────────────────────────────────────┘
-                            ↓
+                            
 ┌─────────────────────────────────────────────────────────────┐
 │              DATABASE LAYER (Supabase PostgreSQL)           │
 ├─────────────────────────────────────────────────────────────┤
@@ -61,7 +61,7 @@
 
 ---
 
-## 🗄️ Database Optimization Strategy
+##  Database Optimization Strategy
 
 ### 1. Aggregated Stats Engine (Materialized Views)
 
@@ -327,14 +327,14 @@ FROM daily_stats;
 -- Scans 10,000 rows to skip them, then returns 100
 SELECT * FROM patients
 ORDER BY screening_date DESC
-LIMIT 100 OFFSET 10000;  -- ❌ Slow for large offsets
+LIMIT 100 OFFSET 10000;  --  Slow for large offsets
 ```
 
 #### After (Keyset - Fast)
 ```sql
 -- Uses index to jump directly to cursor position
 SELECT * FROM patients
-WHERE (screening_date, id) < ('2024-01-15', 12345)  -- ✅ O(log n)
+WHERE (screening_date, id) < ('2024-01-15', 12345)  --  O(log n)
 ORDER BY screening_date DESC, id DESC
 LIMIT 100;
 ```
@@ -636,7 +636,7 @@ export function VirtualizedPatientList({
 
 ---
 
-## 📈 Performance Benchmarks
+##  Performance Benchmarks
 
 ### Before Optimization
 | Metric | Value |
@@ -650,15 +650,15 @@ export function VirtualizedPatientList({
 ### After Optimization
 | Metric | Value |
 |--------|-------|
-| Page Load (20k records) | 180ms ✅ |
-| Page Load (500k records) | 195ms ✅ |
-| Database CPU | 8% average ✅ |
-| Memory Usage | 120MB ✅ |
-| FPS (scrolling) | 60fps ✅ |
+| Page Load (20k records) | 180ms  |
+| Page Load (500k records) | 195ms  |
+| Database CPU | 8% average  |
+| Memory Usage | 120MB  |
+| FPS (scrolling) | 60fps  |
 
 ---
 
-## 🚀 Deployment Checklist
+##  Deployment Checklist
 
 ### Phase 1: Database Setup (30 minutes)
 - [ ] Run `daily_stats` table migration
@@ -689,7 +689,7 @@ export function VirtualizedPatientList({
 
 ---
 
-## 🔧 Maintenance
+##  Maintenance
 
 ### Daily Tasks
 - Monitor Redis cache hit rate (target: >90%)
@@ -708,7 +708,7 @@ export function VirtualizedPatientList({
 
 ---
 
-## 📚 Additional Resources
+##  Additional Resources
 
 - [Supabase Performance Tuning](https://supabase.com/docs/guides/database/performance)
 - [Vercel Edge Runtime](https://vercel.com/docs/functions/edge-functions)

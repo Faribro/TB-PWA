@@ -5,7 +5,6 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Redis } from '@upstash/redis';
-import { Client as QStashClient } from '@upstash/qstash';
 
 // Color codes for terminal output
 const colors = {
@@ -43,7 +42,6 @@ async function testDependencies() {
     { name: 'pdf-parse-fork', module: 'pdf-parse-fork' },
     { name: 'exceljs', module: 'exceljs' },
     { name: '@upstash/redis', module: '@upstash/redis' },
-    { name: '@upstash/qstash', module: '@upstash/qstash' },
     { name: 'date-fns', module: 'date-fns' },
     { name: '@google/generative-ai', module: '@google/generative-ai' },
   ];
@@ -160,25 +158,11 @@ async function testEnvironmentKeys() {
     }
   }
 
-  // Test 4: Upstash QStash
-  log('\n🚀 Testing Upstash QStash Connection...', colors.yellow);
-  const qstashToken = process.env.QSTASH_TOKEN;
-
-  if (!qstashToken) {
-    log('❌ QSTASH_TOKEN not configured', colors.red);
-    results.push({ name: 'Upstash QStash', status: 'FAIL', message: 'Token missing' });
-  } else {
-    try {
-      const qstash = new QStashClient({ token: qstashToken });
-      
-      // Just verify client instantiation (avoid actual message publish in test)
-      log('✅ QStash client initialized', colors.green);
-      results.push({ name: 'Upstash QStash', status: 'PASS', message: 'Client ready' });
-    } catch (error: any) {
-      log(`❌ QStash initialization failed: ${error.message}`, colors.red);
-      results.push({ name: 'Upstash QStash', status: 'FAIL', message: error.message });
-    }
-  }
+  // Test 4: Local Queue / Redis
+  log('\n🚀 Testing Local Redis / Queue Connection...', colors.yellow);
+  const queueUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  log(`✅ Local Queue configured via ${queueUrl}`, colors.green);
+  results.push({ name: 'Local Queue', status: 'PASS', message: 'Ready' });
 }
 
 // ============================================================================

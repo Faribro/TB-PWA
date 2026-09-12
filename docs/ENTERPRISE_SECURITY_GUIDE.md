@@ -14,10 +14,10 @@ This guide implements 3-layer security for SAMADHAAN healthcare dashboard:
 - `lib/constants/roles.ts` - Central role definitions
 
 ### Key Features
-- ✅ Strict TypeScript enums prevent typos
-- ✅ Role normalization handles legacy short codes (PM → Program Manager)
-- ✅ Permission maps define route and feature access
-- ✅ Helper functions: `hasRoutePermission()`, `getDefaultRoute()`, `hasFeaturePermission()`
+-  Strict TypeScript enums prevent typos
+-  Role normalization handles legacy short codes (PM  Program Manager)
+-  Permission maps define route and feature access
+-  Helper functions: `hasRoutePermission()`, `getDefaultRoute()`, `hasFeaturePermission()`
 
 ### Usage Example
 ```typescript
@@ -42,11 +42,11 @@ if (hasFeaturePermission(userRole, 'EXPORT_DATA')) {
 - `middleware.ts` - Enterprise-grade route protection
 
 ### Security Features
-- ✅ Edge-level RBAC before page renders
-- ✅ Automatic redirect to default route for unauthorized access
-- ✅ Audit logging for access attempts
-- ✅ Enhanced security headers (CSP, X-Frame-Options, etc.)
-- ✅ Rate limiting for API routes
+-  Edge-level RBAC before page renders
+-  Automatic redirect to default route for unauthorized access
+-  Audit logging for access attempts
+-  Enhanced security headers (CSP, X-Frame-Options, etc.)
+-  Rate limiting for API routes
 
 ### How It Works
 1. User navigates to `/dashboard/vertex`
@@ -79,7 +79,7 @@ supabase/rls-policies.sql
 ```
 
 #### Step 2: Configure Auth Hook
-1. Go to Supabase Dashboard → Authentication → Hooks
+1. Go to Supabase Dashboard  Authentication  Hooks
 2. Enable "Custom Access Token Hook"
 3. Select function: `public.custom_access_token_hook`
 4. Save configuration
@@ -113,7 +113,7 @@ SELECT COUNT(*) FROM patients;
 **Tier 1 (National):**
 ```sql
 (auth.jwt() -> 'user_metadata' ->> 'role') IN ('admin', 'Program Manager')
--- No filters → See all records
+-- No filters  See all records
 ```
 
 **Tier 2 (State):**
@@ -135,16 +135,16 @@ AND LOWER(TRIM(staff_name)) = LOWER(TRIM(auth.jwt() -> 'user_metadata' ->> 'name
 ## Security Benefits
 
 ### Before (Client-Side Only)
-❌ User can modify browser DevTools to bypass filters  
-❌ User can call Supabase API directly with different filters  
-❌ User can inspect network requests and forge queries  
-❌ No audit trail of access attempts  
+ User can modify browser DevTools to bypass filters  
+ User can call Supabase API directly with different filters  
+ User can inspect network requests and forge queries  
+ No audit trail of access attempts  
 
 ### After (3-Layer Security)
-✅ **TypeScript Layer**: Compile-time type safety, prevents typos  
-✅ **Edge Layer**: Server-side route protection, audit logging  
-✅ **Database Layer**: Unhackable data isolation, JWT-signed claims  
-✅ **Defense in Depth**: Multiple security layers, fail-safe design  
+ **TypeScript Layer**: Compile-time type safety, prevents typos  
+ **Edge Layer**: Server-side route protection, audit logging  
+ **Database Layer**: Unhackable data isolation, JWT-signed claims  
+ **Defense in Depth**: Multiple security layers, fail-safe design  
 
 ---
 
@@ -264,10 +264,10 @@ git push origin main
 ## Compliance & Audit
 
 ### HIPAA Compliance
-✅ Data isolation at database level  
-✅ Audit trail in middleware logs  
-✅ Encrypted JWT claims  
-✅ Role-based access control  
+ Data isolation at database level  
+ Audit trail in middleware logs  
+ Encrypted JWT claims  
+ Role-based access control  
 
 ### Audit Logging
 ```typescript

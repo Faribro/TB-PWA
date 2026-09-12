@@ -1,4 +1,4 @@
-# 🚀 Quick Start - Deploy in 5 Minutes
+#  Quick Start - Deploy in 5 Minutes
 
 ## Prerequisites
 - Bun installed
@@ -11,7 +11,7 @@ cd c:\Users\farid\Desktop\TB-PWA-Clean
 bun run verify:deployment
 ```
 
-**Expected:** ✅ ALL PRE-DEPLOYMENT CHECKS PASSED
+**Expected:**  ALL PRE-DEPLOYMENT CHECKS PASSED
 
 ## Step 2: Build (2 minutes)
 ```bash
@@ -30,7 +30,7 @@ bun run dev
 bun run test:stabilization
 ```
 
-**Expected:** ✅ ALL TESTS PASSED
+**Expected:**  ALL TESTS PASSED
 
 ## Step 4: Deploy (1 minute)
 ```bash
@@ -66,7 +66,7 @@ curl -X POST https://hhxr-tb-engine.vercel.app/api/admin/fix-rls \
 4. Navigate to dashboard: Should load in <2s
 5. Check vertex metrics: Should render without errors
 
-## Done! 🎉
+## Done! 
 
 Platform is now stable for 1,000 concurrent users.
 

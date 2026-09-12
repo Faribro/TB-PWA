@@ -1,25 +1,25 @@
 # Patients Table Schema Reference - Register Reconciliation
 
-## ✅ DEFINITIVE SCHEMA (2025-01-XX)
+##  DEFINITIVE SCHEMA (2025-01-XX)
 
 This document provides the **exact** column mappings for the `patients` table based on actual migrations in `supabase/migrations/`.
 
 ---
 
-## 📊 Core Identity Columns (OCR → Database)
+##  Core Identity Columns (OCR  Database)
 
 | OCR Field | Database Column | Type | Nullable | Source Migration | Notes |
 |-----------|----------------|------|----------|------------------|-------|
 | `name` | `inmate_name` | TEXT | Yes | Base schema | Primary patient name |
 | `father_name` | `father_husband_name` | TEXT | Yes | Base schema | Father/husband name |
-| `age` | `age` | **INTEGER** | Yes | `001_schema_hardening.sql` | ⚠️ Changed from TEXT to INTEGER |
+| `age` | `age` | **INTEGER** | Yes | `001_schema_hardening.sql` |  Changed from TEXT to INTEGER |
 | `mobile` | `contact_number` | TEXT | Yes | `002_kobo_etl_fields.sql` | 10-digit mobile number |
 | `ward` | `facility_name` | TEXT | Yes | Base schema | Prison facility name |
 | `address` | `address` | TEXT | Yes | `002_kobo_etl_fields.sql` | Full address |
 
 ---
 
-## 🔐 Audit Trail Columns (Auto-Generated)
+##  Audit Trail Columns (Auto-Generated)
 
 | Column | Type | Source | Default Value |
 |--------|------|--------|---------------|
@@ -31,7 +31,7 @@ This document provides the **exact** column mappings for the `patients` table ba
 
 ---
 
-## 🎯 Phonetic Columns (Trigger-Populated)
+##  Phonetic Columns (Trigger-Populated)
 
 | Column | Type | Populated By | Purpose |
 |--------|------|--------------|---------|
@@ -39,13 +39,13 @@ This document provides the **exact** column mappings for the `patients` table ba
 | `name_metaphone_primary` | TEXT | `trg_patient_metaphone` | Primary phonetic key (Double Metaphone) |
 | `name_metaphone_alternate` | TEXT | `trg_patient_metaphone` | Alternate phonetic key |
 
-**⚠️ CRITICAL:** Never manually insert into these columns. The trigger fires on `BEFORE INSERT OR UPDATE OF inmate_name`.
+** CRITICAL:** Never manually insert into these columns. The trigger fires on `BEFORE INSERT OR UPDATE OF inmate_name`.
 
 ---
 
-## 🔧 TypeScript Insertion Payload
+##  TypeScript Insertion Payload
 
-### ✅ Correct Implementation
+###  Correct Implementation
 
 ```typescript
 const newPatient: Record<string, any> = {
@@ -53,7 +53,7 @@ const newPatient: Record<string, any> = {
   inmate_name: decision.extractedData.name || null,
   father_husband_name: decision.extractedData.father_name || null,
   
-  // ⚠️ CRITICAL: age is INTEGER (not TEXT) per 001_schema_hardening.sql
+  //  CRITICAL: age is INTEGER (not TEXT) per 001_schema_hardening.sql
   age: decision.extractedData.age != null
     ? Number(decision.extractedData.age)  // Cast to INTEGER
     : null,
@@ -92,23 +92,23 @@ const { data: insertedPatient, error } = await supabase
   .single();
 ```
 
-### ❌ Common Mistakes
+###  Common Mistakes
 
 ```typescript
-// ❌ WRONG: Age as String (will fail with type error)
+//  WRONG: Age as String (will fail with type error)
 age: String(decision.extractedData.age)
 
-// ❌ WRONG: Manually populating phonetic columns
+//  WRONG: Manually populating phonetic columns
 name_romanized: decision.extractedData.name,
 name_metaphone_primary: computeMetaphone(name),
 
-// ❌ WRONG: Missing required audit fields
+//  WRONG: Missing required audit fields
 // (staff_name, screening_date, submitted_on should always be included)
 ```
 
 ---
 
-## 📝 Migration History
+##  Migration History
 
 ### `001_schema_hardening.sql`
 ```sql
@@ -142,7 +142,7 @@ CREATE TRIGGER trg_patient_metaphone
 
 ---
 
-## 🧪 Testing
+##  Testing
 
 ### Test Case 1: Valid Insert
 ```typescript
@@ -178,11 +178,11 @@ LIMIT 1;
 
 ### Test Case 2: Age Type Validation
 ```typescript
-// ✅ Valid
+//  Valid
 age: 35  // Number
 age: Number("35")  // Number from string
 
-// ❌ Invalid (will cause PostgreSQL error)
+//  Invalid (will cause PostgreSQL error)
 age: "35"  // String
 age: String(35)  // String
 ```
@@ -195,7 +195,7 @@ Hint: You will need to rewrite or cast the expression.
 
 ---
 
-## 🔍 Debugging
+##  Debugging
 
 ### Verify Trigger Execution
 ```sql
@@ -234,7 +234,7 @@ ORDER BY ordinal_position;
 
 ---
 
-## 📚 Related Files
+##  Related Files
 
 - **API Route:** `app/api/register-reconcile/route.ts`
 - **Migrations:**
@@ -246,12 +246,12 @@ ORDER BY ordinal_position;
 
 ---
 
-## ⚠️ Breaking Changes
+##  Breaking Changes
 
-### Version 1.0 → 2.0 (2025-01-XX)
+### Version 1.0  2.0 (2025-01-XX)
 
 **Changed:**
-- `age` column type: `TEXT` → `INTEGER`
+- `age` column type: `TEXT`  `INTEGER`
 - Insertion code must use `Number()` instead of `String()`
 
 **Migration Path:**

@@ -25,7 +25,7 @@ The issue is that the **database columns don't exist** or the **field mapping is
 
 ### Step 1: Check Browser Network Tab
 
-1. Open DevTools → Network tab
+1. Open DevTools  Network tab
 2. Click "Submit Clinical Update"
 3. Find the `/api/patient-sync` request
 4. Check the **Request Payload**:
@@ -44,8 +44,8 @@ The issue is that the **database columns don't exist** or the **field mapping is
    {
      "success": true,
      "patient": {
-       "referral_date": null,  ← Should be "2026-05-21"
-       "referred_facility": null,  ← Should be "DMC-Designated microscopy centre"
+       "referral_date": null,   Should be "2026-05-21"
+       "referred_facility": null,   Should be "DMC-Designated microscopy centre"
        ...
      }
    }
@@ -62,9 +62,9 @@ Look for these log lines in the terminal running `bun run dev`:
   "referred_facility": "DMC-Designated microscopy centre"
 
 [patient-sync] STEP 5 - SUPABASE WRITE RESULT:
-  dbError: null  ← Should be null (no error)
+  dbError: null   Should be null (no error)
   updatedPatient fields:
-    "referral_date": null  ← BUG: Should be "2026-05-21"
+    "referral_date": null   BUG: Should be "2026-05-21"
 ```
 
 ### Step 3: Verify Database Schema
@@ -130,10 +130,10 @@ WHERE id = 'b1a63138-d973-4fe9-b7bc-075b2bc5a1fa';
 
 One of these will be true:
 
-1. **Columns don't exist** → Add them with ALTER TABLE
-2. **Columns exist but RLS blocks writes** → Check RLS policies
-3. **Columns exist and write succeeds** → Bug is in API field mapping
-4. **API uses wrong patient ID** → Check id vs kobo_uuid consistency
+1. **Columns don't exist**  Add them with ALTER TABLE
+2. **Columns exist but RLS blocks writes**  Check RLS policies
+3. **Columns exist and write succeeds**  Bug is in API field mapping
+4. **API uses wrong patient ID**  Check id vs kobo_uuid consistency
 
 ## Next Steps
 

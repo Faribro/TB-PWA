@@ -1,16 +1,16 @@
 # TB-PWA Enterprise Stabilization - Deployment Guide
 
-## 🎯 Overview
+##  Overview
 
 Production-ready stabilization for 1,000 concurrent users with:
-- ✅ Global Supabase singleton (fixes multiple GoTrueClient instances)
-- ✅ Hard 100 patient limit per page (prevents timeouts)
-- ✅ Circuit breaker with graceful degradation
-- ✅ Optimized caching (60s with 120s SWR)
-- ✅ Service role RLS policies
-- ✅ 15s max API duration
+-  Global Supabase singleton (fixes multiple GoTrueClient instances)
+-  Hard 100 patient limit per page (prevents timeouts)
+-  Circuit breaker with graceful degradation
+-  Optimized caching (60s with 120s SWR)
+-  Service role RLS policies
+-  15s max API duration
 
-## 📦 Files Changed
+##  Files Changed
 
 ### New Files
 ```
@@ -32,7 +32,7 @@ vercel.json                       - 15s max duration
 package.json                      - New test scripts
 ```
 
-## 🚀 Deployment Steps
+##  Deployment Steps
 
 ### 1. Database Migration
 
@@ -77,11 +77,11 @@ bun run dev
 bun run test:stabilization
 
 # Expected output:
-# ✅ Patients API returns data (500ms)
-# ✅ Vertex metrics returns data (800ms)
-# ✅ Page size capped at 100 (450ms)
-# ✅ Cache headers present (400ms)
-# ✅ Response time < 3s (1200ms)
+#  Patients API returns data (500ms)
+#  Vertex metrics returns data (800ms)
+#  Page size capped at 100 (450ms)
+#  Cache headers present (400ms)
+#  Response time < 3s (1200ms)
 ```
 
 ### 3. Load Testing
@@ -92,9 +92,9 @@ CONCURRENT_USERS=100 TEST_DURATION_MS=60000 bun run load:test
 
 # Expected output:
 # Total Requests: 3000+
-# ✅ Success: 95%+
-# ⏱️  Avg Duration: <1500ms
-# ⏱️  P95 Duration: <2500ms
+#  Success: 95%+
+#   Avg Duration: <1500ms
+#   P95 Duration: <2500ms
 ```
 
 ### 4. Deploy to Vercel
@@ -147,7 +147,7 @@ git push origin enterprise-stabilization
 4. Should save in <1s
 ```
 
-## 📊 Monitoring
+##  Monitoring
 
 ### Vercel Logs
 ```
@@ -176,17 +176,17 @@ https://supabase.com/dashboard/project/wwcgybgvfulotflitogu/reports/database
 // "[Supabase] Browser client initialized (singleton)"
 ```
 
-## 🧪 Success Criteria
+##  Success Criteria
 
 - [ ] Single GoTrueClient warning in console
 - [ ] Dashboard loads <2s with 100 patients
 - [ ] Vertex metrics render (no 522 HTML errors)
 - [ ] Patient drawer save <1s
-- [ ] Load test: 100 users → 95%+ success rate
+- [ ] Load test: 100 users  95%+ success rate
 - [ ] No 500 errors in Vercel logs for 1 hour
 - [ ] Supabase query duration <500ms avg
 
-## 🔧 Troubleshooting
+##  Troubleshooting
 
 ### Issue: Still seeing multiple GoTrueClient warnings
 
@@ -228,18 +228,18 @@ const supabase = getSupabaseBrowserClient();
 3. Add Redis caching layer
 4. Implement rate limiting
 
-## 📈 Performance Targets
+##  Performance Targets
 
 | Metric | Target | Current |
 |--------|--------|---------|
-| Dashboard Load | <2s | ✅ 1.2s |
-| Patients API | <1s | ✅ 800ms |
-| Vertex Metrics | <1s | ✅ 600ms |
-| Patient Save | <1s | ✅ 500ms |
-| Concurrent Users | 1000 | ✅ Tested 100 |
-| Error Rate | <5% | ✅ 2% |
+| Dashboard Load | <2s |  1.2s |
+| Patients API | <1s |  800ms |
+| Vertex Metrics | <1s |  600ms |
+| Patient Save | <1s |  500ms |
+| Concurrent Users | 1000 |  Tested 100 |
+| Error Rate | <5% |  2% |
 
-## 🎉 Next Steps
+##  Next Steps
 
 1. **Monitor for 24 hours** - Check Vercel/Supabase dashboards
 2. **Gradual rollout** - Start with 100 users, scale to 1000
@@ -247,7 +247,7 @@ const supabase = getSupabaseBrowserClient();
 4. **Implement Redis** - For distributed caching
 5. **Database optimization** - Add materialized views for metrics
 
-## 📞 Support
+##  Support
 
 **Vercel Support:** https://vercel.com/support
 **Supabase Support:** https://supabase.com/support

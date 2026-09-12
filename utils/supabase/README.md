@@ -79,11 +79,11 @@ const supabase = await createClient(); // Note: async
 
 ## Features
 
-- ✅ Automatic session refresh via middleware
-- ✅ Cookie-based authentication
-- ✅ Server-side rendering support
-- ✅ Type-safe with TypeScript
-- ✅ Backward compatible with existing code
+-  Automatic session refresh via middleware
+-  Cookie-based authentication
+-  Server-side rendering support
+-  Type-safe with TypeScript
+-  Backward compatible with existing code
 
 ## Session Management
 
@@ -110,7 +110,7 @@ No manual session management required!
 
 **Issue: "User not authenticated"**
 - Check middleware is running (should see session refresh in network tab)
-- Verify cookies are being set (check browser DevTools → Application → Cookies)
+- Verify cookies are being set (check browser DevTools  Application  Cookies)
 - Ensure RLS policies allow the operation
 
 **Issue: "Cannot read properties of undefined"**

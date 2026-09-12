@@ -103,3 +103,17 @@ export const SONIC_MESSAGES = {
     scanComplete: "Deep scan complete Sir! Analysis ready.",
   },
 } as const;
+
+/**
+ * Government of India UX4G Design Tokens
+ */
+export const govColors = {
+  primary: '#1e40af',        // Ashoka Chakra Deep Blue
+  primaryHover: '#1e3a8a',
+  secondary: '#16a34a',      // India Green
+  accent: '#ff9933',         // Tricolor Saffron
+  surface: '#ffffff',
+  surfaceSubtle: '#f8fafc',
+  text: '#1f2937',
+  border: '#cbd5e1',
+} as const;

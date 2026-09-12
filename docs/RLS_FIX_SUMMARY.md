@@ -3,7 +3,7 @@
 **Date:** 2025-01-22  
 **Issue:** Dashboard showing "no patient data" after dropping public RLS policies  
 **Root Cause:** JWT role mismatch between NextAuth and Supabase RLS policies  
-**Status:** ✅ FIXED
+**Status:**  FIXED
 
 ---
 
@@ -67,11 +67,11 @@ The `profiles` table stores **short codes**:
 **Before fix**, `auth.ts` stored raw values from profiles:
 
 ```typescript
-// ❌ BEFORE (BROKEN)
+//  BEFORE (BROKEN)
 token.role = data?.role ?? 'M&E Officer';  // Stores "PM" from profiles
 ```
 
-**Result:** JWT contains `role: "PM"`, but RLS expects `role: "Program Manager"` → **NO MATCH** → 0 rows
+**Result:** JWT contains `role: "PM"`, but RLS expects `role: "Program Manager"`  **NO MATCH**  0 rows
 
 ### Step 3: Query Evaluation
 
@@ -82,7 +82,7 @@ When dashboard calls `supabase.from('patients').select('*')`:
 SELECT * FROM patients
 WHERE (auth.jwt() -> 'user_metadata' ->> 'role') IN ('admin', 'Program Manager');
 -- Evaluates to: WHERE 'PM' IN ('admin', 'Program Manager')
--- Result: FALSE → 0 rows returned
+-- Result: FALSE  0 rows returned
 ```
 
 ---
@@ -106,11 +106,11 @@ async jwt({ token, user }) {
         .eq('email', user.email)
         .single();
 
-      // ✅ CRITICAL FIX: Normalize role from short code to long form
+      //  CRITICAL FIX: Normalize role from short code to long form
       const rawRole = data?.role ?? 'ME';
       const normalizedRole = normalizeRole(rawRole) ?? 'M&E Officer';
       
-      console.log(`[JWT] Role normalization: "${rawRole}" → "${normalizedRole}"`);
+      console.log(`[JWT] Role normalization: "${rawRole}"  "${normalizedRole}"`);
       
       token.role = normalizedRole;  // Now stores "Program Manager" instead of "PM"
       token.state = data?.state ?? 'All';
@@ -133,10 +133,10 @@ async jwt({ token, user }) {
 ```typescript
 export const ROLE_MAPPING: Record<string, UserRole> = {
   'admin': Role.ADMIN,
-  'PM': Role.PROGRAM_MANAGER,           // "PM" → "Program Manager"
-  'SPM': Role.STATE_PROGRAM_MANAGER,    // "SPM" → "State Program Manager"
-  'ME': Role.ME_OFFICER,                // "ME" → "M&E Officer"
-  'PC': Role.PRISON_COORDINATOR,        // "PC" → "Prison Coordinator"
+  'PM': Role.PROGRAM_MANAGER,           // "PM"  "Program Manager"
+  'SPM': Role.STATE_PROGRAM_MANAGER,    // "SPM"  "State Program Manager"
+  'ME': Role.ME_OFFICER,                // "ME"  "M&E Officer"
+  'PC': Role.PRISON_COORDINATOR,        // "PC"  "Prison Coordinator"
   // Long names map to themselves
   'Program Manager': Role.PROGRAM_MANAGER,
   'State Program Manager': Role.STATE_PROGRAM_MANAGER,
@@ -154,20 +154,20 @@ export function normalizeRole(role: string | undefined): UserRole | null {
 
 1. **Profiles table unchanged** - Still stores short codes (`PM`, `SPM`, etc.)
 2. **RLS policies unchanged** - Still expect long-form names
-3. **JWT normalization** - Converts short → long at authentication time
+3. **JWT normalization** - Converts short  long at authentication time
 4. **Single source of truth** - `ROLE_MAPPING` in `lib/constants/roles.ts`
 
 **Flow:**
 ```
 profiles.role = "PM"
-  ↓ (auth.ts jwt callback)
+   (auth.ts jwt callback)
 normalizeRole("PM") = "Program Manager"
-  ↓ (stored in JWT)
+   (stored in JWT)
 token.role = "Program Manager"
-  ↓ (RLS policy evaluation)
+   (RLS policy evaluation)
 WHERE 'Program Manager' IN ('admin', 'Program Manager')
-  ↓
-TRUE ✅ → Rows returned
+  
+TRUE   Rows returned
 ```
 
 ---
@@ -183,35 +183,35 @@ bun run test:rls
 **Expected output:**
 ```
 ═══════════════════════════════════════════════════════════════════════════
-🔐 RLS JWT NORMALIZATION TEST
+ RLS JWT NORMALIZATION TEST
 ═══════════════════════════════════════════════════════════════════════════
 
-📋 TEST 1: Role Normalization
+ TEST 1: Role Normalization
 
-✅ "PM" → "Program Manager"
-✅ "SPM" → "State Program Manager"
-✅ "ME" → "M&E Officer"
-✅ "PC" → "Prison Coordinator"
-✅ "admin" → "admin"
+ "PM"  "Program Manager"
+ "SPM"  "State Program Manager"
+ "ME"  "M&E Officer"
+ "PC"  "Prison Coordinator"
+ "admin"  "admin"
 
-📋 TEST 2: RLS Policy Compatibility
+ TEST 2: RLS Policy Compatibility
 
-✅ PM → "Program Manager" matches patients_select_national
-✅ admin → "admin" matches patients_select_national
-✅ SPM → "State Program Manager" matches patients_select_state
-✅ ME → "M&E Officer" matches patients_select_state
-✅ PC → "Prison Coordinator" matches patients_select_facility
+ PM  "Program Manager" matches patients_select_national
+ admin  "admin" matches patients_select_national
+ SPM  "State Program Manager" matches patients_select_state
+ ME  "M&E Officer" matches patients_select_state
+ PC  "Prison Coordinator" matches patients_select_facility
 
 ═══════════════════════════════════════════════════════════════════════════
-📊 TEST SUMMARY
+ TEST SUMMARY
 ═══════════════════════════════════════════════════════════════════════════
 
 Total Tests:  18
-✅ Passed:    18
-❌ Failed:    0
+ Passed:    18
+ Failed:    0
 Success Rate: 100.0%
 
-🎉 ALL TESTS PASSED - JWT normalization is RLS-compatible!
+ ALL TESTS PASSED - JWT normalization is RLS-compatible!
 ```
 
 ### Step 2: Verify RLS Policies in Supabase
@@ -235,7 +235,7 @@ patients_select_state         | SELECT | {authenticated}
 patients_update_authenticated | UPDATE | {authenticated}
 ```
 
-✅ All policies use `{authenticated}` role only (no `{public}`)
+ All policies use `{authenticated}` role only (no `{public}`)
 
 ### Step 3: Test in Dashboard
 
@@ -246,7 +246,7 @@ patients_update_authenticated | UPDATE | {authenticated}
 
 ```
 ═══════════════════════════════════════════════════════════════════════════
-🔍 [/api/me] SESSION SCOPE DIAGNOSTIC
+ [/api/me] SESSION SCOPE DIAGNOSTIC
 ═══════════════════════════════════════════════════════════════════════════
 Raw session.user.role: Program Manager
 Raw session.user.state: Maharashtra
@@ -259,7 +259,7 @@ Computed scope.district: null
 Computed scope.staffName: null
 -----------------------------------------------------------
 RLS Policy Match Analysis:
-✅ Should match: patients_select_national
+ Should match: patients_select_national
 ═══════════════════════════════════════════════════════════════════════════
 ```
 
@@ -303,7 +303,7 @@ WHERE 'Prison Coordinator' = 'Prison Coordinator'
 
 ## Security Verification
 
-### ✅ Confirmed Secure
+###  Confirmed Secure
 
 1. **No public access** - All policies require `authenticated` role
 2. **RLS enabled** - `ALTER TABLE patients ENABLE ROW LEVEL SECURITY;`
@@ -311,13 +311,13 @@ WHERE 'Prison Coordinator' = 'Prison Coordinator'
 4. **Role normalization server-side** - Happens in `auth.ts` (server component)
 5. **Service role key not exposed** - Only used in server-side API routes
 
-### ✅ Data Isolation Working
+###  Data Isolation Working
 
-- **National tier** (PM, admin) → See all records
-- **State tier** (SPM, ME) → See state-scoped records
-- **Facility tier** (PC) → See staff-scoped records
+- **National tier** (PM, admin)  See all records
+- **State tier** (SPM, ME)  See state-scoped records
+- **Facility tier** (PC)  See staff-scoped records
 
-### ✅ No Regression
+###  No Regression
 
 - **Anon key still works** - RLS policies apply to authenticated users
 - **Service role bypasses RLS** - Used only in backend scripts
@@ -346,7 +346,7 @@ Before deploying role/RLS changes:
 - [ ] Check RLS policies in `supabase/rls-policies.sql` match expected role names
 - [ ] Test with each role type (PM, SPM, ME, PC, admin)
 - [ ] Verify no `{public}` policies exist: `SELECT * FROM pg_policies WHERE tablename = 'patients' AND 'public' = ANY(roles);`
-- [ ] Check server logs for role normalization messages: `[JWT] Role normalization: "PM" → "Program Manager"`
+- [ ] Check server logs for role normalization messages: `[JWT] Role normalization: "PM"  "Program Manager"`
 
 ### Code Review Checklist
 
@@ -371,7 +371,7 @@ The `custom_access_token_hook` function exists in Supabase but **is not used** b
 
 **Architecture:**
 ```
-User → Google OAuth → NextAuth → JWT (with normalized role) → Supabase (anon key) → RLS policies → Data
+User  Google OAuth  NextAuth  JWT (with normalized role)  Supabase (anon key)  RLS policies  Data
 ```
 
 ### Why Not Change RLS Policies?
@@ -442,18 +442,18 @@ SELECT policyname, qual::text FROM pg_policies WHERE tablename = 'patients';
 
 **Root Cause:** JWT role mismatch (`"PM"` vs `"Program Manager"`)  
 **Fix:** Normalize roles in `auth.ts` using `normalizeRole()`  
-**Impact:** ✅ All users can now see authorized patient data  
-**Security:** ✅ RLS policies still enforce role-based access control  
-**Testing:** ✅ Automated test prevents future regressions  
+**Impact:**  All users can now see authorized patient data  
+**Security:**  RLS policies still enforce role-based access control  
+**Testing:**  Automated test prevents future regressions  
 
 **Deployment checklist:**
-1. ✅ Code changes applied (`auth.ts`)
-2. ✅ Test script created (`test:rls`)
-3. ✅ Verification SQL created (`verify-rls-fix.sql`)
-4. ✅ Diagnostic logging added (`/api/me`)
-5. ⏳ Deploy to production
-6. ⏳ Test with real users
-7. ⏳ Monitor logs for issues
+1.  Code changes applied (`auth.ts`)
+2.  Test script created (`test:rls`)
+3.  Verification SQL created (`verify-rls-fix.sql`)
+4.  Diagnostic logging added (`/api/me`)
+5.  Deploy to production
+6.  Test with real users
+7.  Monitor logs for issues
 
 ---
 

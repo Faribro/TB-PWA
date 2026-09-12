@@ -1,6 +1,6 @@
-# 🚨 CRITICAL VERCEL ENVIRONMENT VARIABLES - QUICK REFERENCE
+#  CRITICAL VERCEL ENVIRONMENT VARIABLES - QUICK REFERENCE
 
-## ⚡ Must-Have for Production (Copy-Paste Ready)
+##  Must-Have for Production (Copy-Paste Ready)
 
 ### 1. QStash (Serverless Queue) - REQUIRED FOR SHEETS SYNC
 ```
@@ -37,11 +37,11 @@ OPENROUTER_DEFAULT_MODEL=openai/gpt-4o-2024-11-20
 
 ---
 
-## 📋 Quick Add via Vercel Dashboard
+##  Quick Add via Vercel Dashboard
 
 1. Go to: https://vercel.com/dashboard
 2. Select: **hhxr-tb-engine**
-3. Click: **Settings** → **Environment Variables**
+3. Click: **Settings**  **Environment Variables**
 4. For each variable above:
    - Click **Add New**
    - Paste **Key** (e.g., `QSTASH_TOKEN`)
@@ -51,7 +51,7 @@ OPENROUTER_DEFAULT_MODEL=openai/gpt-4o-2024-11-20
 
 ---
 
-## ✅ Verification Commands
+##  Verification Commands
 
 ```bash
 # Check if variables are set
@@ -66,7 +66,7 @@ vercel --prod
 
 ---
 
-## 🔍 Test Endpoints After Deployment
+##  Test Endpoints After Deployment
 
 ```bash
 # Test QStash webhook
@@ -81,7 +81,7 @@ curl https://hhxr-tb-engine.vercel.app/api/cache/test
 
 ---
 
-## 🐛 Common Issues
+##  Common Issues
 
 ### Issue: "QSTASH_TOKEN is not defined"
 **Fix:** Add variable to ALL environments (Production + Preview + Development)
@@ -94,7 +94,7 @@ curl https://hhxr-tb-engine.vercel.app/api/cache/test
 
 ---
 
-## 📞 Quick Links
+##  Quick Links
 
 - **Vercel Dashboard:** https://vercel.com/dashboard
 - **QStash Console:** https://console.upstash.com/qstash

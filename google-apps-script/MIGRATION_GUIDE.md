@@ -1,6 +1,6 @@
-# 🔄 Google Apps Script Migration Guide
+#  Google Apps Script Migration Guide
 
-## ✅ Changes Required (3 URLs to Update)
+##  Changes Required (3 URLs to Update)
 
 ### 1. Update SUPABASE_SYNC_CONFIG (Line ~1089)
 
@@ -43,7 +43,7 @@ function forwardToNextjs_(rowArray) {
     'method': 'post',
     'contentType': 'application/json',
     'headers': { 'x-kobo-webhook-secret': 'alliance_kobo_secure_2026' },
-    'payload': JSON.stringify([payloadObj]), // ✅ WRAP IN ARRAY
+    'payload': JSON.stringify([payloadObj]), //  WRAP IN ARRAY
     'muteHttpExceptions': true,
     'timeout': 10000
   };
@@ -82,10 +82,10 @@ var nextjsUrl = 'https://hhxr-tb-engine.vercel.app/api/sync/sheets-to-supabase';
 
 ---
 
-## 🚀 Deployment Steps
+##  Deployment Steps
 
 ### Step 1: Update Script (5 min)
-1. Open Google Sheets → Extensions → Apps Script
+1. Open Google Sheets  Extensions  Apps Script
 2. Find and replace all 4 URLs above
 3. Save (Ctrl+S)
 
@@ -119,7 +119,7 @@ function TEST_NEW_SUPABASE() {
 
 ### Step 3: Full Data Migration (30-60 min)
 ```javascript
-// Run from sheet menu: TB Engine → Pull All Data to Supabase
+// Run from sheet menu: TB Engine  Pull All Data to Supabase
 PULL_MISSING_DATA_TO_SUPABASE();
 ```
 
@@ -134,7 +134,7 @@ PULL_MISSING_DATA_TO_SUPABASE();
 
 ---
 
-## 🔍 Verification Checklist
+##  Verification Checklist
 
 ### 1. Check Vercel Logs
 ```bash
@@ -144,7 +144,7 @@ vercel logs --prod | grep "sheets-to-supabase"
 **Expected:**
 ```
 [POST] /api/sync/sheets-to-supabase - 200 (2.5s)
-✅ Synced 250 rows to Supabase
+ Synced 250 rows to Supabase
 ```
 
 ### 2. Check Supabase Database
@@ -165,7 +165,7 @@ SELECT * FROM patients ORDER BY created_at DESC LIMIT 5;
 
 ---
 
-## ⚠️ Troubleshooting
+##  Troubleshooting
 
 ### Issue: "Sync Failed - 401 Unauthorized"
 **Fix:** Verify webhook secret in Apps Script matches Vercel env:
@@ -188,13 +188,13 @@ bunx prisma generate
 ### Issue: "Duplicate UUID errors"
 **Fix:** Run deduplication in sheet:
 ```javascript
-// Apps Script menu: TB Engine → Remove Duplicates
+// Apps Script menu: TB Engine  Remove Duplicates
 REMOVE_DUPLICATE_ROWS();
 ```
 
 ---
 
-## 📊 Migration Progress Tracking
+##  Migration Progress Tracking
 
 **Script Properties to Monitor:**
 - `SUPABASE_SYNC_CURSOR` - Current row being processed
@@ -215,7 +215,7 @@ function CHECK_SYNC_STATUS() {
 
 ---
 
-## ✅ Success Criteria
+##  Success Criteria
 
 - [ ] All 4 URLs updated in Apps Script
 - [ ] Test function returns 200 status
@@ -224,4 +224,4 @@ function CHECK_SYNC_STATUS() {
 - [ ] Manual edit sync works in real-time
 - [ ] No duplicate UUIDs in database
 
-**Status:** Ready for production migration 🚀
+**Status:** Ready for production migration 

@@ -1,6 +1,6 @@
 # Clinical Workflow Fix - Quick Reference
 
-## ✅ What Was Fixed
+##  What Was Fixed
 
 **Issue:** Clinical step indicators not turning green after data submission
 
@@ -10,7 +10,7 @@
 
 ---
 
-## 🚀 Quick Test
+##  Quick Test
 
 ```bash
 # Verify database schema
@@ -23,11 +23,11 @@ npm run test:clinical-persistence
 npm run test:clinical-workflow
 ```
 
-**Expected:** All tests pass with ✅
+**Expected:** All tests pass with 
 
 ---
 
-## 📋 Manual Testing (2 minutes)
+##  Manual Testing (2 minutes)
 
 1. Open any patient drawer
 2. Go to Clinical tab
@@ -35,14 +35,14 @@ npm run test:clinical-workflow
    - Referral Date: `2026-05-01`
    - Facility: `DMC-Designated microscopy centre`
 4. Click "Submit Clinical Update"
-5. **Check:** Indicator turns GREEN ✅
+5. **Check:** Indicator turns GREEN 
 6. Close and reopen drawer
-7. **Check:** Indicator still GREEN ✅
-8. **Check:** Form prefilled with data ✅
+7. **Check:** Indicator still GREEN 
+8. **Check:** Form prefilled with data 
 
 ---
 
-## 🔧 Files Changed
+##  Files Changed
 
 - `components/PatientDetailDrawer.tsx` (2 changes)
   - Line ~550: Fixed `handleSaveClinical` form reset
@@ -50,7 +50,7 @@ npm run test:clinical-workflow
 
 ---
 
-## 📊 Step Indicator Requirements
+##  Step Indicator Requirements
 
 | Step | Required Fields | Indicator Logic |
 |------|----------------|-----------------|
@@ -62,7 +62,7 @@ npm run test:clinical-workflow
 
 ---
 
-## 🐛 Troubleshooting
+##  Troubleshooting
 
 ### Indicator not turning green?
 1. Check browser console for errors
@@ -81,7 +81,7 @@ npm run test:clinical-workflow
 
 ---
 
-## 📚 Documentation
+##  Documentation
 
 - Full details: `docs/CLINICAL_WORKFLOW_FIX.md`
 - Test scripts: `scripts/test-clinical-*.js`
@@ -89,5 +89,5 @@ npm run test:clinical-workflow
 
 ---
 
-**Status:** ✅ Production Ready  
+**Status:**  Production Ready  
 **Last Updated:** 2025-01-21

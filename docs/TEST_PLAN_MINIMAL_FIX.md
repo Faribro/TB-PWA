@@ -2,16 +2,16 @@
 
 ## Changes Applied
 
-### ✅ Fix 1: CommandCenter.updatePatient (components/CommandCenter.tsx)
+###  Fix 1: CommandCenter.updatePatient (components/CommandCenter.tsx)
 - Changed from: `setSelectedPatient({ ...selectedPatient, ...updates })`
 - Changed to: `setSelectedPatient(responseData.patient)`
 - **Why**: Use full server-confirmed patient object instead of partial merge
 
-### ✅ Fix 2: Add key prop (components/CommandCenter.tsx)
+###  Fix 2: Add key prop (components/CommandCenter.tsx)
 - Added: `key={selectedPatient.id || selectedPatient.kobo_uuid}`
 - **Why**: Force clean remount when patient changes
 
-### ❌ NOT Applied: Drawer state simplification
+###  NOT Applied: Drawer state simplification
 - **Reason**: Previous attempt caused "No Patient Data" bug in vertex tab
 - **Strategy**: Let the drawer's existing preservation logic work with fresh parent data
 
@@ -78,9 +78,9 @@ if (localPatient?.updated_at && patient?.updated_at) {
 
 Look for these logs:
 ```
-[PatientDetailDrawer] 🔄 Patient prop changed
-[PatientDetailDrawer] 🔍 Clinical data comparison
-[PatientDetailDrawer] ✅ Updating localPatient with patient prop
+[PatientDetailDrawer]  Patient prop changed
+[PatientDetailDrawer]  Clinical data comparison
+[PatientDetailDrawer]  Updating localPatient with patient prop
 ```
 
 **Good sign**: "Updating localPatient with patient prop"
@@ -95,8 +95,8 @@ git restore components/CommandCenter.tsx
 
 ## Success Criteria
 
-- ✅ Clinical data persists after save & reopen
-- ✅ Vertex tab loads patients normally
-- ✅ Follow-up pipeline works
-- ✅ No console errors
-- ✅ Timestamps are current after save
+-  Clinical data persists after save & reopen
+-  Vertex tab loads patients normally
+-  Follow-up pipeline works
+-  No console errors
+-  Timestamps are current after save

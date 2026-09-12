@@ -9,7 +9,6 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    // Use direct connection (port 5432) for introspection
-    url: "postgresql://postgres.fgtrkxadiszoyhslwesu:Alliance@infinity2026@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres",
+    url: process.env.DATABASE_URL || "postgresql://azureuser:samadhaan_secure_pass_2026@127.0.0.1:5432/samadhaan_db",
   },
 });

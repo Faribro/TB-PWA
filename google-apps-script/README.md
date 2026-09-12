@@ -12,7 +12,7 @@ This Apps Script handles three types of webhooks:
 ### Step 1: Open Google Apps Script Editor
 
 1. Open your Google Sheet
-2. Click **Extensions** → **Apps Script**
+2. Click **Extensions**  **Apps Script**
 3. Delete any existing code in `Code.gs`
 
 ### Step 2: Copy the Code
@@ -32,8 +32,8 @@ const WEBHOOK_SECRET = 'alliance_kobo_secure_2026';
 
 ### Step 4: Deploy as Web App
 
-1. Click **Deploy** → **New deployment**
-2. Click the gear icon ⚙️ → Select **Web app**
+1. Click **Deploy**  **New deployment**
+2. Click the gear icon   Select **Web app**
 3. Configure:
    - **Description**: "TB PWA Dual-Hybrid Webhook Handler"
    - **Execute as**: Me (your email)
@@ -155,18 +155,18 @@ View execution logs:
 
 ## Security
 
-- ✅ Protected by webhook secret
-- ✅ Script lock prevents concurrent modifications
-- ✅ Error handling with detailed logging
-- ✅ Timeout protection (30 seconds)
+-  Protected by webhook secret
+-  Script lock prevents concurrent modifications
+-  Error handling with detailed logging
+-  Timeout protection (30 seconds)
 
 ## Next Steps
 
-1. ✅ Deploy the script
-2. ✅ Update `.env.local` with Web App URL
-3. ✅ Test with curl commands
-4. ✅ Update a patient in Next.js UI
-5. ✅ Verify the change appears in Google Sheets
+1.  Deploy the script
+2.  Update `.env.local` with Web App URL
+3.  Test with curl commands
+4.  Update a patient in Next.js UI
+5.  Verify the change appears in Google Sheets
 
 ## Support
 

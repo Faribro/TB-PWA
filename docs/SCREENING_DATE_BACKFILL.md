@@ -113,7 +113,7 @@ SET screening_date = NULL
 WHERE screening_date >= CURRENT_DATE - INTERVAL '1 day';
 ```
 
-**⚠️ WARNING**: Only rollback if absolutely necessary. You cannot distinguish between original dates and backfilled dates after the migration runs.
+** WARNING**: Only rollback if absolutely necessary. You cannot distinguish between original dates and backfilled dates after the migration runs.
 
 ---
 
@@ -147,11 +147,11 @@ LIMIT 12;
 
 After successful backfill:
 
-1. ✅ Remove data quality filters (already done in `useSWRPatients.ts`)
-2. ✅ Update Kobo webhook to prevent future NULLs (already done)
-3. ✅ Test all date-based queries in the application
-4. ✅ Monitor for any new NULL values in production
-5. ✅ Consider adding database indexes on screening_date for performance
+1.  Remove data quality filters (already done in `useSWRPatients.ts`)
+2.  Update Kobo webhook to prevent future NULLs (already done)
+3.  Test all date-based queries in the application
+4.  Monitor for any new NULL values in production
+5.  Consider adding database indexes on screening_date for performance
 
 ---
 

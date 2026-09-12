@@ -1,6 +1,6 @@
 # PostgREST 1000-Row Limit Fix - Implementation Checklist
 
-## Phase 1: Code Deployment ✅
+## Phase 1: Code Deployment 
 
 ### Files Modified/Created
 - [x] `components/ScreenedMetric.tsx` - KPI counter fix
@@ -59,7 +59,7 @@ git push origin fix/postgrest-1000-row-limit
 supabase migration up
 
 # Option B: Manual - Copy entire 004_patient_indexes.sql into Supabase SQL Editor
-# 1. Go to Supabase Dashboard → SQL Editor
+# 1. Go to Supabase Dashboard  SQL Editor
 # 2. Create new query
 # 3. Paste entire 004_patient_indexes.sql
 # 4. Click "Run"
@@ -104,7 +104,7 @@ AND screening_district = 'Pune' LIMIT 50;
 ```typescript
 // Expected: Shows 14,000+ instead of 989
 // File: components/ScreenedMetric.tsx
-// Action: Navigate to Dashboard → Settings → Profile tab
+// Action: Navigate to Dashboard  Settings  Profile tab
 // Verify: "Total Screened" card shows correct count
 ```
 
@@ -119,7 +119,7 @@ AND screening_district = 'Pune' LIMIT 50;
 ```typescript
 // Expected: Shows pagination controls with 280 pages
 // File: components/FollowUpPipeline.tsx
-// Action: Navigate to Dashboard → Follow-up Pipeline
+// Action: Navigate to Dashboard  Follow-up Pipeline
 // Verify: Pagination controls appear at bottom
 ```
 
@@ -164,7 +164,7 @@ AND screening_district = 'Pune' LIMIT 50;
 ### Test 5: SWR Hook Optimization
 ```typescript
 // Expected: Data fetches in batches without UI freezing
-// Action: Open DevTools → Network tab
+// Action: Open DevTools  Network tab
 // Verify: Multiple requests to /rest/v1/patients with different ranges
 ```
 
@@ -391,7 +391,7 @@ VACUUM ANALYZE patients;
 
 ## Success Criteria
 
-### Must Have ✅
+### Must Have 
 - [x] KPI counter shows 14,000+ (not 989)
 - [x] Patient list is paginated (50 items/page)
 - [x] Pagination controls work correctly
@@ -419,13 +419,13 @@ VACUUM ANALYZE patients;
 
 | Phase | Task | Duration | Status |
 |-------|------|----------|--------|
-| 1 | Code deployment | 1 hour | ✅ Done |
-| 2 | Database setup | 30 min | ⏳ Pending |
-| 3 | Local testing | 2 hours | ⏳ Pending |
-| 4 | Performance testing | 1 hour | ⏳ Pending |
-| 5 | Production deployment | 30 min | ⏳ Pending |
-| 6 | Verification | 1 hour | ⏳ Pending |
-| 7 | Documentation | 1 hour | ⏳ Pending |
+| 1 | Code deployment | 1 hour |  Done |
+| 2 | Database setup | 30 min |  Pending |
+| 3 | Local testing | 2 hours |  Pending |
+| 4 | Performance testing | 1 hour |  Pending |
+| 5 | Production deployment | 30 min |  Pending |
+| 6 | Verification | 1 hour |  Pending |
+| 7 | Documentation | 1 hour |  Pending |
 | **Total** | | **6.5 hours** | |
 
 ---

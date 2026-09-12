@@ -45,16 +45,16 @@ Implemented a production-ready, enterprise-scale **Canonical Data Pipeline** for
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  STAGE 4: ALIAS LOOKUP (O(1))                                │
-│  • Legacy names (Orissa → Odisha)                            │
-│  • Common misspellings (uttrakhand → Uttarakhand)            │
-│  • Compound variations (madhyapradesh → Madhya Pradesh)      │
+│  • Legacy names (Orissa  Odisha)                            │
+│  • Common misspellings (uttrakhand  Uttarakhand)            │
+│  • Compound variations (madhyapradesh  Madhya Pradesh)      │
 │  • Map lookup: 20+ aliases                                   │
 └────────────────────────┬────────────────────────────────────┘
                          │ Not found
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  STAGE 5: SYNONYM LOOKUP (O(1))                              │
-│  • City-to-state mappings (Mumbai → Maharashtra)             │
+│  • City-to-state mappings (Mumbai  Maharashtra)             │
 │  • Map lookup: 20+ synonyms                                  │
 └────────────────────────┬────────────────────────────────────┘
                          │ Not found
@@ -143,9 +143,9 @@ const SYNONYM_REGISTRY = new Map([
 - Single-array space optimization: O(min(m,n))
 
 **Examples**:
-- `"Gujrat"` → `"Gujarat"` (distance: 1, fuzzy match)
-- `"Uttrakand"` → `"Uttarakhand"` (exact via alias)
-- `"Maharashtr"` → `"Maharashtra"` (exact via alias)
+- `"Gujrat"`  `"Gujarat"` (distance: 1, fuzzy match)
+- `"Uttrakand"`  `"Uttarakhand"` (exact via alias)
+- `"Maharashtr"`  `"Maharashtra"` (exact via alias)
 
 ### 3. Observability & Audit Trail
 
@@ -303,23 +303,23 @@ console.table(unknownStates);
 ### Old System (lib/stateMapper.ts)
 
 **Problems**:
-- ❌ Hardcoded 200+ line mapping dictionary
-- ❌ No fuzzy matching
-- ❌ No audit trail
-- ❌ Difficult to maintain
-- ❌ No confidence levels
-- ❌ Missing many variations
+-  Hardcoded 200+ line mapping dictionary
+-  No fuzzy matching
+-  No audit trail
+-  Difficult to maintain
+-  No confidence levels
+-  Missing many variations
 
 ### New System (lib/normalization/state.ts)
 
 **Benefits**:
-- ✅ Registry-based architecture (maintainable)
-- ✅ Intelligent fuzzy matching (handles typos)
-- ✅ Audit trail (monitoring)
-- ✅ Type-safe API (confidence levels)
-- ✅ Comprehensive test coverage (42 tests)
-- ✅ Performance optimized (O(1) fast paths)
-- ✅ Self-documenting code
+-  Registry-based architecture (maintainable)
+-  Intelligent fuzzy matching (handles typos)
+-  Audit trail (monitoring)
+-  Type-safe API (confidence levels)
+-  Comprehensive test coverage (42 tests)
+-  Performance optimized (O(1) fast paths)
+-  Self-documenting code
 
 ---
 
@@ -466,7 +466,7 @@ const frequency = unknownInputs.reduce((acc, entry) => {
 
 ---
 
-**Status**: ✅ Production Ready  
+**Status**:  Production Ready  
 **Test Coverage**: 100% (42/42 tests passing)  
 **Performance**: < 5ms per normalization  
 **Maintainability**: High (registry-based, self-documenting)

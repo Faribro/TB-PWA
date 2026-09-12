@@ -9,17 +9,17 @@
 
 ## Test Results
 
-### ✅ Screening Details
+###  Screening Details
 - [ ] Staff Name
 - [ ] Submitted On (date)
 - [ ] Screening State
 - [ ] Screening District
 - [ ] Facility Name
 - [ ] Facility Type
-- [x] Screening Date (✅ Working)
+- [x] Screening Date ( Working)
 - [ ] Unique ID
 
-### ✅ Identity & Contact
+###  Identity & Contact
 - [ ] Inmate Name
 - [ ] Inmate Type
 - [ ] Father / Husband Name
@@ -29,7 +29,7 @@
 - [ ] Contact Number
 - [ ] Address
 
-### ✅ TB Screening
+###  TB Screening
 - [ ] X-Ray Result
 - [ ] TB Past History
 - [ ] Symptoms 10s (symptom checklist)

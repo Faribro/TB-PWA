@@ -1,11 +1,44 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Share+Tech+Mono&family=Syncopate:wght@700&display=swap');
 
 @theme {
-  --font-sans: "Inter", "system-ui", "sans-serif";
-  --font-outfit: var(--font-outfit);
-  --font-share-tech-mono: var(--font-share-tech-mono);
-  --font-syncopate: var(--font-syncopate);
+  --font-sans: "Inter", "Noto Sans", "Noto Sans Devanagari", "system-ui", "sans-serif";
+  --font-outfit: "Outfit", var(--font-sans);
+  --font-share-tech-mono: "Share Tech Mono", monospace;
+  --font-syncopate: "Syncopate", var(--font-sans);
+
+  --color-gov-primary: #1e40af;
+  --color-gov-primary-hover: #1e3a8a;
+  --color-gov-secondary: #16a34a;
+  --color-gov-accent: #ff9933;
+  --color-gov-surface: #ffffff;
+  --color-gov-surface-subtle: #f8fafc;
+  --color-gov-text: #1f2937;
+  --color-gov-border: #cbd5e1;
 }
+
+:root {
+  --font-outfit: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-share-tech-mono: 'Share Tech Mono', monospace;
+  --font-syncopate: 'Syncopate', sans-serif;
+  --gov-primary: #1e40af;
+  --gov-primary-hover: #1e3a8a;
+  --gov-secondary: #16a34a;
+  --gov-accent: #ff9933;
+  --gov-surface: #ffffff;
+  --gov-surface-subtle: #f8fafc;
+  --gov-text: #1f2937;
+  --gov-border: #cbd5e1;
+}
+
+[data-contrast="high"] {
+  --gov-surface: #000000 !important;
+  --gov-surface-subtle: #121212 !important;
+  --gov-text: #ffff00 !important;
+  --gov-border: #ffffff !important;
+  --gov-primary: #ffd700 !important;
+}
+
 
 
 

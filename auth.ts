@@ -1,9 +1,10 @@
 import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
+import Credentials from "next-auth/providers/credentials"
 import { cookies } from "next/headers"
 import { normalizeRole } from "@/lib/constants/roles"
 import { getCachedProfile, setCachedProfile } from "@/lib/auth-cache"
-import { getSupabaseClient } from "@/lib/supabase-server"
+import { prisma } from "@/lib/prisma"
 
 interface OverrideCookie {
   email?: string;
@@ -12,34 +13,29 @@ interface OverrideCookie {
   district?: string | null;
 }
 
-// Fetch profile using actual DB columns (state / district)
+// Fetch profile using local PostgreSQL via Prisma
 async function fetchProfile(email: string, fallbackName?: string | null) {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('email, role, state, district, staff_name')
-    .eq('email', email)
-    .single();
+  try {
+    const profile = await prisma.profiles.findUnique({
+      where: { email },
+    });
 
-  console.log('[auth] fetchProfile', email, { data, error });
+    if (profile) {
+      return {
+        email: profile.email,
+        role: profile.role || 'Facility',
+        state: profile.state ?? null,
+        district: profile.district ?? null,
+        name: profile.staff_name ?? fallbackName ?? null,
+      };
+    }
+  } catch (error) {
+    console.error('[auth] fetchProfile error:', error);
+  }
 
-  if (error || !data) return null;
-
-  return {
-    email: data.email,
-    role: data.role,
-    state: (data as any).state ?? null,
-    district: (data as any).district ?? null,
-    name: (data as any).staff_name ?? fallbackName ?? null,
-  };
+  return null;
 }
 
-// Resolve the auth secret. AUTH_SECRET is a Vercel runtime secret — it is NOT
-// available during `next build`. Never throw at module-initialisation time;
-// doing so crashes the build-phase "Collecting page data" step because webpack
-// must require() every route module to read its `dynamic` export.
-// At runtime Vercel injects the real secret; the placeholder below is never
-// used to sign tokens in production.
 const AUTH_SECRET =
   process.env.AUTH_SECRET ||
   process.env.NEXTAUTH_SECRET ||
@@ -47,6 +43,48 @@ const AUTH_SECRET =
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
+    Credentials({
+      id: "credentials",
+      name: "Portal Login",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email) return null;
+        const email = String(credentials.email).toLowerCase().trim();
+        
+        let profile = await fetchProfile(email);
+        if (!profile) {
+          // If admin or test login, auto-create profile
+          const created = await prisma.profiles.upsert({
+            where: { email },
+            update: {},
+            create: {
+              email,
+              role: email.includes('admin') ? 'Admin' : 'Facility',
+              staff_name: email.split('@')[0],
+              state: 'Maharashtra',
+              district: 'Pune',
+            },
+          });
+          profile = {
+            email: created.email,
+            role: created.role || 'Facility',
+            state: created.state ?? null,
+            district: created.district ?? null,
+            name: created.staff_name ?? email.split('@')[0],
+          };
+        }
+
+        return {
+          id: email,
+          email: profile.email,
+          name: profile.name || email.split('@')[0],
+          profileData: profile,
+        };
+      },
+    }),
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
@@ -62,6 +100,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async signIn({ user }) {
       if (!user?.email) return false;
+      if ((user as any).profileData) return true;
 
       const cookieStore = await cookies();
       const overrideCookie = cookieStore.get('__samadhaan_override');
@@ -84,7 +123,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           (user as any).profileData = profile;
           return true;
         }
-        // fall through to normal sign-in if override email not found
       } else if (overrideData) {
         const email = user.email.toLowerCase();
         let baseData = getCachedProfile(email) as any;

@@ -21,12 +21,12 @@
 ## Key Changes
 
 ### 1. Patient Save Flow
-**Before:** Save → Supabase → Wait for sync attempt → Response (350ms)  
-**After:** Save → Supabase → Response (200ms) → Sync in background
+**Before:** Save  Supabase  Wait for sync attempt  Response (350ms)  
+**After:** Save  Supabase  Response (200ms)  Sync in background
 
 ### 2. Sync Mechanism
-**Before:** BullMQ + IORedis TCP → In-memory fallback  
-**After:** QStash HTTP → DB fallback
+**Before:** BullMQ + IORedis TCP  In-memory fallback  
+**After:** QStash HTTP  DB fallback
 
 ### 3. Error Handling
 **Before:** Complex retry logic in request path  
@@ -80,7 +80,7 @@ GOOGLE_SCRIPT_WEBHOOK_URL=
    ```
 
 5. **Verify:**
-   - Check logs for `[QStash] ✅ Queued patient`
+   - Check logs for `[QStash]  Queued patient`
    - Monitor QStash dashboard
    - Test patient save
 
@@ -97,7 +97,7 @@ curl -X POST http://localhost:3000/api/patient-sync \
   -d '{"patientId": "uuid", "updates": {"age": 30}}'
 
 # Check logs
-# Should see: [patient-sync] ✅ Save succeeded, sync queued
+# Should see: [patient-sync]  Save succeeded, sync queued
 ```
 
 ### Production Testing
@@ -115,13 +115,13 @@ curl https://your-domain.com/api/internal/process-sheets-sync
 ## Monitoring
 
 ### Success Indicators
-- `[patient-sync] ✅ Save succeeded, sync queued`
-- `[QStash] ✅ Queued patient {id}`
-- `[ProcessSync] ✅ Synced patient {id} in {ms}ms`
+- `[patient-sync]  Save succeeded, sync queued`
+- `[QStash]  Queued patient {id}`
+- `[ProcessSync]  Synced patient {id} in {ms}ms`
 
 ### Failure Indicators
-- `[QStash] ⚠️ Sync not queued: {error}`
-- `[ProcessSync] ❌ Failed after {ms}ms: {error}`
+- `[QStash]  Sync not queued: {error}`
+- `[ProcessSync]  Failed after {ms}ms: {error}`
 - QStash dashboard shows retries/failures
 
 ### DB Fallback Check

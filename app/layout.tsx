@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { cn } from "@/lib/utils";
-import { Outfit, Share_Tech_Mono, Syncopate } from "next/font/google";
 import "./globals.css";
 import "../styles/premium-buttons.css";
 import { Providers } from "@/components/Providers";
@@ -14,9 +13,9 @@ import { Analytics } from "@vercel/analytics/next";
 import { PostHogProvider } from "@/components/PostHogProvider";
 import { AuthErrorHandler } from "@/components/AuthErrorHandler";
 
-const outfit = Outfit({ subsets: ["latin"], weight: ['400', '700'], variable: '--font-outfit' });
-const shareTechMono = Share_Tech_Mono({ subsets: ["latin"], weight: ['400'], variable: '--font-share-tech-mono' });
-const syncopate = Syncopate({ subsets: ["latin"], weight: ['700'], variable: '--font-syncopate' });
+const outfit = { variable: 'font-outfit', className: 'font-sans' };
+const shareTechMono = { variable: 'font-share-tech-mono', className: 'font-mono' };
+const syncopate = { variable: 'font-syncopate', className: 'font-sans' };
 
 
 export const metadata: Metadata = {

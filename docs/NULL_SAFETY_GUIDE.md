@@ -1,17 +1,17 @@
-# 🛡️ SAMADHAAN Null-Safety Quick Reference
+#  SAMADHAAN Null-Safety Quick Reference
 
-## 🎯 The Golden Rule
+##  The Golden Rule
 
 **ALWAYS check for null/undefined before accessing object properties in loops**
 
 ```typescript
-// ❌ WRONG - Will crash if patient is null
+//  WRONG - Will crash if patient is null
 for (let i = 0; i < patients.length; i++) {
   const patient = patients[i];
   if (patient.screening_state) { ... }  // CRASH!
 }
 
-// ✅ CORRECT - Safe null handling
+//  CORRECT - Safe null handling
 for (let i = 0; i < patients.length; i++) {
   const patient = patients[i];
   if (!patient) continue;  // Skip null entries
@@ -21,7 +21,7 @@ for (let i = 0; i < patients.length; i++) {
 
 ---
 
-## 📋 Null-Safety Checklist
+##  Null-Safety Checklist
 
 ### Before Writing Any Loop
 
@@ -44,7 +44,7 @@ for (let i = 0; i < patients.length; i++) {
 
 ---
 
-## 🔧 Common Patterns
+##  Common Patterns
 
 ### Pattern 1: Safe Array Iteration
 
@@ -106,50 +106,50 @@ function PatientList({ patients }: { patients: any[] }) {
 
 ---
 
-## 🚨 Red Flags to Watch For
+##  Red Flags to Watch For
 
-### 🔴 Direct Property Access in Loops
+###  Direct Property Access in Loops
 
 ```typescript
-// ❌ DANGER
+//  DANGER
 patients.forEach(p => {
   console.log(p.screening_state);  // Will crash if p is null
 });
 
-// ✅ SAFE
+//  SAFE
 patients.forEach(p => {
   if (!p) return;
   console.log(p.screening_state);
 });
 ```
 
-### 🔴 Assuming Array Elements Exist
+###  Assuming Array Elements Exist
 
 ```typescript
-// ❌ DANGER
+//  DANGER
 const firstPatient = patients[0];
 console.log(firstPatient.name);  // Crash if array is empty or element is null
 
-// ✅ SAFE
+//  SAFE
 const firstPatient = patients?.[0];
 if (firstPatient) {
   console.log(firstPatient.name);
 }
 ```
 
-### 🔴 Nested Property Access
+###  Nested Property Access
 
 ```typescript
-// ❌ DANGER
+//  DANGER
 const district = patient.location.district;  // Crash if location is null
 
-// ✅ SAFE
+//  SAFE
 const district = patient?.location?.district || 'Unknown';
 ```
 
 ---
 
-## 🎓 TypeScript Tips
+##  TypeScript Tips
 
 ### Use Strict Null Checks
 
@@ -166,17 +166,17 @@ const district = patient?.location?.district || 'Unknown';
 ### Define Proper Types
 
 ```typescript
-// ❌ WEAK TYPING
+//  WEAK TYPING
 interface Patient {
   screening_state: string;  // Doesn't allow null
 }
 
-// ✅ STRONG TYPING
+//  STRONG TYPING
 interface Patient {
   screening_state: string | null;  // Explicitly allows null
 }
 
-// ✅ EVEN BETTER
+//  EVEN BETTER
 interface Patient {
   screening_state?: string;  // Optional property
 }
@@ -202,7 +202,7 @@ if (isValidPatient(patient)) {
 
 ---
 
-## 🧪 Testing Null Scenarios
+##  Testing Null Scenarios
 
 ### Unit Test Template
 
@@ -238,7 +238,7 @@ describe('Patient Processing', () => {
 
 ---
 
-## 📚 Resources
+##  Resources
 
 - [TypeScript Handbook: Null and Undefined](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#null-and-undefined)
 - [MDN: Optional Chaining](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining)
@@ -246,13 +246,13 @@ describe('Patient Processing', () => {
 
 ---
 
-## 🆘 When in Doubt
+##  When in Doubt
 
 **Ask yourself these 3 questions:**
 
-1. **Can this value be null?** → Add null check
-2. **Am I iterating an array?** → Guard each element
-3. **Am I accessing nested properties?** → Use optional chaining
+1. **Can this value be null?**  Add null check
+2. **Am I iterating an array?**  Guard each element
+3. **Am I accessing nested properties?**  Use optional chaining
 
 **If you answer "yes" to any, add null guards!**
 

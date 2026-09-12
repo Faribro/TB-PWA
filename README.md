@@ -4,7 +4,7 @@
 
 A Progressive Web Application for TB patient tracking and management with AI-powered intelligence, specifically designed for correctional facilities and OCS interventions.
 
-## 🏛️ SAMADHAAN Architecture Evolution (2024)
+##  SAMADHAAN Architecture Evolution (2024)
 
 ### Prestige-Level Infrastructure
 
@@ -16,18 +16,18 @@ SAMADHAAN represents the institutional evolution of TB-PWA-Clean, implementing e
 - `(docs)` - Knowledge vault with institutional callouts and SOPs
 
 **Security Enhancements:**
-- ✅ 8-hour session enforcement (28,800 seconds)
-- ✅ Middleware-level role verification (admin/PM gatekeeper)
-- ✅ Expired session redirects with institutional messaging
-- ✅ Server-side authorization in admin layout
+-  8-hour session enforcement (28,800 seconds)
+-  Middleware-level role verification (admin/PM gatekeeper)
+-  Expired session redirects with institutional messaging
+-  Server-side authorization in admin layout
 
 **Prestige UI Features:**
-- ✅ Cinematic homepage with procedural backgrounds (dot grid → data mesh)
-- ✅ Spring physics navigation tiles (stiffness: 300, damping: 20)
-- ✅ Data Packet Chase animation (3D→2D sync visualization)
-- ✅ Web Audio API institutional feedback (no external files)
-- ✅ Glassmorphism modals with frosted backdrop
-- ✅ Typography: tracking-[0.4em] for "S A M A D H A A N" branding
+-  Cinematic homepage with procedural backgrounds (dot grid  data mesh)
+-  Spring physics navigation tiles (stiffness: 300, damping: 20)
+-  Data Packet Chase animation (3D2D sync visualization)
+-  Web Audio API institutional feedback (no external files)
+-  Glassmorphism modals with frosted backdrop
+-  Typography: tracking-[0.4em] for "S A M A D H A A N" branding
 
 **New Components:**
 - `DataPacketChase.tsx` - Emerald data packet animation on sync events
@@ -43,12 +43,12 @@ SAMADHAAN represents the institutional evolution of TB-PWA-Clean, implementing e
 ### Integration with Existing TB-PWA-Clean
 
 SAMADHAAN preserves all existing functionality:
-- ✅ Vertex Dashboard, Follow-up Pipeline, M&E Tools, GIS Map
-- ✅ Neural Nexus RIS with Cornerstone3D DICOM viewer
-- ✅ Sonic AI Assistant with edge patrol and voice commands
-- ✅ KoboToolbox webhook integration
-- ✅ Supabase/Google Sheets sync
-- ✅ PII Shield and Sentry monitoring
+-  Vertex Dashboard, Follow-up Pipeline, M&E Tools, GIS Map
+-  Neural Nexus RIS with Cornerstone3D DICOM viewer
+-  Sonic AI Assistant with edge patrol and voice commands
+-  KoboToolbox webhook integration
+-  Supabase/Google Sheets sync
+-  PII Shield and Sentry monitoring
 
 **Migration Notes:**
 - Original `app/dashboard/layout.tsx` remains functional
@@ -58,13 +58,13 @@ SAMADHAAN preserves all existing functionality:
 
 ---
 
-## 📚 Knowledge Hub - Complete Documentation System (2025-01-21)
+##  Knowledge Hub - Complete Documentation System (2025-01-21)
 
-### ✅ Production Ready - All 42 Articles Complete
+###  Production Ready - All 42 Articles Complete
 
 **Route:** `/docs`  
 **Access:** All authenticated users (role-based visibility)  
-**Status:** 🎉 **100% Complete** - No "Coming Soon" articles
+**Status:**  **100% Complete** - No "Coming Soon" articles
 
 ### Quick Start
 
@@ -82,19 +82,19 @@ Or click "Knowledge Vault" from sidebar
 ### Features
 
 **42 Complete Articles Across 4 Collections:**
-- ✅ **Getting Started** (6 articles) - Platform orientation and first steps
-- ✅ **Module Guides** (18 articles) - Deep-dive documentation for every module
-- ✅ **Clinical Protocols** (9 articles) - SOPs and treatment enrollment guides
-- ✅ **Technical Reference** (9 articles) - AI engine internals and integrations
+-  **Getting Started** (6 articles) - Platform orientation and first steps
+-  **Module Guides** (18 articles) - Deep-dive documentation for every module
+-  **Clinical Protocols** (9 articles) - SOPs and treatment enrollment guides
+-  **Technical Reference** (9 articles) - AI engine internals and integrations
 
 **Interactive Features:**
-- ✅ Global search with `Cmd/Ctrl + K` shortcut
-- ✅ Keyboard navigation (`Alt + ←/→` for prev/next article)
-- ✅ Read progress tracking with visual indicator
-- ✅ "On this page" navigation for quick jumps
-- ✅ Helpful feedback system (thumbs up/down)
-- ✅ Code copy functionality
-- ✅ Responsive design (mobile-optimized)
+-  Global search with `Cmd/Ctrl + K` shortcut
+-  Keyboard navigation (`Alt + /` for prev/next article)
+-  Read progress tracking with visual indicator
+-  "On this page" navigation for quick jumps
+-  Helpful feedback system (thumbs up/down)
+-  Code copy functionality
+-  Responsive design (mobile-optimized)
 
 **Content Blocks:**
 - Headings (H2, H3)
@@ -128,33 +128,33 @@ Full guides available:
 ### Seeding Script
 
 **What it does:**
-1. ✅ Connects to Supabase using service role key
-2. ✅ Checks for existing articles (prevents duplicates)
-3. ✅ Generates professional content for each article
-4. ✅ Inserts articles with proper metadata
-5. ✅ Reports success/failure for each article
+1.  Connects to Supabase using service role key
+2.  Checks for existing articles (prevents duplicates)
+3.  Generates professional content for each article
+4.  Inserts articles with proper metadata
+5.  Reports success/failure for each article
 
 **Expected output:**
 ```
 ═══════════════════════════════════════════════════════════════════════════
-📚 KNOWLEDGE ARTICLES DATABASE SEEDER
+ KNOWLEDGE ARTICLES DATABASE SEEDER
 ═══════════════════════════════════════════════════════════════════════════
 
-📁 Collection: Getting Started
-  📂 Section: Platform Overview
-    ✅ What Is Samadhaan
-    ✅ System Architecture
-    ✅ Role Guide
+ Collection: Getting Started
+   Section: Platform Overview
+     What Is Samadhaan
+     System Architecture
+     Role Guide
   ...
 
-📊 SEEDING SUMMARY
+ SEEDING SUMMARY
 Total Articles:  42
-✅ Created:      42
-⏭️  Skipped:      0
-❌ Errors:       0
+ Created:      42
+  Skipped:      0
+ Errors:       0
 Success Rate:    100.0%
 
-🎉 All articles seeded successfully!
+ All articles seeded successfully!
 ```
 
 **Idempotent:** Safe to run multiple times - skips existing articles.
@@ -329,7 +329,7 @@ bun run seed:knowledge
 
 ---
 
-## 🚀 Features
+##  Features
 
 - **Vertex Dashboard**: Neural network visualization of patient data with interactive 3D interface
 - **Follow-up Pipeline**: Patient tracking and triage management system
@@ -340,7 +340,7 @@ bun run seed:knowledge
 - **Sonic AI Assistant**: Voice-enabled AI assistant with multilingual support
 - **Magic Lens**: X-Ray analysis tool for instant district insights
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 - **Frontend**: Next.js 15, React 19, TypeScript
 - **Styling**: Tailwind CSS, Framer Motion
@@ -354,7 +354,7 @@ bun run seed:knowledge
 - **State Management**: Zustand with persistence middleware
 - **UI Components**: Shadcn/ui (Radix UI primitives)
 
-## 📦 Getting Started
+##  Getting Started
 
 ### Prerequisites
 
@@ -465,7 +465,7 @@ bun run build
 bun run start
 ```
 
-## 🏗️ Architecture
+##  Architecture
 
 ### Data Flow
 - **Page-level data fetching** with SWR for caching
@@ -487,7 +487,7 @@ bun run start
 - **Rate Limiting**: Proxy middleware for API protection
 - **RLS Policies**: Row-level security in Supabase
 
-## 📊 Key Features
+##  Key Features
 
 ### 1. Spatial Intelligence Map (GIS)
 - 3D choropleth visualization with Deck.GL
@@ -498,8 +498,8 @@ bun run start
 
 ### 2. Sonic AI Assistant - Complete Feature Set
 
-#### 🎮 Core Movement & Physics
-- **Edge Patrol System**: Clockwise movement around screen edges (bottom → right → top → left)
+####  Core Movement & Physics
+- **Edge Patrol System**: Clockwise movement around screen edges (bottom  right  top  left)
 - **Page-Specific Spawn**: Different spawn positions per route (dashboard: 0.4, vertex: 0.6, gis: 0.75)
 - **Smooth Rotation**: Faces direction of movement with eased transitions
 - **Mood-Based Speed**: Dynamic speed based on data (normal: 0.32, worried: 0.22, happy: 0.38, urgent: 0.55)
@@ -510,7 +510,7 @@ bun run start
 - **Collision Detection**: Look-ahead system detects obstacles 18 frames ahead
 - **Grounded Mode**: Static position mode (bottom-right corner) when `globalMode === 'grounded'`
 
-#### ⚡ Visual Effects & Animations
+####  Visual Effects & Animations
 - **Electricity Trail System** (`SonicSpeedTrails.tsx`):
   - Lightning arcs with fractal displacement algorithm
   - Plasma orbs with velocity-based stretching
@@ -532,58 +532,58 @@ bun run start
 - **Ground Shadow**: Dynamic shadow under Sonic on bottom edge
 - **Speech Bubbles**: White cards with cyan borders for messages
 
-#### 🎭 Behaviors & Idle Animations
+####  Behaviors & Idle Animations
 - **Idle Behaviors** (triggers every 18-40 seconds):
   - **Dance**: Spin + bounce with scale animation
   - **Impatient**: Tap foot with rotation
   - **Lookup**: Look up at sky with head tilt
   - **Stretch**: Vertical stretch animation
-  - Mood-based selection (urgent → impatient, happy → dance)
+  - Mood-based selection (urgent  impatient, happy  dance)
 
 - **Greeting System**: Speech bubbles with contextual messages
 - **Boost Mode**: Triggered by scroll (>80px delta) or search events
 - **Character Types**: Supports sonic/mimi/genie/robot 3D models
 
-#### 🧠 Intelligence & Data Integration
+####  Intelligence & Data Integration
 - **Mood System**: Data-driven moods based on breach rates
-  - Critical count > 5 → Urgent
-  - Critical count > 2 → Worried
-  - Breach rate < 0.2 → Happy
-  - Default → Normal
+  - Critical count > 5  Urgent
+  - Critical count > 2  Worried
+  - Breach rate < 0.2  Happy
+  - Default  Normal
 
 - **Achievement Milestones**: Celebrates data milestones
-  - 1,000 screened: "🏆 1,000 screened milestone Sir!"
-  - 5,000 screened: "🔥 5,000 screened! Great work Sir!"
-  - 10,000 screened: "⭐ 10,000 screened! LEGENDARY Sir!"
-  - Zero breaches: "✨ ZERO breaches! Perfect Sir!"
-  - 3+ critical districts: "⚠️ 3+ critical districts! Action needed!"
+  - 1,000 screened: " 1,000 screened milestone Sir!"
+  - 5,000 screened: " 5,000 screened! Great work Sir!"
+  - 10,000 screened: " 10,000 screened! LEGENDARY Sir!"
+  - Zero breaches: " ZERO breaches! Perfect Sir!"
+  - 3+ critical districts: " 3+ critical districts! Action needed!"
 
 - **Idle Detection**: Alerts user after 30s of mouse inactivity
 - **Search Reactions**: Responds to `sonic-search` custom events
 - **Alert System**: Displays Sonic alerts from Zustand store
 - **Daily Briefing**: Shows data summary on dashboard/follow-up page load
 
-#### 🔧 Session & State Management
+####  Session & State Management
 - **State Persistence**: Saves position/edge/mood to sessionStorage every 5s
 - **State Restoration**: Restores last position on page reload
 - **Tab Visibility**: Pauses movement when tab hidden, resumes on focus
 - **Navigation Handling**: Smooth spawn transitions between routes
 
-#### 🎤 Voice & AI Integration
+####  Voice & AI Integration
 - **SonicAssistantPanel**: Full AI assistant panel with voice commands
 - **VAPI Voice Integration**: Voice-enabled commands
 - **Multi-language Support**: 11 Indian languages (Hindi, Tamil, Telugu, etc.)
 - **Context-Aware Analysis**: District-level data insights
 - **Natural Language Commands**: Voice and text queries
 
-#### 🎬 Special Effects & Interactions
+####  Special Effects & Interactions
 - **SonicBoom**: Focus animation for UI elements with shockwave rings
 - **SonicNavigator**: Page transition animation with speed lines
 - **Corner Effects**: Lightning burst with 6 arcs + flash strobe
 - **Drag Feedback**: Visual feedback during drag operations
 - **Click to Open**: Opens assistant panel with lookup animation
 
-#### ⚙️ Performance Optimizations
+####  Performance Optimizations
 - **Dynamic Imports**: Lazy loads 3D canvas and assistant panel
 - **RAF Loop**: Stable 60fps animation with delta time
 - **Bloom Downsampling**: 1/4 resolution blur (16× faster)
@@ -592,13 +592,13 @@ bun run start
 - **Conditional Rendering**: Only renders when visible
 - **Z-Index Hierarchy**: Trail (999997), Sonic (999999), Panel (10000+)
 
-#### 🎮 Developer Features
+####  Developer Features
 - **Debug Shortcut**: Ctrl+A triggers test achievement
 - **Obstacle System**: Add `data-sonic-obstacle` to any DOM element
 - **Custom Events**: Dispatch `sonic-search` for reactions
 - **Store Integration**: Reads from `useEntityStore` for global state
 
-#### 📊 Technical Specifications
+####  Technical Specifications
 - **Canvas Size**: 160×160px for Sonic entity
 - **Trail Canvas**: Full-screen overlay at z-index 999997
 - **Trail Lifetime**: 280ms per trail point
@@ -626,7 +626,7 @@ bun run start
 - Interactive node exploration
 - Real-time metrics
 
-### 6. Neural Nexus RIS (Radiological Information System) - COMPLETE ✅
+### 6. Neural Nexus RIS (Radiological Information System) - COMPLETE 
 
 **Full-Stack DICOM Viewer with AI-Powered Reconciliation**
 
@@ -638,7 +638,7 @@ NexusDashboardContainer (Master Orchestrator)
 ├── AdvancedFilterBar (Search, Risk, Status, Sort)
 └── Dynamic Content
     ├── Active Diagnostics Tab
-    │   ├── NeuralNexusGrid (responsive 3→2 cols when viewer open)
+    │   ├── NeuralNexusGrid (responsive 32 cols when viewer open)
     │   ├── SuggestionRail (absolute positioning, hides when viewer open)
     │   └── NexusViewerModal (full-screen legacy viewer)
     └── Reconciliation Queue Tab (3-Panel Split-Screen)
@@ -648,7 +648,7 @@ NexusDashboardContainer (Master Orchestrator)
         └── Right: AI Suggestions (400px, fuzzy matching)
 ```
 
-#### 🎯 Key Features
+####  Key Features
 
 **1. Dual-Tab Interface**
 - **Active Diagnostics**: Patient grid with luxury cards, drag-and-drop linking
@@ -656,17 +656,17 @@ NexusDashboardContainer (Master Orchestrator)
 - Badge count on reconciliation tab shows pending orphaned files
 - Smooth tab transitions with dynamic imports
 
-**2. Cornerstone3D DICOM Viewer** ✅ PRODUCTION READY
+**2. Cornerstone3D DICOM Viewer**  PRODUCTION READY
 - **Singleton Initialization**: Prevents Fast Refresh crashes in Next.js
 - **Stack Viewport**: Renders .dcm files via WADO Image Loader
 - **Auth Integration**: Bearer token support for secure Azure Blob URLs
 - **Memory Safety**: Proper cleanup on unmount (destroys RenderingEngine)
 - **Web Workers**: Multi-threaded DICOM parsing (4 workers)
-- **Loading States**: Spinner → Success indicator → Error overlay
+- **Loading States**: Spinner  Success indicator  Error overlay
 - **File Type Detection**: DICOM (Cornerstone3D), PDF (iframe), Unsupported (message)
 
 **3. AI-Powered Reconciliation**
-- **Fuzzy Matching Algorithm**: Filename → Patient Name/ID matching
+- **Fuzzy Matching Algorithm**: Filename  Patient Name/ID matching
 - **Confidence Scores**: 0-100% match probability display
 - **One-Click Linking**: "Approve & Merge" button per suggestion
 - **Real-time Updates**: 5-second polling for new orphaned files
@@ -676,16 +676,16 @@ NexusDashboardContainer (Master Orchestrator)
 - **Search**: Real-time patient name/ID filtering
 - **Risk Level**: All | High (>0.8) | Normal
 - **Link Status**: All | Linked | Unlinked
-- **Sort**: Genki ↓/↑, Name A-Z/Z-A
+- **Sort**: Genki /, Name A-Z/Z-A
 - **Manual Sync**: Trigger Drive folder scan on-demand
 
 **5. Responsive Layout**
-- Grid adjusts from 3 cols → 2 cols when viewer opens
+- Grid adjusts from 3 cols  2 cols when viewer opens
 - SuggestionRail hides when viewer is active (prevents overlap)
 - Smooth transitions with Tailwind duration-500
 - Z-index hierarchy: Rail (100) < Viewer (150) < Modals (10000+)
 
-#### 🔧 Technical Implementation
+####  Technical Implementation
 
 **Dependencies Installed:**
 ```json
@@ -773,7 +773,7 @@ useEffect(() => {
 }, [fileUrl, authToken]);
 ```
 
-#### 📊 Component Breakdown
+####  Component Breakdown
 
 **New Components:**
 1. `app/dashboard/neural-nexus/page.tsx` - Master container (refactored)
@@ -791,13 +791,13 @@ useEffect(() => {
 2. `components/NexusViewerModal.tsx` - Legacy full-screen viewer
 3. `stores/useEntityStore.ts` - Global state management
 
-#### 🚀 Usage Guide
+####  Usage Guide
 
 **Diagnostics Workflow:**
 1. Navigate to `/dashboard/neural-nexus`
 2. Use AdvancedFilterBar to search/filter patients
 3. Drag patient tiles onto orphaned files in SuggestionRail
-4. Click patient tile → Opens NexusViewerModal (legacy viewer)
+4. Click patient tile  Opens NexusViewerModal (legacy viewer)
 5. Grid automatically adjusts when viewer opens
 
 **Reconciliation Workflow:**
@@ -805,10 +805,10 @@ useEffect(() => {
 2. Select orphaned file from left panel
 3. DICOM renders in center panel via Cornerstone3D
 4. AI suggestions appear in right panel (sorted by confidence)
-5. Click "Approve & Merge" → Links file to patient
+5. Click "Approve & Merge"  Links file to patient
 6. File removed from queue, toast notification shown
 
-#### 🎨 UI/UX Highlights
+####  UI/UX Highlights
 
 **Glass-Morphism Design:**
 - Refraction layers: `box-shadow: inset 0 0 10px rgba(255,255,255,0.1)`
@@ -828,7 +828,7 @@ useEffect(() => {
 - Breathing pulse for high-risk patients
 - Smooth tab transitions with Framer Motion
 
-#### 🔐 Security Features
+####  Security Features
 
 **Backend Integration:**
 ```typescript
@@ -862,7 +862,7 @@ cornerstoneWADOImageLoader.configure({
 });
 ```
 
-#### 📈 Performance Optimizations
+####  Performance Optimizations
 
 **Dynamic Imports:**
 ```typescript
@@ -903,15 +903,15 @@ className={cn(
 )}
 ```
 
-#### 🐛 Known Limitations
+####  Known Limitations
 
 **Current State:**
-- ✅ DICOM rendering: PRODUCTION READY
-- ✅ Stack Viewport: Single-image display
-- ⏳ Multi-frame DICOM: Not yet supported
-- ⏳ Measurement tools: Planned for Phase 2
-- ⏳ Window/Level controls: UI ready, tools not wired
-- ⏳ PACS integration: Planned for Phase 3
+-  DICOM rendering: PRODUCTION READY
+-  Stack Viewport: Single-image display
+-  Multi-frame DICOM: Not yet supported
+-  Measurement tools: Planned for Phase 2
+-  Window/Level controls: UI ready, tools not wired
+-  PACS integration: Planned for Phase 3
 
 **Future Enhancements:**
 1. **Phase 2: Interactive Tools**
@@ -932,7 +932,7 @@ className={cn(
    - Worklist management
    - Reporting workflow
 
-#### 🧪 Testing Checklist
+####  Testing Checklist
 
 **Diagnostics Tab:**
 - [x] Search filters patients by name/ID
@@ -963,7 +963,7 @@ className={cn(
 - [x] Memory cleanup on unmount
 - [x] Web Workers initialized (4 workers)
 
-#### 📚 Documentation
+####  Documentation
 
 Full implementation details in:
 - `docs/RIS_REFACTOR_SUMMARY.md` - Complete architecture guide
@@ -982,7 +982,7 @@ Full implementation details in:
 - **AI Annotations**: Ready for Azure Computer Vision integration
 - **Awwwards-Quality UI**: Refraction layers, silk background orbs, adaptive blur
 
-## 🔧 ETL Pipeline
+##  ETL Pipeline
 
 ### KoboToolbox Webhook Integration
 
@@ -1037,23 +1037,23 @@ curl http://localhost:3000/api/webhook/kobo
 
 #### Features
 
-- ✅ **Secure Authentication**: Header-based secret validation
-- ✅ **4-way Fallback Mapping**: Handles multiple Kobo field name variations
-- ✅ **Duplicate Prevention**: Upserts by `kobo_uuid`
-- ✅ **GPS Extraction**: Automatic latitude/longitude parsing
-- ✅ **Date Normalization**: Converts all dates to ISO format
-- ✅ **State/District Mapping**: Normalizes location data
-- ✅ **Comprehensive Logging**: Tracks all webhook events
-- ✅ **Error Handling**: Graceful failures with detailed error messages
+-  **Secure Authentication**: Header-based secret validation
+-  **4-way Fallback Mapping**: Handles multiple Kobo field name variations
+-  **Duplicate Prevention**: Upserts by `kobo_uuid`
+-  **GPS Extraction**: Automatic latitude/longitude parsing
+-  **Date Normalization**: Converts all dates to ISO format
+-  **State/District Mapping**: Normalizes location data
+-  **Comprehensive Logging**: Tracks all webhook events
+-  **Error Handling**: Graceful failures with detailed error messages
 
 #### Testing
 
 The webhook simulator (`scripts/test-kobo-webhook.js`) runs 4 test scenarios:
 
-1. ✅ **Valid webhook** with correct secret (should pass)
-2. ❌ **Invalid secret** (should fail with 401)
-3. ❌ **Missing secret** header (should fail with 401)
-4. ❌ **Missing UUID** in payload (should fail with 400)
+1.  **Valid webhook** with correct secret (should pass)
+2.  **Invalid secret** (should fail with 401)
+3.  **Missing secret** header (should fail with 401)
+4.  **Missing UUID** in payload (should fail with 400)
 
 **Run tests:**
 ```bash
@@ -1063,22 +1063,22 @@ bun run test:webhook
 **Expected output:**
 ```
 ═══════════════════════════════════════════════════════════════════════════
-🧪 KOBOTOOLBOX WEBHOOK SIMULATOR
+ KOBOTOOLBOX WEBHOOK SIMULATOR
 ═══════════════════════════════════════════════════════════════════════════
 
-🏥 Testing Health Check Endpoint (GET)...
+ Testing Health Check Endpoint (GET)...
 Status: 200 OK
-✅ Health check passed
+ Health check passed
 
-🔄 Running: Valid Webhook with Correct Secret...
-✅ PASSED: Valid Webhook with Correct Secret
+ Running: Valid Webhook with Correct Secret...
+ PASSED: Valid Webhook with Correct Secret
 Expected Status: 200
 Actual Status:   200 OK
 
-📊 TEST SUMMARY
+ TEST SUMMARY
 Total Tests:  4
-✅ Passed:    4
-❌ Failed:    0
+ Passed:    4
+ Failed:    0
 Success Rate: 100.0%
 ```
 
@@ -1129,7 +1129,7 @@ POST /api/etl/kobo-sync
 }
 ```
 
-## 🔧 Data Pipeline Testing
+##  Data Pipeline Testing
 
 ### Production Credentials (2025-01-21)
 
@@ -1171,15 +1171,15 @@ bun run test:supabase
 ```
 
 This script:
-- ✅ Reads from `patients` table (bypassing RLS)
-- ✅ Writes test record to verify permissions
-- ✅ Updates existing record
-- ✅ Cleans up test data
-- ✅ Confirms Service Role Key bypasses RLS policies
+-  Reads from `patients` table (bypassing RLS)
+-  Writes test record to verify permissions
+-  Updates existing record
+-  Cleans up test data
+-  Confirms Service Role Key bypasses RLS policies
 
 **2. Triple-Sync Pipeline Test**
 
-Tests end-to-end data sync (Supabase → Google Sheets):
+Tests end-to-end data sync (Supabase  Google Sheets):
 
 ```bash
 # Ensure dev server is running first
@@ -1190,11 +1190,11 @@ bun run test:sync
 ```
 
 This script tests:
-- ✅ Clinical updates (referral, diagnosis, treatment)
-- ✅ Demographics updates
-- ✅ Loop closure
-- ✅ Google Sheets webhook delivery
-- ✅ API response validation
+-  Clinical updates (referral, diagnosis, treatment)
+-  Demographics updates
+-  Loop closure
+-  Google Sheets webhook delivery
+-  API response validation
 
 **3. E2E Triple-Sync Test**
 
@@ -1209,13 +1209,13 @@ bun run test:e2e
 ```
 
 This script:
-- ✅ Tests complete data flow (Next.js → Supabase → Google Sheets)
-- ✅ Measures exact execution time and latency
-- ✅ Verifies both Supabase and Google Sheets success
-- ✅ Uses Service Role authentication (bypasses RLS)
-- ✅ Generates dynamic test payloads with timestamps
-- ✅ Provides detailed telemetry (status, duration, response size)
-- ✅ Color-coded output for easy debugging
+-  Tests complete data flow (Next.js  Supabase  Google Sheets)
+-  Measures exact execution time and latency
+-  Verifies both Supabase and Google Sheets success
+-  Uses Service Role authentication (bypasses RLS)
+-  Generates dynamic test payloads with timestamps
+-  Provides detailed telemetry (status, duration, response size)
+-  Color-coded output for easy debugging
 
 **4. Full Pipeline Test**
 
@@ -1259,52 +1259,52 @@ The triple-sync test covers 5 scenarios:
 **Supabase Verification:**
 ```
 ═══════════════════════════════════════════════════════════════════════════
-🔐 SUPABASE SERVICE ROLE KEY VERIFICATION
+ SUPABASE SERVICE ROLE KEY VERIFICATION
 ═══════════════════════════════════════════════════════════════════════════
 Project: wwcgybgvfulotflitogu
 URL: https://wwcgybgvfulotflitogu.supabase.co
 
-📊 TEST 1: Read from patients table (bypassing RLS)
-✅ Status: 200
-✅ Records fetched: 5
-✅ RLS BYPASS CONFIRMED - Service role can read all records
+ TEST 1: Read from patients table (bypassing RLS)
+ Status: 200
+ Records fetched: 5
+ RLS BYPASS CONFIRMED - Service role can read all records
 
-✏️  TEST 2: Write to patients table (bypassing RLS)
-✅ Status: 201
-✅ Test record created
-✅ RLS BYPASS CONFIRMED - Service role can write records
-✅ Test record deleted
+  TEST 2: Write to patients table (bypassing RLS)
+ Status: 201
+ Test record created
+ RLS BYPASS CONFIRMED - Service role can write records
+ Test record deleted
 
-🔍 TEST 3: Update existing record (bypassing RLS)
-✅ Status: 200
-✅ Record updated successfully
-✅ RLS BYPASS CONFIRMED - Service role can update records
+ TEST 3: Update existing record (bypassing RLS)
+ Status: 200
+ Record updated successfully
+ RLS BYPASS CONFIRMED - Service role can update records
 
-✅ VERIFICATION COMPLETE
+ VERIFICATION COMPLETE
 ```
 
 **Triple-Sync Test:**
 ```
 ═══════════════════════════════════════════════════════════════════════════
-🚀 TRIPLE-SYNC PIPELINE TEST
+ TRIPLE-SYNC PIPELINE TEST
 ═══════════════════════════════════════════════════════════════════════════
 
-📋 TEST 1/5: Clinical Update (Referral)
-  🔄 Calling /api/patient-sync...
-  ✅ API call successful
-  ✅ Google Sheets sync confirmed in response
-  📊 Sheets status: success
-  💬 Sheets message: Row updated successfully
-  🔗 Testing direct Google Sheets webhook...
-  ✅ Google Sheets responded: 200
+ TEST 1/5: Clinical Update (Referral)
+   Calling /api/patient-sync...
+   API call successful
+   Google Sheets sync confirmed in response
+   Sheets status: success
+   Sheets message: Row updated successfully
+   Testing direct Google Sheets webhook...
+   Google Sheets responded: 200
 
-📊 TEST SUMMARY
+ TEST SUMMARY
 Total Tests:  5
-✅ Passed:    5
-❌ Failed:    0
+ Passed:    5
+ Failed:    0
 Success Rate: 100.0%
 
-🎉 ALL TESTS PASSED - Triple-sync pipeline is working correctly!
+ ALL TESTS PASSED - Triple-sync pipeline is working correctly!
 ```
 
 ### Troubleshooting
@@ -1344,9 +1344,9 @@ curl -X POST 'https://script.google.com/macros/s/AKfycbyBwLUKiFDY-eLdNOIzNZRsyem
   -d '{"Serial Number": 1, "KoboUUID": "test_uuid", "inmate_name": "Test Patient"}'
 ```
 
-## 🔧 Performance & Scalability Optimizations
+##  Performance & Scalability Optimizations
 
-### ✅ Applied Optimizations (2024-01-15)
+###  Applied Optimizations (2024-01-15)
 
 #### 1. **Next.js Configuration**
 - Enhanced webpack code splitting with deterministic module IDs
@@ -1375,7 +1375,7 @@ curl -X POST 'https://script.google.com/macros/s/AKfycbyBwLUKiFDY-eLdNOIzNZRsyem
 - Added performance tracking utilities
 - Fixed Sonic canvas visibility with proper z-index hierarchy
 
-### 🎯 Critical Optimizations Needed
+###  Critical Optimizations Needed
 
 #### 1. **Database Performance** (HIGH PRIORITY)
 
@@ -1522,7 +1522,7 @@ export async function middleware(request: Request) {
 
 **Expected Impact**: Prevent API quota exhaustion
 
-### 📊 Performance Metrics
+###  Performance Metrics
 
 #### Current Baseline (Estimated)
 - **LCP**: ~3.5s
@@ -1549,7 +1549,7 @@ export async function middleware(request: Request) {
 | Image optimization | -400ms | -200KB | 0MB | LOW |
 | Remove unused deps | -200ms | -400KB | -5MB | LOW |
 
-### 🔍 Monitoring & Debugging
+###  Monitoring & Debugging
 
 #### Performance Tracking
 
@@ -1590,7 +1590,7 @@ Sentry.init({
 });
 ```
 
-### 🚀 Deployment Checklist
+###  Deployment Checklist
 
 #### Pre-Deployment
 - [ ] Run `bun run build` locally
@@ -1612,7 +1612,7 @@ Sentry.init({
 - [ ] Verify GIS map loads correctly
 - [ ] Test bulk triage functionality
 
-### 🎯 Scalability Roadmap
+###  Scalability Roadmap
 
 #### Phase 1: Immediate (Week 1-2)
 - [x] Optimize Next.js configuration
@@ -1642,7 +1642,7 @@ Sentry.init({
 - [ ] Add edge computing for global performance
 - [ ] Implement micro-frontends architecture
 
-### 📝 Known Issues & Technical Debt
+###  Known Issues & Technical Debt
 
 #### High Priority
 1. **FollowUpPipeline**: Loads all 14K patients - needs pagination
@@ -1662,7 +1662,7 @@ Sentry.init({
 3. **Console logs**: Many debug logs left in production code
 4. **Type safety**: Some `any` types need proper typing
 
-### 🔧 Quick Wins (Can be done in <1 hour)
+###  Quick Wins (Can be done in <1 hour)
 
 1. **Remove unused dependencies**:
 ```bash
@@ -1707,12 +1707,12 @@ done
 
 ---
 
-## 🎬 SAMADHAAN Feature Summary
+##  SAMADHAAN Feature Summary
 
 ### Cinematic Mission Control
 
 **Procedural Background System:**
-- Canvas-based morphing background (dot grid → living data mesh)
+- Canvas-based morphing background (dot grid  living data mesh)
 - Scroll-driven opacity transitions (0-100% over 50vh)
 - Real-time wave animations with `Math.sin` displacement
 - 60fps RAF loop with automatic cleanup
@@ -1724,7 +1724,7 @@ done
 - Metrics: Total Screened, States Covered, High-Alert Cases, Sync Integrity
 
 **Navigation Tiles:**
-- Gradient backgrounds (blue-500 → indigo-600)
+- Gradient backgrounds (blue-500  indigo-600)
 - Scale 1.05 + translateY(-8px) on hover
 - Radial glow effects with blur-2xl
 - Direct links to Analytics, GIS, Pipeline
@@ -1733,13 +1733,13 @@ done
 
 **Visual System:**
 - Emerald glowing orbs (w-6 h-6) with shadow-[0_0_20px]
-- Pulsing halo animation (scale 1→1.5→1)
+- Pulsing halo animation (scale 11.51)
 - Flies from source element to `[data-sync-target="master"]`
 - 1-second cubic-bezier easing [0.22, 1, 0.36, 1]
 - Auto-cleanup after animation completes
 
 **Audio Feedback:**
-- `playDataPacketChase()` - Ascending sweep (400Hz → 1600Hz)
+- `playDataPacketChase()` - Ascending sweep (400Hz  1600Hz)
 - `playSuccessChime()` - Two-tone confirmation (800Hz + 1200Hz)
 - `playInstitutionalPing()` - Clean 1200Hz validation tone
 - `playErrorBuzz()` - Low sawtooth warning (200Hz)
@@ -1758,7 +1758,7 @@ triggerDataPacketChase(button);
 **Glassmorphism Modal:**
 - Backdrop: `bg-black/50 backdrop-blur-sm`
 - Panel: `bg-white/90 backdrop-blur-2xl`
-- Scale 0.9→1 entrance animation
+- Scale 0.91 entrance animation
 - Click-outside-to-close with event propagation stop
 
 **Table Features:**
@@ -1804,7 +1804,7 @@ triggerDataPacketChase(button);
 **Login Page Updates:**
 - Animated session expiry banner (amber-50 background)
 - Message: "Your 8-hour shift has ended. Please authenticate again."
-- Framer Motion entrance: opacity 0→1, translateY -20→0
+- Framer Motion entrance: opacity 01, translateY -200
 - Auto-detects `reason` query param (expired, unauthorized)
 
 **Admin Gatekeeper:**
@@ -1896,7 +1896,7 @@ vercel --prod
 - [ ] Monitor Sentry for errors
 - [ ] Run Lighthouse audit (target: >90)
 
-## 🧪 Testing
+##  Testing
 
 ### Pre-Flight Validation
 
@@ -1927,7 +1927,7 @@ bun run build
 - [ ] Orphaned files rail visible at bottom
 - [ ] Drag-and-drop file linking works
 
-## 📈 Monitoring
+##  Monitoring
 
 ### Sentry Integration
 - Real-time error tracking
@@ -1942,7 +1942,7 @@ bun run build
 - API response times
 - Geographic distribution
 
-## 🎨 Design System
+##  Design System
 
 ### Tactical Glass Aesthetic
 - **Border Radius**: 16px panels, 12px buttons, 32px luxury cards
@@ -1973,7 +1973,7 @@ bun run build
 - **Drag Feedback**: Scale 1.05 + cyan dashed border on drag-over
 - **Hover Lift**: -8px translateY with shadow enhancement
 
-## 🤝 Contributing
+##  Contributing
 
 1. Fork the repository
 2. Create feature branch (`git checkout -b feature/amazing-feature`)
@@ -1981,11 +1981,11 @@ bun run build
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open Pull Request
 
-## 📝 License
+##  License
 
 This project is proprietary and confidential.
 
-## 🆘 Support
+##  Support
 
 For issues or questions:
 - Check Sentry dashboard for errors
@@ -1993,7 +1993,7 @@ For issues or questions:
 - Verify environment variables
 - Test with Postman/curl
 
-## 🎯 Roadmap
+##  Roadmap
 
 **SAMADHAAN Enhancements:**
 - [ ] Command palette (Cmd+K) for global search
@@ -2026,47 +2026,47 @@ For issues or questions:
 
 ---
 
-## 🧬 Neural Nexus - Implementation Summary
+##  Neural Nexus - Implementation Summary
 
-### ✅ Phase 1: UI Polish (COMPLETE)
+###  Phase 1: UI Polish (COMPLETE)
 
 **Performance Optimizations:**
-- ✅ Follow-up pipeline pattern: Page wrapper + dynamic import
-- ✅ Pagination: Initial load of 9 cards (prevents lag)
-- ✅ Memoized components: PatientTile wrapped in React.memo
-- ✅ Lazy loading: NeuralNexusGrid dynamically imported with LinesAndDotsLoader
-- ✅ Search functionality: Real-time filtering with useMemo
-- ✅ Removed animations: No Framer Motion on initial render
-- ✅ Reduced blur: backdrop-blur-xl instead of 3xl
-- ✅ Load More button: Progressive loading of 9 cards at a time
-- ✅ useCallback: Prevents function recreation on re-renders
+-  Follow-up pipeline pattern: Page wrapper + dynamic import
+-  Pagination: Initial load of 9 cards (prevents lag)
+-  Memoized components: PatientTile wrapped in React.memo
+-  Lazy loading: NeuralNexusGrid dynamically imported with LinesAndDotsLoader
+-  Search functionality: Real-time filtering with useMemo
+-  Removed animations: No Framer Motion on initial render
+-  Reduced blur: backdrop-blur-xl instead of 3xl
+-  Load More button: Progressive loading of 9 cards at a time
+-  useCallback: Prevents function recreation on re-renders
 
 **Luxury Card Refinements:**
-- ✅ Enhanced typography hierarchy (3xl names, 10px serial IDs)
-- ✅ Glass-morphism Genki gauge with hover scale animation
-- ✅ Animated EKG sparkline next to vitals status
-- ✅ Beating heart icon with 1s pulse animation
-- ✅ Breathing red pulse for high-risk patients (genki_score > 0.8)
-- ✅ Emerald verified badge for linked patients
-- ✅ Drag-over interaction with cyan dashed border
-- ✅ Refraction layer (inset shadow) on all glass panels
+-  Enhanced typography hierarchy (3xl names, 10px serial IDs)
+-  Glass-morphism Genki gauge with hover scale animation
+-  Animated EKG sparkline next to vitals status
+-  Beating heart icon with 1s pulse animation
+-  Breathing red pulse for high-risk patients (genki_score > 0.8)
+-  Emerald verified badge for linked patients
+-  Drag-over interaction with cyan dashed border
+-  Refraction layer (inset shadow) on all glass panels
 
 **Spatial Header & Rail:**
-- ✅ Search bar with refraction layer and thinner borders
-- ✅ Increased silk orb blur from 120px to 180px
-- ✅ Bottom rail with adaptive blur (backdrop-blur-2xl)
-- ✅ Z-index hierarchy (rail at z-100)
-- ✅ Cyan accent on orphan file hover
-- ✅ Enhanced shadow depth on rail
+-  Search bar with refraction layer and thinner borders
+-  Increased silk orb blur from 120px to 180px
+-  Bottom rail with adaptive blur (backdrop-blur-2xl)
+-  Z-index hierarchy (rail at z-100)
+-  Cyan accent on orphan file hover
+-  Enhanced shadow depth on rail
 
 **Micro-Interactions:**
-- ✅ Hover lift animation (-8px translateY)
-- ✅ Scale 1.05 on drag-over
-- ✅ Smooth transitions (duration-500)
-- ✅ Glass panel hover effects
-- ✅ Tactical footer text (9px tracking-tighter)
+-  Hover lift animation (-8px translateY)
+-  Scale 1.05 on drag-over
+-  Smooth transitions (duration-500)
+-  Glass panel hover effects
+-  Tactical footer text (9px tracking-tighter)
 
-### 📊 Component Architecture
+###  Component Architecture
 
 **PatientTile.tsx** - Luxury patient cards
 - Genki score gauge with glass effect
@@ -2089,7 +2089,7 @@ For issues or questions:
 - Metadata panel with AI insights
 - Ready for Azure SAS token integration
 
-### 🎭 Design Tokens
+###  Design Tokens
 
 **Typography:**
 ```css
@@ -2142,7 +2142,7 @@ duration: 2s
 repeat: Infinity
 ```
 
-### 🚀 Quick Start
+###  Quick Start
 
 ```bash
 # Navigate to Neural Nexus
@@ -2152,13 +2152,13 @@ http://localhost:3000/dashboard/neural-nexus
 1. Patient tiles with breathing pulse (high-risk)
 2. Emerald verified badges (linked patients)
 3. Animated vitals with EKG sparkline
-4. Click tile → Opens DICOM viewer
+4. Click tile  Opens DICOM viewer
 5. Drag orphan files to patient cards
 6. Search bar with refraction effect
 7. Silk background orbs (180px blur)
 ```
 
-### 🔧 Next Steps (Optional)
+###  Next Steps (Optional)
 
 **Phase 2: Azure Integration**
 1. Create `/api/azure/sas-token` route
@@ -2178,17 +2178,17 @@ http://localhost:3000/dashboard/neural-nexus
 3. Implement AI-powered triage suggestions
 4. Add export functionality
 
-### 📝 File Reference
+###  File Reference
 
 **Core Files:**
 ```
-app/dashboard/neural-nexus/page.tsx    ← Main route
-components/PatientTile.tsx             ← Luxury patient cards
-components/SuggestionRail.tsx          ← Orphaned files rail
-components/NexusViewerModal.tsx        ← DICOM viewer modal
-stores/useEntityStore.ts               ← Global state
-lib/zIndex.ts                          ← Z-index constants
-app/globals.css                        ← Animations
+app/dashboard/neural-nexus/page.tsx     Main route
+components/PatientTile.tsx              Luxury patient cards
+components/SuggestionRail.tsx           Orphaned files rail
+components/NexusViewerModal.tsx         DICOM viewer modal
+stores/useEntityStore.ts                Global state
+lib/zIndex.ts                           Z-index constants
+app/globals.css                         Animations
 ```
 
 **Key Animations:**
@@ -2199,11 +2199,11 @@ app/globals.css                        ← Animations
 
 ---
 
-**Built with ❤️ for India's National TB Elimination Programme**
+**Built with  for India's National TB Elimination Programme**
 
 ---
 
-## 🎯 Quick Reference: SAMADHAAN Command Hub
+##  Quick Reference: SAMADHAAN Command Hub
 
 ### Access Routes
 
@@ -2225,7 +2225,7 @@ app/globals.css                        ← Animations
 1. **Analytics** - Neural network visualization and insights
 2. **GIS Intelligence** - Spatial mapping and geographic analysis
 3. **Pipeline** - Patient tracking and triage management
-4. **Identity Bureau** - User roles, state assignments (Admin/PM only) ⚠️
+4. **Identity Bureau** - User roles, state assignments (Admin/PM only) 
 5. **Knowledge Vault** - SOPs, manuals, technical guides
 
 **Role-Based Visibility:**
@@ -2234,11 +2234,11 @@ app/globals.css                        ← Animations
 - Identity Bureau tile only renders when `session?.user?.role === 'admin' || 'PM'`
 
 **Landing Page Behavior:**
-- ✅ Root `/` redirects to `/dashboard/command-hub` (authenticated users)
-- ✅ `/dashboard` redirects to `/dashboard/command-hub`
-- ✅ Sidebar highlights "Command Hub" as active page
-- ✅ First-time login lands directly on Command Hub
-- ✅ Session expiry redirects to `/login?reason=expired`
+-  Root `/` redirects to `/dashboard/command-hub` (authenticated users)
+-  `/dashboard` redirects to `/dashboard/command-hub`
+-  Sidebar highlights "Command Hub" as active page
+-  First-time login lands directly on Command Hub
+-  Session expiry redirects to `/login?reason=expired`
 
 ### Typography & Branding
 
@@ -2280,29 +2280,29 @@ app/globals.css                        ← Animations
 **File Locations:**
 ```
 app/
-├── (dashboard)/          ← SAMADHAAN Mission Control
+├── (dashboard)/           SAMADHAAN Mission Control
 │   ├── layout.tsx
 │   ├── page.tsx
 │   └── loading.tsx
-├── (admin)/              ← Admin Control Panel
+├── (admin)/               Admin Control Panel
 │   ├── layout.tsx
 │   ├── users/page.tsx
 │   └── loading.tsx
-├── (docs)/               ← Knowledge Vault
+├── (docs)/                Knowledge Vault
 │   ├── layout.tsx
 │   ├── page.tsx
 │   └── loading.tsx
-├── dashboard/            ← Original TB-PWA-Clean
+├── dashboard/             Original TB-PWA-Clean
 │   ├── layout.tsx
 │   └── page.tsx
-├── layout.tsx            ← Root (updated with SAMADHAAN)
-└── login/page.tsx        ← Updated with session messaging
+├── layout.tsx             Root (updated with SAMADHAAN)
+└── login/page.tsx         Updated with session messaging
 
 components/
-└── DataPacketChase.tsx   ← New animation component
+└── DataPacketChase.tsx    New animation component
 
 lib/
-└── audioFeedback.ts      ← New Web Audio utilities
+└── audioFeedback.ts       New Web Audio utilities
 ```
 
 ---
@@ -2311,15 +2311,15 @@ lib/
 
 ---
 
-## 🌐 Production Deployment & Architecture Audit (2025-01-21)
+##  Production Deployment & Architecture Audit (2025-01-21)
 
-### 🎯 Production URL
+###  Production URL
 
 **Vercel Project:** `hhxr-tb-engine`  
 **Production URL:** `https://hhxr-tb-engine.vercel.app`  
 **Latest Deployment:** `https://hhxr-tb-engine-kmkpuyqbm-faribros-projects.vercel.app` (Ready - 10 days ago)
 
-### 📡 Data Ingestion Architecture
+###  Data Ingestion Architecture
 
 **Current State:** Next.js handles ALL patient data ingestion directly to Supabase.
 
@@ -2328,13 +2328,13 @@ KoboToolbox Form Submission
          │
          ▼
 ┌──────────────────────┐
-│ Next.js Webhook      │  ← PRIMARY (Real-time)
+│ Next.js Webhook      │   PRIMARY (Real-time)
 │ /api/webhook/kobo    │
 └──────────┬───────────┘
            │
            ▼
 ┌──────────────────────┐
-│ Supabase (patients)  │  ← SOURCE OF TRUTH
+│ Supabase (patients)  │   SOURCE OF TRUTH
 └──────────┬───────────┘
            │
            ├─────────────────────────────────────┐
@@ -2347,14 +2347,14 @@ KoboToolbox Form Submission
 ```
 
 **Key Findings:**
-- ✅ **Webhook Receiver:** `/api/webhook/kobo` - PRODUCTION READY
-- ✅ **Manual Sync:** `/api/etl/kobo-sync` - Paginated batch sync (500 records/page)
-- ✅ **Data Mapper:** `lib/koboMapper.ts` - 4-way fallback field mapping
-- ✅ **Direct Supabase Writes:** All patient data writes use Service Role Key
-- ⚠️ **Rust Backend:** Only for Neural Nexus (DICOM files), NOT patient data
-- ⚠️ **Google Sheets:** Async sync via Google Apps Script (optional)
+-  **Webhook Receiver:** `/api/webhook/kobo` - PRODUCTION READY
+-  **Manual Sync:** `/api/etl/kobo-sync` - Paginated batch sync (500 records/page)
+-  **Data Mapper:** `lib/koboMapper.ts` - 4-way fallback field mapping
+-  **Direct Supabase Writes:** All patient data writes use Service Role Key
+-  **Rust Backend:** Only for Neural Nexus (DICOM files), NOT patient data
+-  **Google Sheets:** Async sync via Google Apps Script (optional)
 
-### 🔧 Webhook Configuration
+###  Webhook Configuration
 
 **For KoboToolbox:**
 ```
@@ -2370,7 +2370,7 @@ const NEXT_JS_WEBHOOK_URL = "https://hhxr-tb-engine.vercel.app/api/webhook/kobo"
 const WEBHOOK_SECRET = "alliance_kobo_secure_2026";
 ```
 
-### 🛡️ Security Architecture
+###  Security Architecture
 
 **Authentication:**
 - Header-based secret validation (`x-kobo-webhook-secret`)
@@ -2378,29 +2378,29 @@ const WEBHOOK_SECRET = "alliance_kobo_secure_2026";
 - Bearer token auth for Rust backend (Neural Nexus only)
 
 **Data Flow:**
-- KoboToolbox → Next.js Webhook → Supabase (primary)
-- Supabase → Google Sheets (async, non-blocking)
-- Azure Blob → Rust Backend → Next.js Proxy → Frontend (DICOM only)
+- KoboToolbox  Next.js Webhook  Supabase (primary)
+- Supabase  Google Sheets (async, non-blocking)
+- Azure Blob  Rust Backend  Next.js Proxy  Frontend (DICOM only)
 
-### 🐛 Console Error Fixes Applied
+###  Console Error Fixes Applied
 
-**1. CORS Issue in AdvancedFilterBar.tsx** ✅ FIXED
+**1. CORS Issue in AdvancedFilterBar.tsx**  FIXED
 - **Problem:** Direct fetch to Google Apps Script from client (blocked by CORS)
 - **Solution:** Route through `/api/sync-sheets` server-side proxy
 - **Files Modified:** `components/AdvancedFilterBar.tsx`, `app/api/sync-sheets/route.ts`
 
-**2. Missing MED_BACKEND_SECRET** ⚠️ ACTION REQUIRED
+**2. Missing MED_BACKEND_SECRET**  ACTION REQUIRED
 - **Problem:** 401 Unauthorized on `/api/orphans`
 - **Solution:** Add to `.env.local`:
   ```env
   MED_BACKEND_SECRET=tb_bulk_upload_production_secret_2025_secure_key_alliance_medical_system
   ```
 
-**3. Dark Reader Extension** ℹ️ INFO
+**3. Dark Reader Extension** ℹ INFO
 - **Problem:** Hydration mismatch due to browser extension
 - **Solution:** Disable Dark Reader for `localhost:3000`
 
-### 📊 API Routes Inventory
+###  API Routes Inventory
 
 **Data Ingestion:**
 - `/api/webhook/kobo` - Real-time Kobo webhook receiver
@@ -2423,7 +2423,7 @@ const WEBHOOK_SECRET = "alliance_kobo_secure_2026";
 - `/api/generate-image` - Image generation
 - `/api/vector-engine` - Vector search
 
-### 🚀 Deployment Commands
+###  Deployment Commands
 
 ```bash
 # Deploy to production
@@ -2439,7 +2439,7 @@ vercel logs https://hhxr-tb-engine.vercel.app
 vercel env add KOBO_WEBHOOK_SECRET production
 ```
 
-### 📝 Environment Variables Checklist
+###  Environment Variables Checklist
 
 **Required for Production:**
 - [x] `NEXT_PUBLIC_SUPABASE_URL`
@@ -2460,7 +2460,7 @@ vercel env add KOBO_WEBHOOK_SECRET production
 
 ---
 
-## 📝 TB Patient Screening Form - PC Dashboard
+##  TB Patient Screening Form - PC Dashboard
 
 ### Overview
 
@@ -2486,36 +2486,36 @@ vercel env add KOBO_WEBHOOK_SECRET production
 
 ```
 PC screens patient offline
-  ↓
+  
 onSubmit detects !navigator.onLine
-  ↓
+  
 saves to IndexedDB (idb library)
-  ↓
+  
 shows "Saved locally" overlay
-  ↓
+  
 PC returns to connectivity
-  ↓
+  
 window 'online' event fires
-  ↓
+  
 useOfflineSync auto-calls syncPending()
-  ↓
+  
 inserts all pending records to Supabase
-  ↓
+  
 marks records synced: true in IDB
-  ↓
+  
 pendingCount resets to 0
-  ↓
+  
 banner disappears from my-submissions
 ```
 
 **Key Features:**
-- ✅ Automatic offline detection
-- ✅ IndexedDB storage with `idb` library
-- ✅ Auto-sync when connection restored
-- ✅ Pending count badge in header
-- ✅ Manual sync button when online
-- ✅ Service Worker for route caching
-- ✅ Retry logic with exponential backoff
+-  Automatic offline detection
+-  IndexedDB storage with `idb` library
+-  Auto-sync when connection restored
+-  Pending count badge in header
+-  Manual sync button when online
+-  Service Worker for route caching
+-  Retry logic with exponential backoff
 
 **Technical Implementation:**
 
@@ -2671,7 +2671,7 @@ self.addEventListener('fetch', e => {
 2. Go to Network tab
 3. Change "No throttling" to "Offline"
 4. Fill out form and submit
-5. Check Application → IndexedDB → samadhaan-offline-v1
+5. Check Application  IndexedDB  samadhaan-offline-v1
 6. See pending submission stored
 7. Change back to "Online"
 8. Watch auto-sync trigger
@@ -2786,8 +2786,8 @@ self.addEventListener('fetch', e => {
 - 10 symptom cards with Lucide icons
 - Interactive tappable rows (not plain checkboxes)
 - Symptom count badge
-- X-ray toggle → reveals result dropdown
-- CBNAAT toggle → reveals result dropdown
+- X-ray toggle  reveals result dropdown
+- CBNAAT toggle  reveals result dropdown
 
 **Symptoms:**
 1. Cough ≥ 2 weeks (Wind icon)
@@ -2924,8 +2924,8 @@ interface FormFieldProps {
 - Knob slides left/right with smooth transition
 
 **6. ConditionalReveal** - AnimatePresence wrapper
-- Smooth height animation (0 → auto)
-- Opacity fade (0 → 1)
+- Smooth height animation (0  auto)
+- Opacity fade (0  1)
 - Duration: 0.22s with custom easing
 
 **7. SuccessOverlay** - Full-screen success modal
@@ -3118,14 +3118,14 @@ confetti({
 
 **Data Flow:**
 ```
-PC User → Submit New Record Button
-         ↓
+PC User  Submit New Record Button
+         
     /dashboard/submit-new (5-step form)
-         ↓
+         
     Supabase patients table insert
-         ↓
+         
     Success overlay + confetti
-         ↓
+         
     Auto-redirect to /dashboard/my-submissions
 ```
 
@@ -3161,7 +3161,7 @@ staff_name: sessionScope?.staffName
 
 ---
 
-## 🔎 Code Review Findings (2026-03-19)
+##  Code Review Findings (2026-03-19)
 
 This section documents **new** findings from a repo-wide review (beyond the existing Performance/Tech Debt notes above). Items are prioritized to help you harden security and stabilize production behavior.
 
@@ -3249,7 +3249,7 @@ This section documents **new** findings from a repo-wide review (beyond the exis
 
 ## Pending SQL Migrations
 
-✅ All migrations completed as of 2026-04-11
+ All migrations completed as of 2026-04-11
 
 ### Performance Indexes (Run in Supabase SQL Editor)
 
@@ -3278,7 +3278,7 @@ ORDER BY indexname;
 
 | Layer | File | Responsibility |
 |-------|------|----------------|
-| Ingest | koboMapper.ts | KoboCollect → Supabase schema |
+| Ingest | koboMapper.ts | KoboCollect  Supabase schema |
 | API | /api/patients | Paginated record fetch, RBAC, batching |
 | API | /api/vertex/metrics | Aggregated stats, server-side GROUP BY |
 | Hook | useSWRPatients.ts | Client cache, network-first fetching |
@@ -3377,7 +3377,7 @@ All `/api/patients` responses include metadata:
 
 [2026-01-21] prisma/schema.prisma - Added date_corrected Boolean field to patients model with default false; added index idx_patients_date_corrected for performance [AQ]
 [2026-01-21] DATABASE - Pushed schema changes to production Supabase database; date_corrected column now available in patients table [AQ]
-[2026-01-21] scripts/fix-invalid-dates.js - Executed with --confirm flag; successfully updated 5 Gujarat records with invalid screening_date (1995-2004) by backfilling from submitted_on; all records flagged with date_corrected = true: Bhanusingh (2004-09-08 → 2026-04-21), Jenti hai jitharbhai makavana (1996-04-10 → 2026-04-23), Pinto Bhai (1995-12-21 → 2026-04-18), Parindas (1995-08-11 → 2026-04-18), Vikram Bhokal (1995-03-01 → 2026-04-18) [AQ]
+[2026-01-21] scripts/fix-invalid-dates.js - Executed with --confirm flag; successfully updated 5 Gujarat records with invalid screening_date (1995-2004) by backfilling from submitted_on; all records flagged with date_corrected = true: Bhanusingh (2004-09-08  2026-04-21), Jenti hai jitharbhai makavana (1996-04-10  2026-04-23), Pinto Bhai (1995-12-21  2026-04-18), Parindas (1995-08-11  2026-04-18), Vikram Bhokal (1995-03-01  2026-04-18) [AQ]
 [2026-01-21] components/ScreeningFrequencyTimeline.tsx - Neural Timeline now displays glowing amber indicators for date-corrected records; bars with corrected dates show pulsing amber overlay, blinking dot, amber ring, and tooltip displays corrected count; Vertex now shows all 1,302 Gujarat records (previously 1,297) [AQ]
 
 [2026-01-21] ISSUE IDENTIFIED - components/Vertex.tsx Geographic Case Distribution showing stale data when date changes; groupedGeography useMemo not properly invalidating when selectedDate changes; Demographics tab slow save performance; 10S symptoms field missing data in demographics [AQ]
@@ -3387,7 +3387,7 @@ All `/api/patients` responses include metadata:
 
 [2025-01-23] Vertex.tsx - Fixed Bug 1: Geographic Case Distribution stale data on date change. Added selectedDate and serverGeoSummary to groupedGeography useMemo dependencies, added isDateChanging state with 400ms transition, added geographyKey for forced remount on date change, added loading overlay with spinner during geography updates. Prevents race condition where old geography data persists when selectedDate changes. [AQ]
 
-[2025-01-23] PatientDetailDrawer.tsx - Fixed Bug 2: Demographics tab slow save performance. Applied 4 optimizations: (1) Changed blocking await mutate() to non-blocking background refresh (saves 500-2000ms), (2) Removed redundant Supabase re-fetch after API already returned fresh data (saves 100-300ms), (3) Moved setSynced() call to use API response instead of re-fetch, (4) Added optimistic UI update before API call for instant feedback. Total speedup: 600-2300ms faster (from 2.8s → 0.5s). User now sees changes immediately with optimistic update, then server confirms in background. [AQ]
+[2025-01-23] PatientDetailDrawer.tsx - Fixed Bug 2: Demographics tab slow save performance. Applied 4 optimizations: (1) Changed blocking await mutate() to non-blocking background refresh (saves 500-2000ms), (2) Removed redundant Supabase re-fetch after API already returned fresh data (saves 100-300ms), (3) Moved setSynced() call to use API response instead of re-fetch, (4) Added optimistic UI update before API call for instant feedback. Total speedup: 600-2300ms faster (from 2.8s  0.5s). User now sees changes immediately with optimistic update, then server confirms in background. [AQ]
 
 [2025-01-23] BUG 3 INVESTIGATION COMPLETE - symptoms_10s field showing empty NOT a code bug, it's a DATA MISMATCH bug. Investigation findings: (1) Database has 100% data coverage - all 19,235 patients have symptoms_10s values like "No Symptoms", "Cough of any duration", etc. (2) UI code is CORRECT - DemographicsCarousel.tsx line 234 properly renders the field with getValue('symptoms10s', patient?.symptoms_10s). (3) ROOT CAUSE: Field dropdown options are WRONG - UI shows options=['Yes', 'No'] but database contains descriptive strings like "No Symptoms", "Cough of any duration", "Night Sweats", etc. The dropdown expects binary Yes/No but receives multi-value symptom descriptions, causing mismatch and empty display. FIX REQUIRED: Change symptoms_10s field from select dropdown to read-only text display, OR add all possible symptom values to dropdown options (100+ distinct values found). Recommend read-only display since symptoms are complex multi-select strings from Kobo form. [AQ]
 
@@ -3395,7 +3395,7 @@ All `/api/patients` responses include metadata:
 
 [2025-01-23] DemographicsCarousel.tsx - Implemented smart field rendering system with FIELD_CONFIG map for automatic input type detection. Enhanced FormFieldRow component to support checkbox (toggle switch), select (dropdown), date, number, and text field types. Boolean fields (sputum_collected, tb_diagnosed, art_started, cpt_given) now render as animated toggle switches with green/gray badges in view mode. Empty fields display "Not recorded" in italic instead of "—". Added immediate update for checkbox fields (no debounce) for better UX. All field types auto-detect from config or explicit fieldType prop. [AQ]
 
-[2025-01-23] DemographicsCarousel.tsx - CRITICAL FIX: Fixed all fieldKey mismatches causing silent save failures. Changed all fieldKeys from camelCase to exact Supabase snake_case column names (e.g., 'xrayresult' → 'xray_result', 'inmatename' → 'inmate_name', 'facilitycode' → 'facility_name'). This was causing X-Ray results and other fields to save to non-existent keys. Added 3 new sections with 16 missing TB-critical fields: (1) Referral & Diagnosis section (referral_date, referred_to_facility, tb_diagnosed, diagnosis_date), (2) HIV/ART section (hiv_status, art_started, art_center, cpt_given), (3) Nikshay/Registration section (nikshay_id, abha_id, att_start_date, treatment_regimen). Added ai_confidence_score and sputum_collected to TB Screening section. Imported new icons (FileText, Shield, ClipboardList). Updated FIELD_CONFIG with all new fields and readOnly support. All 21 fieldKeys now match exact Supabase column names for reliable data persistence. [AQ]
+[2025-01-23] DemographicsCarousel.tsx - CRITICAL FIX: Fixed all fieldKey mismatches causing silent save failures. Changed all fieldKeys from camelCase to exact Supabase snake_case column names (e.g., 'xrayresult'  'xray_result', 'inmatename'  'inmate_name', 'facilitycode'  'facility_name'). This was causing X-Ray results and other fields to save to non-existent keys. Added 3 new sections with 16 missing TB-critical fields: (1) Referral & Diagnosis section (referral_date, referred_to_facility, tb_diagnosed, diagnosis_date), (2) HIV/ART section (hiv_status, art_started, art_center, cpt_given), (3) Nikshay/Registration section (nikshay_id, abha_id, att_start_date, treatment_regimen). Added ai_confidence_score and sputum_collected to TB Screening section. Imported new icons (FileText, Shield, ClipboardList). Updated FIELD_CONFIG with all new fields and readOnly support. All 21 fieldKeys now match exact Supabase column names for reliable data persistence. [AQ]
 
 [2025-01-23] DemographicsCarousel.tsx - Layout restructure for better space utilization and logical field grouping. (1) Moved Address field from standalone Location section into Identity Profile section (now 7 fields total). (2) Merged TB Screening section into Screening Logistics and renamed to "TB Screening" - now contains both logistics fields (staff, dates, facility) and clinical TB fields (X-ray, symptoms, history) with visual divider between groups. (3) Changed System Metadata from 2 stacked rows to single row with Kobo UUID | Serial Number side-by-side. (4) Updated section icon from Calendar to Activity for renamed TB Screening section. Final layout: Left column has Identity Profile only; Right column has TB Screening (merged), Referral & Diagnosis, HIV/ART, Nikshay/Registration, and System Metadata. Removed standalone Location section entirely. Total sections reduced from 8 to 6 with better information density. [AQ]
 
@@ -3411,7 +3411,7 @@ All `/api/patients` responses include metadata:
 
 [2025-01-23] lib/redis.ts, scripts/test-redis.js - Fixed Redis connection issues with Upstash. Improved URL construction from UPSTASH_REDIS_REST_URL (properly strips https:// prefix). Added comprehensive connection logging (connect, ready, error, close events). Added TLS configuration with rejectUnauthorized:false for Upstash self-signed certs. Added connection and command timeouts (10s/5s). Created test-redis.js script to verify Redis connectivity with 6 tests: connection, ready, PING, SET, GET, DEL. Run with 'bun run test:redis' to diagnose connection issues. [AQ]
 
-[2025-01-23] lib/redis.ts - CRITICAL FIX: Fixed IORedis/BullMQ Upstash connection. Previous implementation incorrectly used UPSTASH_REDIS_REST_TOKEN (HTTP API token) as Redis password - these are DIFFERENT credentials. REST tokens work for @upstash/redis HTTP client but NOT for IORedis TCP connections. Changed to use proper TCP credentials: UPSTASH_REDIS_HOST, UPSTASH_REDIS_PASSWORD (from Upstash Console → Details → Password field), UPSTASH_REDIS_PORT. Added tls:{} (empty object required for Upstash TLS - cannot infer from rediss:// scheme). Added connection verification with PING on startup. Added clear error messages when credentials missing. This fixes "Using in-memory queue fallback" errors - BullMQ queue will now connect properly. [AQ]
+[2025-01-23] lib/redis.ts - CRITICAL FIX: Fixed IORedis/BullMQ Upstash connection. Previous implementation incorrectly used UPSTASH_REDIS_REST_TOKEN (HTTP API token) as Redis password - these are DIFFERENT credentials. REST tokens work for @upstash/redis HTTP client but NOT for IORedis TCP connections. Changed to use proper TCP credentials: UPSTASH_REDIS_HOST, UPSTASH_REDIS_PASSWORD (from Upstash Console  Details  Password field), UPSTASH_REDIS_PORT. Added tls:{} (empty object required for Upstash TLS - cannot infer from rediss:// scheme). Added connection verification with PING on startup. Added clear error messages when credentials missing. This fixes "Using in-memory queue fallback" errors - BullMQ queue will now connect properly. [AQ]
 
 [2026-05-04] DemographicsCarousel.tsx - Refactored demographics UI to premium clinical resume layout. Removed dead code (AnimatedToggle import, Chapter, ChecklistItem, DataField components). Fixed SYMPTOMS_MASTER to canonical 10-symptom list (Cough, Fever, Weight loss, Night sweats, Blood in sputum, Shortness of breath, Chest pain, Loss of appetite, Fatigue, Swelling in neck) with robust defensive parsing handling comma-separated, underscored, and Kobo multi-select formats. Improved typography: increased labels from text-[8.5px] to text-[10px], values from text-[13px] to text-[14px], section titles from text-[9.5px] to text-[10px]. Made header responsive: status box stacks below patient panel on mobile (flex-col md:flex-row), border changes from side to top on mobile. Integrated address into grid with span={2} instead of separate div, improved visibility. Increased grid gap-y from 5 to 6 for better spacing rhythm. All symptoms always rendered with visual distinction for selected/unselected states. [AQ]
 
@@ -3419,9 +3419,9 @@ All `/api/patients` responses include metadata:
 
 [2026-05-04] DemographicsCarousel.tsx - Final polish pass for production-grade clinical UI with calm authority. Clinical status panel: increased heading from text-[9px] to text-[10px], labels from text-[10.5px] to text-[11px], values from text-[11px] to text-[12px] for clearer hierarchy and accessibility. Increased panel gap from gap-3 to gap-3.5 for better breathing room. Section titles: increased from text-[10.5px] to text-[11px] for better scannability. Symptom rows: changed unselected background from bg-slate-50 to bg-white for calmer clinical feel, increased vertical padding from py-2 to py-2.5, changed unselected icon from bg-slate-300 to bg-slate-200. Symptom grid gap increased from gap-2 to gap-2.5. Accessibility: added focus-visible:ring-2 focus-visible:ring-indigo-300 to input classes for keyboard-only navigation. All changes maintain edit/save compatibility and responsive behavior. [AQ]
 
-[2026-05-04] DemographicsCarousel.tsx - Bug fixes for production readiness. Fixed select dropdown placeholder encoding bug: replaced "Selectâ€¦" with proper Unicode ellipsis "Select…". Fixed symptom parsing to handle space-separated, comma-separated, and other delimiter formats from Kobo by adding space to delimiter regex. Added formatXrayResult helper to normalize underscored Kobo values to human-readable labels (e.g., "Suspected_TB_Case" → "Suspected TB"), applied to clinical status panel and diagnostics section. Updated section accent colors to semantic system: Identity (slate-900 neutral authority), Screening (amber-500 temporal), Symptoms (red-500 clinical alert), Diagnostics (blue-600 diagnostic), HIV (pink-500 clinical), Registration (slate-400 administrative). Verified date fields show "Not recorded" correctly, clinical status badges meet contrast requirements (12px text), action bar buttons pass accessibility contrast. All changes maintain edit/save compatibility. [AQ]
+[2026-05-04] DemographicsCarousel.tsx - Bug fixes for production readiness. Fixed select dropdown placeholder encoding bug: replaced "Selectâ€¦" with proper Unicode ellipsis "Select…". Fixed symptom parsing to handle space-separated, comma-separated, and other delimiter formats from Kobo by adding space to delimiter regex. Added formatXrayResult helper to normalize underscored Kobo values to human-readable labels (e.g., "Suspected_TB_Case"  "Suspected TB"), applied to clinical status panel and diagnostics section. Updated section accent colors to semantic system: Identity (slate-900 neutral authority), Screening (amber-500 temporal), Symptoms (red-500 clinical alert), Diagnostics (blue-600 diagnostic), HIV (pink-500 clinical), Registration (slate-400 administrative). Verified date fields show "Not recorded" correctly, clinical status badges meet contrast requirements (12px text), action bar buttons pass accessibility contrast. All changes maintain edit/save compatibility. [AQ]
 
-[2026-05-04] DemographicsCarousel.tsx - Comprehensive production hardening and UX improvements across 6 phases. Phase 2: Created robust parseKoboSymptoms() export function with TypeScript return type, handles 7 Kobo output formats (comma-separated, space-separated, underscore compounds, mixed case, special characters, numbered lists, Hindi fallback). Added SYMPTOM_ALIASES map, exact/partial matching (≥60% overlap), unrecognized symptom tracking, and raw value fallback. Phase 3: Created formatXrayValue() export function with full Alliance India Kobo mapping (Suspected_TB_Case → Suspected TB, No_TB_Suspected → Normal, etc.), handles both underscore and space variants, returns "Not recorded" for null/empty. Phase 4: Updated FIELD_CONFIG with proper select options for sex (Male/Female/Other/Prefer not to say), hiv_status (Positive/Negative/Unknown/Not tested), tb_diagnosed_select (Yes/No/Inconclusive/Pending), sputum_collected_select (Yes/No/Refused/Not applicable), art_started (Yes/No/Not applicable), xray_result (expanded options). Date fields already configured correctly. Phase 5: Added Info icon to imports, extended Field component with hint prop, applied context-aware hints to Nikshay ID (Assign after TB confirmation), ABHA ID (Link via ABHA portal), ATT Start Date (Set when treatment begins), ART Center (Required if HIV positive), Kobo UUID (Generated by Kobo on submission). Hints display in VIEW mode only with slate-400 italic text. Phase 6: Updated SymptomRow component for clinical checklist feel - selected symptoms get filled red-500 circle with bg-red-50 and semibold slate-900 text, unselected get empty circle outline with white bg and normal slate-400 text, no borders. Added inline symptom count badge with color coding (red-600 if ≥3, amber-600 if 1-2, slate-400 if 0). Added "No symptoms recorded" note when all 10 false. Added unrecognized symptoms display section. All changes maintain edit/save compatibility, responsive behavior, and accessibility. [AQ]
+[2026-05-04] DemographicsCarousel.tsx - Comprehensive production hardening and UX improvements across 6 phases. Phase 2: Created robust parseKoboSymptoms() export function with TypeScript return type, handles 7 Kobo output formats (comma-separated, space-separated, underscore compounds, mixed case, special characters, numbered lists, Hindi fallback). Added SYMPTOM_ALIASES map, exact/partial matching (≥60% overlap), unrecognized symptom tracking, and raw value fallback. Phase 3: Created formatXrayValue() export function with full Alliance India Kobo mapping (Suspected_TB_Case  Suspected TB, No_TB_Suspected  Normal, etc.), handles both underscore and space variants, returns "Not recorded" for null/empty. Phase 4: Updated FIELD_CONFIG with proper select options for sex (Male/Female/Other/Prefer not to say), hiv_status (Positive/Negative/Unknown/Not tested), tb_diagnosed_select (Yes/No/Inconclusive/Pending), sputum_collected_select (Yes/No/Refused/Not applicable), art_started (Yes/No/Not applicable), xray_result (expanded options). Date fields already configured correctly. Phase 5: Added Info icon to imports, extended Field component with hint prop, applied context-aware hints to Nikshay ID (Assign after TB confirmation), ABHA ID (Link via ABHA portal), ATT Start Date (Set when treatment begins), ART Center (Required if HIV positive), Kobo UUID (Generated by Kobo on submission). Hints display in VIEW mode only with slate-400 italic text. Phase 6: Updated SymptomRow component for clinical checklist feel - selected symptoms get filled red-500 circle with bg-red-50 and semibold slate-900 text, unselected get empty circle outline with white bg and normal slate-400 text, no borders. Added inline symptom count badge with color coding (red-600 if ≥3, amber-600 if 1-2, slate-400 if 0). Added "No symptoms recorded" note when all 10 false. Added unrecognized symptoms display section. All changes maintain edit/save compatibility, responsive behavior, and accessibility. [AQ]
 
 [2026-05-05] DemographicsCarousel.tsx - Refactored section headers from thick colored left borders to minimal editorial style (OPTION A). Removed 3px thick accent bars (slate-900, amber-500, red-500, blue-600, pink-500, slate-400) from all 6 section headers. Replaced with clean label + horizontal rule pattern: text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase whitespace-nowrap label followed by flex-1 h-px bg-slate-200 divider. Reduced vertical padding from gap-5 to py-3 on header wrapper for tighter, more document-like spacing. Removed accent prop from DocSection component and all usages. Result: cleaner clinical-resume aesthetic with consistent neutral treatment across all sections (Identity & Contact, Screening Encounter, 10S Symptom Checklist, Diagnostics & Treatment, HIV / ART Status, Registration & System). [AQ]
 
@@ -3430,14 +3430,14 @@ All `/api/patients` responses include metadata:
 [2026-05-05] PatientDetailDrawer.tsx, app/api/patient-sync/route.ts - Fixed screening date not persisting despite success response. Root cause 1: formatDateForInput was using toISOString().split('T')[0] which can have timezone offset issues with ISO timestamps. Fixed by using local date parts (getFullYear, getMonth, getDate) to avoid timezone problems. Root cause 2: patient-sync API was not returning screening_date (and other date fields) in the response select statement, so updated values were never sent back to frontend. Added screening_date, date_of_birth, submitted_on, facility_name, facility_type, screening_district to the select clause. [AQ]
 
 
-## 🔧 Vercel Environment Variables Setup
+##  Vercel Environment Variables Setup
 
 ### Quick Setup (3 Methods)
 
 #### Method 1: Vercel Dashboard (Recommended)
 1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
 2. Select project: **hhxr-tb-engine**
-3. Settings → Environment Variables
+3. Settings  Environment Variables
 4. Copy variables from `VERCEL_ENV_SETUP.md`
 5. Add to **Production, Preview, and Development** environments
 
@@ -3467,7 +3467,7 @@ QSTASH_NEXT_SIGNING_KEY=sig_6LReUmaTGHpiAHRn9fTWpibd6Fcf
 
 After adding variables:
 1. Redeploy: `vercel --prod`
-2. Check logs: Vercel Dashboard → Deployments → Function Logs
+2. Check logs: Vercel Dashboard  Deployments  Function Logs
 3. Test QStash: https://console.upstash.com/qstash
 4. Test Redis: https://console.upstash.com/redis
 

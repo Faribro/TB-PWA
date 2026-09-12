@@ -1,20 +1,20 @@
-# 🚨 URGENT: Update Google Apps Script for Batch Support
+#  URGENT: Update Google Apps Script for Batch Support
 
 ## Problem
 The current Google Apps Script doesn't support batch operations, so the 267 records we sent are not appearing in Google Sheets.
 
 ## Solution
 Deploy the new batch-enabled script that handles:
-- ✅ Batch operations (50+ records at once)
-- ✅ Single record updates
-- ✅ Upsert logic (update if exists, insert if new)
+-  Batch operations (50+ records at once)
+-  Single record updates
+-  Upsert logic (update if exists, insert if new)
 
 ## Deployment Steps
 
 ### Step 1: Open Google Apps Script Editor
 
 1. Open your Google Sheet: **Patient Linelist_TB**
-2. Click **Extensions** → **Apps Script**
+2. Click **Extensions**  **Apps Script**
 3. You should see the existing `doPost` function
 
 ### Step 2: Replace with New Code
@@ -30,15 +30,15 @@ Deploy the new batch-enabled script that handles:
 Check these lines at the top of the script:
 
 ```javascript
-const SHEET_NAME = 'Patient Linelist_TB'; // ✅ Must match your sheet name EXACTLY
+const SHEET_NAME = 'Patient Linelist_TB'; //  Must match your sheet name EXACTLY
 const WEBHOOK_SECRET = 'alliance_kobo_secure_2026';
 ```
 
 ### Step 4: Save and Deploy
 
-1. Click **💾 Save** (or Ctrl+S)
-2. Click **Deploy** → **Manage deployments**
-3. Click the **✏️ Edit** icon (pencil) next to your existing deployment
+1. Click ** Save** (or Ctrl+S)
+2. Click **Deploy**  **Manage deployments**
+3. Click the ** Edit** icon (pencil) next to your existing deployment
 4. Under "Version", select **New version**
 5. Add description: "Added batch operation support"
 6. Click **Deploy**
@@ -54,8 +54,8 @@ bun run scripts/verify-last-sync.js
 
 Expected output:
 ```
-✅ WEBHOOK IS WORKING
-✅ Data should appear in Google Sheets
+ WEBHOOK IS WORKING
+ Data should appear in Google Sheets
 ```
 
 ### Step 6: Re-sync May 2026 Records
@@ -130,11 +130,11 @@ After deployment, check the Apps Script execution logs:
 
 ## Next Steps
 
-1. ✅ Deploy the new script
-2. ✅ Test with `verify-last-sync.js`
-3. ✅ Re-run `sync-may-records.ts`
-4. ✅ Check Google Sheet for 267 new records
-5. ✅ Verify data appears correctly
+1.  Deploy the new script
+2.  Test with `verify-last-sync.js`
+3.  Re-run `sync-may-records.ts`
+4.  Check Google Sheet for 267 new records
+5.  Verify data appears correctly
 
 ## Support
 

@@ -44,16 +44,16 @@ ALTER TABLE patients
 ```
 
 ## Files Changed
-- ✅ lib/sheetsSync.ts (fire-and-forget helper)
-- ✅ app/api/webhook/kobo/route.ts (use new helper)
-- ✅ app/api/patient-sync/route.ts (use new helper)
-- ✅ hooks/usePatientRealtime.ts (new Realtime hook)
-- ✅ app/dashboard/follow-up/page.tsx (add Realtime)
-- ✅ app/dashboard/command-hub/page.tsx (add Realtime)
-- ✅ supabase/migrations/20250127_remove_sheets_sync_tracking.sql (new migration)
+-  lib/sheetsSync.ts (fire-and-forget helper)
+-  app/api/webhook/kobo/route.ts (use new helper)
+-  app/api/patient-sync/route.ts (use new helper)
+-  hooks/usePatientRealtime.ts (new Realtime hook)
+-  app/dashboard/follow-up/page.tsx (add Realtime)
+-  app/dashboard/command-hub/page.tsx (add Realtime)
+-  supabase/migrations/20250127_remove_sheets_sync_tracking.sql (new migration)
 
 ## Files Deleted
-- ✅ C:\Users\farid\Desktop\Alliance-India-TB\SupabaseSync.js (dead code)
+-  C:\Users\farid\Desktop\Alliance-India-TB\SupabaseSync.js (dead code)
 
 ## Architecture After Refactor
 - Supabase = source of truth

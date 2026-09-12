@@ -6,7 +6,7 @@ This document explains the **schema-compliant** database insertion logic for the
 
 ---
 
-## 🔒 Critical Directives
+##  Critical Directives
 
 ### 1. **DO NOT Manually Populate Phonetic Columns**
 
@@ -27,10 +27,10 @@ NEW.name_metaphone_alternate := dmetaphone_alt(COALESCE(NEW.inmate_name, ''));
 The `patients.age` column is defined as `TEXT` in the schema. Always convert extracted age to string:
 ```typescript
 age: decision.extractedData.age != null
-  ? String(decision.extractedData.age)  // ✅ Correct
+  ? String(decision.extractedData.age)  //  Correct
   : null,
 
-// ❌ WRONG:
+//  WRONG:
 age: decision.extractedData.age,  // Type mismatch if age is number
 ```
 
@@ -54,7 +54,7 @@ if (error) {
 
 ---
 
-## 📊 Patients Table Schema
+##  Patients Table Schema
 
 ### Core Identity Columns
 | Column | Type | Source | Notes |
@@ -85,7 +85,7 @@ if (error) {
 
 ---
 
-## 🔧 Implementation
+##  Implementation
 
 ### File: `app/api/register-reconcile/route.ts`
 
@@ -162,7 +162,7 @@ else if (decision.action === "create") {
     // Verify trigger populated phonetic columns
     if (insertedPatient) {
       console.log(
-        `[RegisterReconcile] ✅ Created patient ${insertedPatient.id}:`,
+        `[RegisterReconcile]  Created patient ${insertedPatient.id}:`,
         {
           inmate_name: insertedPatient.inmate_name,
           name_romanized: insertedPatient.name_romanized,
@@ -176,7 +176,7 @@ else if (decision.action === "create") {
 
 ---
 
-## 📝 Extraction Audit Update
+##  Extraction Audit Update
 
 After processing all decisions, the `register_extractions` table is updated to mark the session as committed:
 
@@ -185,7 +185,7 @@ After processing all decisions, the `register_extractions` table is updated to m
 const { error: updateError } = await supabase
   .from("register_extractions")
   .update({
-    status: "committed",           // pending → committed
+    status: "committed",           // pending  committed
     review_decisions: body.decisions,  // Store officer's decisions
     committed_at: new Date().toISOString(),
   })
@@ -207,7 +207,7 @@ if (updateError) {
 | `created_at` | TIMESTAMPTZ | Extraction timestamp |
 | `created_by` | TEXT | M&E officer email |
 | `image_url` | TEXT | Supabase Storage path |
-| `status` | TEXT | `pending` → `committed` |
+| `status` | TEXT | `pending`  `committed` |
 | `extracted_rows` | JSONB | Raw OCR output |
 | `match_results` | JSONB | Fuzzy match candidates |
 | `review_decisions` | JSONB | Officer's accept/create/reject |
@@ -216,7 +216,7 @@ if (updateError) {
 
 ---
 
-## 🧪 Testing
+##  Testing
 
 ### Test Case 1: Valid New Patient
 
@@ -282,13 +282,13 @@ LIMIT 1;
 {
   "extractedData": {
     "name": "Test Patient",
-    "age": 25  // ❌ Number instead of string
+    "age": 25  //  Number instead of string
   }
 }
 ```
 
 **Expected Behavior:**
-- Conversion to string: `String(25)` → `"25"`
+- Conversion to string: `String(25)`  `"25"`
 - Successful insert
 - No schema violation
 
@@ -314,7 +314,7 @@ LIMIT 1;
 
 ---
 
-## 🔍 Debugging
+##  Debugging
 
 ### Enable Detailed Logging
 
@@ -356,7 +356,7 @@ RETURNING id, inmate_name, name_romanized, name_metaphone_primary;
 
 ---
 
-## 🚀 Deployment Checklist
+##  Deployment Checklist
 
 - [ ] Run migration: `001_register_reconciliation.sql`
 - [ ] Verify trigger exists: `trg_patient_metaphone`
@@ -364,13 +364,13 @@ RETURNING id, inmate_name, name_romanized, name_metaphone_primary;
 - [ ] Test insert with sample data
 - [ ] Verify phonetic columns auto-populate
 - [ ] Check `register_extractions` table exists
-- [ ] Test status update: `pending` → `committed`
+- [ ] Test status update: `pending`  `committed`
 - [ ] Enable error logging in production
 - [ ] Set up Sentry alerts for schema violations
 
 ---
 
-## 📚 Related Files
+##  Related Files
 
 - **API Route:** `app/api/register-reconcile/route.ts`
 - **Migration:** `supabase/migrations/001_register_reconciliation.sql`
@@ -380,7 +380,7 @@ RETURNING id, inmate_name, name_romanized, name_metaphone_primary;
 
 ---
 
-## 🔮 Future Enhancements
+##  Future Enhancements
 
 1. **Batch Insert Optimization:** Use `insert().select()` for multiple rows
 2. **Duplicate Detection:** Check for existing patients before insert

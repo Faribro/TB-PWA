@@ -1,12 +1,12 @@
 # Hybrid Routing OCR Architecture - Implementation Guide
 
-## 🎯 Overview
+##  Overview
 
 The Hybrid Routing OCR system reduces AI API costs by **70-80%** through intelligent routing between free Tesseract.js (fast lane) and paid Gemini VLM (fallback).
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -49,21 +49,21 @@ The Hybrid Routing OCR system reduces AI API costs by **70-80%** through intelli
 
 ---
 
-## 📊 Cost Comparison
+##  Cost Comparison
 
 | Scenario | Tesseract | Gemini | Hybrid | Savings |
 |----------|-----------|--------|--------|---------|
-| **Typed Register** | ✅ Free | $0.10 | ✅ Free | 100% |
-| **Printed Register** | ✅ Free | $0.10 | ✅ Free | 100% |
-| **Handwritten (Clear)** | ⚠️ Partial | $0.10 | $0.10 | 0% |
-| **Handwritten (Cursive)** | ❌ Fail | $0.10 | $0.10 | 0% |
+| **Typed Register** |  Free | $0.10 |  Free | 100% |
+| **Printed Register** |  Free | $0.10 |  Free | 100% |
+| **Handwritten (Clear)** |  Partial | $0.10 | $0.10 | 0% |
+| **Handwritten (Cursive)** |  Fail | $0.10 | $0.10 | 0% |
 | **Mixed (70% typed)** | 70% Free | $0.10 | $0.03 | 70% |
 
 **Average Savings:** 70-80% reduction in API costs
 
 ---
 
-## 🔧 Implementation
+##  Implementation
 
 ### 1. Install Dependencies
 
@@ -81,7 +81,7 @@ bun add tesseract.js
 **Key Functions:**
 - `tesseractExtract()` - Runs Tesseract OCR
 - `parseTesseractText()` - Validates structured data with regex
-- `extractRegisterImageHybrid()` - Main router (Tesseract → Gemini)
+- `extractRegisterImageHybrid()` - Main router (Tesseract  Gemini)
 
 **Validation Criteria:**
 ```typescript
@@ -97,12 +97,12 @@ bun add tesseract.js
 
 #### `app/api/register-extract/route.ts`
 **Changes:**
-- Import changed from `geminiExtractor` → `hybridExtractor`
+- Import changed from `geminiExtractor`  `hybridExtractor`
 - Metadata now includes: `engine`, `cost`, `fallbackReason`
 
 ---
 
-## 🧪 Testing
+##  Testing
 
 ### Test Case 1: Typed Register (Tesseract Success)
 
@@ -172,7 +172,7 @@ LIMIT 1;
 
 ---
 
-## 📝 Validation Logic
+##  Validation Logic
 
 ### Regex Patterns
 
@@ -203,7 +203,7 @@ const isValid = totalRows >= 1 && validRatio >= 0.5;
 
 ---
 
-## 🔍 Monitoring & Analytics
+##  Monitoring & Analytics
 
 ### Query: Cost Savings Report
 
@@ -240,7 +240,7 @@ ORDER BY count DESC;
 
 ---
 
-## 🚀 Performance Benchmarks
+##  Performance Benchmarks
 
 ### Latency Comparison
 
@@ -261,7 +261,7 @@ ORDER BY count DESC;
 
 ---
 
-## 🔧 Configuration
+##  Configuration
 
 ### Tesseract Options
 
@@ -286,7 +286,7 @@ const MIN_CONFIDENCE = 0.7; // Per-row confidence score
 
 ---
 
-## 🐛 Troubleshooting
+##  Troubleshooting
 
 ### Issue: Tesseract Always Fails
 
@@ -350,7 +350,7 @@ console.log('[Tesseract] Valid ratio:', validRatio);
 
 ---
 
-## 📈 Optimization Tips
+##  Optimization Tips
 
 ### 1. Image Preprocessing
 
@@ -385,7 +385,7 @@ const [tesseractResult, geminiResult] = await Promise.allSettled([
 
 ---
 
-## 🔮 Future Enhancements
+##  Future Enhancements
 
 ### Phase 1: Adaptive Routing
 - Machine learning model to predict which engine to use
@@ -402,7 +402,7 @@ const [tesseractResult, geminiResult] = await Promise.allSettled([
 
 ---
 
-## 📚 Related Files
+##  Related Files
 
 - **Hybrid Extractor:** `lib/ocr/hybridExtractor.ts`
 - **Gemini Extractor:** `lib/ocr/geminiExtractor.ts`
@@ -412,7 +412,7 @@ const [tesseractResult, geminiResult] = await Promise.allSettled([
 
 ---
 
-## ✅ Deployment Checklist
+##  Deployment Checklist
 
 - [ ] Install tesseract.js: `npm install tesseract.js`
 - [ ] Update imports in API route

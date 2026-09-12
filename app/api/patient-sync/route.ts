@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabase-server';
 import { getSessionScope, type SessionScope } from '@/lib/session-scope';
-import { syncToSheetsAsync } from '@/lib/sheetsSyncQStash';
+import { syncToSheetsAsync } from '@/lib/sheetsSync';
 import { sanitizePatientUpdate } from '@/lib/db/sanitizePatientUpdate';
 import { mapPatientUpdatesToDb } from '@/lib/db/patientUpdateFields';
 import { invalidatePatientCaches } from '@/lib/cache-version';

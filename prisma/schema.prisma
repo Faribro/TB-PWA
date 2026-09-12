@@ -3,8 +3,9 @@
 // Force rebuild: 2025-01-22-16:00
 
 generator client {
-  provider   = "prisma-client-js"
-  output     = "../node_modules/.prisma/client"
+  provider      = "prisma-client-js"
+  output        = "../node_modules/.prisma/client"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -70,6 +71,9 @@ model patients {
   synced_to_sheets       Boolean?  @default(false)
   sheets_sync_attempts   Int?      @default(0)
   sheets_synced_at       DateTime? @db.Timestamptz(6)
+  sheet_row_number       Int?
+  sheet_tab_name         String?
+  spreadsheet_id         String?
   
   // Timestamps
   created_at             DateTime? @default(now()) @db.Timestamptz(6)
@@ -101,3 +105,46 @@ model profiles {
   @@index([role])
   @@index([state])
 }
+
+model sheet_row_hashes {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  unique_id       String    @unique
+  row_hash        String
+  sheet_tab       String?
+  spreadsheet_id  String?
+  last_checked_at DateTime? @default(now()) @db.Timestamptz(6)
+  created_at      DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([unique_id])
+  @@index([sheet_tab])
+}
+
+model sheet_registry {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  state           String
+  sheet_type      String    // 'PC' or 'SPM'
+  spreadsheet_id  String
+  tab_name        String?
+  created_at      DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@unique([state, sheet_type])
+}
+
+model audit_log {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  table_name  String
+  record_id   String
+  action      String
+  old_data    Json?
+  new_data    Json?
+  changed_by  String?
+  ip_address  String?
+  user_agent  String?
+  changed_at  DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([table_name, record_id])
+  @@index([changed_at(sort: Desc)])
+}
+

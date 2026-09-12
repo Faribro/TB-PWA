@@ -40,10 +40,10 @@ export async function setCached<T>(key: string, value: T, ttl: number = 60): Pro
 - **Cache miss**: Application continues to work, just without caching benefit
 
 ## Impact
-- ✅ No more Redis errors for large datasets
-- ✅ Graceful degradation (works without cache)
-- ✅ Smaller datasets still benefit from caching
-- ✅ No breaking changes to API behavior
+-  No more Redis errors for large datasets
+-  Graceful degradation (works without cache)
+-  Smaller datasets still benefit from caching
+-  No breaking changes to API behavior
 
 ## Affected Endpoints
 - `/api/patients/bulk` - Most likely to hit size limit (24k+ records)

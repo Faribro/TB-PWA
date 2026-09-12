@@ -7,7 +7,7 @@
 
 ### Data Flow Architecture
 ```
-User Save → API → Supabase → Realtime Event → Component State → UI Render
+User Save  API  Supabase  Realtime Event  Component State  UI Render
 ```
 
 ### The Problem
@@ -15,12 +15,12 @@ User Save → API → Supabase → Realtime Event → Component State → UI Ren
 **Demographics Tab (Working)**:
 - Uses custom `getValue()` function with 3-tier fallback:
   ```typescript
-  localValues → editedDemographics → patient
+  localValues  editedDemographics  patient
   ```
 - When realtime update arrives:
   ```typescript
-  setEditedDemographics(mapDemographics(data)) // ✅ Updates state
-  getValue('screening_date', ...) // ✅ Reads new value
+  setEditedDemographics(mapDemographics(data)) //  Updates state
+  getValue('screening_date', ...) //  Reads new value
   ```
 
 **Clinical Tab (Broken)**:
@@ -28,8 +28,8 @@ User Save → API → Supabase → Realtime Event → Component State → UI Ren
 - Form initialized ONCE on mount via `reset()`
 - When realtime update arrives:
   ```typescript
-  setLocalPatient(data) // ✅ Updates state
-  watch('Date of referral...') // ❌ Still has old value
+  setLocalPatient(data) //  Updates state
+  watch('Date of referral...') //  Still has old value
   ```
 - **Form values are never updated** to preserve user edits
 - Step indicator reads from `watch()` which has stale values
@@ -99,24 +99,24 @@ usePatientRealtimeUpdates({
 
 ### Before Fix
 1. User A saves clinical update (e.g., `referral_date = '2025-01-15'`)
-2. API updates Supabase ✅
-3. Realtime event fires ✅
-4. `setLocalPatient(data)` updates state ✅
-5. `watch('Date of referral...')` still returns `''` ❌
-6. Form field shows empty value ❌
-7. Step indicator shows incomplete ❌
+2. API updates Supabase 
+3. Realtime event fires 
+4. `setLocalPatient(data)` updates state 
+5. `watch('Date of referral...')` still returns `''` 
+6. Form field shows empty value 
+7. Step indicator shows incomplete 
 
 ### After Fix
 1. User A saves clinical update (e.g., `referral_date = '2025-01-15'`)
-2. API updates Supabase ✅
-3. Realtime event fires ✅
-4. `setLocalPatient(data)` updates state ✅
-5. Check `isDirty` → false (not editing) ✅
-6. Build `formUpdates` with all clinical fields ✅
-7. Call `reset(formUpdates, { keepDirty: false })` ✅
-8. `watch('Date of referral...')` now returns `'2025-01-15'` ✅
-9. Form field shows new value ✅
-10. Step indicator shows complete ✅
+2. API updates Supabase 
+3. Realtime event fires 
+4. `setLocalPatient(data)` updates state 
+5. Check `isDirty`  false (not editing) 
+6. Build `formUpdates` with all clinical fields 
+7. Call `reset(formUpdates, { keepDirty: false })` 
+8. `watch('Date of referral...')` now returns `'2025-01-15'` 
+9. Form field shows new value 
+10. Step indicator shows complete 
 
 ## Safety Guarantees
 

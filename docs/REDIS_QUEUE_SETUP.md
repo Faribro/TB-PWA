@@ -1,4 +1,4 @@
-# 🚀 Enterprise Redis Queue System - Setup Guide
+#  Enterprise Redis Queue System - Setup Guide
 
 ## Overview
 
@@ -7,7 +7,7 @@ This system implements a **production-grade queue** for Google Sheets sync using
 - **Upstash Redis** - Serverless Redis (recommended for Vercel)
 - **Hybrid Fallback** - Automatic fallback to in-memory queue
 
-## 🎯 Performance Improvements
+##  Performance Improvements
 
 | Metric | Before | After | Improvement |
 |--------|--------|-------|-------------|
@@ -17,7 +17,7 @@ This system implements a **production-grade queue** for Google Sheets sync using
 | Reliability | 85% | 99.9% | **Circuit breaker** |
 | Persistence | None | Redis | **Survives restarts** |
 
-## 📦 Architecture
+##  Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -27,7 +27,7 @@ This system implements a **production-grade queue** for Google Sheets sync using
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              syncToSheetsAsync() - Smart Router              │
-│  Priority: Redis Queue → In-Memory Queue → Circuit Breaker  │
+│  Priority: Redis Queue  In-Memory Queue  Circuit Breaker  │
 └─────────────────────────────────────────────────────────────┘
                             │
                 ┌───────────┴───────────┐
@@ -57,7 +57,7 @@ This system implements a **production-grade queue** for Google Sheets sync using
                 └───────────────────────┘
 ```
 
-## 🔧 Setup Instructions
+##  Setup Instructions
 
 ### 1. Create Upstash Redis (Free Tier)
 
@@ -133,7 +133,7 @@ Files to update:
 - `app/api/webhook/kobo/route.ts`
 - Any other files calling `syncToSheetsAsync`
 
-## 📊 Monitoring & Metrics
+##  Monitoring & Metrics
 
 ### Get Queue Metrics
 
@@ -172,7 +172,7 @@ curl -X POST https://your-domain.com/api/queue/metrics \
   -d '{"action": "clear"}'
 ```
 
-## 🎛️ Configuration
+##  Configuration
 
 Edit `lib/sheetsSyncQueue.ts`:
 
@@ -196,7 +196,7 @@ const QUEUE_CONFIG = {
 };
 ```
 
-## 🔍 Troubleshooting
+##  Troubleshooting
 
 ### Redis Not Connected
 
@@ -226,7 +226,7 @@ const QUEUE_CONFIG = {
 3. Check Apps Script execution logs
 4. Increase timeout in `lib/sheetsSyncQueue.ts`
 
-## 🚀 Deployment
+##  Deployment
 
 ### Vercel
 
@@ -241,7 +241,7 @@ const QUEUE_CONFIG = {
 3. Deploy application
 4. Queue auto-initializes on startup
 
-## 📈 Performance Tuning
+##  Performance Tuning
 
 ### High Traffic (>1000 updates/min)
 
@@ -277,20 +277,20 @@ const CONFIG = {
 };
 ```
 
-## 🎯 Benefits Summary
+##  Benefits Summary
 
-✅ **Persistent Queue** - Survives server restarts  
-✅ **Automatic Retries** - Exponential backoff (1s, 2s, 4s)  
-✅ **Rate Limiting** - Prevents API throttling  
-✅ **Priority Queue** - Urgent updates processed first  
-✅ **Dead Letter Queue** - Failed jobs tracked separately  
-✅ **Job Deduplication** - Prevents duplicate syncs  
-✅ **Metrics & Monitoring** - Real-time queue health  
-✅ **Graceful Shutdown** - No data loss on restart  
-✅ **Circuit Breaker** - Auto-disable on repeated failures  
-✅ **Hybrid Fallback** - Works without Redis  
+ **Persistent Queue** - Survives server restarts  
+ **Automatic Retries** - Exponential backoff (1s, 2s, 4s)  
+ **Rate Limiting** - Prevents API throttling  
+ **Priority Queue** - Urgent updates processed first  
+ **Dead Letter Queue** - Failed jobs tracked separately  
+ **Job Deduplication** - Prevents duplicate syncs  
+ **Metrics & Monitoring** - Real-time queue health  
+ **Graceful Shutdown** - No data loss on restart  
+ **Circuit Breaker** - Auto-disable on repeated failures  
+ **Hybrid Fallback** - Works without Redis  
 
-## 📚 Additional Resources
+##  Additional Resources
 
 - [BullMQ Documentation](https://docs.bullmq.io/)
 - [Upstash Redis](https://upstash.com/docs/redis)

@@ -21,11 +21,11 @@ Vertex now uses a **hybrid-live** architecture:
 ### After Optimization (Redis-Backed Aggregates)
 | Operation | Target | Expected Actual |
 |-----------|--------|-----------------|
-| Heatmap Load (cached) | <50ms | <50ms ✅ |
-| Month Summary (cached) | <30ms | <30ms ✅ |
-| Daily Drilldown (cached) | <20ms | <20ms ✅ |
-| Month Navigation | Instant | <100ms ✅ |
-| Post-Insert Refresh | 1-2s | 1-2s ✅ |
+| Heatmap Load (cached) | <50ms | <50ms  |
+| Month Summary (cached) | <30ms | <30ms  |
+| Daily Drilldown (cached) | <20ms | <20ms  |
+| Month Navigation | Instant | <100ms  |
+| Post-Insert Refresh | 1-2s | 1-2s  |
 
 ## Key Optimizations
 
@@ -201,9 +201,9 @@ console.log('[Vertex] Cache invalidated:', { heatmap: true, month: true, daily: 
 ## Conclusion
 
 The hybrid-live architecture provides:
-- **60× faster** heatmap loads (2-3s → <50ms)
-- **40× faster** month summary (1-2s → <30ms)
-- **25× faster** daily drilldown (500ms → <20ms)
+- **60× faster** heatmap loads (2-3s  <50ms)
+- **40× faster** month summary (1-2s  <30ms)
+- **25× faster** daily drilldown (500ms  <20ms)
 - **Instant** month navigation (<100ms)
 - **Real-time** updates (1-2s after insert)
 

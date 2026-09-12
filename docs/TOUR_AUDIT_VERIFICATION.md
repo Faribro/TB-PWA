@@ -3,7 +3,7 @@
 ## Executive Summary
 
 **Date:** 2025-01-21  
-**Status:** ✅ ALL ACTIVE TOURS PASS  
+**Status:**  ALL ACTIVE TOURS PASS  
 **Total Tours:** 9 (5 Active, 4 Disabled)  
 **Files Modified:** 3  
 **Regressions Found:** 8 critical blocking issues  
@@ -75,142 +75,142 @@
 
 ## C) VERIFICATION MATRIX
 
-### TOUR 1: update-patient-clinical-status ✅ ENABLED
+### TOUR 1: update-patient-clinical-status  ENABLED
 
 | Step ID | Target Selector | DOM Match | Route Match | Action Match | Status | Notes |
 |---------|----------------|-----------|-------------|--------------|--------|-------|
-| intro | null | ✅ N/A | ✅ /dashboard/vertex | ✅ None | PASS | Center modal |
-| navigate-to-vertex | [data-tour-id="sidebar-vertex"] | ✅ YES | ✅ /dashboard/vertex | ✅ click | PASS | Sidebar nav |
-| neural-timeline-calendar | [data-tour-id="neural-timeline-calendar"] | ✅ YES | ✅ /dashboard/vertex | ✅ None | PASS | Calendar container |
-| navigate-to-march | [data-tour-id="neural-timeline-prev-month"] | ✅ YES | ✅ /dashboard/vertex | ✅ click | PASS | Month navigation |
-| select-date | [data-tour-id="neural-timeline-day"][data-has-data="true"] | ✅ YES | ✅ /dashboard/vertex | ✅ click | PASS | Date selection |
-| active-intelligence-feed | [data-tour-id="active-intelligence-feed-panel"] | ✅ YES | ✅ /dashboard/vertex | ✅ None | PASS | Right panel |
-| geo-distribution | [data-tour-id="geo-case-distribution"] | ✅ YES | ✅ /dashboard/vertex | ✅ None | PASS | Geo section |
-| state-drawer | [data-tour-id="state-drawer"] | ✅ YES | ✅ /dashboard/vertex | ✅ click | PASS | State expansion |
-| district-drawer | [data-tour-id="district-drawer"] | ✅ YES | ✅ /dashboard/vertex | ✅ click | PASS | District expansion |
-| facility-drawer | [data-tour-id="facility-card"] | ✅ YES | ✅ /dashboard/vertex | ✅ click | PASS | Facility selection |
-| patient-list | [data-tour-id="patient-list-panel"] | ✅ YES | ✅ /dashboard/vertex | ✅ None | PASS | Patient list sheet |
-| open-patient-record | [data-tour-id="patient-card"] | ✅ YES | ✅ /dashboard/vertex | ✅ click | PASS | Patient card click |
-| clinical-sputum | [data-tour-id="sputum-referral-section"] | ✅ YES | ✅ /dashboard/vertex | ✅ None | PASS | Drawer context |
-| clinical-diagnosis | [data-tour-id="diagnosis-section"] | ✅ YES | ✅ /dashboard/vertex | ✅ None | PASS | Drawer context |
-| clinical-att | [data-tour-id="att-initiation-section"] | ✅ YES | ✅ /dashboard/vertex | ✅ None | PASS | Drawer context |
-| submit-or-close | [data-tour-id="submit-clinical-update"] | ✅ YES | ✅ /dashboard/vertex | ✅ None | PASS | Submit button |
-| admin-journey-tab | [data-tour-id="admin-journey-tab"] | ✅ YES | ✅ /dashboard/vertex | ✅ click | PASS | Tab switch |
-| demographics-tab | [data-tour-id="demographics-tab"] | ✅ YES | ✅ /dashboard/vertex | ✅ click | PASS | Tab switch |
-| completion | null | ✅ N/A | ✅ /dashboard/vertex | ✅ None | PASS | Center modal |
+| intro | null |  N/A |  /dashboard/vertex |  None | PASS | Center modal |
+| navigate-to-vertex | [data-tour-id="sidebar-vertex"] |  YES |  /dashboard/vertex |  click | PASS | Sidebar nav |
+| neural-timeline-calendar | [data-tour-id="neural-timeline-calendar"] |  YES |  /dashboard/vertex |  None | PASS | Calendar container |
+| navigate-to-march | [data-tour-id="neural-timeline-prev-month"] |  YES |  /dashboard/vertex |  click | PASS | Month navigation |
+| select-date | [data-tour-id="neural-timeline-day"][data-has-data="true"] |  YES |  /dashboard/vertex |  click | PASS | Date selection |
+| active-intelligence-feed | [data-tour-id="active-intelligence-feed-panel"] |  YES |  /dashboard/vertex |  None | PASS | Right panel |
+| geo-distribution | [data-tour-id="geo-case-distribution"] |  YES |  /dashboard/vertex |  None | PASS | Geo section |
+| state-drawer | [data-tour-id="state-drawer"] |  YES |  /dashboard/vertex |  click | PASS | State expansion |
+| district-drawer | [data-tour-id="district-drawer"] |  YES |  /dashboard/vertex |  click | PASS | District expansion |
+| facility-drawer | [data-tour-id="facility-card"] |  YES |  /dashboard/vertex |  click | PASS | Facility selection |
+| patient-list | [data-tour-id="patient-list-panel"] |  YES |  /dashboard/vertex |  None | PASS | Patient list sheet |
+| open-patient-record | [data-tour-id="patient-card"] |  YES |  /dashboard/vertex |  click | PASS | Patient card click |
+| clinical-sputum | [data-tour-id="sputum-referral-section"] |  YES |  /dashboard/vertex |  None | PASS | Drawer context |
+| clinical-diagnosis | [data-tour-id="diagnosis-section"] |  YES |  /dashboard/vertex |  None | PASS | Drawer context |
+| clinical-att | [data-tour-id="att-initiation-section"] |  YES |  /dashboard/vertex |  None | PASS | Drawer context |
+| submit-or-close | [data-tour-id="submit-clinical-update"] |  YES |  /dashboard/vertex |  None | PASS | Submit button |
+| admin-journey-tab | [data-tour-id="admin-journey-tab"] |  YES |  /dashboard/vertex |  click | PASS | Tab switch |
+| demographics-tab | [data-tour-id="demographics-tab"] |  YES |  /dashboard/vertex |  click | PASS | Tab switch |
+| completion | null |  N/A |  /dashboard/vertex |  None | PASS | Center modal |
 
-**Result:** 19/19 steps PASS ✅
+**Result:** 19/19 steps PASS 
 
 ---
 
-### TOUR 2: command-hub-tour ✅ ENABLED
+### TOUR 2: command-hub-tour  ENABLED
 
 | Step ID | Target Selector | DOM Match | Route Match | Action Match | Status | Notes |
 |---------|----------------|-----------|-------------|--------------|--------|-------|
-| intro | null | ✅ N/A | ✅ /dashboard/command-hub | ✅ None | PASS | Center modal |
-| kpi-bar | [data-tour-id="kpi-dashboard-bar"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | KPI ribbon |
-| kpi-screened | [data-tour-id="kpi-screened"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | Metric tile |
-| kpi-flagged | [data-tour-id="kpi-flagged"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | Metric tile |
-| pipeline-embed | [data-tour-id="pipeline-embed"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | Embed panel |
-| program-mission | [data-tour-id="program-mission"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | Mission banner |
-| journey-cube | [data-tour-id="journey-cube"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | Journey viz |
-| patient-timeline | [data-tour-id="patient-timeline"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | Timeline section |
-| maze-grid | [data-tour-id="maze-grid"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | Module grid |
-| command-footer | [data-tour-id="command-footer"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | Footer |
-| completion | null | ✅ N/A | ✅ /dashboard/command-hub | ✅ None | PASS | Center modal |
+| intro | null |  N/A |  /dashboard/command-hub |  None | PASS | Center modal |
+| kpi-bar | [data-tour-id="kpi-dashboard-bar"] |  YES |  /dashboard/command-hub |  None | PASS | KPI ribbon |
+| kpi-screened | [data-tour-id="kpi-screened"] |  YES |  /dashboard/command-hub |  None | PASS | Metric tile |
+| kpi-flagged | [data-tour-id="kpi-flagged"] |  YES |  /dashboard/command-hub |  None | PASS | Metric tile |
+| pipeline-embed | [data-tour-id="pipeline-embed"] |  YES |  /dashboard/command-hub |  None | PASS | Embed panel |
+| program-mission | [data-tour-id="program-mission"] |  YES |  /dashboard/command-hub |  None | PASS | Mission banner |
+| journey-cube | [data-tour-id="journey-cube"] |  YES |  /dashboard/command-hub |  None | PASS | Journey viz |
+| patient-timeline | [data-tour-id="patient-timeline"] |  YES |  /dashboard/command-hub |  None | PASS | Timeline section |
+| maze-grid | [data-tour-id="maze-grid"] |  YES |  /dashboard/command-hub |  None | PASS | Module grid |
+| command-footer | [data-tour-id="command-footer"] |  YES |  /dashboard/command-hub |  None | PASS | Footer |
+| completion | null |  N/A |  /dashboard/command-hub |  None | PASS | Center modal |
 
-**Result:** 11/11 steps PASS ✅
+**Result:** 11/11 steps PASS 
 
 ---
 
-### TOUR 3: read-gis-map ✅ ENABLED
+### TOUR 3: read-gis-map  ENABLED
 
 | Step ID | Target Selector | DOM Match | Route Match | Action Match | Status | Notes |
 |---------|----------------|-----------|-------------|--------------|--------|-------|
-| intro | null | ✅ N/A | ✅ /dashboard/command-hub | ✅ None | PASS | Center modal |
-| navigate-gis | [data-tour-id="sidebar-gis"] | ✅ YES | ✅ /dashboard/gis | ✅ click | PASS | Sidebar nav |
-| completion | null | ✅ N/A | ✅ /dashboard/gis | ✅ None | PASS | Center modal |
+| intro | null |  N/A |  /dashboard/command-hub |  None | PASS | Center modal |
+| navigate-gis | [data-tour-id="sidebar-gis"] |  YES |  /dashboard/gis |  click | PASS | Sidebar nav |
+| completion | null |  N/A |  /dashboard/gis |  None | PASS | Center modal |
 
-**Result:** 3/3 steps PASS ✅
+**Result:** 3/3 steps PASS 
 
 ---
 
-### TOUR 4: set-mne-targets ✅ ENABLED
+### TOUR 4: set-mne-targets  ENABLED
 
 | Step ID | Target Selector | DOM Match | Route Match | Action Match | Status | Notes |
 |---------|----------------|-----------|-------------|--------------|--------|-------|
-| intro | null | ✅ N/A | ✅ /dashboard/command-hub | ✅ None | PASS | Center modal |
-| navigate-mne | [data-tour-id="sidebar-mne"] | ✅ YES | ✅ /dashboard/mande | ✅ click | PASS | Sidebar nav |
-| completion | null | ✅ N/A | ✅ /dashboard/mande | ✅ None | PASS | Center modal |
+| intro | null |  N/A |  /dashboard/command-hub |  None | PASS | Center modal |
+| navigate-mne | [data-tour-id="sidebar-mne"] |  YES |  /dashboard/mande |  click | PASS | Sidebar nav |
+| completion | null |  N/A |  /dashboard/mande |  None | PASS | Center modal |
 
-**Result:** 3/3 steps PASS ✅
+**Result:** 3/3 steps PASS 
 
 ---
 
-### TOUR 5: first-time-user ✅ ENABLED
+### TOUR 5: first-time-user  ENABLED
 
 | Step ID | Target Selector | DOM Match | Route Match | Action Match | Status | Notes |
 |---------|----------------|-----------|-------------|--------------|--------|-------|
-| intro | null | ✅ N/A | ✅ /dashboard/command-hub | ✅ None | PASS | Center modal |
-| kpi-bar-explanation | [data-tour-id="kpi-dashboard-bar"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | KPI ribbon |
-| pipeline-embed-detail | [data-tour-id="pipeline-embed"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | Embed panel |
-| program-mission-context | [data-tour-id="program-mission"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | Mission banner |
-| screening-journey-explanation | [data-tour-id="journey-cube"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | Journey viz |
-| patient-timeline-detail | [data-tour-id="patient-timeline"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | Timeline section |
-| module-grid-overview | [data-tour-id="maze-grid"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | Module grid |
-| knowledge-vault-intro | [data-tour-id="sidebar-docs"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | Sidebar nav |
-| command-footer-status | [data-tour-id="command-footer"] | ✅ YES | ✅ /dashboard/command-hub | ✅ None | PASS | Footer |
-| completion | null | ✅ N/A | ✅ /dashboard/command-hub | ✅ None | PASS | Center modal |
+| intro | null |  N/A |  /dashboard/command-hub |  None | PASS | Center modal |
+| kpi-bar-explanation | [data-tour-id="kpi-dashboard-bar"] |  YES |  /dashboard/command-hub |  None | PASS | KPI ribbon |
+| pipeline-embed-detail | [data-tour-id="pipeline-embed"] |  YES |  /dashboard/command-hub |  None | PASS | Embed panel |
+| program-mission-context | [data-tour-id="program-mission"] |  YES |  /dashboard/command-hub |  None | PASS | Mission banner |
+| screening-journey-explanation | [data-tour-id="journey-cube"] |  YES |  /dashboard/command-hub |  None | PASS | Journey viz |
+| patient-timeline-detail | [data-tour-id="patient-timeline"] |  YES |  /dashboard/command-hub |  None | PASS | Timeline section |
+| module-grid-overview | [data-tour-id="maze-grid"] |  YES |  /dashboard/command-hub |  None | PASS | Module grid |
+| knowledge-vault-intro | [data-tour-id="sidebar-docs"] |  YES |  /dashboard/command-hub |  None | PASS | Sidebar nav |
+| command-footer-status | [data-tour-id="command-footer"] |  YES |  /dashboard/command-hub |  None | PASS | Footer |
+| completion | null |  N/A |  /dashboard/command-hub |  None | PASS | Center modal |
 
-**Result:** 10/10 steps PASS ✅
+**Result:** 10/10 steps PASS 
 
 ---
 
-### TOUR 6: triage-ai-flag ❌ DISABLED
+### TOUR 6: triage-ai-flag  DISABLED
 
 | Step ID | Target Selector | DOM Match | Route Match | Action Match | Status | Notes |
 |---------|----------------|-----------|-------------|--------------|--------|-------|
-| intro | null | ✅ N/A | ✅ /dashboard/command-hub | ✅ None | PASS | Disabled tour |
+| intro | null |  N/A |  /dashboard/command-hub |  None | PASS | Disabled tour |
 
 **Result:** DISABLED - Follow-up Pipeline removed from navigation  
 **Enabled:** `false`  
-**Schema Integrity:** ✅ PASS
+**Schema Integrity:**  PASS
 
 ---
 
-### TOUR 7: mark-ltfu ❌ DISABLED
+### TOUR 7: mark-ltfu  DISABLED
 
 | Step ID | Target Selector | DOM Match | Route Match | Action Match | Status | Notes |
 |---------|----------------|-----------|-------------|--------------|--------|-------|
-| intro | null | ✅ N/A | ✅ /dashboard/command-hub | ✅ None | PASS | Disabled tour |
+| intro | null |  N/A |  /dashboard/command-hub |  None | PASS | Disabled tour |
 
 **Result:** DISABLED - Follow-up Pipeline removed from navigation  
 **Enabled:** `false`  
-**Schema Integrity:** ✅ PASS
+**Schema Integrity:**  PASS
 
 ---
 
-### TOUR 8: export-monthly-report ❌ DISABLED
+### TOUR 8: export-monthly-report  DISABLED
 
 | Step ID | Target Selector | DOM Match | Route Match | Action Match | Status | Notes |
 |---------|----------------|-----------|-------------|--------------|--------|-------|
-| intro | null | ✅ N/A | ✅ /dashboard/command-hub | ✅ None | PASS | Disabled tour |
+| intro | null |  N/A |  /dashboard/command-hub |  None | PASS | Disabled tour |
 
 **Result:** DISABLED - Export features not implemented  
 **Enabled:** `false`  
-**Schema Integrity:** ✅ PASS
+**Schema Integrity:**  PASS
 
 ---
 
-### TOUR 9: add-new-user ❌ DISABLED
+### TOUR 9: add-new-user  DISABLED
 
 | Step ID | Target Selector | DOM Match | Route Match | Action Match | Status | Notes |
 |---------|----------------|-----------|-------------|--------------|--------|-------|
-| intro | null | ✅ N/A | ✅ /dashboard/command-hub | ✅ None | PASS | Disabled tour |
+| intro | null |  N/A |  /dashboard/command-hub |  None | PASS | Disabled tour |
 
 **Result:** DISABLED - Admin panel not in sidebar  
 **Enabled:** `false`  
-**Schema Integrity:** ✅ PASS
+**Schema Integrity:**  PASS
 
 ---
 
@@ -366,7 +366,7 @@ navigateTo: '/dashboard/vertex', // Consistent
 
 ## G) ACCEPTANCE CRITERIA VERIFICATION
 
-### ✅ 100% of Active Tours Have:
+###  100% of Active Tours Have:
 
 1. **Valid DOM-Matching Selectors**
    - All 5 active tours use `data-tour-id` attributes
@@ -388,24 +388,24 @@ navigateTo: '/dashboard/vertex', // Consistent
    - Center steps use `target: null`
    - Spotlight padding specified where needed
 
-### ✅ No Known Drift from Intended Pane/Context
+###  No Known Drift from Intended Pane/Context
 
 - Tour 1 (update-patient-clinical-status) tested end-to-end
 - Steps 12-15 (drawer context) use single selectors
 - No fallback selectors that pull back to wrong pane
 
-### ✅ Disabled Tours Retained But Non-Launchable
+###  Disabled Tours Retained But Non-Launchable
 
 - 4 tours disabled with `enabled: false`
 - Launcher filters disabled tours
 - Schema integrity maintained
 - User feedback provided
 
-### ✅ Lint/Typecheck Pass
+###  Lint/Typecheck Pass
 
-- TypeScript compilation: ✅ PASS (path alias error is non-blocking)
+- TypeScript compilation:  PASS (path alias error is non-blocking)
 - ESLint: Not run (no linter configured)
-- Runtime: ✅ PASS (tours load without errors)
+- Runtime:  PASS (tours load without errors)
 
 ---
 
@@ -468,17 +468,17 @@ navigateTo: '/dashboard/vertex', // Consistent
 ## J) CONCLUSION
 
 All active tours are production-ready with:
-- ✅ Clean, single-target selectors
-- ✅ Proper enabled/disabled flags
-- ✅ Launcher filtering
-- ✅ No selector drift
-- ✅ Consistent navigation
-- ✅ Schema integrity
+-  Clean, single-target selectors
+-  Proper enabled/disabled flags
+-  Launcher filtering
+-  No selector drift
+-  Consistent navigation
+-  Schema integrity
 
 Disabled tours are safely retained with:
-- ✅ Non-launchable status
-- ✅ User feedback
-- ✅ Preserved history
-- ✅ Easy re-enablement path
+-  Non-launchable status
+-  User feedback
+-  Preserved history
+-  Easy re-enablement path
 
-**Status:** READY FOR PRODUCTION ✅
+**Status:** READY FOR PRODUCTION 

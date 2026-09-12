@@ -4,21 +4,21 @@
 
 ### What We Found
 
-1. ✅ **`other_facility_name` column DOES NOT EXIST** in the patients table
+1.  **`other_facility_name` column DOES NOT EXIST** in the patients table
    - The drawer tries to read/write this field, but it doesn't exist in Supabase
    - This is a UI-only field that should be removed
 
-2. ✅ **Parent state update bug in CommandCenter.updatePatient()**
+2.  **Parent state update bug in CommandCenter.updatePatient()**
    - Line 204: `setSelectedPatient({ ...selectedPatient, ...updates })`
    - This only merges the `updates` object, NOT the full server response
    - The API returns `{ success: true, patient: updatedPatient }`
    - But the code ignores `updatedPatient` and only merges `updates`
 
-3. ✅ **Drawer state preservation logic**
+3.  **Drawer state preservation logic**
    - Lines 130-180 have complex logic that preserves stale `localPatient`
    - This prevents fresh data from reaching the form after save
 
-4. ✅ **Missing fields from BULK_COLUMNS** (NOT the root cause)
+4.  **Missing fields from BULK_COLUMNS** (NOT the root cause)
    - `symptoms_present`, `chest_x_ray_result`, `date_corrected`, etc.
    - These are NOT clinical fields the drawer uses
    - Not causing the stale data bug
@@ -26,12 +26,12 @@
 ## The Real Bug
 
 When a user:
-1. Opens drawer → gets patient from list (via BULK_COLUMNS)
-2. Fills clinical data → saves
+1. Opens drawer  gets patient from list (via BULK_COLUMNS)
+2. Fills clinical data  saves
 3. API returns full `updatedPatient` object
 4. **BUG**: CommandCenter only merges `updates`, ignores `updatedPatient`
 5. Closes drawer
-6. Reopens drawer → gets stale `selectedPatient` with old `updated_at` timestamp
+6. Reopens drawer  gets stale `selectedPatient` with old `updated_at` timestamp
 7. Drawer's preservation logic sees stale timestamp, preserves old local state
 8. Clinical data appears missing
 

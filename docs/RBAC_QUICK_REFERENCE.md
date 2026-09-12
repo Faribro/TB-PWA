@@ -1,6 +1,6 @@
 # RBAC Quick Reference - SAMADHAAN Health OS
 
-## 🚀 Quick Test Commands
+##  Quick Test Commands
 
 ```bash
 # Run all RBAC tests (Windows)
@@ -16,29 +16,29 @@ bun run test:rbac-integration
 node scripts/check-schema.js
 ```
 
-## 📊 Role Matrix
+##  Role Matrix
 
 | Feature | PM | admin | SPM | ME | PC |
 |---------|-------|-------|-----|----|----|
 | **Data Scope** | National | National | State | State | Own |
-| **Admin Panel** | ✅ | ✅ | ❌ | ❌ | ❌ |
-| **Command Hub** | ✅ | ✅ | ✅ | ❌ | ❌ |
-| **Bulk Ops** | ✅ | ✅ | ✅ | ❌ | ❌ |
-| **Impersonate** | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Admin Panel** |  |  |  |  |  |
+| **Command Hub** |  |  |  |  |  |
+| **Bulk Ops** |  |  |  |  |  |
+| **Impersonate** |  |  |  |  |  |
 | **Nav Tabs** | 6 | 6 | 6 | 5 | 2 |
 
-## 🔑 Key Constants
+##  Key Constants
 
 ```typescript
 // SUPERUSER_ROLES (defined in 4 files)
 const SUPERUSER_ROLES = ['PM', 'admin'];
 
 // Database column for PC filtering
-staff_name  // ✅ CORRECT
-name_of_staff  // ❌ WRONG
+staff_name  //  CORRECT
+name_of_staff  //  WRONG
 ```
 
-## 📁 Modified Files
+##  Modified Files
 
 ### Core (8 files)
 1. `middleware.ts` - Admin protection, PC redirect
@@ -60,28 +60,28 @@ name_of_staff  // ❌ WRONG
 13. `docs/RBAC_IMPLEMENTATION_SUMMARY.md` - Implementation summary (NEW)
 14. `docs/RBAC_QUICK_REFERENCE.md` - This file (NEW)
 
-## ✅ Test Results
+##  Test Results
 
 **Status**: 13/13 tests passing (100%)
 
 ### Data Access (5/5)
-- ✅ PM - National access
-- ✅ admin - National access
-- ✅ SPM - State-level access
-- ✅ ME - State-level access
-- ✅ PC - Own submissions only
+-  PM - National access
+-  admin - National access
+-  SPM - State-level access
+-  ME - State-level access
+-  PC - Own submissions only
 
 ### Integration (8/8)
-- ✅ Middleware protection
-- ✅ Session scope config
-- ✅ Navigation filtering
-- ✅ PC dashboard exists
-- ✅ Admin layout auth
-- ✅ Command Hub auth
-- ✅ Impersonation system
-- ✅ useSessionScope hook
+-  Middleware protection
+-  Session scope config
+-  Navigation filtering
+-  PC dashboard exists
+-  Admin layout auth
+-  Command Hub auth
+-  Impersonation system
+-  useSessionScope hook
 
-## 🎯 Navigation Tabs
+##  Navigation Tabs
 
 ### PM/admin/SPM (6 tabs)
 1. Command Hub
@@ -102,21 +102,21 @@ name_of_staff  // ❌ WRONG
 1. My Work
 2. Settings
 
-## 🔒 Route Protection
+##  Route Protection
 
 ```typescript
 // Admin routes (PM/admin only)
-/admin/*  → Middleware blocks non-superusers
+/admin/*   Middleware blocks non-superusers
 
 // PC redirect
-/dashboard → /dashboard/my-submissions
-/dashboard/command-hub → /dashboard/my-submissions
+/dashboard  /dashboard/my-submissions
+/dashboard/command-hub  /dashboard/my-submissions
 
 // ME exclusion
 Command Hub hidden from navigation
 ```
 
-## 🧪 Manual Test Checklist
+##  Manual Test Checklist
 
 ### PM/admin
 - [ ] Access `/admin` routes
@@ -146,13 +146,13 @@ Command Hub hidden from navigation
 - [ ] See 2 navigation tabs
 - [ ] Personal dashboard
 
-## 📞 Support
+##  Support
 
 **Documentation**: `docs/RBAC_TESTING.md`  
 **Implementation**: `docs/RBAC_IMPLEMENTATION_SUMMARY.md`  
 **Schema Check**: `node scripts/check-schema.js`
 
-## 🎉 Status
+##  Status
 
-✅ **PRODUCTION READY**  
+ **PRODUCTION READY**  
 All tests passing, full coverage, zero vulnerabilities

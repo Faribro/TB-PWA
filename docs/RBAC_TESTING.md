@@ -36,51 +36,51 @@ bun run test:rbac
 
 ```
 ═══════════════════════════════════════════════════════════════════════════
-🔐 RBAC TESTING SUITE - SAMADHAAN Health OS
+ RBAC TESTING SUITE - SAMADHAAN Health OS
 ═══════════════════════════════════════════════════════════════════════════
 
-📋 TEST: PM Role - National Access
+ TEST: PM Role - National Access
    Role: PM
    State: null (national)
    District: null
-   📊 Records returned: 10
-   ✅ PASSED
+    Records returned: 10
+    PASSED
 
-📋 TEST: Admin Role - National Access
+ TEST: Admin Role - National Access
    Role: admin
    State: null (national)
    District: null
-   📊 Records returned: 10
-   ✅ PASSED
+    Records returned: 10
+    PASSED
 
-📋 TEST: SPM Role - State Level Access
+ TEST: SPM Role - State Level Access
    Role: SPM
    State: Maharashtra
    District: null
-   📊 Records returned: 10
-   ✅ PASSED
+    Records returned: 10
+    PASSED
 
-📋 TEST: ME Role - State Level Access
+ TEST: ME Role - State Level Access
    Role: ME
    State: Maharashtra
    District: null
-   📊 Records returned: 10
-   ✅ PASSED
+    Records returned: 10
+    PASSED
 
-📋 TEST: PC Role - Own Submissions Only
+ TEST: PC Role - Own Submissions Only
    Role: PC
    State: Maharashtra
    District: Mumbai
    Staff Name: PC Test User
-   📊 Records returned: 0
-   ✅ PASSED
+    Records returned: 0
+    PASSED
 
 ═══════════════════════════════════════════════════════════════════════════
-📊 TEST SUMMARY
+ TEST SUMMARY
 ═══════════════════════════════════════════════════════════════════════════
 Total Tests:  5
-✅ Passed:    5
-❌ Failed:    0
+ Passed:    5
+ Failed:    0
 Success Rate: 100.0%
 ═══════════════════════════════════════════════════════════════════════════
 ```
@@ -119,74 +119,74 @@ bun run test:rbac-integration
 
 ```
 ═══════════════════════════════════════════════════════════════════════════
-🔐 RBAC INTEGRATION TEST SUITE
+ RBAC INTEGRATION TEST SUITE
 ═══════════════════════════════════════════════════════════════════════════
 
-📋 TEST 1: Middleware Admin Route Protection
-   ✅ Admin route protection: FOUND
-   ✅ SUPERUSER_ROLES check: FOUND
-   ✅ PC redirect logic: FOUND
-   ✅ PASSED
+ TEST 1: Middleware Admin Route Protection
+    Admin route protection: FOUND
+    SUPERUSER_ROLES check: FOUND
+    PC redirect logic: FOUND
+    PASSED
 
-📋 TEST 2: Session Scope Configuration
-   ✅ SUPERUSER_ROLES defined: PM, admin
-   ✅ State-level logic: SPM, ME
-   ✅ PC staffName filtering: FOUND
-   ✅ Correct column name (staff_name): FOUND
-   ✅ PASSED
+ TEST 2: Session Scope Configuration
+    SUPERUSER_ROLES defined: PM, admin
+    State-level logic: SPM, ME
+    PC staffName filtering: FOUND
+    Correct column name (staff_name): FOUND
+    PASSED
 
-📋 TEST 3: Dashboard Layout Navigation Filtering
-   ✅ TAB_CONFIG defined: FOUND
-   ✅ PC_TAB_CONFIG defined: FOUND
-   ✅ visibleTabs logic: FOUND
-   ✅ PASSED
+ TEST 3: Dashboard Layout Navigation Filtering
+    TAB_CONFIG defined: FOUND
+    PC_TAB_CONFIG defined: FOUND
+    visibleTabs logic: FOUND
+    PASSED
 
-📋 TEST 4: PC Dashboard Page
-   ✅ PC dashboard page: EXISTS
-   ✅ Stats cards: FOUND
-   ✅ Patient list: FOUND
-   ✅ Submit button: FOUND
-   ✅ PASSED
+ TEST 4: PC Dashboard Page
+    PC dashboard page: EXISTS
+    Stats cards: FOUND
+    Patient list: FOUND
+    Submit button: FOUND
+    PASSED
 
-📋 TEST 5: Admin Layout Authorization
-   ✅ Admin layout: EXISTS
-   ✅ SUPERUSER_ROLES check: FOUND
-   ✅ Unauthorized redirect: FOUND
-   ✅ PASSED
+ TEST 5: Admin Layout Authorization
+    Admin layout: EXISTS
+    SUPERUSER_ROLES check: FOUND
+    Unauthorized redirect: FOUND
+    PASSED
 
-📋 TEST 6: Command Hub Authorization
-   ✅ Command Hub page: EXISTS
-   ✅ Superuser check: FOUND
-   ✅ PASSED
+ TEST 6: Command Hub Authorization
+    Command Hub page: EXISTS
+    Superuser check: FOUND
+    PASSED
 
-📋 TEST 7: Impersonation System (Auth.ts)
-   ✅ Auth.ts: EXISTS
-   ✅ Impersonation system: FOUND
-   ✅ SUPERUSER_ROLES check: FOUND
-   ✅ PASSED
+ TEST 7: Impersonation System (Auth.ts)
+    Auth.ts: EXISTS
+    Impersonation system: FOUND
+    SUPERUSER_ROLES check: FOUND
+    PASSED
 
-📋 TEST 8: useSessionScope Hook
-   ✅ useSessionScope hook: EXISTS
-   ✅ SUPERUSER_ROLES constant: FOUND
-   ✅ staffName field: FOUND
-   ✅ PASSED
+ TEST 8: useSessionScope Hook
+    useSessionScope hook: EXISTS
+    SUPERUSER_ROLES constant: FOUND
+    staffName field: FOUND
+    PASSED
 
 ═══════════════════════════════════════════════════════════════════════════
-📊 INTEGRATION TEST SUMMARY
+ INTEGRATION TEST SUMMARY
 ═══════════════════════════════════════════════════════════════════════════
 Total Tests:  8
-✅ Passed:    8
-❌ Failed:    0
+ Passed:    8
+ Failed:    0
 Success Rate: 100.0%
 ═══════════════════════════════════════════════════════════════════════════
 
-🎉 ALL INTEGRATION TESTS PASSED!
+ ALL INTEGRATION TESTS PASSED!
 
 RBAC Implementation Summary:
-  ✅ PM/admin: National access, admin panel, impersonation
-  ✅ SPM: State-level access, bulk operations
-  ✅ ME: State-level access, no Command Hub
-  ✅ PC: Own submissions only, simplified dashboard
+   PM/admin: National access, admin panel, impersonation
+   SPM: State-level access, bulk operations
+   ME: State-level access, no Command Hub
+   PC: Own submissions only, simplified dashboard
 ```
 
 ---
@@ -211,34 +211,34 @@ SUPABASE_SERVICE_ROLE_KEY=<your_key> bun run test:rbac-all
 
 ### Superuser Roles (PM, admin)
 - **Data Access**: National (all states, all districts)
-- **Admin Panel**: ✅ Full access
-- **Command Hub**: ✅ Full access
-- **Impersonation**: ✅ Can impersonate other roles
-- **Bulk Operations**: ✅ Enabled
+- **Admin Panel**:  Full access
+- **Command Hub**:  Full access
+- **Impersonation**:  Can impersonate other roles
+- **Bulk Operations**:  Enabled
 - **Navigation**: 6 tabs (Command Hub, Vertex, Follow-up, M&E, GIS, Settings)
 
 ### State-Level Admin (SPM)
 - **Data Access**: State-level only (no district filtering)
-- **Admin Panel**: ❌ No access
-- **Command Hub**: ✅ Full access
-- **Impersonation**: ❌ Disabled
-- **Bulk Operations**: ✅ Enabled
+- **Admin Panel**:  No access
+- **Command Hub**:  Full access
+- **Impersonation**:  Disabled
+- **Bulk Operations**:  Enabled
 - **Navigation**: 6 tabs (Command Hub, Vertex, Follow-up, M&E, GIS, Settings)
 
 ### State-Level Read+Edit (ME)
 - **Data Access**: State-level only (no district filtering)
-- **Admin Panel**: ❌ No access
-- **Command Hub**: ❌ Hidden from navigation
-- **Impersonation**: ❌ Disabled
-- **Bulk Operations**: ❌ Disabled
+- **Admin Panel**:  No access
+- **Command Hub**:  Hidden from navigation
+- **Impersonation**:  Disabled
+- **Bulk Operations**:  Disabled
 - **Navigation**: 5 tabs (Vertex, Follow-up, M&E, GIS, Settings)
 
 ### Program Coordinator (PC)
 - **Data Access**: Own submissions only (filtered by staff_name)
-- **Admin Panel**: ❌ No access
-- **Command Hub**: ❌ Redirected to My Submissions
-- **Impersonation**: ❌ Disabled
-- **Bulk Operations**: ❌ Disabled
+- **Admin Panel**:  No access
+- **Command Hub**:  Redirected to My Submissions
+- **Impersonation**:  Disabled
+- **Bulk Operations**:  Disabled
 - **Navigation**: 2 tabs (My Work, Settings)
 - **Dashboard**: Simplified personal dashboard at `/dashboard/my-submissions`
 
@@ -397,14 +397,14 @@ Add to GitHub Actions workflow:
 
 | Component | Coverage |
 |-----------|----------|
-| Data Access | ✅ 100% (5/5 roles tested) |
-| Middleware | ✅ 100% (admin protection, PC redirect) |
-| Session Scope | ✅ 100% (all role logic) |
-| Navigation | ✅ 100% (TAB_CONFIG filtering) |
-| Dashboards | ✅ 100% (PC dashboard exists) |
-| Authorization | ✅ 100% (admin layout, command hub) |
-| Impersonation | ✅ 100% (auth.ts system) |
-| Hooks | ✅ 100% (useSessionScope) |
+| Data Access |  100% (5/5 roles tested) |
+| Middleware |  100% (admin protection, PC redirect) |
+| Session Scope |  100% (all role logic) |
+| Navigation |  100% (TAB_CONFIG filtering) |
+| Dashboards |  100% (PC dashboard exists) |
+| Authorization |  100% (admin layout, command hub) |
+| Impersonation |  100% (auth.ts system) |
+| Hooks |  100% (useSessionScope) |
 
 **Overall Coverage**: 13/13 tests passing (100%)
 

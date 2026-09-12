@@ -1,11 +1,11 @@
 # Vercel Environment Variables Setup Guide
 
-## 🚀 Quick Setup via Vercel Dashboard
+##  Quick Setup via Vercel Dashboard
 
 ### Step 1: Access Environment Variables
 1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
 2. Select your project: **hhxr-tb-engine**
-3. Click **Settings** → **Environment Variables**
+3. Click **Settings**  **Environment Variables**
 
 ### Step 2: Add Variables (Copy-Paste Ready)
 
@@ -13,7 +13,7 @@
 
 ---
 
-## 📋 Core Application Variables
+##  Core Application Variables
 
 ### Supabase Configuration
 ```
@@ -43,7 +43,7 @@ GOOGLE_CLIENT_SECRET=your_oauth_client_secret
 
 ---
 
-## 🔥 QStash Configuration (CRITICAL FOR SHEETS SYNC)
+##  QStash Configuration (CRITICAL FOR SHEETS SYNC)
 
 ```
 QSTASH_URL=https://qstash-us-east-1.upstash.io
@@ -54,7 +54,7 @@ QSTASH_NEXT_SIGNING_KEY=sig_6LReUmaTGHpiAHRn9fTWpibd6Fcf
 
 ---
 
-## 📊 Upstash Redis Configuration
+##  Upstash Redis Configuration
 
 ### Performance Cache
 ```
@@ -69,7 +69,7 @@ REDIS_URL=redis://default:AZLgASQgNzJkNzY4YzQtMzE0Zi00YzE5LWI3YzAtMzE0ZjRjMTliN2
 
 ---
 
-## 🤖 AI Configuration
+##  AI Configuration
 
 ### OpenRouter API Keys (10 keys for rotation)
 ```
@@ -101,7 +101,7 @@ GOOGLE_GENERATIVE_AI_API_KEY_2=your_actual_key_2
 
 ---
 
-## 📈 Analytics & Monitoring
+##  Analytics & Monitoring
 
 ### PostHog Analytics
 ```
@@ -117,7 +117,7 @@ SENTRY_AUTH_TOKEN=your_sentry_auth_token
 
 ---
 
-## 📄 Google Sheets Integration
+##  Google Sheets Integration
 
 ```
 GOOGLE_SCRIPT_WEBHOOK_URL=https://script.google.com/macros/s/AKfycbyBwLUKiFDY-eLdNOIzNZRsyem0rWiTA6IvelapBjHg8sGdtkTuhQs2hGbXrydeUZSu/exec
@@ -126,7 +126,7 @@ ENABLE_SHEETS_SYNC=true
 
 ---
 
-## 🎤 VAPI Voice Assistant (Optional)
+##  VAPI Voice Assistant (Optional)
 
 ```
 NEXT_PUBLIC_VAPI_PUBLIC_KEY=your_vapi_public_key
@@ -136,7 +136,7 @@ NEXT_PUBLIC_VAPI_ASSISTANT_ID=your_assistant_id
 
 ---
 
-## ☁️ Azure Services (Optional)
+##  Azure Services (Optional)
 
 ### Azure Blob Storage
 ```
@@ -153,7 +153,7 @@ AZURE_COMPUTER_VISION_KEY=your_computer_vision_key
 
 ---
 
-## 📦 KoboToolbox ETL (Optional)
+##  KoboToolbox ETL (Optional)
 
 ```
 KOBO_API_URL=your_kobo_api_url
@@ -164,7 +164,7 @@ KOBO_WEBHOOK_SECRET=alliance_kobo_secure_2026
 
 ---
 
-## 🚀 Alternative: Bulk Import via Vercel CLI
+##  Alternative: Bulk Import via Vercel CLI
 
 ### Step 1: Install Vercel CLI
 ```bash
@@ -197,7 +197,7 @@ vercel env add QSTASH_NEXT_SIGNING_KEY production
 
 ---
 
-## ✅ Verification Checklist
+##  Verification Checklist
 
 After adding all variables:
 
@@ -215,12 +215,12 @@ After adding all variables:
    - [ ] AI features work (OpenRouter/Gemini)
 
 3. **Check Logs**
-   - Go to Deployments → Click deployment → View Function Logs
+   - Go to Deployments  Click deployment  View Function Logs
    - Look for any missing environment variable errors
 
 ---
 
-## 🔒 Security Best Practices
+##  Security Best Practices
 
 1. **Never commit `.env.local` or `.env.production` to Git**
 2. **Rotate secrets regularly** (every 90 days)
@@ -230,7 +230,7 @@ After adding all variables:
 
 ---
 
-## 🐛 Troubleshooting
+##  Troubleshooting
 
 ### Issue: "Environment variable not found"
 **Solution:** Make sure variable is added to ALL environments (Production, Preview, Development)
@@ -255,7 +255,7 @@ After adding all variables:
 
 ---
 
-## 📞 Support
+##  Support
 
 - **Vercel Docs:** https://vercel.com/docs/environment-variables
 - **Upstash QStash:** https://upstash.com/docs/qstash

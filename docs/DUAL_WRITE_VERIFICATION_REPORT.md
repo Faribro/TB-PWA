@@ -2,13 +2,13 @@
 
 ## Test Results
 
-### ✅ Supabase Write: VERIFIED
+###  Supabase Write: VERIFIED
 - Direct insert/update to `patients` table works correctly
 - Test patient created successfully with ID: `ab019907-5bc4-4ee2-b858-0118bac9983c`
 - Screening date correctly set from session context (not current date)
 - Duplicate detection working (checks name+age+mobile for same date)
 
-### ❌ Google Sheets Write: FAILED
+###  Google Sheets Write: FAILED
 - Google Apps Script URL returns 404
 - Current implementation uses wrong environment variable
 - Sheets sync is delegated, not directly executed
@@ -18,16 +18,16 @@
 ### File: `app/api/register-reconcile/route.ts`
 
 **What It Does:**
-1. ✅ Validates scope context (date, facility, district, state)
-2. ✅ Enforces empty-scope rules (no "accept" when scope is empty)
-3. ✅ Processes decisions:
+1.  Validates scope context (date, facility, district, state)
+2.  Enforces empty-scope rules (no "accept" when scope is empty)
+3.  Processes decisions:
    - **accept**: Updates existing patient in Supabase
    - **create**: Inserts new patient in Supabase with session date
    - **reject**: Skips row (audit only)
-4. ✅ Duplicate detection: Checks if name+age already exists for that date
-5. ⚠️ Triggers Google Sheets sync via `GOOGLE_APPSCRIPT_URL`
-6. ✅ Logs AI feedback for learning
-7. ✅ Returns commit result with both DB and Sheets status
+4.  Duplicate detection: Checks if name+age already exists for that date
+5.  Triggers Google Sheets sync via `GOOGLE_APPSCRIPT_URL`
+6.  Logs AI feedback for learning
+7.  Returns commit result with both DB and Sheets status
 
 **Current Sheets Sync Code (Lines 428-453):**
 ```typescript
@@ -70,14 +70,14 @@ GOOGLE_SCRIPT_WEBHOOK_URL=https://script.google.com/macros/s/AKfycby3f0PRiH-Gp8d
 ### Issue 2: Indirect Sheets Write
 **Problem:** Sheets sync is delegated to Google Apps Script, not directly executed
 **Current Flow:**
-1. Insert to Supabase ✅
-2. Send `TRIGGER_SYNC` action to Apps Script ⚠️
-3. Apps Script must poll Supabase and append to Sheets ❓
+1. Insert to Supabase 
+2. Send `TRIGGER_SYNC` action to Apps Script 
+3. Apps Script must poll Supabase and append to Sheets 
 
 **Expected Flow:**
-1. Insert to Supabase ✅
-2. Directly append same data to Google Sheets ✅
-3. Both writes in one backend flow ✅
+1. Insert to Supabase 
+2. Directly append same data to Google Sheets 
+3. Both writes in one backend flow 
 
 ### Issue 3: No Direct Row Append
 **Problem:** The code doesn't send the actual patient data to Sheets
@@ -189,9 +189,9 @@ npx tsx --env-file=.env.local tests/test-register-reconcile-dual-write.ts
 ## Conclusion
 
 **Current State:**
-- ✅ Supabase write: Production ready
-- ⚠️ Sheets write: Delegated (not verified)
-- ⚠️ Dual-write: Not atomic
+-  Supabase write: Production ready
+-  Sheets write: Delegated (not verified)
+-  Dual-write: Not atomic
 
 **Required Changes:**
 1. Fix environment variable name

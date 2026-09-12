@@ -1,101 +1,64 @@
-/**
- * Test Fire-and-Forget Sheets Sync
- * 
- * Tests the new syncToSheetsAsync() function to ensure:
- * 1. It returns immediately without blocking
- * 2. It never throws errors
- * 3. It logs success/failure appropriately
- */
+import { prisma } from '../lib/prisma';
+import { appendPatientToSheets, flushSheetsQueue } from '../lib/sheetsSync';
 
-import { syncToSheetsAsync } from '../lib/sheetsSync';
+async function testSync() {
+  console.log('🧪 Testing Google Sheets Push Sync...');
 
-console.log('═══════════════════════════════════════════════════════════════════════════');
-console.log('🧪 TESTING FIRE-AND-FORGET SHEETS SYNC');
-console.log('═══════════════════════════════════════════════════════════════════════════\n');
+  // 1. Create a test patient record in DB
+  const testPatient = await prisma.patients.create({
+    data: {
+      unique_id: `MH-TEST-${Date.now()}`,
+      inmate_name: 'Aarav Sharma (Test Sync)',
+      screening_state: 'Maharashtra',
+      screening_district: 'Pune',
+      facility_name: 'Yerwada Central Prison',
+      facility_type: 'Prison',
+      screening_date: new Date(),
+      age: 34,
+      sex: 'Male',
+      contact_number: '9876543210',
+      address: 'Yerwada, Pune, Maharashtra',
+      xray_result: 'Normal',
+      symptoms_present: 'No Symptoms',
+      hiv_status: 'Negative',
+      staff_name: 'Alliance Test Staff',
+    },
+  });
 
-// Test patient record
-const testPatient = {
-  id: 'test-123',
-  kobo_uuid: 'test-uuid-456',
-  unique_id: 'TEST001',
-  inmate_name: 'Test Patient',
-  age: 35,
-  sex: 'M',
-  screening_state: 'Maharashtra',
-  screening_district: 'Mumbai',
-  facility_name: 'Test Facility',
-  screening_date: '2025-01-27',
-  xray_result: 'Normal',
-  tb_diagnosed: 'N',
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString()
-};
+  console.log(`✅ Created patient in DB: ${testPatient.id} (${testPatient.unique_id})`);
 
-console.log('📋 Test Patient Record:');
-console.log(JSON.stringify(testPatient, null, 2));
-console.log();
+  // 2. Queue for sheets sync
+  console.log('📤 Queueing patient for sheets sync...');
+  await appendPatientToSheets(testPatient);
 
-// Test 1: Insert operation
-console.log('🔄 TEST 1: Fire-and-forget INSERT');
-console.log('Calling syncToSheetsAsync(patient, "insert")...');
-const startTime1 = Date.now();
+  // 3. Flush queue immediately
+  console.log('🚀 Flushing queue...');
+  await flushSheetsQueue();
 
-try {
-  syncToSheetsAsync(testPatient, 'insert');
-  const duration1 = Date.now() - startTime1;
-  console.log(`✅ Function returned immediately in ${duration1}ms`);
-  console.log('✅ No errors thrown (fire-and-forget working)');
-} catch (error) {
-  console.error('❌ FAILED: Function threw an error:', error);
-}
-console.log();
+  // 4. Verify DB was updated with sync confirmation
+  const updated = await prisma.patients.findUnique({
+    where: { id: testPatient.id },
+  });
 
-// Test 2: Update operation
-console.log('🔄 TEST 2: Fire-and-forget UPDATE');
-console.log('Calling syncToSheetsAsync(patient, "update")...');
-const startTime2 = Date.now();
+  console.log('📊 Verification from PostgreSQL:');
+  console.log(`   synced_to_sheets: ${updated?.synced_to_sheets}`);
+  console.log(`   sheets_synced_at: ${updated?.sheets_synced_at}`);
+  console.log(`   sheet_row_number: ${updated?.sheet_row_number}`);
+  console.log(`   sheet_tab_name: ${updated?.sheet_tab_name}`);
+  console.log(`   spreadsheet_id: ${updated?.spreadsheet_id}`);
 
-try {
-  syncToSheetsAsync(testPatient, 'update');
-  const duration2 = Date.now() - startTime2;
-  console.log(`✅ Function returned immediately in ${duration2}ms`);
-  console.log('✅ No errors thrown (fire-and-forget working)');
-} catch (error) {
-  console.error('❌ FAILED: Function threw an error:', error);
-}
-console.log();
-
-// Test 3: Missing webhook URL (should not throw)
-console.log('🔄 TEST 3: Missing webhook URL (should gracefully skip)');
-const originalWebhook = process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
-delete process.env.GOOGLE_SCRIPT_WEBHOOK_URL;
-
-try {
-  syncToSheetsAsync(testPatient, 'insert');
-  console.log('✅ Function handled missing webhook gracefully');
-} catch (error) {
-  console.error('❌ FAILED: Function threw an error:', error);
+  if (updated?.synced_to_sheets) {
+    console.log('\n🎉 Push Sync Test PASSED! Record written to Google Sheets & PostgreSQL.');
+  } else {
+    throw new Error('Sync failed to record in DB');
+  }
 }
 
-// Restore webhook URL
-process.env.GOOGLE_SCRIPT_WEBHOOK_URL = originalWebhook;
-console.log();
-
-console.log('═══════════════════════════════════════════════════════════════════════════');
-console.log('📊 TEST SUMMARY');
-console.log('═══════════════════════════════════════════════════════════════════════════');
-console.log('✅ All tests passed - fire-and-forget sync is working correctly');
-console.log('✅ Function returns immediately (non-blocking)');
-console.log('✅ No errors thrown to caller');
-console.log('✅ Gracefully handles missing configuration');
-console.log();
-console.log('⏳ Wait 5-10 seconds and check console logs for async webhook results...');
-console.log('   Look for: "[sheetsSync] ✅ Mirror sync insert/update: test-uuid-456"');
-console.log('   Or:       "[sheetsSync] ❌ Mirror sync error: ..."');
-console.log();
-
-// Keep process alive for 10 seconds to see async results
-setTimeout(() => {
-  console.log('🏁 Test complete. Exiting...');
-  process.exit(0);
-}, 10000);
+testSync()
+  .catch((err) => {
+    console.error('❌ Test failed:', err);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

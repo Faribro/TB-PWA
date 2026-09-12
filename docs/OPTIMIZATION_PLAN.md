@@ -3,7 +3,7 @@
 
 ---
 
-## 🎯 Executive Summary
+##  Executive Summary
 
 Current state: **Production-ready, functionally correct**  
 Optimization goal: **Enterprise-grade performance, observability, and resilience**
@@ -42,8 +42,8 @@ WHERE contact_number IS NOT NULL;
 ```
 
 **Expected Impact**: 
-- Scoped candidate fetch: 500ms → 50ms (10× faster)
-- Name fuzzy matching: 200ms → 20ms (10× faster)
+- Scoped candidate fetch: 500ms  50ms (10× faster)
+- Name fuzzy matching: 200ms  20ms (10× faster)
 
 ---
 
@@ -78,14 +78,14 @@ for (const batch of batches) {
 ```
 
 **Expected Impact**:
-- 100 row insert: 30s → 3s (10× faster)
+- 100 row insert: 30s  3s (10× faster)
 - Reduced DB connection overhead by 90%
 
 ---
 
 ### 1.3 Parallel Extraction & Matching
 
-**Current Issue**: Sequential pipeline (extract → match → classify)
+**Current Issue**: Sequential pipeline (extract  match  classify)
 ```typescript
 // Current: Sequential
 const extractionResult = await extractFromSpreadsheet(buffer, filename);
@@ -108,7 +108,7 @@ const matchResults = await Promise.all(
 ```
 
 **Expected Impact**:
-- Total extraction time: 5s → 2s (2.5× faster)
+- Total extraction time: 5s  2s (2.5× faster)
 - Better CPU utilization
 
 ---
@@ -136,7 +136,7 @@ return candidates;
 - Manual cache clear via admin panel
 
 **Expected Impact**:
-- Repeated extractions for same scope: 2s → 200ms (10× faster)
+- Repeated extractions for same scope: 2s  200ms (10× faster)
 
 ---
 
@@ -450,7 +450,7 @@ const { data } = await supabase.rpc('custom_query', {
 });
 
 // Never do this:
-// const query = `SELECT * FROM patients WHERE screening_date = '${screeningDate}'`; // ❌ UNSAFE
+// const query = `SELECT * FROM patients WHERE screening_date = '${screeningDate}'`; //  UNSAFE
 ```
 
 ---
@@ -623,40 +623,40 @@ paths:
 ## 6. Implementation Priority
 
 ### Phase 1: Quick Wins (1-2 weeks)
-1. ✅ Add database indexes (1 day)
-2. ✅ Implement structured logging with correlation IDs (2 days)
-3. ✅ Add Zod validation (2 days)
-4. ✅ Implement rate limiting (1 day)
-5. ✅ Add circuit breaker for Sheets sync (2 days)
+1.  Add database indexes (1 day)
+2.  Implement structured logging with correlation IDs (2 days)
+3.  Add Zod validation (2 days)
+4.  Implement rate limiting (1 day)
+5.  Add circuit breaker for Sheets sync (2 days)
 
 **Expected Impact**: 50% latency reduction, 90% fewer production errors
 
 ---
 
 ### Phase 2: Performance (2-3 weeks)
-1. ✅ Batch processing for large uploads (3 days)
-2. ✅ Parallel extraction & matching (4 days)
-3. ✅ Redis caching for scoped candidates (3 days)
-4. ✅ Idempotency keys (2 days)
+1.  Batch processing for large uploads (3 days)
+2.  Parallel extraction & matching (4 days)
+3.  Redis caching for scoped candidates (3 days)
+4.  Idempotency keys (2 days)
 
 **Expected Impact**: 10× faster for large uploads, zero duplicate submissions
 
 ---
 
 ### Phase 3: Observability (2 weeks)
-1. ✅ OpenTelemetry integration (5 days)
-2. ✅ Sentry context enrichment (2 days)
-3. ✅ Metrics dashboard (Grafana/Datadog) (3 days)
+1.  OpenTelemetry integration (5 days)
+2.  Sentry context enrichment (2 days)
+3.  Metrics dashboard (Grafana/Datadog) (3 days)
 
 **Expected Impact**: 80% faster incident resolution, proactive alerting
 
 ---
 
 ### Phase 4: Architecture (3-4 weeks)
-1. ✅ Extract service layer (5 days)
-2. ✅ Unit test coverage (5 days)
-3. ✅ OpenAPI documentation (3 days)
-4. ✅ Integration tests (5 days)
+1.  Extract service layer (5 days)
+2.  Unit test coverage (5 days)
+3.  OpenAPI documentation (3 days)
+4.  Integration tests (5 days)
 
 **Expected Impact**: 90% test coverage, easier onboarding for new developers
 
@@ -695,9 +695,9 @@ paths:
 - **Total**: ~$95/month
 
 ### Optimized Costs
-- Add Redis caching → Reduce Supabase queries by 60% → Stay on Pro plan
-- Batch inserts → Reduce connection overhead → No upgrade needed
-- Circuit breaker → Prevent cascade failures → Reduce error-related costs
+- Add Redis caching  Reduce Supabase queries by 60%  Stay on Pro plan
+- Batch inserts  Reduce connection overhead  No upgrade needed
+- Circuit breaker  Prevent cascade failures  Reduce error-related costs
 
 **Projected Savings**: $0 (stay within current tier limits)
 **Projected Performance Gain**: 5-10× faster
